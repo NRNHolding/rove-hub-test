@@ -664,6 +664,8 @@ const EN_RULES=[
 
 /* Kamus persis. Kunci = teks Indonesia apa adanya yang muncul di layar. */
 const EN={
+'Jenis order':'Order type',
+'JENIS ORDER':'ORDER TYPE','DARI KATALOG':'FROM THE CATALOGUE','CUSTOM — TULIS APA ADANYA':'CUSTOM — JUST WRITE IT DOWN','＋ Pilih produk dari katalog':'＋ Pick products from the catalogue','▾ Tutup daftar katalog':'▾ Close the catalogue list','Collateral untuk produk ini':'Collateral for this product','jenis belum dipilih':'type not chosen yet','belum diisi':'nothing filled in yet','→ Kirim ke Inquiry':'→ Send to Inquiry',
 '◇ Prospek':'◇ Leads','Belum ada prospek aktif.':'No active leads yet.','brief kosong':'brief empty','belum disebut':'not stated yet',
 'RINGKASAN DARI PROSPEK':'FROM THE LEAD','Belum diterjemahkan jadi spesifikasi:':'Not yet turned into a specification:','Semua yang diminta client sudah punya spesifikasi.':'Everything the client asked for now has a specification.','Catatan lain':'Other notes','tidak dipakai':'not used',
 'Brief singkat untuk PM':'Short brief for the PM','— centang & tulis sekenanya, boleh dikosongkan':'\u2014 tick and jot; leaving it empty is fine','Produk utama':'Main product','Personalisasi':'Personalisation','kata client apa adanya — mis. pokoknya elegant, warna earth tone':'the client\u2019s own words \u2014 e.g. wants it elegant, earth tones',
@@ -1062,7 +1064,7 @@ const EN={
 'di SO-D — itu rumus.':'in SO-D — those are formulas.',
 'Instagram Insights / TikTok Analytics':'Instagram Insights / TikTok Analytics',
 
-'Order Management':'Order Management','Tugas saya':'My tasks','Pipeline':'Pipeline','Tugas':'Tasks','Prospek':'Leads','Pajak':'Tax','Konten':'Content',
+'Order Management':'Order Management','Tugas saya':'My tasks','Pipeline':'Pipeline','Tugas':'Tasks','Prospek':'Leads','Semua prospek aktif perlu ditindaklanjuti tiap hari':'Every active lead needs a follow-up each day','masuk hari ini':'came in today','Pajak':'Tax','Konten':'Content',
 'Karyawan':'Employees','Pembelian':'Purchasing','Gudang':'Warehouse','Order baru':'New order',
 'Live service':'Live service','Laporan':'Reports','Master data':'Master data','Laporan & Evaluasi':'Reports & Review',
 'PROTOTYPE · data lokal':'PROTOTYPE · local data','JABATAN':'ROLE','Ganti jabatan':'Switch role','Keluar':'Log out',
@@ -1174,8 +1176,8 @@ const EN={
 '💡 Rekap otomatis dari semua order —':'💡 Automatic recap across all orders —',
 'tak perlu input apa pun di sini':'nothing to enter here',
 /* --- prospek --- */
-'Prospek':'Leads','＋ Prospek baru':'＋ New lead','Follow-up':'Follow-up','Follow-up berikutnya':'Next follow-up',
-'→ Jadikan order':'→ Convert to order','Jadi order':'Converted','Minat produk':'Product interest','Kanal':'Channel',
+'Prospek':'Leads','＋ Prospek baru':'＋ New lead','Follow-up':'Follow-up',
+'Jadi order':'Converted','Minat produk':'Product interest','Kanal':'Channel',
 'Estimasi nilai':'Estimated value','PROSPEK AKTIF':'ACTIVE LEADS','KONVERSI':'CONVERSION','Konversi':'Conversion',
 'Channel prospek':'Lead channel','Ditanggapi':'Responded','belum jadi order':'not yet an order',
 '💡 Calon client yang':'💡 Prospective clients that are',
@@ -1749,36 +1751,138 @@ function leadSpekBuka(id){ST._lspek=ST._lspek||{};ST._lspek[id]=!ST._lspek[id];r
 /* Kalimat ringkas untuk dibaca PM — dipakai di kartu prospek & ringkasan order. */
 function leadSpecRingkas(l){
   var out=[];
+  leadItems(l).forEach(function(it){
+    var c=PACK_TIPE.map(function(pt){var x=(it.coll||{})[pt[0]];
+      return (x&&x.ada)?(pt[1]+(x.note?(' ('+x.note+')'):'')):'';}).filter(Boolean).join(', ');
+    out.push(it.nama+(it.qty?(' '+it.qty+'pcs'):'')+(it.note?(': '+it.note):'')+(c?(' — collateral: '+c):''));});
   LEAD_SEK.forEach(function(x){var k=x[0],s=leadSpec(l,k);
     if(!leadSekIsi(l,k))return;
     var isi=[s.nada.join(', '),s.note].filter(Boolean).join(' — ');
     out.push(x[1]+(s.ada?'':' (tidak dipakai)')+(isi?(': '+isi):''));});
   return out;}
 
+
+/* ---- item katalog di prospek ---- */
+const LEAD_JENIS=['Katalog','Custom','Mix'];
+function leadItems(l){if(!Array.isArray(l.items))l.items=[];return l.items;}
+function leadJenisSet(id,v){
+  var l=leadsAll().find(function(x){return x.id===id;});if(!l)return;
+  l.jenis=v;l._m=Date.now();saveLeads();render();}
+function leadItemAdd(id,nama,img){
+  var l=leadsAll().find(function(x){return x.id===id;});if(!l)return;
+  var I=leadItems(l);
+  if(I.some(function(x){return x.nama===nama;})){alert('"'+nama+'" sudah ada di daftar.');return;}
+  I.push({nama:nama,img:img||'',qty:0,note:'',coll:{}});
+  l._m=Date.now();saveLeads();render();}
+function leadItemDel(id,i){
+  var l=leadsAll().find(function(x){return x.id===id;});if(!l)return;
+  leadItems(l).splice(i,1);l._m=Date.now();saveLeads();render();}
+function leadItemSet(id,i,f,v){
+  var l=leadsAll().find(function(x){return x.id===id;});if(!l)return;
+  var it=leadItems(l)[i];if(!it)return;
+  it[f]=(f==='qty')?(+v||0):v;l._m=Date.now();saveLeads();
+  if(f!=='note')render();}
+function leadItemColl(l,i,k){var it=leadItems(l)[i];if(!it)return {ada:false,note:''};
+  if(!it.coll)it.coll={};if(!it.coll[k])it.coll[k]={ada:false,note:''};return it.coll[k];}
+function leadItemCollSet(id,i,k,f,v){
+  var l=leadsAll().find(function(x){return x.id===id;});if(!l)return;
+  var c=leadItemColl(l,i,k);
+  var perawan=!c.ada&&!c.note;
+  c[f]=v;if(f==='note'&&v&&perawan)c.ada=true;
+  l._m=Date.now();saveLeads();
+  if(f!=='note')render();}
+function leadKatBuka(id){ST._lkat=ST._lkat||{};ST._lkat[id]=!ST._lkat[id];render();}
+
+/* ---- tampilan ---- */
+function leadPilihJenis(l){
+  return '<div style="display:flex;flex-wrap:wrap;gap:7px;margin:9px 0 0">'+
+    LEAD_JENIS.map(function(j){var on=(l.jenis===j);
+      return '<button onclick="leadJenisSet(\''+l.id+'\',\''+(on?'':j)+'\')" style="flex:1;min-width:96px;border:1px solid '+
+        (on?'var(--brand)':'var(--hubline)')+';background:'+(on?'var(--brand)':'transparent')+
+        ';color:'+(on?'#fff':'var(--muted)')+';border-radius:9px;padding:8px 10px;font-size:11px;font-weight:800;cursor:pointer">'+
+        esc(j)+'</button>';}).join('')+'</div>'+
+    (l.jenis?'':'<div style="font-size:10px;color:var(--muted);margin-top:7px;line-height:1.55">Pilih jenisnya dulu — isian berikutnya menyesuaikan. Katalog menampilkan produk yang sudah ada, custom cukup ditulis apa adanya.</div>');}
+
+function leadKatalogBlok(l){
+  var I=leadItems(l),K=catalog()||[];
+  var buka=(ST._lkat||{})[l.id];
+  var daftar=I.map(function(it,i){
+    return '<div style="border:1px solid var(--line);border-radius:9px;padding:9px 11px;margin-bottom:8px;background:var(--bg)">'+
+      '<div style="display:flex;align-items:center;gap:8px">'+
+        (it.img?imgTag(it.img,'width:30px;height:30px;object-fit:cover;border-radius:6px;border:1px solid var(--line);flex:none'):'')+
+        '<b style="font-size:11.5px;flex:1;min-width:0">'+esc(it.nama)+'</b>'+
+        '<label style="font-size:10px;color:var(--muted)">Qty <input class="pin n" type="number" style="width:72px;display:inline-block" value="'+(it.qty||0)+'" onchange="leadItemSet(\''+l.id+'\','+i+',\'qty\',this.value)"></label>'+
+        '<button class="xrow" onclick="leadItemDel(\''+l.id+'\','+i+')">✕</button></div>'+
+      '<input class="pin" style="font-size:11px;margin-top:7px" value="'+esc(it.note||'')+'" placeholder="maunya client untuk produk ini — mis. warna earth tone, jangan mengkilap" onchange="leadItemSet(\''+l.id+'\','+i+',\'note\',this.value)">'+
+      '<div style="font-size:9.5px;color:var(--muted);margin:9px 0 5px;font-weight:700">Collateral untuk produk ini</div>'+
+      PACK_TIPE.map(function(pt){var k=pt[0],c=leadItemColl(l,i,k);
+        return '<div style="display:flex;gap:7px;align-items:center;margin-bottom:5px">'+
+          '<label style="display:flex;align-items:center;gap:5px;font-size:10.5px;font-weight:700;min-width:118px;cursor:pointer">'+
+            '<input type="checkbox" '+(c.ada?'checked':'')+' onchange="leadItemCollSet(\''+l.id+'\','+i+',\''+k+'\',\'ada\',this.checked)">'+esc(pt[1])+'</label>'+
+          '<input class="pin" style="font-size:10.5px;flex:1" value="'+esc(c.note||'')+'" placeholder="mis. yang kokoh, jangan tipis" onchange="leadItemCollSet(\''+l.id+'\','+i+',\''+k+'\',\'note\',this.value)">'+
+        '</div>';}).join('')+
+    '</div>';}).join('');
+  var pilihan=!buka?'':
+    '<div style="max-height:210px;overflow:auto;border:1px solid var(--hubline);border-radius:9px;padding:7px;margin-bottom:8px">'+
+      (K.length?K.map(function(c){
+        return '<button onclick="leadItemAdd(\''+l.id+'\',\''+String(c.name||'').replace(/'/g,"\\'")+'\',\''+String(c.img||'')+'\')" '+
+          'style="display:flex;align-items:center;gap:8px;width:100%;text-align:left;background:none;border:none;border-bottom:1px solid var(--line);padding:6px 4px;cursor:pointer;color:var(--txt)">'+
+          (c.img?imgTag(c.img,'width:26px;height:26px;object-fit:cover;border-radius:5px;flex:none'):'')+
+          '<span style="font-size:11px;font-weight:700">'+esc(c.name)+'</span>'+
+          '<span style="font-size:9.5px;color:var(--muted);margin-left:auto">'+esc(c.material||'')+'</span></button>';}).join('')
+        :'<div style="font-size:10.5px;color:var(--warn);padding:6px">Katalog masih kosong. Isi di Master data → Master Product, atau tarik dari Cost Estimator.</div>')+
+    '</div>';
+  return '<div style="margin-top:11px">'+
+    '<div style="font-size:9.5px;font-weight:800;color:var(--brand);letter-spacing:.04em;margin-bottom:7px">DARI KATALOG'+
+      (I.length?(' <span style="color:var(--muted);font-weight:400">— '+I.length+' produk dipilih</span>'):'')+'</div>'+
+    daftar+
+    '<button class="btn ghost sm" style="width:100%;font-size:10.5px" onclick="leadKatBuka(\''+l.id+'\')">'+
+      (buka?'▾ Tutup daftar katalog':'＋ Pilih produk dari katalog')+'</button>'+
+    pilihan+'</div>';}
+
+function leadRawBlok(l){
+  return '<div style="margin-top:11px">'+
+    '<div style="font-size:9.5px;font-weight:800;color:var(--brand);letter-spacing:.04em;margin-bottom:3px">CUSTOM — TULIS APA ADANYA</div>'+
+    '<div style="font-size:10px;color:var(--muted);margin-bottom:7px;line-height:1.55">Belum ada produknya, jadi tulis saja kata client. PM yang menerjemahkannya jadi bahan &amp; ukuran.</div>'+
+    LEAD_SEK.map(function(x){var k=x[0],s=leadSpec(l,k);
+      return '<div style="border-top:1px dashed var(--line);padding:8px 0">'+
+        '<label style="display:flex;align-items:center;gap:7px;font-size:11px;font-weight:800;cursor:pointer">'+
+          '<input type="checkbox" '+(s.ada?'checked':'')+' onchange="leadSpecSet(\''+l.id+'\',\''+k+'\',\'ada\',this.checked)">'+
+          esc(x[1])+'</label>'+
+        '<div style="display:flex;flex-wrap:wrap;gap:5px;margin:6px 0 5px">'+
+          LEAD_NADA.map(function(nd){var on=s.nada.indexOf(nd)>=0;
+            return '<button onclick="leadNadaToggle(\''+l.id+'\',\''+k+'\',\''+nd+'\')" style="border:1px solid '+(on?'var(--gold)':'var(--hubline)')+
+              ';background:'+(on?'var(--gold)':'transparent')+';color:'+(on?'#2b1d0e':'var(--muted)')+
+              ';border-radius:20px;padding:3px 10px;font-size:10px;font-weight:700;cursor:pointer">'+esc(nd)+'</button>';}).join('')+
+        '</div>'+
+        '<input class="pin" style="font-size:11px" value="'+esc(s.note)+'" placeholder="kata client apa adanya — mis. pokoknya elegant, warna earth tone"'+
+          ' onchange="leadSpecSet(\''+l.id+'\',\''+k+'\',\'note\',this.value)">'+
+      '</div>';}).join('')+'</div>';}
+
+/* Berapa bagian yang sudah terisi — dipakai badge di kartu papan. */
+function leadIsiN(l){
+  if(l.jenis==='Katalog')return leadItems(l).length;
+  if(l.jenis==='Mix')return leadItems(l).length+leadSpecN(l);
+  return leadSpecN(l);}
+function leadIsiKet(l){
+  if(!l.jenis)return 'jenis belum dipilih';
+  var n=leadIsiN(l);
+  if(l.jenis==='Katalog')return n?(n+' produk'):'belum ada produk';
+  if(l.jenis==='Mix')return n?(leadItems(l).length+' produk · '+leadSpecN(l)+' catatan'):'belum diisi';
+  return n?(n+'/'+LEAD_SEK.length+' bagian'):'belum diisi';}
+
 function leadSpekBlok(l){
-  var buka=(ST._lspek||{})[l.id],n=leadSpecN(l);
+  var buka=(ST._lspek||{})[l.id];
   var kepala='<button class="btn ghost sm" style="margin-top:9px;width:100%;text-align:left;font-size:10.5px" onclick="leadSpekBuka(\''+l.id+'\')">'+
     (buka?'▾':'▸')+' Brief singkat untuk PM'+
-    '<span style="color:'+(n?'var(--ok)':'var(--muted)')+';font-weight:800;margin-left:6px">'+n+'/'+LEAD_SEK.length+' bagian</span>'+
-    '<span style="color:var(--muted);font-weight:400;margin-left:6px">— centang & tulis sekenanya, boleh dikosongkan</span></button>';
+    '<span style="color:'+(l.jenis?'var(--ok)':'var(--warn)')+';font-weight:800;margin-left:6px">'+esc(leadIsiKet(l))+'</span></button>';
   if(!buka)return kepala;
-  var baris=LEAD_SEK.map(function(x){var k=x[0],s=leadSpec(l,k);
-    return '<div style="border-top:1px dashed var(--line);padding:9px 0">'+
-      '<label style="display:flex;align-items:center;gap:7px;font-size:11.5px;font-weight:800;cursor:pointer">'+
-        '<input type="checkbox" '+(s.ada?'checked':'')+' onchange="leadSpecSet(\''+l.id+'\',\''+k+'\',\'ada\',this.checked)">'+
-        esc(x[1])+'</label>'+
-      '<div style="display:flex;flex-wrap:wrap;gap:5px;margin:7px 0 6px">'+
-        LEAD_NADA.map(function(nd){var on=s.nada.indexOf(nd)>=0;
-          return '<button onclick="leadNadaToggle(\''+l.id+'\',\''+k+'\',\''+nd+'\')" style="border:1px solid '+(on?'var(--gold)':'var(--hubline)')+
-            ';background:'+(on?'var(--gold)':'transparent')+';color:'+(on?'#2b1d0e':'var(--muted)')+
-            ';border-radius:20px;padding:3px 10px;font-size:10px;font-weight:700;cursor:pointer">'+esc(nd)+'</button>';}).join('')+
-      '</div>'+
-      '<input class="pin" style="font-size:11px" value="'+esc(s.note)+'" placeholder="kata client apa adanya — mis. pokoknya elegant, warna earth tone"'+
-        ' onchange="leadSpecSet(\''+l.id+'\',\''+k+'\',\'note\',this.value)">'+
-      '</div>';}).join('');
-  return kepala+'<div style="background:var(--hub2);border:1px solid var(--hubline);border-radius:9px;padding:4px 12px 11px;margin-top:6px">'+
-    '<div style="font-size:10px;color:var(--muted);padding:9px 0 2px;line-height:1.55">Yang kamu tulis di sini <b>menempel di kolom yang sama</b> waktu PM mengisi ordernya nanti — jadi maksudmu tak hilang di jalan.</div>'+
-    baris+'</div>';}
+  var isi=leadPilihJenis(l)+
+    ((l.jenis==='Katalog'||l.jenis==='Mix')?leadKatalogBlok(l):'')+
+    ((l.jenis==='Custom'||l.jenis==='Mix')?leadRawBlok(l):'');
+  return kepala+'<div style="background:var(--hub2);border:1px solid var(--hubline);border-radius:9px;padding:11px 12px;margin-top:6px">'+
+    '<div style="font-size:9.5px;font-weight:800;color:var(--muted);letter-spacing:.04em">JENIS ORDER</div>'+
+    isi+'</div>';}
 
 function saveLeads(){localStorage.setItem(LEAD_KEY,JSON.stringify(ST.leads||[]));cloudSave();}
 function loadLeads(){try{ST.leads=JSON.parse(localStorage.getItem(LEAD_KEY)||'null');}catch(e){ST.leads=null;}
@@ -1798,8 +1902,14 @@ function leadBatal(id){var l=leadsAll().find(function(x){return x.id===id;});if(
 function leadAktifkan(id){var l=leadsAll().find(function(x){return x.id===id;});if(!l)return;
   l.status='Follow-up';l.touch=new Date().toISOString().slice(0,10);l._m=Date.now();
   l.log.push({t:nowStr(),by:(ST.userName||ST.user),txt:'Diaktifkan lagi'});saveLeads();render();}
-function leadTelat(l){ // belum ditindaklanjuti sampai tanggal janji
-  if(!leadAktif(l))return false;var dn=dLeft(l.fuNext);return dn!==null&&dn<0;}
+/* Semua prospek aktif ditagih tiap hari. Dulu ada tanggal janji per prospek,
+   tapi tanggal itu justru jadi izin menunda sampai tanggalnya tiba. */
+function leadTelat(l){return leadAktif(l);}
+/* Makin lama didiamkan makin mendesak — inilah yang mengurutkan papan. */
+function leadUrgensi(l){var d=leadDiam(l);return d>=7?'merah':(d>=3?'kuning':'biasa');}
+function leadWarna(l){var u=leadUrgensi(l);return u==='merah'?'#d9534f':(u==='kuning'?'var(--warn)':'var(--muted)');}
+function leadKet(l){if(!leadAktif(l))return l.status;
+  var d=leadDiam(l);return d<=0?'masuk hari ini':('didiamkan '+d+' hari');}
 function leadDiam(l){ // lama tak disentuh
   if(!leadAktif(l))return 0;var dn=dLeft(l.touch||l.masuk);return dn===null?0:-dn;}
 function leadAdd(){
@@ -1810,12 +1920,12 @@ function leadAdd(){
       {k:'channel',label:'Datang dari mana',type:'select',val:'WhatsApp',opts:LEAD_CH},
       {k:'produk',label:'Minat produk',type:'text',ph:'mis. Pouch + Card 250pcs'},
       {k:'estimasi',label:'Perkiraan nilai',type:'money'},
-      {k:'fuNext',label:'Follow-up berikutnya',type:'date',val:d3.toISOString().slice(0,10),
-        hint:'HUB mengingatkan kalau tanggal ini lewat dan prospek belum ditindaklanjuti.'}],
+      {k:'jenis',label:'Jenis order',type:'select',val:'',opts:['','Katalog','Custom','Mix'],
+        hint:'Boleh dikosongkan dulu kalau belum jelas — bisa dipilih di kartunya nanti.'}],
     ok:function(v){
       leadsAll().unshift({id:'L'+Math.random().toString(36).slice(2,7),nama:v.nama,kontak:v.kontak,
         channel:v.channel,produk:v.produk,qty:0,estimasi:+v.estimasi||0,status:'Baru',
-        masuk:new Date().toISOString().slice(0,10),fuNext:v.fuNext,pic:(ST.userName||ST.user||''),
+        masuk:new Date().toISOString().slice(0,10),jenis:v.jenis||'',items:[],pic:(ST.userName||ST.user||''),
         catatan:'',touch:new Date().toISOString().slice(0,10),log:[],_m:Date.now()});
       saveLeads();render();}});}
 function leadSet(id,f,v){var l=leadsAll().find(function(x){return x.id===id;});if(!l)return;
@@ -1838,15 +1948,31 @@ function leadToOrder(id){var l=leadsAll().find(function(x){return x.id===id;});i
   ST._fromLead=l.id;openNew();
   var s=function(sel,v){var e=document.querySelector(sel);if(e&&v)e.value=v;};
   s('#f_cust',l.nama);s('#f_phone',l.kontak);
-  /* Collateral yang sudah dicentang Sales di prospek langsung tercentang di
-     form order — inti dari "berubah jadi order", bukan diketik ulang. */
+  /* Collateral yang dicentang Sales langsung tercentang di form order —
+     inti dari "dikirim ke Inquiry", bukan diketik ulang. Diambil dari dua
+     sumber: bagian raw (custom) dan collateral per produk katalog. */
   ['box','pouch','card'].forEach(function(k){var e=document.getElementById('c_'+k);
-    if(e&&leadSpec(l,k).ada){e.checked=true;if(e.onchange)e.onchange();}});
+    var mau=leadSpec(l,k).ada||leadItems(l).some(function(it){
+      var c=(it.coll||{})[k];return !!(c&&c.ada);});
+    if(e&&mau){e.checked=true;if(e.onchange)e.onchange();}});
   /* Nama prospek biasanya sudah menyebut jenisnya; tebakan ini tinggal diubah kalau meleset. */
   var pf=document.getElementById('f_prefix');
   if(pf&&/wedding|pernikahan|\\bthe wedding of\\b/i.test(l.nama||''))pf.value='w';
-  if(l.produk){NOL=[{produk:l.produk,bahan:'',sumber:vendorNames()[0]||'Radja Leather',
-    qty:+l.qty||0,hpp:0,img:'',imgs:[],detail:'dari prospek',fixed:false}];renderCatBuilder();}
+  /* Produk katalog yang sudah ditunjuk Sales jadi baris pricing apa adanya,
+     harga dari tier katalog sesuai qty — sama persis dengan memilihnya di form. */
+  NOL=[];
+  leadItems(l).forEach(function(it){
+    var K=(catalog()||[]).find(function(c){return c.name===it.nama;});
+    var q=+it.qty||0;
+    var hpp=K?catPrice(K,q||1):0;
+    NOL.push({produk:it.nama,bahan:(K&&K.material)||'',sumber:'Radja Leather',qty:q,
+      hpp:hpp,jual:Math.round(hpp*(1+MARGIN_BAWAAN/100)),
+      img:it.img||(K&&K.img)||'',imgs:[],detail:it.note||'',tiers:(K&&K.t)||null,fixed:true});});
+  /* Prospek custom belum punya produk bernama — sediakan satu baris kosong
+     supaya Sales tak mulai dari nol. */
+  if(!NOL.length&&l.produk)NOL=[{produk:l.produk,bahan:'',sumber:vendorNames()[0]||'Radja Leather',
+    qty:+l.qty||0,hpp:0,img:'',imgs:[],detail:'dari prospek',fixed:false}];
+  if(NOL.length)renderCatBuilder();
   updatePrev();}
 function leadPanel(){
   var L=leadsAll().slice();
@@ -1856,13 +1982,13 @@ function leadPanel(){
     if(ST._lhide&&!leadAktif(l))return false;
     if(q&&[l.nama,l.kontak,l.produk,l.pic,l.catatan].concat(leadSpecRingkas(l)).join(' ').toLowerCase().indexOf(q)<0)return false;
     return true;});
-  tampil.sort(function(a,b){return (leadTelat(b)-leadTelat(a))||(leadDiam(b)-leadDiam(a));});
+  tampil.sort(function(a,b){return leadDiam(b)-leadDiam(a);});
   var aktif=L.filter(leadAktif).length,telat=L.filter(leadTelat).length;
   var nilai=L.filter(leadAktif).reduce(function(s,l){return s+(+l.estimasi||0);},0);
   var baris=tampil.map(function(l){
     var tl=leadTelat(l),diam=leadDiam(l);
-    var warna=tl?'#d9534f':(diam>=7?'var(--warn)':'var(--muted)');
-    var ket=!leadAktif(l)?l.status:(tl?('FU telat '+(-dLeft(l.fuNext))+' hari'):(l.fuNext?('FU '+l.fuNext):(diam>=7?('diam '+diam+' hari'):'baru '+diam+' hari')));
+    var warna=leadWarna(l);
+    var ket=leadKet(l);
     return '<div class="rcard" id="lead_'+l.id+'" style="padding:13px 15px;margin-bottom:9px'+(tl?';border-left:3px solid #d9534f':'')+'">'+
       '<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:8px">'+
         '<b style="font-size:13.5px">'+esc(l.nama)+'</b>'+
@@ -1870,7 +1996,7 @@ function leadPanel(){
         '<span style="font-size:10px;font-weight:800;color:'+warna+'">'+esc(ket)+'</span>'+
         '<span style="margin-left:auto;display:flex;gap:6px">'+
           (leadAktif(l)
-            ?('<button class="btn sm" onclick="leadToOrder(\''+l.id+'\')">→ Jadikan order</button>'
+            ?('<button class="btn sm" onclick="leadToOrder(\''+l.id+'\')">→ Kirim ke Inquiry</button>'
              +'<button class="btn ghost sm" style="color:#d9534f" onclick="leadBatal(\''+l.id+'\')">✕ Batal</button>')
             :(l.status==='Batal'?'<button class="btn ghost sm" onclick="leadAktifkan(\''+l.id+'\')">↺ Aktifkan lagi</button>':''))+
           '<button class="btn ghost sm" onclick="leadNote(\''+l.id+'\')">✎ Catatan</button>'+
@@ -1881,7 +2007,6 @@ function leadPanel(){
         '<label class="nlbl">Minat produk<input class="pin" style="margin-top:3px" value="'+esc(l.produk)+'" onchange="leadSet(\''+l.id+'\',\'produk\',this.value)" placeholder="mis. Wallet 200pcs"></label>'+
         '<label class="nlbl">Estimasi nilai<input class="pin n money" inputmode="numeric" style="margin-top:3px" value="'+moneyInp(l.estimasi)+'" onchange="leadSet(\''+l.id+'\',\'estimasi\',this.value)"></label>'+
         (leadAktif(l)?'<label class="nlbl">Status<select class="pin" style="margin-top:3px" onchange="leadSet(\''+l.id+'\',\'status\',this.value)">'+LEAD_ST.map(function(s){return '<option '+(l.status===s?'selected':'')+'>'+s+'</option>';}).join('')+'</select></label>':'')+
-        '<label class="nlbl">Follow-up berikutnya<input type="date" class="pin" style="margin-top:3px" value="'+esc(l.fuNext)+'" onchange="leadSet(\''+l.id+'\',\'fuNext\',this.value)"></label>'+
       '</div>'+
       leadSpekBlok(l)+
       (l.log&&l.log.length?'<div style="margin-top:9px;font-size:10px;color:var(--muted);border-top:1px dashed var(--line);padding-top:7px">'+
@@ -1891,7 +2016,7 @@ function leadPanel(){
   return '<div class="topbar"><h1>Prospek</h1><span class="demo">'+aktif+' aktif</span>'+
       (telat?'<span style="margin-left:auto;background:var(--warn-bg);color:var(--warn);border-radius:20px;padding:5px 13px;font-size:11px;font-weight:800">🔔 '+telat+' perlu di-follow up</span>':'')+
       '<div class="sp"></div><button class="btn" onclick="leadAdd()">＋ Prospek baru</button></div>'+
-    tabNote('Calon client yang <b>belum jadi order</b> — dari WhatsApp, Instagram, email, dsb. Isi <b>Follow-up berikutnya</b> supaya HUB mengingatkan. Kalau sudah deal, klik <b>→ Jadikan order</b> (data ikut terbawa). Prospek gagal jangan dihapus — ubah status jadi <b>Batal</b> supaya jadi bahan evaluasi.')+
+    tabNote('Calon client yang <b>belum jadi order</b> — dari WhatsApp, Instagram, email, dsb. <b>Semua prospek aktif perlu ditindaklanjuti tiap hari</b>; yang paling lama didiamkan naik ke atas dan memerah. Buka <b>Brief singkat untuk PM</b>, pilih jenisnya (Katalog / Custom / Mix), lalu klik <b>→ Kirim ke Inquiry</b> — seluruh isinya ikut terbawa. Prospek gagal jangan dihapus — ubah status jadi <b>Batal</b> supaya jadi bahan evaluasi.')+
     '<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:13px">'+
       '<input class="pin" style="flex:1;min-width:160px;max-width:260px" value="'+esc(ST._lq||'')+'" oninput="ST._lq=this.value;render();var e=document.getElementById(\'lq\');" id="lq" placeholder="🔍 Cari nama, produk, PIC…">'+
       '<select class="pin" style="width:auto" onchange="ST._lst=this.value;render()"><option value="">Semua status</option>'+LEAD_ST_ALL.map(function(s){return '<option '+(ST._lst===s?'selected':'')+'>'+s+'</option>';}).join('')+'</select>'+
@@ -5409,7 +5534,7 @@ function papanProspek(){
   return leadsAll().filter(function(l){
     if(!leadAktif(l))return false;            // yang batal & sudah jadi order tak menggantung di papan
     if(q&&[l.nama,l.kontak,l.produk,l.pic].concat(leadSpecRingkas(l)).join(' ').toLowerCase().indexOf(q)<0)return false;
-    return true;}).sort(function(a,b){return (leadTelat(b)-leadTelat(a))||(leadDiam(b)-leadDiam(a));});}
+    return true;}).sort(function(a,b){return leadDiam(b)-leadDiam(a);});}
 function bukaProspek(id){
   ST.view='leads';ST.cur=null;
   ST._lspek=ST._lspek||{};ST._lspek[id]=true;   // buka langsung brief singkatnya
@@ -5417,15 +5542,15 @@ function bukaProspek(id){
   setTimeout(function(){var e=document.getElementById('lead_'+id);
     if(e&&e.scrollIntoView)e.scrollIntoView({block:'center'});},60);}
 function kartuProspek(l){
-  var tl=leadTelat(l),n=leadSpecN(l);
-  return '<div class="oc" style="border-left-color:#8a7a5c;border-style:dashed;opacity:.93'+
-      (tl?';border-left-color:#d9534f':'')+'" onclick="bukaProspek(\''+l.id+'\')">'+
+  var u=leadUrgensi(l),n=leadSpecN(l);
+  return '<div class="oc" style="border-left-color:'+(u==='merah'?'#d9534f':(u==='kuning'?'#c78a24':'#8a7a5c'))+
+      ';border-style:dashed;opacity:.93" onclick="bukaProspek(\''+l.id+'\')">'+
     '<div class="on"><span class="pf" style="background:#8a7a5c">◇</span>'+esc(l.nama||'(tanpa nama)')+'</div>'+
     '<div class="om"><span>'+esc(l.produk||'belum disebut')+'</span><span>'+esc(l.channel||'')+'</span></div>'+
     '<div class="om" style="margin-top:5px">'+
-      '<span style="font-size:9px;font-weight:800;color:#8a7a5c;letter-spacing:.05em">PROSPEK · '+esc(l.status)+'</span>'+
-      '<span style="font-size:9px;font-weight:700;color:'+(tl?'#d9534f':(n?'var(--ok)':'var(--muted)'))+'">'+
-        (tl?('FU telat '+(-dLeft(l.fuNext))+'h'):(n?('brief '+n+'/'+LEAD_SEK.length):'brief kosong'))+'</span>'+
+      '<span style="font-size:9px;font-weight:800;color:#8a7a5c;letter-spacing:.05em">'+
+        (l.jenis?esc(l.jenis.toUpperCase()):'BELUM DIPILIH')+' · '+esc(l.status)+'</span>'+
+      '<span style="font-size:9px;font-weight:700;color:'+leadWarna(l)+'">'+esc(leadKet(l))+'</span>'+
     '</div></div>';}
 function renderBoard(){
   const ALL=ST.orders.filter(o=>!o.deleted);
@@ -5706,7 +5831,7 @@ function chkBerlaku(o,it){
   if(it.jika==='live')return liveList(o.liveSvc).length>0;                  // biaya operator cuma ada di order live
   if(it.jika==='coll')return ['box','pouch','card'].some(function(k){return (o.coll||{})[k];});
   /* cuma order yang lahir dari prospek bercatatan yang perlu diterjemahkan */
-  if(it.jika==='dariSales')return !!(salesGet(o)&&LEAD_SEK.some(function(x){return salesNote(o,x[0]);}));
+  if(it.jika==='dariSales')return !!(salesGet(o)&&salesBelum(o).length>0);
   return true;}
 function chkItems(fase,o){
   var F=PH_CHECK[fase]||[];
@@ -7753,22 +7878,37 @@ function addCollaterals(id){
 function salesGet(o){return (o&&o.dariSales)||null;}
 /* Isi catatan untuk satu bagian: nada yang dicentang + kalimat Sales. */
 function salesNote(o,k){
-  var d=salesGet(o);if(!d||!d.spec||!d.spec[k])return '';
-  var s=d.spec[k],nada=(s.nada||[]).join(', ');
-  return [nada,s.note].filter(Boolean).join(' — ');}
-function salesMau(o,k){var d=salesGet(o);return !!(d&&d.spec&&d.spec[k]&&d.spec[k].ada);}
+  var d=salesGet(o);if(!d)return '';
+  var bagian=[];
+  var s=(d.spec||{})[k];
+  if(s)bagian.push([(s.nada||[]).join(', '),s.note].filter(Boolean).join(' — '));
+  /* produk katalog membawa catatan collateral sendiri-sendiri */
+  (d.items||[]).forEach(function(it){
+    if(k==='produk'){if(it.note)bagian.push(it.nama+': '+it.note);return;}
+    var c=(it.coll||{})[k];
+    if(c&&c.ada&&c.note)bagian.push(it.nama+': '+c.note);});
+  return bagian.filter(Boolean).join(' · ');}
+function salesMau(o,k){var d=salesGet(o);if(!d)return false;
+  if(d.spec&&d.spec[k]&&d.spec[k].ada)return true;
+  if(k==='produk')return (d.items||[]).length>0;
+  return (d.items||[]).some(function(it){var c=(it.coll||{})[k];return !!(c&&c.ada);});}
 /* Bagian yang Sales sebutkan tapi belum diterjemahkan PM jadi nilai konkret. */
 function salesBelum(o){
-  var d=salesGet(o);if(!d||!d.spec)return [];
+  var d=salesGet(o);if(!d)return [];
   var b=briefGet(o),kurang=[];
   var sudah={
-    produk:function(){return !!b.mainMat;},
+    produk:function(){
+      /* produk katalog sudah punya wujud; material baru wajib kalau Sales
+         menitipkan maunya (mis. "warna earth tone") yang harus diterjemahkan */
+      if((d.items||[]).length&&!(d.spec&&d.spec.produk&&d.spec.produk.ada)
+         &&!(d.items||[]).some(function(it){return it.note;}))return true;
+      return !!b.mainMat;},
     box:function(){return !!(o.coll&&o.coll.box)&&!!packRingkas('box',packSpec(o,'box'));},
     pouch:function(){return !!(o.coll&&o.coll.pouch)&&!!packRingkas('pouch',packSpec(o,'pouch'));},
     card:function(){return !!(o.coll&&o.coll.card)&&!!packRingkas('card',packSpec(o,'card'));},
     perso:function(){return !!b.perso;}};
-  LEAD_SEK.forEach(function(x){var k=x[0],s=d.spec[k];
-    if(!s||!s.ada)return;                       // yang tak diminta client tak perlu diterjemahkan
+  LEAD_SEK.forEach(function(x){var k=x[0];
+    if(!salesMau(o,k))return;                   // yang tak diminta client tak perlu diterjemahkan
     var f=sudah[k];if(f&&!f())kurang.push(x[1]);});
   return kurang;}
 
@@ -7786,6 +7926,15 @@ function salesPita(o,k){
 function salesRingkasBlok(o){
   var d=salesGet(o);if(!d)return '';
   var baris=[];
+  if(d.jenis)baris.push('<div style="display:flex;gap:8px;padding:3px 0;font-size:10.5px;line-height:1.55">'+
+    '<b style="flex:0 0 108px;color:var(--muted)">Jenis order</b><span><b>'+esc(d.jenis)+'</b></span></div>');
+  (d.items||[]).forEach(function(it){
+    var c=PACK_TIPE.map(function(pt){var x=(it.coll||{})[pt[0]];
+      return (x&&x.ada)?(pt[1]+(x.note?(' — '+x.note):'')):'';}).filter(Boolean).join('; ');
+    baris.push('<div style="display:flex;gap:8px;padding:3px 0;font-size:10.5px;line-height:1.55">'+
+      '<b style="flex:0 0 108px;color:var(--muted)">'+esc(it.nama)+'</b><span>'+
+      (it.qty?('<b>'+it.qty+' pcs</b> · '):'')+esc(it.note||'—')+
+      (c?('<div style="color:var(--muted)">collateral: '+esc(c)+'</div>'):'')+'</span></div>');});
   LEAD_SEK.forEach(function(x){var k=x[0],s=(d.spec||{})[k];if(!s)return;
     var isi=salesNote(o,k);
     if(!s.ada&&!isi)return;
@@ -9069,7 +9218,9 @@ $('#create').onclick=()=>{
       /* Salinan beku: prospek boleh diubah setelah ini, yang jadi rujukan PM
          tetap apa yang Sales sampaikan saat order dibuat. */
       o.dariSales={dari:lead.nama,channel:lead.channel,pic:lead.pic,catatan:lead.catatan||'',
-        spec:JSON.parse(JSON.stringify(lead.spec||{})),tgl:hariIni()};
+        jenis:lead.jenis||'',
+        spec:JSON.parse(JSON.stringify(lead.spec||{})),
+        items:JSON.parse(JSON.stringify(lead.items||[])),tgl:hariIni()};
       logHist(o,'Berasal dari prospek: '+lead.nama+' ('+lead.channel+')');
       var rk=leadSpecRingkas(lead);
       if(rk.length)logHist(o,'Catatan Sales terbawa — '+rk.join(' | '));}
