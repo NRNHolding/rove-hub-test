@@ -1,0 +1,15 @@
+# jangan pernah ikut terdorong ke repo publik
+*.xlsx
+*.xls
+*.csv
+*.json
+data/
+rahasia*
+*.env
+.env*
+*token*
+*secret*
+
+# berkas kerja Windows
+Thumbs.db
+desktop.ini
