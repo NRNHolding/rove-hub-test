@@ -664,6 +664,7 @@ const EN_RULES=[
 
 /* Kamus persis. Kunci = teks Indonesia apa adanya yang muncul di layar. */
 const EN={
+'Kotak "Katalog Cost Estimator" di Holding → Integrasi masih kosong.':'The "Cost Estimator catalogue" box under Holding → Integrations is still empty.','Kotak "Cloud DB" di Holding → Integrasi masih kosong.':'The "Cloud DB" box under Holding → Integrations is still empty.',
 '🔕 Nyalakan notifikasi browser':'🔕 Turn on browser notifications','🔔 Notifikasi browser: nyala':'🔔 Browser notifications: on',
 'Yang harus kamu kerjakan':'What you need to do',
 'MENUNGGU JABATAN LAIN':'WAITING ON OTHER ROLES','SEMUA ITEM FASE INI':'ALL ITEMS IN THIS PHASE','Tak ada jabatan lain yang perlu ditagih di fase ini.':'No other role needs chasing in this phase.',
@@ -1689,6 +1690,17 @@ function load(){const r=localStorage.getItem(KEY);
   loadLang();migrasiFaseProfit();migrasiStatus();finData();asetAll();loadCatalogCache();loadMaster();loadLeads();loadTax();loadKonten();loadHR();loadBuy();loadInv();
   if(!hasEstColl()){try{var cd=JSON.parse(localStorage.getItem('rovehub_colldata')||'null');if(cd&&Object.keys(cd).length){setEstColl(collRowsFrom(cd));saveMaster();}}catch(e){}}
   buildCollatData();}
+
+/* Ambil isi kotak Integrasi yang sedang tampil ke ST.cfg. Dipanggil tombol yang
+   butuh URL, supaya tak perlu menekan Simpan lebih dulu. Aman dipanggil dari
+   layar mana pun — kotak yang tak ada dilewati, nilai tersimpan dipertahankan. */
+function cfgSerap(){
+  var C=ST.cfg=ST.cfg||{};
+  var ambil=function(id,f){var e=document.getElementById(id);if(e)C[f]=(e.value||'').trim();};
+  ambil('cfgurl','url');ambil('cfgcatalog','catalogUrl');ambil('cfgdb','dbUrl');ambil('cfgklien','klienUrl');
+  var lv=document.getElementById('cfglive');if(lv)C.live=!!lv.checked;
+  try{localStorage.setItem('rovehub_cfg',JSON.stringify(C));}catch(e){}
+  return C;}
 function saveCfg(){ST.cfg.url=(document.getElementById('cfgurl').value||'').trim();ST.cfg.live=document.getElementById('cfglive').checked;ST.cfg.catalogUrl=(document.getElementById('cfgcatalog').value||'').trim();var db=document.getElementById('cfgdb');ST.cfg.dbUrl=db?(db.value||'').trim():(ST.cfg.dbUrl||'');var kl=document.getElementById('cfgklien');ST.cfg.klienUrl=kl?(kl.value||'').trim():(ST.cfg.klienUrl||'');localStorage.setItem('rovehub_cfg',JSON.stringify(ST.cfg));fetchCatalog();render();}
 function pushBackend(action,payload){
   const c=ST.cfg||{};if(!c.live||!c.url)return; // mode simulasi kalau belum dikonfigurasi
@@ -3054,7 +3066,7 @@ function cloudAutoLoad(){var c=ST.cfg||{};if(!c.dbUrl)return;
   }).catch(function(){});}
 var _pollT=null;
 function startCloudPoll(){if(_pollT)clearInterval(_pollT);_pollT=setInterval(function(){if((ST.cfg||{}).dbUrl&&ST.user)cloudAutoLoad();},25000);}
-function cloudLoad(){var c=ST.cfg||{};if(!c.dbUrl){alert('Isi URL Cloud DB (Worker /db) di Integrasi dulu.');return;}
+function cloudLoad(){var c=cfgSerap();if(!c.dbUrl){alert('Kotak "Cloud DB" di Holding → Integrasi masih kosong.\n\nIsi URL-nya dulu (backend uji: URL /exec ditambah ?db=1).');return;}
   if(!confirm('Muat data dari cloud akan MENIMPA data lokal saat ini. Lanjut?'))return;
   ST.cloudStatus='memuat dari cloud…';render();
   fetch(c.dbUrl).then(function(r){return r.json();}).then(function(d){
@@ -7343,8 +7355,8 @@ function imporStatus(){
 
 function hasEstColl(){return ((ST.master&&ST.master.coll)||[]).some(function(r){return r.src==='est';});}
 function mEditTier(i,ti,v){var r=ST.master.catalog[i];if(!r)return;if(!r.t)r.t=[0,0,0,0,0,0,0];r.t[ti]=moneyVal(v);saveMaster();}
-function syncEstMaster(){var u=ST.cfg&&ST.cfg.catalogUrl;
-  if(!u){alert('URL Katalog belum diisi di Holding → Integrasi.\n\nKalau Estimator tak bisa diakses, pakai "⭳ Impor dari file JSON" — hasilnya sama.');return;}
+function syncEstMaster(){var u=cfgSerap().catalogUrl;
+  if(!u){alert('Kotak "Katalog Cost Estimator" di Holding → Integrasi masih kosong.\n\nIsi URL-nya dulu, atau pakai "⭳ Impor dari file JSON" — hasilnya sama.');return;}
   ST.catStatus='menarik master…';render();
   fetch(u).then(function(r){return r.text();}).then(function(txt){
     var d;try{d=JSON.parse(txt);}
