@@ -11,6 +11,7 @@
     --hub:#1d2033;--hub2:#282d47;--hubline:#3c4266;--hubtext:#eef0f5;
     --discord:#5865F2;--discord-bg:#f0f1fb;--radja:#a13d2e;--radja-bg:#f9ebe8;
     --trello:#0079bf;--trello-bg:#e6f2f9;--drive:#1a8f4c;
+    --ink-soft:#57503f;--brand-dark:#6b4718;   /* teks kecil di atas latar berwarna (--warn-bg) */
     --ok:#3f7d54;--ok-bg:#e7f4ec;--warn:#b8862f;--warn-bg:#f7eede;--red:#c0392b;--red-bg:#fbece9;
     --shadow:0 2px 4px rgba(30,35,55,.07),0 10px 26px rgba(30,35,55,.09);
   }
@@ -7973,7 +7974,7 @@ function salesPita(o,k){
   var d=salesGet(o);
   return '<div style="border-left:3px solid var(--gold);background:var(--warn-bg);border-radius:0 7px 7px 0;'+
     'padding:6px 10px;margin:0 0 8px;font-size:10.5px;line-height:1.55">'+
-    '<span style="color:var(--brand);font-weight:800">Kata Sales'+(d&&d.pic?(' ('+esc(d.pic)+')'):'')+':</span> '+
+    '<span style="color:var(--brand-dark);font-weight:800">Kata Sales'+(d&&d.pic?(' ('+esc(d.pic)+')'):'')+':</span> '+
     '<span style="color:var(--ink)">'+esc(t)+'</span></div>';}
 
 /* Ringkasan di kepala Brief — gambaran utuh sebelum PM masuk ke kolom satu per satu. */
@@ -7981,22 +7982,22 @@ function salesRingkasBlok(o){
   var d=salesGet(o);if(!d)return '';
   var baris=[];
   if(d.jenis)baris.push('<div style="display:flex;gap:8px;padding:3px 0;font-size:10.5px;line-height:1.55">'+
-    '<b style="flex:0 0 108px;color:var(--muted)">Jenis order</b><span><b>'+esc(d.jenis)+'</b></span></div>');
+    '<b style="flex:0 0 108px;color:var(--ink-soft)">Jenis order</b><span><b>'+esc(d.jenis)+'</b></span></div>');
   (d.items||[]).forEach(function(it){
     var c=PACK_TIPE.map(function(pt){var x=(it.coll||{})[pt[0]];
       return (x&&x.ada)?(pt[1]+(x.note?(' — '+x.note):'')):'';}).filter(Boolean).join('; ');
     baris.push('<div style="display:flex;gap:8px;padding:3px 0;font-size:10.5px;line-height:1.55">'+
-      '<b style="flex:0 0 108px;color:var(--muted)">'+esc(it.nama)+'</b><span>'+
+      '<b style="flex:0 0 108px;color:var(--ink-soft)">'+esc(it.nama)+'</b><span>'+
       (it.qty?('<b>'+it.qty+' pcs</b> · '):'')+esc(it.note||'—')+
-      (c?('<div style="color:var(--muted)">collateral: '+esc(c)+'</div>'):'')+'</span></div>');});
+      (c?('<div style="color:var(--ink-soft)">collateral: '+esc(c)+'</div>'):'')+'</span></div>');});
   LEAD_SEK.forEach(function(x){var k=x[0],s=(d.spec||{})[k];if(!s)return;
     var isi=salesNote(o,k);
     if(!s.ada&&!isi)return;
     baris.push('<div style="display:flex;gap:8px;padding:3px 0;font-size:10.5px;line-height:1.55">'+
-      '<b style="flex:0 0 108px;color:var(--muted)">'+esc(x[1])+'</b>'+
+      '<b style="flex:0 0 108px;color:var(--ink-soft)">'+esc(x[1])+'</b>'+
       '<span>'+(s.ada?'':'<span style="color:var(--warn)">tidak dipakai</span> ')+esc(isi||'—')+'</span></div>');});
   if(d.catatan)baris.push('<div style="display:flex;gap:8px;padding:3px 0;font-size:10.5px;line-height:1.55">'+
-    '<b style="flex:0 0 108px;color:var(--muted)">Catatan lain</b><span>'+esc(d.catatan)+'</span></div>');
+    '<b style="flex:0 0 108px;color:var(--ink-soft)">Catatan lain</b><span>'+esc(d.catatan)+'</span></div>');
   if(!baris.length)return '';
   var kurang=salesBelum(o);
   return '<div style="border:1px solid var(--accent);border-radius:10px;padding:11px 13px;margin-bottom:13px;background:var(--warn-bg)">'+
@@ -8004,7 +8005,7 @@ function salesRingkasBlok(o){
       'RINGKASAN DARI PROSPEK'+(d.dari?(' — '+esc(d.dari)):'')+(d.channel?(' <span style="font-weight:400;color:var(--muted)">via '+esc(d.channel)+'</span>'):'')+'</div>'+
     baris.join('')+
     (kurang.length
-      ?'<div style="margin-top:8px;padding-top:7px;border-top:1px dashed var(--accent);font-size:10px;color:var(--red);font-weight:700">'+
+      ?'<div style="margin-top:8px;padding-top:7px;border-top:1px dashed var(--accent);font-size:10px;color:#8f2a1e;font-weight:800">'+
         'Belum diterjemahkan jadi spesifikasi: '+esc(kurang.join(', '))+'</div>'
       :'<div style="margin-top:8px;padding-top:7px;border-top:1px dashed var(--accent);font-size:10px;color:var(--ok);font-weight:700">'+
         'Semua yang diminta client sudah punya spesifikasi.</div>')+
