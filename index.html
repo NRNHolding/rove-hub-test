@@ -664,6 +664,7 @@ const EN_RULES=[
 
 /* Kamus persis. Kunci = teks Indonesia apa adanya yang muncul di layar. */
 const EN={
+'🔍 Cari produk atau bahan…':'🔍 Search product or material…',
 '◇ Prospek':'◇ Leads',
 'Jenis order':'Order type',
 'JENIS ORDER':'ORDER TYPE','DARI KATALOG':'FROM THE CATALOGUE','CUSTOM — TULIS APA ADANYA':'CUSTOM — JUST WRITE IT DOWN','＋ Pilih produk dari katalog':'＋ Pick products from the catalogue','▾ Tutup daftar katalog':'▾ Close the catalogue list','Collateral untuk produk ini':'Collateral for this product','jenis belum dipilih':'type not chosen yet','belum diisi':'nothing filled in yet','→ Kirim ke Inquiry':'→ Send to Inquiry',
@@ -1795,11 +1796,23 @@ function leadItemCollSet(id,i,k,f,v){
 function leadKatBuka(id){ST._lkat=ST._lkat||{};ST._lkat[id]=!ST._lkat[id];render();}
 
 /* ---- tampilan ---- */
+
+/* Katalog bisa puluhan produk — tanpa pencarian, memilih jadi menggulir. */
+function leadKatCari(id,v){
+  ST._lkq=ST._lkq||{};ST._lkq[id]=v;render();
+  var el=document.getElementById('lkq_'+id);
+  if(el){el.focus();el.setSelectionRange(el.value.length,el.value.length);}}
+function leadKatalogList(id){
+  var q=((ST._lkq||{})[id]||'').toLowerCase();
+  return (catalog()||[]).filter(function(c){
+    if(!q)return true;
+    return [c.name,c.material].join(' ').toLowerCase().indexOf(q)>=0;});}
+
 function leadPilihJenis(l){
   return '<div style="display:flex;flex-wrap:wrap;gap:7px;margin:9px 0 0">'+
     LEAD_JENIS.map(function(j){var on=(l.jenis===j);
       return '<button onclick="leadJenisSet(\''+l.id+'\',\''+(on?'':j)+'\')" style="flex:1;min-width:96px;border:1px solid '+
-        (on?'var(--brand)':'var(--hubline)')+';background:'+(on?'var(--brand)':'transparent')+
+        (on?'var(--brand)':'var(--line)')+';background:'+(on?'var(--brand)':'var(--panel)')+
         ';color:'+(on?'#fff':'var(--muted)')+';border-radius:9px;padding:8px 10px;font-size:11px;font-weight:800;cursor:pointer">'+
         esc(j)+'</button>';}).join('')+'</div>'+
     (l.jenis?'':'<div style="font-size:10px;color:var(--muted);margin-top:7px;line-height:1.55">Pilih jenisnya dulu — isian berikutnya menyesuaikan. Katalog menampilkan produk yang sudah ada, custom cukup ditulis apa adanya.</div>');}
@@ -1823,16 +1836,23 @@ function leadKatalogBlok(l){
           '<input class="pin" style="font-size:10.5px;flex:1" value="'+esc(c.note||'')+'" placeholder="mis. yang kokoh, jangan tipis" onchange="leadItemCollSet(\''+l.id+'\','+i+',\''+k+'\',\'note\',this.value)">'+
         '</div>';}).join('')+
     '</div>';}).join('');
+  var Kf=leadKatalogList(l.id), q=((ST._lkq||{})[l.id]||'');
   var pilihan=!buka?'':
-    '<div style="max-height:210px;overflow:auto;border:1px solid var(--hubline);border-radius:9px;padding:7px;margin-bottom:8px">'+
-      (K.length?K.map(function(c){
+    '<div style="border:1px solid var(--line);border-radius:9px;padding:7px;margin-bottom:8px;background:var(--panel)">'+
+    '<input id="lkq_'+l.id+'" class="pin" style="font-size:11px;margin-bottom:6px" value="'+esc(q)+'" '+
+      'placeholder="🔍 Cari produk atau bahan…" oninput="leadKatCari(\''+l.id+'\',this.value)">'+
+    (q?('<div style="font-size:9.5px;color:var(--muted);margin-bottom:5px">'+Kf.length+' dari '+K.length+' produk</div>'):'')+
+    '<div style="max-height:210px;overflow:auto">'+
+      (Kf.length?Kf.map(function(c){
         return '<button onclick="leadItemAdd(\''+l.id+'\',\''+String(c.name||'').replace(/'/g,"\\'")+'\',\''+String(c.img||'')+'\')" '+
-          'style="display:flex;align-items:center;gap:8px;width:100%;text-align:left;background:none;border:none;border-bottom:1px solid var(--line);padding:6px 4px;cursor:pointer;color:var(--txt)">'+
+          'style="display:flex;align-items:center;gap:8px;width:100%;text-align:left;background:none;border:none;border-bottom:1px solid var(--line);padding:6px 4px;cursor:pointer;color:var(--ink)">'+
           (c.img?imgTag(c.img,'width:26px;height:26px;object-fit:cover;border-radius:5px;flex:none'):'')+
           '<span style="font-size:11px;font-weight:700">'+esc(c.name)+'</span>'+
           '<span style="font-size:9.5px;color:var(--muted);margin-left:auto">'+esc(c.material||'')+'</span></button>';}).join('')
-        :'<div style="font-size:10.5px;color:var(--warn);padding:6px">Katalog masih kosong. Isi di Master data → Master Product, atau tarik dari Cost Estimator.</div>')+
-    '</div>';
+        :(K.length
+            ?'<div style="font-size:10.5px;color:var(--muted);padding:6px">Tak ada produk yang cocok dengan &ldquo;'+esc(q)+'&rdquo;.</div>'
+            :'<div style="font-size:10.5px;color:var(--warn);padding:6px">Katalog masih kosong. Isi di Master data → Master Product, atau tarik dari Cost Estimator.</div>'))+
+    '</div></div>';
   return '<div style="margin-top:11px">'+
     '<div style="font-size:9.5px;font-weight:800;color:var(--brand);letter-spacing:.04em;margin-bottom:7px">DARI KATALOG'+
       (I.length?(' <span style="color:var(--muted);font-weight:400">— '+I.length+' produk dipilih</span>'):'')+'</div>'+
@@ -1852,8 +1872,8 @@ function leadRawBlok(l){
           esc(x[1])+'</label>'+
         '<div style="display:flex;flex-wrap:wrap;gap:5px;margin:6px 0 5px">'+
           LEAD_NADA.map(function(nd){var on=s.nada.indexOf(nd)>=0;
-            return '<button onclick="leadNadaToggle(\''+l.id+'\',\''+k+'\',\''+nd+'\')" style="border:1px solid '+(on?'var(--gold)':'var(--hubline)')+
-              ';background:'+(on?'var(--gold)':'transparent')+';color:'+(on?'#2b1d0e':'var(--muted)')+
+            return '<button onclick="leadNadaToggle(\''+l.id+'\',\''+k+'\',\''+nd+'\')" style="border:1px solid '+(on?'var(--gold)':'var(--line)')+
+              ';background:'+(on?'var(--gold)':'var(--panel)')+';color:'+(on?'#2b1d0e':'var(--muted)')+
               ';border-radius:20px;padding:3px 10px;font-size:10px;font-weight:700;cursor:pointer">'+esc(nd)+'</button>';}).join('')+
         '</div>'+
         '<input class="pin" style="font-size:11px" value="'+esc(s.note)+'" placeholder="kata client apa adanya — mis. pokoknya elegant, warna earth tone"'+
@@ -1881,7 +1901,7 @@ function leadSpekBlok(l){
   var isi=leadPilihJenis(l)+
     ((l.jenis==='Katalog'||l.jenis==='Mix')?leadKatalogBlok(l):'')+
     ((l.jenis==='Custom'||l.jenis==='Mix')?leadRawBlok(l):'');
-  return kepala+'<div style="background:var(--hub2);border:1px solid var(--hubline);border-radius:9px;padding:11px 12px;margin-top:6px">'+
+  return kepala+'<div style="background:var(--bg);border:1px solid var(--line);border-radius:9px;padding:11px 12px;margin-top:6px">'+
     '<div style="font-size:9.5px;font-weight:800;color:var(--muted);letter-spacing:.04em">JENIS ORDER</div>'+
     isi+'</div>';}
 
@@ -7951,10 +7971,10 @@ function salesBelum(o){
 function salesPita(o,k){
   var t=salesNote(o,k);if(!t)return '';
   var d=salesGet(o);
-  return '<div style="border-left:3px solid var(--gold);background:var(--hub2);border-radius:0 7px 7px 0;'+
+  return '<div style="border-left:3px solid var(--gold);background:var(--warn-bg);border-radius:0 7px 7px 0;'+
     'padding:6px 10px;margin:0 0 8px;font-size:10.5px;line-height:1.55">'+
-    '<span style="color:var(--gold);font-weight:800">Kata Sales'+(d&&d.pic?(' ('+esc(d.pic)+')'):'')+':</span> '+
-    '<span style="color:var(--txt)">'+esc(t)+'</span></div>';}
+    '<span style="color:var(--brand);font-weight:800">Kata Sales'+(d&&d.pic?(' ('+esc(d.pic)+')'):'')+':</span> '+
+    '<span style="color:var(--ink)">'+esc(t)+'</span></div>';}
 
 /* Ringkasan di kepala Brief — gambaran utuh sebelum PM masuk ke kolom satu per satu. */
 function salesRingkasBlok(o){
@@ -7979,14 +7999,14 @@ function salesRingkasBlok(o){
     '<b style="flex:0 0 108px;color:var(--muted)">Catatan lain</b><span>'+esc(d.catatan)+'</span></div>');
   if(!baris.length)return '';
   var kurang=salesBelum(o);
-  return '<div style="border:1px solid var(--gold);border-radius:10px;padding:11px 13px;margin-bottom:13px;background:var(--hub2)">'+
+  return '<div style="border:1px solid var(--accent);border-radius:10px;padding:11px 13px;margin-bottom:13px;background:var(--warn-bg)">'+
     '<div style="font-size:10px;font-weight:800;color:var(--gold);letter-spacing:.04em;margin-bottom:7px">'+
       'RINGKASAN DARI PROSPEK'+(d.dari?(' — '+esc(d.dari)):'')+(d.channel?(' <span style="font-weight:400;color:var(--muted)">via '+esc(d.channel)+'</span>'):'')+'</div>'+
     baris.join('')+
     (kurang.length
-      ?'<div style="margin-top:8px;padding-top:7px;border-top:1px dashed var(--hubline);font-size:10px;color:var(--warn);font-weight:700">'+
+      ?'<div style="margin-top:8px;padding-top:7px;border-top:1px dashed var(--accent);font-size:10px;color:var(--red);font-weight:700">'+
         'Belum diterjemahkan jadi spesifikasi: '+esc(kurang.join(', '))+'</div>'
-      :'<div style="margin-top:8px;padding-top:7px;border-top:1px dashed var(--hubline);font-size:10px;color:var(--ok);font-weight:700">'+
+      :'<div style="margin-top:8px;padding-top:7px;border-top:1px dashed var(--accent);font-size:10px;color:var(--ok);font-weight:700">'+
         'Semua yang diminta client sudah punya spesifikasi.</div>')+
     '</div>';}
 function briefGet(o){if(!o.brief)o.brief={fitur:['','','']};if(!o.brief.fitur)o.brief.fitur=['','',''];return o.brief;}
