@@ -7995,7 +7995,7 @@ function salesRingkasBlok(o){
     if(!s.ada&&!isi)return;
     baris.push('<div style="display:flex;gap:8px;padding:3px 0;font-size:10.5px;line-height:1.55">'+
       '<b style="flex:0 0 108px;color:var(--ink-soft)">'+esc(x[1])+'</b>'+
-      '<span>'+(s.ada?'':'<span style="color:var(--warn)">tidak dipakai</span> ')+esc(isi||'—')+'</span></div>');});
+      '<span>'+(s.ada?'':'<span style="color:#8f2a1e;font-weight:700">tidak dipakai</span> ')+esc(isi||'—')+'</span></div>');});
   if(d.catatan)baris.push('<div style="display:flex;gap:8px;padding:3px 0;font-size:10.5px;line-height:1.55">'+
     '<b style="flex:0 0 108px;color:var(--ink-soft)">Catatan lain</b><span>'+esc(d.catatan)+'</span></div>');
   if(!baris.length)return '';
