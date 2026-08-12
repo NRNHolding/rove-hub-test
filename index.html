@@ -665,6 +665,7 @@ const EN_RULES=[
 
 /* Kamus persis. Kunci = teks Indonesia apa adanya yang muncul di layar. */
 const EN={
+'💬 Tanya Sales':'💬 Ask Sales','Yang belum jelas':'What is unclear','Ini tugas jabatanmu sendiri — tak ada yang perlu diingatkan.':'This is your own role\u2019s task \u2014 there is nobody to remind.',
 '🔍 Cari produk atau bahan…':'🔍 Search product or material…',
 '◇ Prospek':'◇ Leads',
 'Jenis order':'Order type',
@@ -5913,9 +5914,39 @@ function chkKurang(o,fase,hanyaWajib){
     return !chkDone(o,fase,it.k);});}
 /* chkSet sengaja dihapus — item hanya bisa tuntas lewat datanya. */
 /* Pengingat ke PIC: masuk histori order + notifikasi Discord kalau relay hidup. */
+
+/* Siapa yang bisa ditanyai soal order ini — orang yang memegang percakapan
+   dengan client. null kalau akulah orang itu. */
+function chkLawanTanya(o){
+  var R=myRoles();
+  if(R.indexOf('Sales')>=0)return null;              // aku sendiri yang bicara dengan client
+  var nama=((o.dariSales||{}).pic)||o.sales||'';
+  return {role:'Sales',nama:nama};}
+function chkTanya(id,fase,k){
+  var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
+  var it=chkItems(fase,o).find(function(x){return x.k===k;});if(!it)return;
+  var lawan=chkLawanTanya(o);if(!lawan)return;
+  askForm({judul:'Tanya '+lawan.role+(lawan.nama?(' — '+lawan.nama):''),
+    sub:'Order '+o.customer+' · '+chkT(it),
+    fields:[{k:'q',label:'Yang belum jelas',type:'textarea',req:true,
+      val:'',ph:'mis. client maunya kulit apa? catatannya cuma "elegant".',
+      hint:'Dikirim ke channel Discord order ini dan tercatat di histori.'}],
+    ok:function(v){
+      var pesan='❓ '+picMention(lawan.role)+(lawan.nama?(' ('+lawan.nama+')'):'')+
+        ' — order '+o.customer+' (fase '+(fase+1)+' '+PH[fase].n+')\n'+
+        'Ditanya oleh '+(ST.userName||ST.user||'')+' soal: '+it.t+'\n'+v.q;
+      pushBackend('notify',{name:chName(o),content:pesan});
+      logHist(o,'Tanya '+lawan.role+': '+v.q);
+      o._m=Date.now();save();render();
+      alert('Pertanyaan dikirim ke '+lawan.role+(lawan.nama?(' ('+lawan.nama+')'):'')+'.'+
+        ((ST.cfg&&ST.cfg.live&&ST.cfg.url)?'\n\nMasuk ke channel Discord order ini.'
+                                          :'\n\n(Relay Discord belum aktif — tercatat di histori order saja.)'));}});}
 function chkIngat(id,fase,k){
   var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
   var it=chkItems(fase).find(function(x){return x.k===k;});if(!it)return;
+  /* mengingatkan jabatan sendiri itu tak ada gunanya — kerjakan saja */
+  if(chkTugasku(it)){alert('Ini tugas jabatanmu sendiri — tak ada yang perlu diingatkan.\n\n'+chkT(it)+
+    (chkGuna(it)?('\n'+chkGuna(it)):''));return;}
   var pesan='⏰ Pengingat untuk '+picMention(it.pic)+' — order '+o.customer+' (fase '+(fase+1)+' '+PH[fase].n+')\n'+
             'Belum tuntas: '+it.t+(it.guna?('\n'+it.guna):'');   // notifikasi Discord tetap bahasa Indonesia
   pushBackend('notify',{name:chName(o),content:pesan});
@@ -5927,8 +5958,9 @@ function chkIngat(id,fase,k){
           : '\n\n(Relay Discord belum aktif — pengingat tercatat di histori order saja.)'));}
 function chkIngatSemua(id,fase){
   var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
-  var sisa=chkKurang(o,fase);
-  if(!sisa.length){alert('Semua kelengkapan fase ini sudah tuntas.');return;}
+  /* jabatan sendiri dikeluarkan — yang ditagih cuma orang lain */
+  var sisa=chkKurang(o,fase).filter(function(it){return !chkTugasku(it);});
+  if(!sisa.length){alert('Tak ada jabatan lain yang perlu ditagih di fase ini.\n\nYang tersisa (kalau ada) adalah tugas jabatanmu sendiri.');return;}
   var perPic={};sisa.forEach(function(it){(perPic[it.pic]=perPic[it.pic]||[]).push(it.t);});
   Object.keys(perPic).forEach(function(pic){
     pushBackend('notify',{name:chName(o),content:'⏰ '+picMention(pic)+' — order '+o.customer+' (fase '+(fase+1)+' '+PH[fase].n+') masih menunggu:\n'+
@@ -6054,8 +6086,13 @@ function chkPanel(o){
         '<div style="font-size:9.5px;color:var(--muted);margin-top:2px">PIC '+esc(it.pic)+
           (src?('<span> · </span><span>diisi di '+esc(src)+'</span>'):'')+'</div>'+
       '</div>'+
-      (ok?'':'<button class="btn ghost sm" style="flex:0 0 auto" title="ingatkan '+esc(it.pic)+'" '+
-        'onclick="chkIngat(\'' + o.id + '\',' + f + ',\'' + it.k + '\')">⏰ Ingatkan</button>')+
+      (ok?'':(chkTugasku(it)
+        ? (chkLawanTanya(o)
+            ? ('<button class="btn ghost sm" style="flex:0 0 auto" title="tanyakan yang belum jelas ke Sales" '+
+               'onclick="chkTanya(\'' + o.id + '\',' + f + ',\'' + it.k + '\')">💬 Tanya Sales</button>')
+            : '')
+        : ('<button class="btn ghost sm" style="flex:0 0 auto" title="ingatkan '+esc(it.pic)+'" '+
+           'onclick="chkIngat(\'' + o.id + '\',' + f + ',\'' + it.k + '\')">⏰ Ingatkan</button>')))+
     '</div>';};
   var milikku=items.filter(function(it){return chkTugasku(it)&&!chkAuto(o,f,it.k);});
   var lain   =items.filter(function(it){return milikku.indexOf(it)<0;});
@@ -6071,7 +6108,7 @@ function chkPanel(o){
     '<span style="margin-left:auto;font-size:12px;font-weight:800;color:'+(sisaWajib?'var(--warn)':'var(--ok)')+'">'+
       sudah+'/'+items.length+'</span></div><div class="body">'+rows+
     '<div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:11px;border-top:1px solid var(--line);padding-top:11px">'+
-      (lain.filter(function(it){return !chkAuto(o,f,it.k);}).length
+      (lain.filter(function(it){return !chkAuto(o,f,it.k)&&!chkTugasku(it);}).length
         ? '<button class="btn sm" onclick="chkIngatSemua(\'' + o.id + '\',' + f + ')">⏰ Ingatkan semua PIC yang belum</button>'
         : '<span style="font-size:10px;color:var(--muted)">Tak ada jabatan lain yang perlu ditagih di fase ini.</span>')+
     '</div></div></div>';}
