@@ -8285,7 +8285,7 @@ function genDoc(id,type){
 
    <div class="dsign">Regards,<div class="nm">Jessica B · Sales</div></div>
    <div class="dfoot">Dokumen ${title.toLowerCase()} otomatis dari ROVE HUB · tersimpan ke folder ${bulan} (Drive). Quotation berlaku 14 hari sejak diterbitkan.</div>
-   ${refTiles(o,true).length?`<div style="page-break-before:always;height:1px"></div><div class="dsec">Referensi Gambar Produk & Collateral</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:10px">${refTiles(o).map(function(x){return '<div style="text-align:center">'+(x.img?imgTag(x.img,'width:100%;max-height:340px;object-fit:contain;border:1px solid #ddd;border-radius:8px;cursor:zoom-in','onclick="openLB(this.src)"'):'')+'<div style="font-size:12px;color:#333;margin-top:7px">'+esc(x.cap)+'</div></div>';}).join('')}</div>`:''}`;
+   ${refTiles(o,true).length?`<div style="page-break-before:always;height:1px"></div><div class="dsec">Referensi Gambar Produk & Collateral</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:10px">${refTiles(o,true).map(function(x){return '<div style="text-align:center">'+(x.img?imgTag(x.img,'width:100%;max-height:340px;object-fit:contain;border:1px solid #ddd;border-radius:8px;cursor:zoom-in','onclick="openLB(this.src)"'):'')+'<div style="font-size:12px;color:#333;margin-top:7px">'+esc(x.cap)+'</div></div>';}).join('')}</div>`:''}`;
   o.nilai=Math.round(grand/1e6);
   if(!o.docs)o.docs={};o.docs[type]=true;o.docs[type+'Date']=tgl;
   if(type==='quotation')quoCatatGenerate(o);   // isi berubah dari generate lalu = revisi
