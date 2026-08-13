@@ -4764,6 +4764,10 @@ function taskOrders(role){
     /* VIP boleh minta sketsa lebih dulu — maka Creative harus melihat
        ordernya sebelum fase Sketch, bukan menunggu gilirannya tiba. */
     if(isVip(o)&&(o.phase||0)<6&&R.indexOf('Creative')>=0)return true;
+    /* Kalau aku memegang item WAJIB yang belum tuntas, akulah yang menahan
+       order ini — kartunya harus ada di daftarku, bukan cuma di blok
+       kelengkapan yang mudah terlewat. */
+    try{if(chkKurang(o,o.phase||0,true).some(chkTugasku))return true;}catch(e){}
     return R.indexOf(PIC2ROLE[ph.pic])>=0;
   });
 }
@@ -5942,9 +5946,19 @@ function invSet(id,st){
    Tiap fase membuka panel yang memang dipakai di fase itu. Panel lain
    diringkas jadi baris tipis — masih bisa dibuka, tapi tak lagi memenuhi layar. */
 /* 'chk' ikut di semua fase — kelengkapan selalu terlihat di panel fase berjalan. */
-const PH_PANEL=[['chk','brief'],['chk','rfq'],['chk','profit'],['chk','ringkas'],['chk','pricing'],
+const PH_PANEL=[['chk','brief'],['chk','rfq'],
+                /* fase 3: Purchasing menghitung ongkir di panel Pricing */
+                ['chk','profit','pricing'],
+                ['chk','ringkas'],
+                /* fase 5: Sales mengisi email & alamat penagihan di Brief — tanpa
+                   ini fase menahan pada data yang tak punya tempat pengisian */
+                ['chk','pricing','brief'],
                 ['chk','pricing'],['chk','ref','brief'],['chk','ref'],['chk','pricing','pay'],['chk','pay','bukti'],
-                ['chk','po','vpo'],['chk','prod'],['chk','prod'],['chk','pay','kirim'],['chk','kirim','cs']];
+                ['chk','po','vpo'],['chk','prod'],['chk','prod'],
+                /* fase 14: Finance menerbitkan invoice pelunasan (Pricing),
+                   Sales mengisi alamat kirim final (Brief) */
+                ['chk','pay','kirim','pricing','brief'],
+                ['chk','kirim','cs']];
 
 /* ================= CHECKLIST PER FASE =================
    Tiap fase punya daftar kelengkapan dengan PIC-nya sendiri. Item "w:true"
@@ -6044,16 +6058,16 @@ const PH_CHECK=[
   {auto:function(o){return !!(((o.pricing||{}).marginAppr||{}).tgl);}, k:'appr', t:'Setujui kelengkapan spesifikasi sebelum PO turun ke produksi', en:'Approve that the specification is complete before the PO goes to production', guna:'supaya yang diperiksa kesiapan produksinya — untungnya sudah diputus di Profitability', gunaEn:'so what gets checked is production readiness — the profit was already decided at Profitability',                 pic:'Direktur',      w:true},
   {auto:function(o){return !!((o.po||{}).generated);}, k:'poR', t:'Terbitkan PO ke Radja', en:'Issue the PO to Radja', guna:'supaya vendor punya dasar mulai produksi', gunaEn:'so the vendor has authority to start',                       pic:'Purchasing', w:true},
   {auto:function(o){var V=poVendors(o);return V.length===0||V.every(function(v){return !!(((o.vpo||{})[v]||{}).generated);});}, k:'poV', t:'Terbitkan PO ke tiap vendor collateral, lengkap dengan ukuran', en:'Issue a PO to each collateral vendor, sizes included', guna:'supaya kemasan siap bersamaan dengan produknya', gunaEn:'so packaging is ready at the same time as the product',           pic:'Purchasing'},
-  {auto:function(o){return !!((o.trello||{}).created);}, k:'trello', t:'Pastikan kartu Trello Production sudah terbentuk', en:'Make sure the Trello Production card was created', guna:'supaya progres produksi bisa dipantau', gunaEn:'so production progress can be tracked',               pic:'Project Manager'},
+  {auto:function(o){return !!((o.trello||{}).created);}, k:'trello', t:'Pastikan kartu Trello Production sudah terbentuk', en:'Make sure the Trello Production card was created', guna:'supaya progres produksi bisa dipantau', gunaEn:'so production progress can be tracked',               pic:'PM'},
   {auto:function(o){return !!((o.pricing||{}).spareTgl);},
    k:'spare', t:'Tentukan qty spare produksi', en:'Decide the production spare qty', guna:'supaya ada cadangan kalau ada yang reject', gunaEn:'so there is cover if something is rejected',            pic:'Purchasing'},
   {auto:function(o){var L=((o.po||{}).logos)||[];return L.length===0||L.every(function(lg){return !!(lg.warna||lg.rgb);});},
    k:'warnaLogo', t:'Isi warna logo beserta kode warnanya', en:'Fill in the logo colour and its colour code', guna:'supaya vendor tak salah warna dari brand client', gunaEn:'so the vendor does not miss the client brand colour', pic:'Creative'}
  ],
  [ // 11 Produksi
-  {auto:function(o){var s=(o.prod||{}).stage;return !!s&&s!=='Belum mulai';}, k:'mat', t:'Pastikan material sudah siap di vendor', en:'Confirm the material is ready at the vendor', guna:'supaya deadline tak mundur tanpa ketahuan', gunaEn:'so the deadline does not slip unnoticed',                       pic:'Project Manager', w:true},
-  {auto:function(o){return !!((o.prod||{}).sampleTgl);}, k:'sample', t:'Setujui sample / first article sebelum produksi massal', en:'Approve the sample / first article before mass production', guna:'supaya kesalahan tak terlanjur di semua pcs', gunaEn:'so a mistake does not run through every piece',             pic:'Project Manager'},
-  {auto:function(o){return !!((o.prod||{}).updated);}, k:'progres', t:'Perbarui tahap dan catatan progres produksi', en:'Update the production stage and progress notes', guna:'supaya tim tahu produksi sampai mana', gunaEn:'so the team knows how far production has got',           pic:'Project Manager'}
+  {auto:function(o){var s=(o.prod||{}).stage;return !!s&&s!=='Belum mulai';}, k:'mat', t:'Pastikan material sudah siap di vendor', en:'Confirm the material is ready at the vendor', guna:'supaya deadline tak mundur tanpa ketahuan', gunaEn:'so the deadline does not slip unnoticed',                       pic:'PM', w:true},
+  {auto:function(o){return !!((o.prod||{}).sampleTgl);}, k:'sample', t:'Setujui sample / first article sebelum produksi massal', en:'Approve the sample / first article before mass production', guna:'supaya kesalahan tak terlanjur di semua pcs', gunaEn:'so a mistake does not run through every piece',             pic:'PM'},
+  {auto:function(o){return !!((o.prod||{}).updated);}, k:'progres', t:'Perbarui tahap dan catatan progres produksi', en:'Update the production stage and progress notes', guna:'supaya tim tahu produksi sampai mana', gunaEn:'so the team knows how far production has got',           pic:'PM'}
  ],
  [ // 12 QC & Packing
   {auto:function(o){return (((o.brief||{}).qcFiles)||[]).length>0;}, k:'qc', t:'Unggah foto QC & retur — satu foto satu alasan', en:'Upload QC and return photos — one photo per reason', guna:'supaya klaim ke vendor punya bukti', gunaEn:'so the claim to the vendor has evidence',           pic:'Packing', w:true},
