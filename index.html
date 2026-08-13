@@ -673,6 +673,8 @@ const EN_RULES=[
 
 /* Kamus persis. Kunci = teks Indonesia apa adanya yang muncul di layar. */
 const EN={
+'PO REVISI':'REVISED PO','1. Konfirmasi ke Radja':'1. Confirm with Radja','2. Approval Direktur atas biaya tambahannya':'2. Director approves the extra cost','PO revisi dikonfirmasi Radja':'Revised PO confirmed by Radja','PO revisi disetujui Direktur':'Revised PO approved by the Director',
+'✎ Revisi order':'✎ Revise order','RIWAYAT REVISI':'REVISION HISTORY','Apa yang berubah':'What changed','Rinciannya':'Details','Revisi order':'Revise order','Qty berubah':'Quantity changed',
 'Sketsa boleh dikerjakan lebih dulu':'The sketch may be started early','buka panel Referensi gambar':'open the Reference images panel',
 '★ Client VIP':'★ VIP client','☆ Jadikan VIP':'☆ Make VIP','★ CLIENT VIP':'★ VIP CLIENTS','dahulukan':'handle these first','Client VIP — boleh minta sketsa lebih dulu':'VIP client — may ask for the sketch early',
 'Menunggu approval quotation':'Waiting on the client (quotation)','Menunggu approval sketsa':'Waiting on the client (sketch)','Menunggu DP masuk':'Waiting for the down payment','Client approve — lanjut sketch':'Client approved — continue to sketch','Sketsa disetujui — lanjut invoice':'Sketch approved — continue to invoice','DP masuk — lanjut spec & PO':'Down payment received — continue to spec & PO',
@@ -5842,7 +5844,7 @@ function renderDetail(){
      <button class="btn" onclick="trigger('${o.id}')" ${playing?'disabled':''}>✓ Selesai — lanjut fase</button></div>`;}
 
   $('#main').innerHTML=`
-   <div style="display:flex;justify-content:space-between;align-items:center"><div class="back" onclick="closeOrder()">‹ Kembali ke pipeline</div>${isVip(o)?vipLencana():''}${bolehAturVip()?vipTombol(o,'order'):''}${(o.phase===0&&o.status!=='Deal')?`<button class="btn ghost sm" style="color:#d9534f" onclick="delOrder('${o.id}')">🗑 Hapus order</button>`:''}</div>
+   <div style="display:flex;justify-content:space-between;align-items:center"><div class="back" onclick="closeOrder()">‹ Kembali ke pipeline</div>${isVip(o)?vipLencana():''}${bolehAturVip()?vipTombol(o,'order'):''}${revisiAll(o).length?`<span style="background:var(--accent);color:#2b1d0e;border-radius:5px;padding:1px 7px;font-size:9px;font-weight:800">✎ R${revisiAll(o).length}</span>`:''}${(o.phase===0&&o.status!=='Deal')?`<button class="btn ghost sm" style="color:#d9534f" onclick="delOrder('${o.id}')">🗑 Hapus order</button>`:''}</div>
    <div class="dhead">
      <div><h2># ${nm}</h2><div class="meta">${o.type} · ${o.product} · <b>${o.qty} pcs</b> · ${o.mat}${o.soNo?` · <span style="color:#8fd4a8;font-weight:700;cursor:pointer" onclick="soSetManual('${o.id}')" title="klik untuk ubah No. SO">SO ${esc(o.soNo)}</span> <span style="cursor:pointer;opacity:.6" onclick="soClear('${o.id}')" title="batalkan nomor SO">✕</span>`:` · <span style="cursor:pointer;opacity:.75;border:1px dashed rgba(255,255,255,.35);border-radius:5px;padding:1px 6px;font-size:10px" onclick="soSetManual('${o.id}')" title="tetapkan No. SO manual (untuk order pertama saat transisi)">＋ No. SO</span>`}</div></div>
      <div class="right"><div class="phasetag">${selesai?'Status <b>SELESAI</b>':`Fase <b>${o.phase+1}/${PH.length}</b> · ${ph?ph.n+' · PIC '+ph.pic:''}`}</div>
@@ -6030,6 +6032,10 @@ const PH_CHECK=[
    k:'dpMasuk', t:'Catat DP yang masuk, cocokkan dengan rekening', en:'Record the incoming down payment and reconcile it against the bank', guna:'supaya produksi tak jalan tanpa uang muka', gunaEn:'so production does not start without money in', pic:'Finance', w:true}
  ],
  [ // 10 Spec & PO
+  {auto:function(o){return !!((o.poRevOk||{}).radja);},
+   k:'poRevRadja', t:'Konfirmasi PO revisi ke Radja — pastikan bahan belum terpotong salah', en:'Confirm the revised PO with Radja — check no material has been cut wrongly', guna:'supaya perubahan tak menabrak barang yang sudah dikerjakan', gunaEn:'so the change does not collide with work already done', pic:'PM', w:true, jika:'poRev'},
+  {auto:function(o){return !!((o.poRevOk||{}).direktur);},
+   k:'poRevDir', t:'Setujui PO revisi beserta biaya tambahannya', en:'Approve the revised PO and any extra cost it brings', guna:'supaya biaya perubahan ada yang menanggung keputusannya', gunaEn:'so someone owns the decision behind the extra cost', pic:'Direktur', w:true, jika:'poRev'},
   {auto:function(o){return poMissing(o).length===0;}, k:'spec', t:'Lengkapi Form PO: material, deboss, stitch, prong, benang, finishing', en:'Complete the PO form: material, deboss, stitch, prong, thread, finishing', guna:'supaya vendor tak menebak spesifikasi', gunaEn:'so the vendor is not guessing the spec',               pic:'Purchasing', w:true},
   {auto:function(o){return !!(((o.pricing||{}).marginAppr||{}).tgl);}, k:'appr', t:'Minta approval margin ke Direktur', en:'Get margin approval from the Director', guna:'supaya PO tak turun tanpa persetujuan', gunaEn:'so the PO does not go out unapproved',                 pic:'Sales',      w:true},
   {auto:function(o){return !!((o.po||{}).generated);}, k:'poR', t:'Terbitkan PO ke Radja', en:'Issue the PO to Radja', guna:'supaya vendor punya dasar mulai produksi', gunaEn:'so the vendor has authority to start',                       pic:'Purchasing', w:true},
@@ -6074,6 +6080,7 @@ function chkBerlaku(o,it){
   if(it.jika==='coll')return ['box','pouch','card'].some(function(k){return (o.coll||{})[k];});
   /* cuma order yang lahir dari prospek bercatatan yang perlu diterjemahkan */
   if(it.jika==='dariSales')return !!(salesGet(o)&&salesBelum(o).length>0);
+  if(it.jika==='poRev')return (o.poRev||0)>0;         // hanya kalau PO sudah turun lalu direvisi
   return true;}
 function chkItems(fase,o){
   var F=PH_CHECK[fase]||[];
@@ -6254,7 +6261,8 @@ function chkTugasSaya(role){
 
 /* Petunjuk tempat mengisi tiap item — checklist hanya memantau, pengisiannya
    di panel kerja masing-masing. */
-const CHK_SUMBER={'5.quoAcc':'panel Pricing → status quotation','7.sketsaAcc':'panel Referensi gambar → tombol approval sketsa','9.dpMasuk':'panel Pembayaran → Catat DP masuk',
+const CHK_SUMBER={'10.poRevRadja':'panel Form PO Radja → PO revisi','10.poRevDir':'panel Form PO Radja → PO revisi',
+  '5.quoAcc':'panel Pricing → status quotation','7.sketsaAcc':'panel Referensi gambar → tombol approval sketsa','9.dpMasuk':'panel Pembayaran → Catat DP masuk',
   '3.dirAcc':'panel Ringkasan untuk Direktur',
   '0.terjemah':'Brief → Material utama, Personalization, dan spesifikasi tiap collateral',
   '0.brief':'form order baru / panel Pricing','0.kontak':'Brief Inquiry','0.acara':'Brief Inquiry','0.ref':'Brief → lampiran Referensi client','0.kota':'Brief → Venue / kota tujuan','0.hpWo':'Brief → WO / EO phone','1.rfq':'panel Minta harga vendor','1.kulit':'panel Minta harga vendor → ketersediaan kulit','1.harga':'panel Minta harga vendor → Catat jawaban','1.moq':'panel Minta harga vendor → catatan vendor','2.hpp':'panel Penentuan harga jual','2.margin':'panel Penentuan harga jual','2.ongkir':'panel Pricing → Ongkir','2.biayaLain':'panel Penentuan harga jual → Biaya di luar HPP','2.deadlineProd':'panel Penentuan harga jual → Info dari Radja','2.tglPOMax':'panel Penentuan harga jual → Info dari Radja','2.accJual':'panel Penentuan harga jual → Persetujuan harga jual','4.gen':'panel Pricing → Generate Quotation','4.kirim':'panel Pricing → status quotation','4.follow':'panel Pricing → tandai Approved','4.email':'Brief → Email client','4.kirimData':'panel Pricing → Ekspedisi, Kota, Berat','4.alamatKantor':'Brief → Alamat client / kantor','4.ppn':'panel Pricing → Status PPN','6.logoCl':'Brief → lampiran Logo client','6.logoPch':'Brief → lampiran Logo soft pouch','6.logoBox':'Brief → lampiran Logo box','6.logoCard':'Brief → lampiran Logo thank you card','6.daftarNama':'Brief → daftar nama tamu','6.preview':'panel Referensi gambar → lampiran preview','6.approve':'panel Referensi gambar → tombol approval sketsa','8.inv':'panel Pricing → Generate Invoice','8.kirim':'panel Pricing → status invoice','8.dp':'panel Pembayaran → Catat DP masuk','8.faktur':'panel Pricing → No. faktur pajak','10.spec':'Form PO Radja','10.appr':'Form PO Radja → approval margin','10.poR':'Form PO Radja → Generate PO','10.poV':'panel PO vendor lain','10.trello':'otomatis saat fase Spec & PO dilewati','10.spare':'Form PO Radja → Qty spare produksi','10.warnaLogo':'Form PO Radja → warna logo','11.mat':'panel Produksi → Tahap','11.sample':'panel Produksi → sample disetujui','11.progres':'panel Produksi → catatan progres','12.qc':'panel Produksi → lampiran foto QC & retur','12.pack':'panel Produksi → lampiran foto packing','12.coll':'panel Produksi → collateral lengkap','13.invP':'panel Pricing → Generate Invoice','13.lunas':'panel Pembayaran → Catat pelunasan','13.alamat':'Brief → Alamat kirim','13.penerima':'panel Pengiriman barang','13.resi':'panel Pengiriman barang','14.tglTerima':'panel Pengiriman barang → Tanggal diterima','14.bukti':'panel Pengiriman barang → foto serah terima','14.testi':'panel Komplain & kepuasan','14.arsip':'otomatis saat order ditutup'};
@@ -6378,7 +6386,8 @@ function chkPanel(o){
   var rows=(milikku.length?sekat('MENUNGGU KAMU ('+milikku.length+')')+milikku.map(function(it){return baris(it,false);}).join(''):'')+
     (lain.length?sekat(milikku.length?'MENUNGGU JABATAN LAIN':'SEMUA ITEM FASE INI')+
       lain.map(function(it){return baris(it,true);}).join(''):'');
-  return '<div class="card actcard" style="margin-top:14px"><div class="ch">'+
+  return revisiBlok(o)+
+    '<div class="card actcard" style="margin-top:14px"><div class="ch">'+
     '<span class="ico" style="background:'+(sisaWajib?'var(--warn)':'var(--ok)')+'">☑</span>'+
     '<div><div class="t">Kelengkapan fase '+(f+1)+' — '+esc(PH[f].n)+'</div>'+
       '<div class="s">tabel kontrol — tercentang sendiri begitu datanya terisi. Klik item yang jadi tugasmu untuk langsung ke tempat mengisinya.</div></div>'+
@@ -6524,6 +6533,7 @@ function tandaSet(id,jalur,f,label){
   var wadah=(jalur==='prod')?(o.prod=o.prod||{}):((o.pricing=o.pricing||{lines:[],margin:30}));
   if(jalur==='margin'){if(!o.pricing.marginAppr)o.pricing.marginAppr={};wadah=o.pricing.marginAppr;}
   if(jalur==='jual'){if(!o.pricing.jualAppr)o.pricing.jualAppr={};wadah=o.pricing.jualAppr;}
+  if(jalur==='poRev'){if(!o.poRevOk)o.poRevOk={};wadah=o.poRevOk;}
   if(jalur==='spare')wadah=o.pricing;                    // spare 0 pun sah, asal sudah diputuskan
   if(wadah[f]){                                   // batalkan
     if(!confirm('Batalkan catatan "'+label+'"?'))return;
@@ -6535,7 +6545,9 @@ function tandaSet(id,jalur,f,label){
   }
   o._m=Date.now();save();render();}
 function tandaTombol(o,jalur,f,label){
-  var wadah=(jalur==='prod')?(o.prod||{}):(jalur==='spare')?(o.pricing||{}):(((o.pricing||{}).marginAppr)||{});
+  var wadah=(jalur==='prod')?(o.prod||{}):(jalur==='spare')?(o.pricing||{})
+    :(jalur==='poRev')?(o.poRevOk||{}):(jalur==='jual')?(((o.pricing||{}).jualAppr)||{})
+    :(((o.pricing||{}).marginAppr)||{});
   var ada=!!wadah[f];
   return '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px">'+
     '<button class="btn '+(ada?'ghost ':'')+'sm" onclick="tandaSet(\'' + o.id + '\',\'' + jalur + '\',\'' + f + '\',\'' + label.replace(/'/g, "\\'") + '\')">'+
@@ -7227,6 +7239,112 @@ function dirBaris(k,v,tebal){
   return '<div style="display:flex;gap:10px;padding:4px 0;font-size:11px;line-height:1.55'+(tebal?';font-weight:800':'')+'">'+
     '<span style="flex:1;color:var(--muted)'+(tebal?';color:var(--ink)':'')+'">'+k+'</span>'+
     '<span style="text-align:right;white-space:nowrap">'+v+'</span></div>';}
+
+/* ================= REVISI DI TENGAH PIPELINE =================
+   fase: indeks tujuan mundur; null = tak perlu mundur, cukup dihitung ulang. */
+const REVISI_SEBAB=[
+  {k:'qty',    t:'Qty berubah',                                   fase:1},
+  {k:'item',   t:'Produk atau collateral ditambah / dikurangi',   fase:1},
+  {k:'bahan',  t:'Ganti bahan atau spesifikasi produk',           fase:1},
+  {k:'jasa',   t:'Live service atau add-on ditambah / dibatalkan',fase:2},
+  {k:'harga',  t:'Margin atau diskon diubah',                     fase:2},
+  {k:'tanggal',t:'Tanggal acara bergeser',                        fase:2},
+  {k:'kirim',  t:'Alamat kirim atau penerima berubah',            fase:null},
+  {k:'perso',  t:'Daftar nama atau teks personalisasi',           fase:null}];
+function bolehRevisi(){
+  var R=myRoles();
+  return ['Sales','Project Manager','Direktur Utama','Holding'].some(function(r){return R.indexOf(r)>=0;});}
+function revisiAll(o){if(!Array.isArray(o.revisi))o.revisi=[];return o.revisi;}
+function poSudahTurun(o){return !!((o.po||{}).generated)||Object.keys(o.vpo||{}).some(function(v){return (o.vpo[v]||{}).generated;});}
+
+/* Persetujuan yang gugur karena angkanya berubah. Dipisah supaya alasan
+   tiap penghapusan terbaca, bukan sekadar delete berderet. */
+function revisiBatalkanAcc(o,keFase){
+  var gugur=[];
+  var P=o.pricing||{};
+  if(keFase!==null&&keFase<=2&&P.jualAppr){delete P.jualAppr;gugur.push('persetujuan harga jual (Sales)');}
+  if(keFase!==null&&keFase<=3&&P.dirAppr){delete P.dirAppr;gugur.push('approval Direktur di Profitability');}
+  if(keFase!==null&&keFase<=10&&P.marginAppr){delete P.marginAppr;gugur.push('approval margin Direktur');}
+  if(keFase!==null&&keFase<=5&&o.quo&&o.quo.status==='Approved'){
+    o.quo.status='Revisi';o.quo.rev=(o.quo.rev||0)+1;
+    gugur.push('approval quotation dari client (jadi revisi R'+o.quo.rev+')');}
+  if(keFase!==null&&keFase<=8&&o.inv&&o.inv.status&&o.inv.status!=='Draft'){
+    o.inv.status='Revisi';gugur.push('invoice yang sudah terbit — perlu diterbitkan ulang');}
+  return gugur;}
+
+function revisiOrder(id){
+  var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
+  if(!bolehRevisi()){alert('Revisi order hanya bisa dimulai Sales, Project Manager, atau Direktur.');return;}
+  askForm({judul:'Revisi order',sub:'Order '+o.customer+' · sekarang fase '+((o.phase||0)+1)+' '+PH[o.phase||0].n,
+    fields:[
+      {k:'sebab',label:'Apa yang berubah',type:'select',req:true,val:REVISI_SEBAB[0].t,
+       opts:REVISI_SEBAB.map(function(x){return x.t;}),
+       hint:'HUB menghitung sendiri sampai fase mana order harus mundur — supaya tak ada yang memilih sedangkal mungkin.'},
+      {k:'catatan',label:'Rinciannya',type:'textarea',req:true,
+       ph:'mis. client menaikkan qty dari 200 jadi 250 pcs, acara ditambah satu meja.'}],
+    ok:function(v){
+      var S=REVISI_SEBAB.find(function(x){return x.t===v.sebab;})||REVISI_SEBAB[0];
+      var dari=o.phase||0, ke=S.fase;
+      /* tak pernah "mundur" ke fase yang belum dilewati */
+      if(ke!==null&&ke>=dari)ke=null;
+      var poRev=poSudahTurun(o);
+
+      var ringkas=[];
+      ringkas.push('Perubahan: '+S.t);
+      ringkas.push(ke===null?'Order TETAP di fase '+(dari+1)+' '+PH[dari].n+' — cukup dihitung ulang di tempat.'
+                            :'Order mundur ke fase '+(ke+1)+' '+PH[ke].n+'.');
+      if(poRev)ringkas.push('PO sudah turun ke vendor — akan jadi PO REVISI yang butuh konfirmasi Radja dan approval Direktur.');
+      if((o.prod||{}).stage&&o.prod.stage!=='Belum mulai')
+        ringkas.push('⚠ Produksi sudah berjalan (' + o.prod.stage + '). Bahan mungkin sudah dipotong.');
+      var gugurPratinjau=[];
+      var P=o.pricing||{};
+      if(ke!==null&&ke<=2&&P.jualAppr)gugurPratinjau.push('persetujuan harga jual Sales');
+      if(ke!==null&&ke<=3&&P.dirAppr)gugurPratinjau.push('approval Direktur');
+      if(ke!==null&&ke<=5&&o.quo&&o.quo.status==='Approved')gugurPratinjau.push('approval quotation client');
+      if(gugurPratinjau.length)ringkas.push('Yang gugur: '+gugurPratinjau.join(', ')+'.');
+
+      if(!confirm(ringkas.join('\n\n')+'\n\nLanjutkan?'))return;
+
+      var gugur=revisiBatalkanAcc(o,ke);
+      if(poRev){
+        o.poRev=(o.poRev||0)+1;
+        o.poRevOk={radja:'',direktur:''};                  // dikosongkan: harus dikonfirmasi ulang
+      }
+      revisiAll(o).push({tgl:nowStr(),oleh:(ST.userName||ST.user||''),
+        sebab:S.t,catatan:v.catatan,dari:dari,ke:(ke===null?dari:ke),poRev:poRev});
+      if(ke!==null){o.phase=ke;o._faseSejak=Date.now();o.ingatOtomatis={};}
+      logHist(o,'✎ Revisi ('+S.t+'): '+v.catatan+
+        (ke===null?' — tetap di fase '+(dari+1):' — mundur ke fase '+(ke+1)+' '+PH[ke].n)+
+        (gugur.length?('. Gugur: '+gugur.join(', ')):'')+
+        (poRev?'. PO revisi R'+o.poRev+' menunggu konfirmasi Radja.':''));
+      notifyOrder(o,'✎ **Revisi order '+o.customer+'**\n'+S.t+' — '+v.catatan+'\n'+
+        (ke===null?'Tetap di fase '+(dari+1)+' '+PH[dari].n
+                  :'Mundur ke fase '+(ke+1)+' '+PH[ke].n+' — '+picMention(PH[ke].pic))+
+        (poRev?('\n⚠ PO sudah turun — PO revisi R'+o.poRev+' butuh konfirmasi Radja & approval Direktur.'):''));
+      o._m=Date.now();save();render();
+      alert(ringkas.join('\n\n'));}});}
+
+/* Riwayat revisi tampil di ordernya — perubahan yang tak terlihat akan
+   terulang, karena tak ada yang tahu pernah terjadi. */
+function revisiBlok(o){
+  var L=revisiAll(o);
+  var tombol=bolehRevisi()
+    ? '<button class="btn ghost sm" style="font-size:9.5px" onclick="revisiOrder(\''+o.id+'\')">✎ Revisi order</button>'
+    : '';
+  if(!L.length)return tombol;
+  return '<div style="border:1px solid var(--accent);border-radius:10px;padding:10px 12px;margin:12px 0;background:var(--warn-bg)">'+
+    '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px">'+
+      '<span style="font-size:9.5px;font-weight:800;color:var(--brand-dark);letter-spacing:.04em">RIWAYAT REVISI ('+L.length+')</span>'+
+      '<span style="margin-left:auto">'+tombol+'</span></div>'+
+    L.slice(-4).reverse().map(function(r){
+      return '<div style="font-size:10.5px;line-height:1.55;padding:4px 0;border-top:1px dashed var(--accent)">'+
+        '<b>'+esc(r.sebab)+'</b> <span style="color:var(--ink-soft)">· '+esc(r.oleh)+' · '+esc(r.tgl)+'</span>'+
+        '<div>'+esc(r.catatan)+'</div>'+
+        '<div style="color:var(--ink-soft)">'+(r.dari===r.ke?('tetap di fase '+(r.dari+1)):('fase '+(r.dari+1)+' → '+(r.ke+1)+' '+esc(PH[r.ke].n)))+
+          (r.poRev?' · PO revisi':'')+'</div></div>';}).join('')+
+    (L.length>4?'<div style="font-size:9.5px;color:var(--ink-soft);padding-top:4px">…'+(L.length-4)+' revisi lebih lama</div>':'')+
+    '</div>';}
+
 function ringkasPanel(o){
   var P=profitTotals(o),T=orderTotals(o),b=o.brief||{},po=o.po||{};
   var L=(((o.pricing||{}).lines)||[]).filter(function(l){return (l.qty||0)>0;});
@@ -9285,6 +9403,14 @@ function poPanel(o){
         ${ready?(p.generated?`<span style="font-size:10.5px;color:var(--ok);font-weight:700">✓ ${p.poNo} · kartu Trello terisi · notif Radja terkirim</span>`:'<span style="font-size:10.5px;color:var(--muted)">draft lengkap — siap generate</span>'):`<span style="font-size:10.5px;color:var(--warn)">🔒 lengkapi dulu: ${miss.join(', ')}</span>`}
       </div>
       <div style="border-top:1px solid var(--line);margin-top:13px;padding-top:11px">
+        ${(o.poRev||0)>0?`<div style="border:1px solid #8f2a1e;border-radius:10px;padding:11px 13px;margin-bottom:12px;background:var(--red-bg)">
+          <div style="font-size:10px;font-weight:800;color:#8f2a1e;letter-spacing:.04em">PO REVISI R${o.poRev}</div>
+          <div style="font-size:10.5px;color:var(--ink-soft);margin:3px 0 8px;line-height:1.6">Order ini direvisi setelah PO turun. Bahan mungkin sudah dipotong — PO baru belum berlaku sebelum kedua tanda di bawah tercatat.</div>
+          <div style="font-size:10.5px;font-weight:800">1. Konfirmasi ke Radja</div>
+          ${tandaTombol(o,'poRev','radja','PO revisi dikonfirmasi Radja')}
+          <div style="font-size:10.5px;font-weight:800;margin-top:9px">2. Approval Direktur atas biaya tambahannya</div>
+          ${tandaTombol(o,'poRev','direktur','PO revisi disetujui Direktur')}
+        </div>`:''}
         ${tandaTombol(o,'margin','tgl','Approval margin dari Direktur')}
         ${tandaTombol(o,'spare','spareTgl','Qty spare produksi ditentukan')}
       </div>
