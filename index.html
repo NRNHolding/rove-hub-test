@@ -665,6 +665,7 @@ const EN_RULES=[
 
 /* Kamus persis. Kunci = teks Indonesia apa adanya yang muncul di layar. */
 const EN={
+'kelengkapan fase ini sudah lengkap':'this phase’s checklist is complete',
 '💬 Tanya Sales':'💬 Ask Sales','Yang belum jelas':'What is unclear','Ini tugas jabatanmu sendiri — tak ada yang perlu diingatkan.':'This is your own role\u2019s task \u2014 there is nobody to remind.',
 '🔍 Cari produk atau bahan…':'🔍 Search product or material…',
 '◇ Prospek':'◇ Leads',
@@ -4748,7 +4749,11 @@ function kartuTugas(o){
   return '<div class="oc" style="max-width:660px;margin-bottom:8px" onclick="openOrder(\''+o.id+'\')">'+
     '<div class="on"><span class="pf" style="background:'+pfColor(o.prefix)+'">'+String(o.prefix||'?').toUpperCase()+'</span>'+
       esc(o.customer)+' <span style="color:var(--muted);font-weight:400">· '+esc(o.product||'-')+' '+(o.qty||0)+'pcs</span></div>'+
-    '<div class="om" style="margin-top:5px"><span>'+esc(ph.btn||'')+'</span>'+
+    /* judul kelompok sudah menyebut langkah fasenya — di kartu yang berguna
+       justru berapa kelengkapan order INI yang masih menunggu jabatanku */
+    '<div class="om" style="margin-top:5px"><span>'+(function(){
+      var n=chkKurang(o,o.phase).filter(chkTugasku).length;
+      return n?('<b>'+n+' kelengkapan</b> menunggumu di order ini'):'kelengkapan fase ini sudah lengkap';})()+'</span>'+
       '<span class="stbadge st-'+o.status+'">'+esc(o.status)+'</span></div>'+
     deadline+
     (ph.gate?('<div style="margin-top:6px"><span class="stbadge" style="background:var(--warn-bg);color:var(--warn)">🔒 gate: '+esc(ph.gate)+'</span></div>'):'')+
