@@ -7158,7 +7158,7 @@ function ringkasPanel(o){
   return '<div class="card actcard" style="margin-top:14px"><div class="ch"><span class="ico" style="background:#4b5d8a">▤</span>'+
     '<div><div class="t">Ringkasan untuk Direktur</div><div class="s">BACA SAJA — PUTUSKAN APPROVE ATAU TOLAK</div></div>'+
     '<span style="margin-left:auto;font-size:12px;font-weight:800;color:'+profitWarna(P.pct)+'">'+
-      (P.jual?('Profit bersih '+fmt0(P.bersih)+' · '+P.pct+'%'):'belum ada angka')+'</span></div><div class="body">'+
+      (P.jual?('Profit bersih '+fmt0(P.profit)+' · '+P.pct+'%'):'belum ada angka')+'</span></div><div class="body">'+
     '<div style="font-size:10.5px;color:var(--muted);margin-bottom:10px;line-height:1.6">Tak ada yang bisa diubah dari sini. Kalau ada angka yang salah, <b>tolak</b> ordernya — HUB mengembalikannya ke fase yang tepat sesuai alasanmu.</div>'+
     '<div class="xscroll"><table class="ptable" style="min-width:420px"><thead><tr><th>Item</th>'+
       '<th class="num" style="width:52px">Qty</th><th class="num" style="width:104px">HPP</th>'+
@@ -7167,7 +7167,7 @@ function ringkasPanel(o){
       dirBaris('Omset (sebelum diskon &amp; ongkir)',fmt0(P.jual))+
       dirBaris('HPP vendor','− '+fmt0(P.hpp))+
       dirBaris('Biaya di luar HPP','− '+fmt0(P.biayaLain))+
-      dirBaris('Profit bersih',fmt0(P.bersih)+' · '+P.pct+'%',true)+
+      dirBaris('Profit bersih',fmt0(P.profit)+' · '+P.pct+'%',true)+
     '</div>'+
     '<div style="margin-top:11px;border-top:1px solid var(--line);padding-top:9px">'+
       dirBaris('Nilai tagihan ke client',fmt0(T.grand),true)+
