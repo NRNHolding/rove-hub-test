@@ -3584,18 +3584,19 @@ function applyTrigger(o,silent){
   if(p===0){push('Sales',`Inquiry ${o.customer} masuk. Aku buat channel-nya.`);push('Bot',`Channel <b>#${nm}</b> dibuat di kategori PRE-DEAL. Tipe: <b>${o.type}</b>.`);}
   else if(p===1){push('Sales',`Minta harga ${o.product} ${o.qty}pcs (${o.mat}) ke Radja.`);push('Radja',`Harga fix. Channel dipindah ke <b>PRICING DONE</b>.`);push('Bot',`Harga vendor terekam. Harga jual + margin dihitung di HUB.`);}
   else if(p===2){var Pp=profitTotals(o);push('Sales',`Cek profit: jual ${fmt0(Pp.jual)} − HPP ${fmt0(Pp.hpp)} = <b>${fmt0(Pp.profit)}</b> (${Pp.pct}%).`);push('Bot',`Margin disetujui. ✅ Lanjut quotation.`);}
-  else if(p===3){push('Finance',`Quotation ${o.customer} di-generate (detail lengkap).`);push('Sales',`Terkirim ke client.`);push('Bot',`Client <b>approve quotation</b>. ✅ Lanjut sketch.`);}
-  else if(p===4){push('Creative',`Preview sketch ${o.product} selesai & dirapikan.`);push('Bot',`Client <b>approve sketsa</b>. ✅ Menuju invoice.`);}
-  else if(p===5){push('Finance',`Invoice terkirim + reminder tagih.`);push('Bot',`DP masuk — <b>Billing 1</b>. Channel dipindah ke <b>Deal Bulan</b>.`);}
-  else if(p===6){
+  else if(p===4){push('Finance',`Quotation ${o.customer} di-generate (detail lengkap).`);push('Sales',`Terkirim ke client.`);push('Bot',`Client <b>approve quotation</b>. ✅ Lanjut sketch.`);}
+  else if(p===6){push('Creative',`Preview sketch ${o.product} selesai & dirapikan.`);push('Bot',`Client <b>approve sketsa</b>. ✅ Menuju invoice.`);}
+  else if(p===8){push('Finance',`Invoice terkirim + reminder tagih.`);push('Bot',`DP masuk — <b>Billing 1</b>. Channel dipindah ke <b>Deal Bulan</b>.`);}
+  else if(p===10){
     push('Sales',`Draft spec lengkap. Minta approval margin @Direktur.`);push('Direktur',`Margin & profitability oke. Lanjut. ✅`);
     push('Bot',`Gate margin approved. ⚡ Generate kartu Trello Production + turun PO ke Radja.`);
     o.trello={created:true};o.checks=[];
   }
-  else if(p===7){push('Radja',`Mass prod jalan, progres di Trello.`);push('PM',`HUB pantau via Trello + kategori Radja (read-only).`);o.checks=['Potong & skiving','Deboss logo','Jahit / stitch'];}
-  else if(p===8){push('Packing',`QC di Radja, tim Rove hadir. Retur difoto + alasan.`);push('Bot',`QC <b>lolos</b>. Barang dikemas + dokumentasi.`);o.checks=['Potong & skiving','Deboss logo','Jahit / stitch','Finishing','QC + retur','Packing + foto'];}
-  else if(p===9){push('Finance',`Invoice pelunasan terkirim, reminder H-3.`);push('Bot',`Pelunasan masuk — <b>Billing 2</b> (lunas). Pengiriman dibuka.`);push('Packing',`Kirim via ekspedisi, resi auto-detect (OCR).`);o.checks=CHECK.slice();}
-  else if(p===10){push('Sales',`Client konfirmasi diterima. 🙏 Minta testimoni.`);push('Bot',`Order <b>Selesai</b>. Channel diarsipkan (ARCHIVED) + masuk laporan & evaluasi.`);o.done=true;o.leadDays=14+(o.qty%23);o.returns=o.qty>=100?3:0;o.revisi=(o.qty%2)?1:0;}
+  else if(p===11){push('Radja',`Mass prod jalan, progres di Trello.`);push('PM',`HUB pantau via Trello + kategori Radja (read-only).`);o.checks=['Potong & skiving','Deboss logo','Jahit / stitch'];}
+  else if(p===12){push('Packing',`QC di Radja, tim Rove hadir. Retur difoto + alasan.`);push('Bot',`QC <b>lolos</b>. Barang dikemas + dokumentasi.`);o.checks=['Potong & skiving','Deboss logo','Jahit / stitch','Finishing','QC + retur','Packing + foto'];}
+  else if(p===13){push('Finance',`Invoice pelunasan terkirim, reminder H-3.`);push('Bot',`Pelunasan masuk — <b>Billing 2</b> (lunas). Pengiriman dibuka.`);push('Packing',`Kirim via ekspedisi, resi auto-detect (OCR).`);o.checks=CHECK.slice();}
+  else if(p===14){push('Sales',`Client konfirmasi diterima. 🙏 Minta testimoni.`);push('Bot',`Order <b>Selesai</b>. Channel diarsipkan (ARCHIVED) + masuk laporan & evaluasi.`);o.done=true;o.leadDays=14+(o.qty%23);o.returns=o.qty>=100?3:0;
+    o.revisi=(o.revisiLog||[]).length;}   // jumlah revisi sungguhan, bukan tebakan
   o._m=Date.now();logHist(o,'Fase → '+((ph&&ph.n)||('fase '+(p+1))));
   if(p<PH.length-1)o.phase++;else o.phase=PH.length; // 10 = selesai
   syncStatus(o);                       // status ikut fase, tak perlu diketik
@@ -5192,29 +5193,29 @@ function kurangFase(o,i){
     var Pp=profitTotals(o);
     if(Pp.kurang)k.push(Pp.kurang+' item belum ada HPP vendor');
     if(Pp.jual&&Pp.pct<0)k.push('Profit minus — harga jual di bawah HPP');}
-  else if(i===3){
+  else if(i===4){
     if(!ada(o.shipEksp))k.push('Ekspedisi untuk ongkir quotation');
     if(!(o.docs&&o.docs.quotation))k.push('Generate Quotation');
     else if((o.quo||{}).status!=='Approved')k.push('Approval client atas quotation');}
-  else if(i===4){
+  else if(i===6){
     if(L.length&&!L.some(function(l){return lineImg(l);}))k.push('Gambar / sketch produk');}
-  else if(i===5){
+  else if(i===8){
     if(!(o.docs&&o.docs.invoice))k.push('Generate Invoice');
     else if(!(((o.pay||{}).dp||0)>0))k.push('DP masuk');}
-  else if(i===6){
+  else if(i===10){
     var pm=poMissing(o);
     if(pm.length)k.push('Form PO: '+pm.join(', '));
     else if(!((o.po||{}).generated))k.push('Generate PO ke vendor');}
-  else if(i===7){
+  else if(i===11){
     if(!ada((o.prod||{}).stage))k.push('Update tahap produksi');}
-  else if(i===8){
+  else if(i===12){
     if(['QC','Packing','Selesai'].indexOf((o.prod||{}).stage)<0)k.push('Hasil QC & packing');}
-  else if(i===9){
+  else if(i===13){
     var sisa=orderGrand(o)-orderPaid(o);
     if(sisa>0)k.push('Pelunasan '+fmt0(sisa));
     if(!ada(o.shipEksp))k.push('Ekspedisi');
     if(!((o.shipKg||0)>0))k.push('Berat kirim');}
-  else if(i===10){
+  else if(i===14){
     if(!o.done)k.push('Konfirmasi barang diterima client');}
   return k;}
 /* Yang seharusnya sudah beres sampai fase sekarang, tapi belum. */
@@ -5245,11 +5246,11 @@ function wajibFase(o,i){
     var tanpaJual=L.filter(function(l){return !((l.jual||0)>0);});
     if(tanpaJual.length)w.push('Harga jual belum terisi: '+tanpaJual.map(function(l){return l.produk||'(tanpa nama)';}).slice(0,3).join(', '));
   }
-  else if(i===6){
+  else if(i===10){
     var pm=poMissing(o);
     if(pm.length)w.push('Form PO belum lengkap: '+pm.join(', '));
   }
-  else if(i===9){
+  else if(i===13){
     /* jaring kedua: fase 4 sudah menahan ekspedisi, tapi Holding bisa menembusnya */
     if(!ada(o.shipEksp))w.push('Ekspedisi belum dipilih — ongkir tak bisa dihitung');
   }
@@ -5873,12 +5874,12 @@ function statusFase(o){
   if(o.status==='Cancel')return 'Cancel';
   if(o.done||(o.phase||0)>=PH.length)return 'Selesai';
   var p=o.phase||0,D=o.docs||{},q=o.quo||{},iv=o.inv||{};
-  if(p===3){                                   // fase Quotation
+  if(p===4){                                   // fase Quotation
     if(!D.quotation)return 'Quotation disiapkan';
     if(q.status==='Approved')return 'Quotation approved';
     if(q.status==='Terkirim')return 'Quotation terkirim';
     return 'Quotation dibuat';}
-  if(p===5){                                   // fase Invoice
+  if(p===8){                                   // fase Invoice
     if(!D.invoice)return 'Invoice disiapkan';
     if(iv.status==='Terkirim')return 'Invoice terkirim';
     return 'Invoice dibuat';}
@@ -7256,7 +7257,10 @@ const REVISI_SEBAB=[
 function bolehRevisi(){
   var R=myRoles();
   return ['Sales','Project Manager','Direktur Utama','Holding'].some(function(r){return R.indexOf(r)>=0;});}
-function revisiAll(o){if(!Array.isArray(o.revisi))o.revisi=[];return o.revisi;}
+/* Namanya BUKAN o.revisi: field itu sudah dipakai app sebagai penghitung
+   angka untuk laporan evaluasi, dan applyTrigger menimpanya saat order
+   selesai — riwayatnya akan lenyap tepat saat paling dibutuhkan. */
+function revisiAll(o){if(!Array.isArray(o.revisiLog))o.revisiLog=[];return o.revisiLog;}
 function poSudahTurun(o){return !!((o.po||{}).generated)||Object.keys(o.vpo||{}).some(function(v){return (o.vpo[v]||{}).generated;});}
 
 /* Persetujuan yang gugur karena angkanya berubah. Dipisah supaya alasan
@@ -7445,6 +7449,9 @@ function dirTolak(id){
       if(!o.pricing)o.pricing={lines:[],margin:30};
       o.pricing.dirAppr={tgl:hariIni(),tglBy:(ST.userName||ST.user||''),
         tolak:true,alasan:pilih[1],catatan:v.catatan};
+      revisiAll(o).push({tgl:nowStr(),oleh:(ST.userName||ST.user||''),
+        sebab:'Ditolak Direktur — '+pilih[1],catatan:v.catatan,
+        dari:(o.phase||0),ke:pilih[2],poRev:false});
       o.phase=pilih[2];
       o._faseSejak=Date.now();o.ingatOtomatis={};
       logHist(o,'✕ Ditolak Direktur ('+pilih[1]+') — dikembalikan ke fase '+(pilih[2]+1)+' '+pilih[3]+'. '+v.catatan);
