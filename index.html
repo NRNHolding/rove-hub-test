@@ -4985,7 +4985,7 @@ function expReady(){return expOrders().filter(function(o){return ST._expAll||!o.
 function sohRows(){return expReady().map(function(o){
   var typeLabel=((ST.master.jenis||[]).find(function(j){return j.code===o.prefix;})||{}).label||o.prefix;
   return [o.soNo||'',xlsDate(dmyToISO(o.date)),xlsDate(o.eventDate),o.customer,o.addr||'-',o.phone||'-',o.pic3||'-',
-    o.venue||'-',o.shipKota||'-',o.email||'-',bahanRingkas(o)||'-',typeLabel,o.sales||'-'];});}
+    o.venue||'-',o.shipKota||'-',clientEmail(o)||'-',bahanRingkas(o)||'-',typeLabel,o.sales||'-'];});}
 /* Material dari baris pricing — dipakai kolom Notes SO-H, menggantikan
    catatan "artikel kulit" yang dulu diketik ulang secara manual. */
 function bahanRingkas(o){
@@ -5185,7 +5185,7 @@ function kurangFase(o,i){
   var ada=function(v){var s=String(v===undefined||v===null?'':v).trim();return s!==''&&s!=='-';};
   if(i===0){
     if(!ada(o.phone))k.push('No. HP client');
-    if(!ada(o.email))k.push('Email client');
+    if(!ada(clientEmail(o)))k.push('Email client');
     if(!ada(o.addr))k.push('Alamat kirim');
     if(!ada(o.eventDate))k.push('Tanggal acara / target kirim');}
   else if(i===1){
@@ -5712,7 +5712,7 @@ function ovKartu(o){
   var wed=(o.prefix==='w')?[((o.brief||{}).brideNama||''),((o.brief||{}).groomNama||'')].filter(Boolean).join(' & '):'';
   var kiri=ovBaris('Jenis',esc(jenisLabel(o.prefix))+' · '+(orderAU(o)?'AU':'HQ'))+
     ovBaris('Bride & groom',esc(wed))+
-    ovBaris('Kontak',esc(o.phone||'')+(o.email?(' · '+esc(o.email)):''))+
+    ovBaris('Kontak',esc(o.phone||'')+(clientEmail(o)?(' · '+esc(clientEmail(o))):''))+
     ovBaris('PIC client',esc(o.pic3||''))+
     ovBaris('Tgl acara',o.eventDate?tglID(o.eventDate):'')+
     ovBaris('Personalisasi',esc(sv.join(', '))||esc(((o.brief||{}).persoNote)||''))+
@@ -6014,11 +6014,11 @@ const PH_CHECK=[
  [ // 4 Quotation
   {auto:function(o){return !!(o.docs&&o.docs.quotation);}, k:'gen', t:'Generate quotation', en:'Generate the quotation', guna:'supaya ada dokumen resmi untuk dikirim ke client', gunaEn:'so there is a proper document to send the client',                        pic:'Finance', w:true},
   {auto:function(o){var s=(o.quo||{}).status;return s==='Terkirim'||s==='Approved';}, k:'kirim', t:'Kirim quotation ke email client', en:'Send the quotation to the client email', guna:'supaya client bisa menimbang penawarannya', gunaEn:'so the client can consider the offer',            pic:'Finance', w:true},
-  {auto:function(o){return !!String(o.email||'').trim();},
+  {auto:function(o){return !!clientEmail(o);},
    k:'email', t:'Minta alamat email client', en:'Ask for the client email address', guna:'supaya quotation punya tujuan kirim', gunaEn:'so the quotation has somewhere to go', pic:'Sales', w:true},
   {auto:function(o){return !!(o.shipEksp&&o.shipKota&&(o.shipKg||0)>0);},
    k:'kirimData', t:'Pilih ekspedisi & kota tujuan, lalu isi berat kirim', en:'Pick the courier and destination city, then fill in the shipping weight', guna:'supaya ongkir terhitung dan tak jadi tanggungan Rove', gunaEn:'so shipping is calculated and not absorbed by Rove', pic:'Finance', w:true},
-  {auto:function(o){return !!String(o.addrKantor||'').trim();},
+  {auto:function(o){return !!clientAlamatKantor(o);},
    k:'alamatKantor', t:'Minta alamat penagihan client', en:'Ask for the client billing address', guna:'supaya invoice tak ditolak bagian keuangan client', gunaEn:'so the invoice is not rejected by the client finance team', pic:'Sales'},
   {auto:function(o){return !!(((o.pricing||{}).pajak||{}).status);},
    k:'ppn', t:'Pastikan ke client: kena PPN atau tidak', en:'Confirm with the client whether VAT applies', guna:'supaya Rove tak menanggung sendiri PPN 11%', gunaEn:'so Rove does not end up absorbing the 11% VAT', pic:'Finance', w:true}
@@ -6284,7 +6284,7 @@ const CHK_SUMBER={'9.bukti':'panel Bukti transfer',
   '5.quoAcc':'panel Pricing → status quotation','7.sketsaAcc':'panel Referensi gambar → tombol approval sketsa','9.dpMasuk':'panel Pembayaran → Catat DP masuk',
   '3.dirAcc':'panel Ringkasan untuk Direktur',
   '0.terjemah':'Brief → Material utama, Personalization, dan spesifikasi tiap collateral',
-  '0.brief':'form order baru / panel Pricing','0.kontak':'Brief Inquiry','0.acara':'Brief Inquiry','0.ref':'Brief → lampiran Referensi client','0.kota':'Brief → Venue / kota tujuan','0.hpWo':'Brief → WO / EO phone','1.rfq':'panel Minta harga vendor','1.kulit':'panel Minta harga vendor → ketersediaan kulit','1.harga':'panel Minta harga vendor → Catat jawaban','1.moq':'panel Minta harga vendor → catatan vendor','2.hpp':'panel Penentuan harga jual','2.margin':'panel Penentuan harga jual','2.ongkir':'panel Pricing → Ongkir','2.biayaLain':'panel Penentuan harga jual → Biaya di luar HPP','2.deadlineProd':'panel Penentuan harga jual → Info dari Radja','2.tglPOMax':'panel Penentuan harga jual → Info dari Radja','2.accJual':'panel Penentuan harga jual → Persetujuan harga jual','4.gen':'panel Pricing → Generate Quotation','4.kirim':'panel Pricing → status quotation','4.follow':'panel Pricing → tandai Approved','4.email':'Brief → Email client','4.kirimData':'panel Pricing → Ekspedisi, Kota, Berat','4.alamatKantor':'Brief → Alamat client / kantor','4.ppn':'panel Pricing → Status PPN','6.logoCl':'Brief → lampiran Logo client','6.logoPch':'Brief → lampiran Logo soft pouch','6.logoBox':'Brief → lampiran Logo box','6.logoCard':'Brief → lampiran Logo thank you card','6.daftarNama':'Brief → daftar nama tamu','6.preview':'panel Referensi gambar → lampiran preview','6.approve':'panel Referensi gambar → tombol approval sketsa','8.inv':'panel Pricing → Generate Invoice','8.kirim':'panel Pricing → status invoice','8.dp':'panel Pembayaran → Catat DP masuk','8.faktur':'panel Pricing → No. faktur pajak','10.spec':'Form PO Radja','10.appr':'Form PO Radja → approval margin','10.poR':'Form PO Radja → Generate PO','10.poV':'panel PO vendor lain','10.trello':'otomatis saat fase Spec & PO dilewati','10.spare':'Form PO Radja → Qty spare produksi','10.warnaLogo':'Form PO Radja → warna logo','11.mat':'panel Produksi → Tahap','11.sample':'panel Produksi → sample disetujui','11.progres':'panel Produksi → catatan progres','12.qc':'panel Produksi → lampiran foto QC & retur','12.pack':'panel Produksi → lampiran foto packing','12.coll':'panel Produksi → collateral lengkap','13.invP':'panel Pricing → Generate Invoice','13.lunas':'panel Pembayaran → Catat pelunasan','13.alamat':'Brief → Alamat kirim','13.penerima':'panel Pengiriman barang','13.resi':'panel Pengiriman barang','14.tglTerima':'panel Pengiriman barang → Tanggal diterima','14.bukti':'panel Pengiriman barang → foto serah terima','14.testi':'panel Komplain & kepuasan','14.arsip':'otomatis saat order ditutup'};
+  '0.brief':'form order baru / panel Pricing','0.kontak':'Brief Inquiry','0.acara':'Brief Inquiry','0.ref':'Brief → lampiran Referensi client','0.kota':'Brief → Venue / kota tujuan','0.hpWo':'Brief → WO / EO phone','1.rfq':'panel Minta harga vendor','1.kulit':'panel Minta harga vendor → ketersediaan kulit','1.harga':'panel Minta harga vendor → Catat jawaban','1.moq':'panel Minta harga vendor → catatan vendor','2.hpp':'panel Penentuan harga jual','2.margin':'panel Penentuan harga jual','2.ongkir':'panel Pricing → Ongkir','2.biayaLain':'panel Penentuan harga jual → Biaya di luar HPP','2.deadlineProd':'panel Penentuan harga jual → Info dari Radja','2.tglPOMax':'panel Penentuan harga jual → Info dari Radja','2.accJual':'panel Penentuan harga jual → Persetujuan harga jual','4.gen':'panel Pricing → Generate Quotation','4.kirim':'panel Pricing → status quotation','4.follow':'panel Pricing → tandai Approved','4.email':'Master data → Customers (atau Brief → Email client kalau order ini beda)','4.kirimData':'panel Pricing → Ekspedisi, Kota, Berat','4.alamatKantor':'Brief → Alamat client / kantor','4.ppn':'panel Pricing → Status PPN','6.logoCl':'Brief → lampiran Logo client','6.logoPch':'Brief → lampiran Logo soft pouch','6.logoBox':'Brief → lampiran Logo box','6.logoCard':'Brief → lampiran Logo thank you card','6.daftarNama':'Brief → daftar nama tamu','6.preview':'panel Referensi gambar → lampiran preview','6.approve':'panel Referensi gambar → tombol approval sketsa','8.inv':'panel Pricing → Generate Invoice','8.kirim':'panel Pricing → status invoice','8.dp':'panel Pembayaran → Catat DP masuk','8.faktur':'panel Pricing → No. faktur pajak','10.spec':'Form PO Radja','10.appr':'Form PO Radja → approval margin','10.poR':'Form PO Radja → Generate PO','10.poV':'panel PO vendor lain','10.trello':'otomatis saat fase Spec & PO dilewati','10.spare':'Form PO Radja → Qty spare produksi','10.warnaLogo':'Form PO Radja → warna logo','11.mat':'panel Produksi → Tahap','11.sample':'panel Produksi → sample disetujui','11.progres':'panel Produksi → catatan progres','12.qc':'panel Produksi → lampiran foto QC & retur','12.pack':'panel Produksi → lampiran foto packing','12.coll':'panel Produksi → collateral lengkap','13.invP':'panel Pricing → Generate Invoice','13.lunas':'panel Pembayaran → Catat pelunasan','13.alamat':'Brief → Alamat kirim','13.penerima':'panel Pengiriman barang','13.resi':'panel Pengiriman barang','14.tglTerima':'panel Pengiriman barang → Tanggal diterima','14.bukti':'panel Pengiriman barang → foto serah terima','14.testi':'panel Komplain & kepuasan','14.arsip':'otomatis saat order ditutup'};
 
 /* "Brief → lampiran Logo client" diterjemahkan per potong, bukan sebagai satu
    entri kamus — tempatnya berkombinasi jadi puluhan kemungkinan. */
@@ -8756,6 +8756,22 @@ function briefKeProd(id){ // salin ke Form PO supaya Purchasing tak ketik ulang
   if(b.tglKirim&&!o.po.deadline)o.po.deadline=b.tglKirim;
   o._m=Date.now();logHist(o,'Brief disalin ke Form PO');save();render();
   alert('✓ Main material + warna, lining, stitch technique, warna benang, finishing, dan deadline disalin ke Form PO.');}
+
+/* ---- data client: order dulu, lalu Master Customer ---- */
+function clientEmail(o){
+  var e=String((o&&o.email)||'').trim();
+  if(e)return e;
+  var m=custMaster(o);return String((m&&m.email)||'').trim();}
+function clientAlamatKantor(o){
+  var a=String(((o&&o.brief)||{}).addrKantor||o.addrKantor||'').trim();
+  if(a)return a;
+  var m=custMaster(o);return String((m&&m.alamatKantor)||'').trim();}
+/* Dari mana angkanya datang — dipakai menerangkan di panel supaya orang
+   tak mengira HUB mengarang. */
+function clientAsal(o,f){
+  if(f==='email')return String((o&&o.email)||'').trim()?'order':(clientEmail(o)?'master':'');
+  return String(((o&&o.brief)||{}).addrKantor||'').trim()?'order':(clientAlamatKantor(o)?'master':'');}
+
 function custMaster(o){
   var C=((ST.master&&ST.master.customers)||[]).filter(function(c){return c.nama===o.customer;});
   if(!C.length)return null;
@@ -9382,7 +9398,7 @@ function genDoc(id,type){
      <div class="dtitle">${title}<div class="dno">${no}<br>${tgl}</div></div></div>
 
    <div class="dsec">Client Information</div>
-   <table class="dinfotbl">${info('Name',o.customer)}${info('Type',o.type+' · '+o.qty+' pcs')}${info('Phone',o.phone)}${o.email?info('Email',o.email):''}${info('Venue & City',o.venue)}${o.addr?info('Delivery Address',o.addr):''}${o.addrKantor?info('Client Address',o.addrKantor):''}${o.pic3?info('3rd Party PIC',o.pic3):''}${T.kena?info('NPWP',pajakGet(o).npwp||((custMaster(o)||{}).npwp)||'-'):''}${info('Event Date',o.eventDate||'-')}</table>
+   <table class="dinfotbl">${info('Name',o.customer)}${info('Type',o.type+' · '+o.qty+' pcs')}${info('Phone',o.phone)}${clientEmail(o)?info('Email',clientEmail(o)):''}${info('Venue & City',o.venue)}${o.addr?info('Delivery Address',o.addr):''}${o.addrKantor?info('Client Address',o.addrKantor):''}${o.pic3?info('3rd Party PIC',o.pic3):''}${T.kena?info('NPWP',pajakGet(o).npwp||((custMaster(o)||{}).npwp)||'-'):''}${info('Event Date',o.eventDate||'-')}</table>
 
    <div class="dsec">Product / Service List</div>
    <table class="dtable"><thead><tr><th class="num wno">No</th><th>Product / Service</th><th class="wmat">Material</th><th class="wperso">Personalization</th><th class="num wharga">Price/Unit</th><th class="num wqty">Qty</th><th class="num wjml">Amount</th></tr></thead><tbody>${rowsHTML}</tbody></table>
