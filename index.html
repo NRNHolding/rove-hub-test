@@ -665,6 +665,7 @@ const EN_RULES=[
 
 /* Kamus persis. Kunci = teks Indonesia apa adanya yang muncul di layar. */
 const EN={
+'Pertanyaan menunggu jawabanmu':'Questions waiting on you','✍ Jawab':'✍ Answer','✎ Ubah jawaban':'✎ Edit answer','Jawabanmu':'Your answer','Menunggu jawaban':'Waiting on',
 'Penentuan harga jual':'Setting the selling price','INFO DARI RADJA':'FROM RADJA','Deadline produksi':'Production deadline','Paling lambat PO turun':'Latest date the PO can be issued','Persetujuan harga jual — Sales':'Selling price approval — Sales','Harga jual disetujui Sales':'Selling price approved by Sales',
 'kelengkapan fase ini sudah lengkap':'this phase’s checklist is complete',
 '💬 Tanya Sales':'💬 Ask Sales','Yang belum jelas':'What is unclear','Ini tugas jabatanmu sendiri — tak ada yang perlu diingatkan.':'This is your own role\u2019s task \u2014 there is nobody to remind.',
@@ -4622,7 +4623,7 @@ function tugasMenungguku(){
   if(!ST.user)return 0;
   /* chkTugasSaya sudah memakai myRoles() di dalamnya — cukup sekali panggil,
      kalau per jabatan hasilnya terhitung ganda. */
-  try{return chkTugasSaya(ST.user).length;}catch(e){return 0;}}
+  try{return chkTugasSaya(ST.user).length+tanyaUntukku().length;}catch(e){return 0;}}
 /* Favicon digambar sendiri: bulatan cokelat berisi angka. Tak perlu berkas
    tambahan, jadi app tetap satu file. */
 function gambarFavicon(n){
@@ -4746,7 +4747,7 @@ function renderTasks(){
            '<span style="font-size:9.5px;color:var(--muted);font-weight:700">'+esc(ph.btn||'')+'</span>'+
          '</div>'+
          perFase[f].map(kartuTugas).join('');}).join('');})()}
-   ${chkTugasBlok(role)}`;
+   ${tanyaBlokTugas()}${chkTugasBlok(role)}`;
 }
 
 /* Kelengkapan yang menunggu ORANG INI, termasuk di order yang fase-nya
@@ -5988,25 +5989,110 @@ function chkLawanTanya(o){
   if(R.indexOf('Sales')>=0)return null;              // aku sendiri yang bicara dengan client
   var nama=((o.dariSales||{}).pic)||o.sales||'';
   return {role:'Sales',nama:nama};}
-function chkTanya(id,fase,k){
+/* chkTanya dibuang: tanya jawab kini hidup di dalam order, lihat tanyaKirim. */
+
+
+/* ================= TANYA JAWAB DI DALAM ORDER =================
+   Disimpan di ordernya, bukan dikirim ke luar — supaya pertanyaan dan
+   jawabannya tetap menempel pada kolom yang dipersoalkan. */
+function tanyaAll(o){if(!Array.isArray(o.tanya))o.tanya=[];return o.tanya;}
+function tanyaBelum(o,role){
+  return tanyaAll(o).filter(function(t){
+    if(t.jawab)return false;
+    if(!role)return true;
+    var R=myRoles().length?myRoles():[role];
+    return R.indexOf(t.keRole)>=0;});}
+/* Pertanyaan untuk item tertentu — dipakai menempelkannya di baris checklist. */
+function tanyaItem(o,fase,k){
+  return tanyaAll(o).filter(function(t){return t.fase===fase&&t.k===k;});}
+function tanyaKirim(id,fase,k){
   var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
   var it=chkItems(fase,o).find(function(x){return x.k===k;});if(!it)return;
   var lawan=chkLawanTanya(o);if(!lawan)return;
   askForm({judul:'Tanya '+lawan.role+(lawan.nama?(' — '+lawan.nama):''),
     sub:'Order '+o.customer+' · '+chkT(it),
-    fields:[{k:'q',label:'Yang belum jelas',type:'textarea',req:true,
-      val:'',ph:'mis. client maunya kulit apa? catatannya cuma "elegant".',
-      hint:'Dikirim ke channel Discord order ini dan tercatat di histori.'}],
+    fields:[{k:'q',label:'Yang belum jelas',type:'textarea',req:true,val:'',
+      ph:'mis. client maunya kulit apa? catatannya cuma "elegant".',
+      hint:'Tersimpan di order ini. '+lawan.role+' melihatnya di daftar tugasnya, dan jawabannya menempel di sini juga.'}],
     ok:function(v){
-      var pesan='❓ '+picMention(lawan.role)+(lawan.nama?(' ('+lawan.nama+')'):'')+
-        ' — order '+o.customer+' (fase '+(fase+1)+' '+PH[fase].n+')\n'+
-        'Ditanya oleh '+(ST.userName||ST.user||'')+' soal: '+it.t+'\n'+v.q;
-      pushBackend('notify',{name:chName(o),content:pesan});
-      logHist(o,'Tanya '+lawan.role+': '+v.q);
-      o._m=Date.now();save();render();
-      alert('Pertanyaan dikirim ke '+lawan.role+(lawan.nama?(' ('+lawan.nama+')'):'')+'.'+
-        ((ST.cfg&&ST.cfg.live&&ST.cfg.url)?'\n\nMasuk ke channel Discord order ini.'
-                                          :'\n\n(Relay Discord belum aktif — tercatat di histori order saja.)'));}});}
+      tanyaAll(o).push({id:'T'+Math.random().toString(36).slice(2,7),
+        fase:fase,k:k,item:it.t,q:v.q,
+        dari:(ST.userName||ST.user||''),dariRole:(myRoles()[0]||ST.user||''),
+        keRole:lawan.role,keNama:lawan.nama||'',
+        tgl:nowStr(),jawab:'',jawabOleh:'',jawabTgl:''});
+      logHist(o,'Tanya '+lawan.role+' soal "'+it.t+'": '+v.q);
+      o._m=Date.now();save();render();}});}
+function tanyaJawab(id,tid){
+  var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
+  var t=tanyaAll(o).find(function(x){return x.id===tid;});if(!t)return;
+  askForm({judul:'Jawab '+esc(t.dari),
+    sub:'Order '+o.customer+' · '+t.item,
+    fields:[{k:'a',label:'Jawabanmu',type:'textarea',req:true,val:t.jawab||'',
+      ph:'mis. Pull Up coklat tua, client sudah lihat contohnya waktu meeting.',
+      hint:'Menempel di kolom yang ditanyakan, jadi bisa dibaca lagi kapan pun.'}],
+    ok:function(v){
+      var baru=!t.jawab;
+      t.jawab=v.a;t.jawabOleh=(ST.userName||ST.user||'');t.jawabTgl=nowStr();
+      logHist(o,(baru?'Jawab ':'Perbarui jawaban ')+t.dari+' soal "'+t.item+'": '+v.a);
+      o._m=Date.now();save();render();}});}
+function tanyaHapus(id,tid){
+  var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
+  var t=tanyaAll(o).find(function(x){return x.id===tid;});if(!t)return;
+  if((ST.userName||ST.user)!==t.dari&&myRoles().indexOf('Holding')<0){
+    alert('Hanya penanya ('+t.dari+') atau Holding yang bisa menghapus pertanyaan ini.');return;}
+  if(!confirm('Hapus pertanyaan ini?\n\n'+t.q))return;
+  o.tanya=tanyaAll(o).filter(function(x){return x.id!==tid;});
+  logHist(o,'Pertanyaan dihapus: '+t.q);
+  o._m=Date.now();save();render();}
+
+/* Gelembung tanya jawab yang menempel di baris checklist. */
+function tanyaBlok(o,fase,k){
+  var L=tanyaItem(o,fase,k);if(!L.length)return '';
+  return L.map(function(t){
+    var akuTujuan=(myRoles().indexOf(t.keRole)>=0);
+    return '<div style="border-left:3px solid '+(t.jawab?'var(--ok)':'var(--warn)')+
+      ';background:var(--bg);border-radius:0 7px 7px 0;padding:7px 10px;margin:7px 0 0;font-size:10.5px;line-height:1.55">'+
+      '<div><b style="color:var(--brand-dark)">'+esc(t.dari)+' bertanya</b>'+
+        '<span style="color:var(--muted);font-weight:400"> · '+esc(t.tgl)+'</span></div>'+
+      '<div style="margin-top:2px">'+esc(t.q)+'</div>'+
+      (t.jawab
+        ?('<div style="margin-top:6px;padding-top:5px;border-top:1px dashed var(--line)">'+
+            '<b style="color:var(--ok)">'+esc(t.jawabOleh)+' menjawab</b>'+
+            '<span style="color:var(--muted);font-weight:400"> · '+esc(t.jawabTgl)+'</span>'+
+            '<div style="margin-top:2px">'+esc(t.jawab)+'</div></div>')
+        :('<div style="margin-top:6px;color:var(--warn);font-weight:700">Menunggu jawaban '+esc(t.keRole)+
+            (t.keNama?(' ('+esc(t.keNama)+')'):'')+'</div>'))+
+      '<div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap">'+
+        (akuTujuan?('<button class="btn ghost sm" style="font-size:9.5px" onclick="tanyaJawab(\''+o.id+'\',\''+t.id+'\')">'+
+            (t.jawab?'✎ Ubah jawaban':'✍ Jawab')+'</button>'):'')+
+        (((ST.userName||ST.user)===t.dari||myRoles().indexOf('Holding')>=0)
+          ?('<button class="btn ghost sm" style="font-size:9.5px;color:#8f2a1e" onclick="tanyaHapus(\''+o.id+'\',\''+t.id+'\')">✕ Hapus</button>'):'')+
+      '</div></div>';}).join('');}
+
+/* Semua pertanyaan yang menunggu jawabanku, lintas order — bentuknya sengaja
+   sama dengan chkTugasSaya supaya bisa digabung ke hitungan tugas. */
+function tanyaUntukku(){
+  var out=[];
+  (ST.orders||[]).forEach(function(o){
+    if(o.deleted||o.done||o.status==='Cancel')return;
+    tanyaBelum(o,ST.user).forEach(function(t){out.push({o:o,t:t});});});
+  return out;}
+function tanyaBlokTugas(){
+  var L=tanyaUntukku();if(!L.length)return '';
+  return '<div class="card" style="max-width:660px;margin-top:18px"><div class="ch">'+
+    '<span class="ico" style="background:var(--warn)">❓</span>'+
+    '<div><div class="t">Pertanyaan menunggu jawabanmu</div>'+
+      '<div class="s">'+L.length+' pertanyaan dari rekan yang tertahan</div></div></div><div class="body">'+
+    L.map(function(x){
+      return '<div style="border-top:1px solid var(--line);padding:9px 0">'+
+        '<div style="font-size:11px;font-weight:800;cursor:pointer" onclick="openOrder(\''+x.o.id+'\')">'+
+          esc(x.o.customer)+' <span style="color:var(--muted);font-weight:400">· fase '+(x.t.fase+1)+' '+esc(PH[x.t.fase].n)+'</span></div>'+
+        '<div style="font-size:9.5px;color:var(--muted);margin-top:1px">soal: '+esc(x.t.item)+'</div>'+
+        '<div style="font-size:10.5px;line-height:1.55;margin-top:4px"><b>'+esc(x.t.dari)+':</b> '+esc(x.t.q)+'</div>'+
+        '<button class="btn ghost sm" style="margin-top:6px;font-size:9.5px" onclick="tanyaJawab(\''+x.o.id+'\',\''+x.t.id+'\')">✍ Jawab</button>'+
+      '</div>';}).join('')+
+    '</div></div>';}
+
 function chkIngat(id,fase,k){
   var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
   var it=chkItems(fase).find(function(x){return x.k===k;});if(!it)return;
@@ -6155,11 +6241,15 @@ function chkPanel(o){
       (ok?'':(chkTugasku(it)
         ? (chkLawanTanya(o)
             ? ('<button class="btn ghost sm" style="flex:0 0 auto" title="tanyakan yang belum jelas ke Sales" '+
-               'onclick="chkTanya(\'' + o.id + '\',' + f + ',\'' + it.k + '\')">💬 Tanya Sales</button>')
+               'onclick="tanyaKirim(\'' + o.id + '\',' + f + ',\'' + it.k + '\')">💬 Tanya Sales</button>')
             : '')
         : ('<button class="btn ghost sm" style="flex:0 0 auto" title="ingatkan '+esc(it.pic)+'" '+
            'onclick="chkIngat(\'' + o.id + '\',' + f + ',\'' + it.k + '\')">⏰ Ingatkan</button>')))+
-    '</div>';};
+    '</div>'+
+    /* tanya jawab menempel di bawah barisnya, bukan di panel terpisah —
+       supaya terbaca bersama kolom yang dipersoalkan */
+    (function(){var q=tanyaBlok(o,f,it.k);
+      return q?('<div style="padding:0 0 7px 25px">'+q+'</div>'):'';})();};
   var milikku=items.filter(function(it){return chkTugasku(it)&&!chkAuto(o,f,it.k);});
   var lain   =items.filter(function(it){return milikku.indexOf(it)<0;});
   var sekat=function(t){return '<div style="font-size:9.5px;font-weight:800;color:var(--muted);letter-spacing:.04em;'+
