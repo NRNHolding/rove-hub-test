@@ -1020,7 +1020,7 @@ const EN={
   '◈ Take from the Cost Estimator catalogue — enter the qty then click a product',
 'Catatan personalisasi':'Personalisation notes','Harga jual/pcs':'Selling price/pc','HPP/pcs':'Cost/pc',
 'Material / bahan':'Material','subtotal':'subtotal','Belum ada item.':'No items yet.',
-'Profitability':'Profitability','HPP VENDOR VS HARGA JUAL':'VENDOR COST VS SELLING PRICE',
+'Penentuan harga jual':'Setting the selling price','HPP VENDOR VS HARGA JUAL':'VENDOR COST VS SELLING PRICE',
 'HPP vendor vs harga jual':'vendor cost vs selling price','Cek profit':'Profit check',
 'HPP/pcs':'Cost/pc','Harga jual/pcs':'Selling price/pc','Profit/pcs':'Profit/pc','Profit total':'Total profit',
 'TOTAL JUAL':'TOTAL SELLING','TOTAL HPP':'TOTAL COST','PROFIT':'PROFIT','MARGIN':'MARGIN',
@@ -1520,8 +1520,8 @@ const EN_LINE=[
 
 ['Isi HPP vendor dulu — margin dihitung dari situ.','Fill in the vendor cost first — the margin is calculated from it.'],
 
-['Harga, margin, dan diskon sudah dikunci sejak fase Quotation — ubahnya di panel Profitability. Di sini tinggal isi ekspedisi, kota, tarif, dan berat untuk ongkir, lalu generate dokumen.',
- 'Prices, margin and discount are locked from the Quotation phase — change them in the Profitability panel. Here you only fill in courier, city, rate and weight for shipping, then generate the document.'],
+['Harga, margin, dan diskon sudah dikunci sejak fase Quotation — ubahnya di panel Penentuan harga jual. Di sini tinggal isi ekspedisi, kota, tarif, dan berat untuk ongkir, lalu generate dokumen.',
+ 'Prices, margin and discount are locked from the Quotation phase — change them in the Setting-the-selling-price panel. Here you only fill in courier, city, rate and weight for shipping, then generate the document.'],
 
 ['Buka tab 2 · Detail product, lalu pilih dari katalog atau tambah item custom.',
  'Open tab 2 · Product detail, then pick from the catalogue or add a custom item.'],
@@ -5167,11 +5167,11 @@ function todoTeks(o){
     return 'Ada <b>'+perlu+' item</b> yang harganya belum ada. Di panel <b>Minta harga vendor</b>: klik <b>Minta harga</b> untuk mencatat permintaan, lalu <b>Isi harga</b> begitu vendor menjawab.';}
   if(ph===2){
     var Pp=profitTotals(o);
-    if(Pp.kurang)return 'Buka panel <b>Profitability</b>. Masih ada <b>'+Pp.kurang+' item tanpa HPP vendor</b> — isi dulu supaya profitnya kelihatan.';
-    if(!Pp.jual)return 'Buka panel <b>Profitability</b> dan isi harga jual tiap item.';
+    if(Pp.kurang)return 'Buka panel <b>Penentuan harga jual</b>. Masih ada <b>'+Pp.kurang+' item tanpa HPP vendor</b> — isi dulu supaya profitnya kelihatan.';
+    if(!Pp.jual)return 'Buka panel <b>Penentuan harga jual</b> dan isi harga jual tiap item.';
     return 'Profit sekarang <b>'+fmt0(Pp.profit)+' ('+Pp.pct+'%)</b>. Kalau sudah pas, klik <b>Selesai — lanjut fase</b>. Kalau kurang, ubah harga jual atau nego HPP ke vendor.';}
   if(ph===3){
-    if(!D.quotation)return 'Isi <b>ongkir</b> di panel Pricing (ekspedisi, kota, berat) — angka lain sudah terkunci dari Profitability. Lalu klik <b>Generate Quotation</b>.'+
+    if(!D.quotation)return 'Isi <b>ongkir</b> di panel Pricing (ekspedisi, kota, berat) — angka lain sudah terkunci dari Penentuan harga jual. Lalu klik <b>Generate Quotation</b>.'+
       (kat?' Harga katalog sudah termasuk margin — biasanya margin order dibiarkan 0.':' Atur <b>Margin %</b> dulu sebelum digenerate.');
     if(q.status==='Approved')return 'Quotation sudah di-approve client. Klik <b>Selesai — lanjut fase</b>.';
     if(q.status==='Terkirim')return 'Quotation sudah terkirim — tunggu jawaban client. Kalau minta ubah, perbaiki datanya lalu <b>Generate Quotation</b> lagi (nomor revisi naik sendiri). Kalau di-acc, tekan <b>✓ Approved</b>.';
@@ -6055,7 +6055,7 @@ const CHK_SUMBER={'0.terjemah':'Brief → Material utama, Personalization, dan s
 /* "Brief → lampiran Logo client" diterjemahkan per potong, bukan sebagai satu
    entri kamus — tempatnya berkombinasi jadi puluhan kemungkinan. */
 const SUMBER_EN={'panel':'the','Brief Inquiry':'Brief Inquiry','Brief':'the Brief','form order baru':'the new-order form',
-  'Pricing':'Pricing & Documents','Profitability':'Profitability','Minta harga vendor':'Vendor quote request',
+  'Pricing':'Pricing & Documents','Penentuan harga jual':'Setting the selling price','Minta harga vendor':'Vendor quote request',
   'Pembayaran':'Payments','Referensi gambar':'Reference images','Form PO Radja':'Radja PO form',
   'PO vendor lain':'Other vendor POs','Produksi':'Production','Pengiriman barang':'Goods delivery',
   'Komplain & kepuasan':'Complaints & satisfaction','lampiran':'attachment','status quotation':'quotation status',
@@ -6185,7 +6185,7 @@ function panelDef(o){
    {k:'chk',t:'Kelengkapan fase',s:'checklist + PIC',h:function(){return chkPanel(o);}},
    {k:'brief',t:'Brief Inquiry',s:'data client, project, packaging',h:function(){return briefPanel(o);}},
    {k:'rfq',t:'Minta harga vendor',s:'hanya barang yang harganya belum ada',h:function(){return (o.phase>=1&&!batal)?rfqPanel(o):'';}},
-   {k:'profit',t:'Profitability',s:'HPP vendor vs harga jual',h:function(){return (o.phase>=1&&!batal)?profitPanel(o):'';}},
+   {k:'profit',t:'Penentuan harga jual',s:'HPP vendor vs harga jual',h:function(){return (o.phase>=1&&!batal)?profitPanel(o):'';}},
    {k:'pricing',t:'Pricing & Dokumen',s:'baris harga, quotation, invoice',h:function(){return (o.phase>=1)?pricingPanel(o):'';}},
    {k:'pay',t:'Pembayaran',s:'DP & pelunasan',h:function(){return (o.phase>=3)?payPanel(o):'';}},
    {k:'ref',t:'Referensi gambar',s:'sketch & foto produk',h:function(){return refPanel(o);}},
@@ -8649,7 +8649,7 @@ function pricingPanel(o){
   const P=o.pricing,N=o.notes||{},D=o.docs||{},{hppT,jualT,m}=priceTotals(o),H=showHPP;
   const showTali=P.lines.some(l=>vendorTipe(l.sumber)==='Soft Pouch');
   const showUk=P.lines.some(l=>vendorTipe(l.sumber)==='Thank You Card');
-  /* Sejak fase Quotation angka sudah final — diubahnya di panel Profitability. */
+  /* Sejak fase Quotation angka sudah final — diubahnya di panel Penentuan harga jual. */
   const kunci=(o.phase||0)>=3;
   const rows=P.lines.map((l,i)=>{const sub=lineNet(l,m)*(l.qty||0);
     const teks=v=>(v===''||v===undefined||v===null||v==='-')?'<span style="color:var(--muted)">—</span>':esc(String(v));
@@ -8691,7 +8691,7 @@ function pricingPanel(o){
       <button class="btn ghost sm" style="margin-left:auto" onclick="toggleHPP()">${H?'🙈 Sembunyikan HPP':'👁 Tampilkan HPP'}</button></div>
     <div class="body">
      <div style="font-size:10.5px;color:var(--muted);margin-bottom:9px;line-height:1.5">${kunci
-       ? 'Harga, margin, dan diskon sudah dikunci sejak fase Quotation — ubahnya di panel <b>Profitability</b>. Di sini tinggal isi <b>ekspedisi, kota, tarif, dan berat</b> untuk ongkir, lalu generate dokumen.'
+       ? 'Harga, margin, dan diskon sudah dikunci sejak fase Quotation — ubahnya di panel <b>Penentuan harga jual</b>. Di sini tinggal isi <b>ekspedisi, kota, tarif, dan berat</b> untuk ongkir, lalu generate dokumen.'
        : tipeNote(o)}</div>
      ${catalogPicker(o)}
      ${(!kunci&&o.coll&&(o.coll.box||o.coll.pouch||o.coll.card||o.coll.others))?`<div style="margin-bottom:11px"><button class="btn ghost sm" onclick="addCollaterals('${o.id}')">＋ Tambah collaterals dari Inquiry (${collList(o.coll).length})</button> <span style="font-size:9.5px;color:var(--muted)">Box / Soft Pouch / Thank You Card / Others → baris harga otomatis</span></div>`:''}
