@@ -673,6 +673,8 @@ const EN_RULES=[
 
 /* Kamus persis. Kunci = teks Indonesia apa adanya yang muncul di layar. */
 const EN={
+'Sketsa boleh dikerjakan lebih dulu':'The sketch may be started early','buka panel Referensi gambar':'open the Reference images panel',
+'★ Client VIP':'★ VIP client','☆ Jadikan VIP':'☆ Make VIP','★ CLIENT VIP':'★ VIP CLIENTS','dahulukan':'handle these first','Client VIP — boleh minta sketsa lebih dulu':'VIP client — may ask for the sketch early',
 'Menunggu approval quotation':'Waiting on the client (quotation)','Menunggu approval sketsa':'Waiting on the client (sketch)','Menunggu DP masuk':'Waiting for the down payment','Client approve — lanjut sketch':'Client approved — continue to sketch','Sketsa disetujui — lanjut invoice':'Sketch approved — continue to invoice','DP masuk — lanjut spec & PO':'Down payment received — continue to spec & PO',
 'Ringkasan untuk Direktur':'Summary for the Director','BACA SAJA — PUTUSKAN APPROVE ATAU TOLAK':'READ ONLY — APPROVE OR REJECT','✓ Approve — lanjut quotation':'✓ Approve — continue to quotation','✕ Tolak & kembalikan':'✕ Reject & send back','Profit bersih':'Net profit','Alasan penolakan':'Reason for rejection','Yang harus diperbaiki':'What needs fixing','Menunggu approval direktur':'Waiting on the Director',
 'Pertanyaan menunggu jawabanmu':'Questions waiting on you','✍ Jawab':'✍ Answer','✎ Ubah jawaban':'✎ Edit answer','Jawabanmu':'Your answer','Menunggu jawaban':'Waiting on',
@@ -2046,6 +2048,7 @@ function kirimKeInquiry(id){
     status:'Inquiry',coll:coll});
   o.pricing={margin:MARGIN_BAWAAN,lines:lines};
   o.brief=Object.assign({fitur:['','','']},o.brief||{});
+  o.vip=isVip(l);                       // status VIP ikut, tak perlu ditetapkan ulang
   o.dariSales={dari:l.nama,channel:l.channel,pic:l.pic,catatan:l.catatan||'',
     jenis:l.jenis||'',spec:JSON.parse(JSON.stringify(l.spec||{})),
     items:JSON.parse(JSON.stringify(l.items||[])),tgl:hariIni()};
@@ -2066,6 +2069,40 @@ function kirimKeInquiry(id){
     picMention('PM')+' — mohon rinci ordernya (bahan, collateral, ukuran).');
   ST.view='board';ST.cur=o.id;render();
   alert('Kartunya sudah ada di Inquiry.\n\nRincian ordernya diisi Project Manager dari sini.');}
+
+
+/* ---- client VIP ---- */
+function isVip(x){return !!(x&&x.vip);}
+function bolehAturVip(){return myRoles().indexOf('Direktur Utama')>=0;}
+function vipLencana(kecil){
+  return '<span title="Client VIP — boleh minta sketsa lebih dulu" style="background:var(--gold);color:#2b1d0e;'+
+    'border-radius:5px;padding:'+(kecil?'0 5px':'1px 7px')+';font-size:'+(kecil?'8.5px':'9px')+
+    ';font-weight:800;letter-spacing:.04em;white-space:nowrap">★ VIP</span>';}
+function vipTombol(x,jenis){
+  /* Ditampilkan ke semua orang supaya statusnya terlihat, tapi hanya
+     Direktur yang tombolnya hidup. */
+  var on=isVip(x);
+  if(!bolehAturVip())return on?vipLencana():'';
+  return '<button class="btn '+(on?'':'ghost ')+'sm" style="font-size:9.5px'+
+    (on?';background:var(--gold);border-color:var(--gold);color:#2b1d0e':'')+
+    '" onclick="vipToggle(\''+jenis+'\',\''+x.id+'\')" title="hanya Direktur yang bisa mengubah ini">'+
+    (on?'★ Client VIP':'☆ Jadikan VIP')+'</button>';}
+function vipToggle(jenis,id){
+  if(!bolehAturVip()){alert('Hanya Direktur Utama yang bisa menetapkan client VIP.');return;}
+  var x=(jenis==='lead')?leadsAll().find(function(y){return y.id===id;})
+                        :ST.orders.find(function(y){return y.id===id;});
+  if(!x)return;
+  var jadi=!isVip(x);
+  if(jadi&&!confirm('Jadikan "'+(x.nama||x.customer)+'" client VIP?\n\nMereka boleh minta sketsa lebih dulu, dan ordernya naik ke paling atas di daftar tugas semua jabatan.'))return;
+  if(!jadi&&!confirm('Cabut status VIP dari "'+(x.nama||x.customer)+'"?'))return;
+  x.vip=jadi;x._m=Date.now();
+  if(jenis==='lead'){
+    (x.log=x.log||[]).push({t:nowStr(),by:(ST.userName||ST.user),txt:jadi?'Ditetapkan client VIP':'Status VIP dicabut'});
+    saveLeads();
+  } else {
+    logHist(x,(jadi?'★ Ditetapkan client VIP oleh ':'Status VIP dicabut oleh ')+(ST.userName||ST.user||''));
+    save();}
+  render();}
 
 function leadPanel(){
   var L=leadsAll().slice();
@@ -2092,7 +2129,8 @@ function leadPanel(){
             ?('<button class="btn sm" onclick="kirimKeInquiry(\''+l.id+'\')">→ Kirim ke Inquiry</button>'
              +'<button class="btn ghost sm" style="color:#d9534f" onclick="leadBatal(\''+l.id+'\')">✕ Batal</button>')
             :(l.status==='Batal'?'<button class="btn ghost sm" onclick="leadAktifkan(\''+l.id+'\')">↺ Aktifkan lagi</button>':''))+
-          '<button class="btn ghost sm" onclick="leadNote(\''+l.id+'\')">✎ Catatan</button>'+
+          vipTombol(l,'lead')+
+        '<button class="btn ghost sm" onclick="leadNote(\''+l.id+'\')">✎ Catatan</button>'+
           '<button class="xrow" onclick="leadDel(\''+l.id+'\')">✕</button></span></div>'+
       '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px">'+
         '<label class="nlbl">Kontak<input class="pin" style="margin-top:3px" value="'+esc(l.kontak)+'" onchange="leadSet(\''+l.id+'\',\'kontak\',this.value)" placeholder="+62 812-..."></label>'+
@@ -4717,6 +4755,9 @@ function taskOrders(role){
     var R=myRoles().length?myRoles():[role];
     if(R.indexOf('Holding')>=0&&R.length===1)return false; // Holding = admin sistem, di luar alur order
     if(R.indexOf('Direktur Utama')>=0&&ph.gate&&(o.phase===3||o.phase===5||o.phase===7||o.phase===9))return true;
+    /* VIP boleh minta sketsa lebih dulu — maka Creative harus melihat
+       ordernya sebelum fase Sketch, bukan menunggu gilirannya tiba. */
+    if(isVip(o)&&(o.phase||0)<6&&R.indexOf('Creative')>=0)return true;
     return R.indexOf(PIC2ROLE[ph.pic])>=0;
   });
 }
@@ -4774,8 +4815,20 @@ function renderTasks(){
      return k?('Tak ada order yang <b>fasenya</b> di tanganmu, tapi ada <b>'+k+' kelengkapan</b> yang menunggumu di bawah.')
             :'Tidak ada tugas aktif untuk peranmu saat ini. 🎉';})()}</div>
    ${(function(){
-     /* dikelompokkan per fase supaya terlihat bagian pipeline mana yang menahan */
-     var perFase={};tasks.forEach(function(o){(perFase[o.phase]=perFase[o.phase]||[]).push(o);});
+     /* VIP naik ke paling atas, di luar pengelompokan fase — perlakuan
+        istimewa yang terkubur di tengah daftar sama saja tak ada. */
+     var vip=tasks.filter(isVip);
+     return vip.length
+       ? '<div style="display:flex;align-items:center;gap:9px;max-width:660px;margin:4px 0 8px">'+
+           '<span style="font-size:11px;font-weight:800;letter-spacing:.03em;color:var(--brand-dark)">★ CLIENT VIP</span>'+
+           '<span style="font-size:10px;font-weight:800;color:#2b1d0e;background:var(--gold);border-radius:20px;padding:1px 8px">'+vip.length+'</span>'+
+           '<span style="flex:1;height:1px;background:var(--gold)"></span>'+
+           '<span style="font-size:9.5px;color:var(--muted);font-weight:700">dahulukan</span>'+
+         '</div>'+vip.map(kartuTugas).join('')
+       : '';})()}
+   ${(function(){
+     /* sisanya dikelompokkan per fase supaya terlihat bagian pipeline mana yang menahan */
+     var perFase={};tasks.filter(function(o){return !isVip(o);}).forEach(function(o){(perFase[o.phase]=perFase[o.phase]||[]).push(o);});
      return Object.keys(perFase).map(Number).sort(function(a,b){return a-b;}).map(function(f){
        var ph=PH[f],n=perFase[f].length;
        return '<div style="display:flex;align-items:center;gap:9px;max-width:660px;margin:16px 0 8px">'+
@@ -4802,14 +4855,21 @@ function kartuTugas(o){
     return '<div style="margin-top:5px;font-size:10px;font-weight:800;color:'+c+'">⏱ deadline '+
       (dn<0?('telat '+(-dn)+'h'):dn===0?'hari ini':(dn+'h lagi'))+
       ((o.prod&&o.prod.stage)?(' · '+esc(o.prod.stage)):'')+'</div>';})();
-  return '<div class="oc" style="max-width:660px;margin-bottom:8px" onclick="openOrder(\''+o.id+'\')">'+
+  return '<div class="oc" style="max-width:660px;margin-bottom:8px'+
+      (isVip(o)?';border-left-color:var(--gold);border-left-width:4px;background:var(--warn-bg)':'')+
+      '" onclick="openOrder(\''+o.id+'\')">'+
     '<div class="on"><span class="pf" style="background:'+pfColor(o.prefix)+'">'+String(o.prefix||'?').toUpperCase()+'</span>'+
-      esc(o.customer)+' <span style="color:var(--muted);font-weight:400">· '+esc(o.product||'-')+' '+(o.qty||0)+'pcs</span></div>'+
+      esc(o.customer)+(isVip(o)?(' '+vipLencana(true)):'')+' <span style="color:var(--muted);font-weight:400">· '+esc(o.product||'-')+' '+(o.qty||0)+'pcs</span></div>'+
     /* judul kelompok sudah menyebut langkah fasenya — di kartu yang berguna
        justru berapa kelengkapan order INI yang masih menunggu jabatanku */
     '<div class="om" style="margin-top:5px"><span>'+(function(){
       var n=chkKurang(o,o.phase).filter(chkTugasku).length;
-      return n?('<b>'+n+' kelengkapan</b> menunggumu di order ini'):'kelengkapan fase ini sudah lengkap';})()+'</span>'+
+      if(n)return '<b>'+n+' kelengkapan</b> menunggumu di order ini';
+      /* Creative kebagian kartu VIP sebelum fase Sketch; tanpa keterangan,
+         kartu tanpa tugas itu membingungkan */
+      if(isVip(o)&&(o.phase||0)<6&&myRoles().indexOf('Creative')>=0)
+        return '<b>Sketsa boleh dikerjakan lebih dulu</b> — buka panel Referensi gambar';
+      return 'kelengkapan fase ini sudah lengkap';})()+'</span>'+
       '<span class="stbadge st-'+o.status+'">'+esc(o.status)+'</span></div>'+
     deadline+
     (ph.gate?('<div style="margin-top:6px"><span class="stbadge" style="background:var(--warn-bg);color:var(--warn)">🔒 gate: '+esc(ph.gate)+'</span></div>'):'')+
@@ -4830,13 +4890,15 @@ function chkTugasBlok(role){
       /* diurutkan menurut fase, dan fase disebut sebagai judul kelompok */
       var perFase={};
       Object.keys(perOrder).forEach(function(id){var g=perOrder[id];(perFase[g.fase]=perFase[g.fase]||[]).push(g);});
+      Object.keys(perFase).forEach(function(f){
+        perFase[f].sort(function(a,b){return (isVip(b.o)?1:0)-(isVip(a.o)?1:0);});});
       return Object.keys(perFase).map(Number).sort(function(a,b){return a-b;}).map(function(f){
         return '<div style="font-size:9.5px;font-weight:800;letter-spacing:.04em;color:var(--brand);margin-top:11px;padding-top:9px;border-top:1px solid var(--line)">'+
             (f+1)+'. '+esc(PH[f].n)+'</div>'+
           perFase[f].map(function(g){
       return '<div style="padding:7px 0 3px">'+
         '<div style="font-size:11px;font-weight:800;margin-bottom:4px;cursor:pointer" onclick="openOrder(\''+g.o.id+'\')">'+
-          esc(g.o.customer)+'</div>'+
+          esc(g.o.customer)+(isVip(g.o)?(' '+vipLencana(true)):'')+'</div>'+
         g.items.map(function(it){
           /* bisa diklik langsung ke tempat mengisinya — sama seperti di panel
              Kelengkapan fase; daftar yang cuma bisa dibaca memaksa orang
@@ -5739,7 +5801,7 @@ function renderBoard(){
      <div class="col"><div class="col-h"><span class="cn">${c.i<PH.length?(c.i+1)+'. ':''}${c.p.n}</span><span class="ct">${c.items.length}</span></div>
        ${c.items.length?c.items.filter(o=>!seen.has(o.id)&&seen.add(o.id)).map(o=>`
          <div class="oc ${o.status==='Cancel'?'cancel':''}" style="border-left-color:${pfColor(o.prefix)}" onclick="openOrder('${o.id}')">
-           <div class="on"><span class="pf" style="background:${pfColor(o.prefix)}">${String(o.prefix||'?').toUpperCase()}</span>${esc(o.customer||'(tanpa nama)')}</div>
+           <div class="on"><span class="pf" style="background:${pfColor(o.prefix)}">${String(o.prefix||'?').toUpperCase()}</span>${esc(o.customer||'(tanpa nama)')}${isVip(o)?(' '+vipLencana(true)):''}</div>
            <div class="om"><span>${esc(o.product||'-')} · ${o.qty||0}pcs</span><span>${o.trello?'📋':''} ${(o.disc||[]).length?'💬':''}</span></div>
            <div class="om" style="margin-top:5px"><span class="stbadge st-${o.status}">${o.status}</span><span>${collIcons(o.coll)}</span></div>
          </div>`).join(''):'<div class="colempty">—</div>'}
@@ -5780,7 +5842,7 @@ function renderDetail(){
      <button class="btn" onclick="trigger('${o.id}')" ${playing?'disabled':''}>✓ Selesai — lanjut fase</button></div>`;}
 
   $('#main').innerHTML=`
-   <div style="display:flex;justify-content:space-between;align-items:center"><div class="back" onclick="closeOrder()">‹ Kembali ke pipeline</div>${(o.phase===0&&o.status!=='Deal')?`<button class="btn ghost sm" style="color:#d9534f" onclick="delOrder('${o.id}')">🗑 Hapus order</button>`:''}</div>
+   <div style="display:flex;justify-content:space-between;align-items:center"><div class="back" onclick="closeOrder()">‹ Kembali ke pipeline</div>${isVip(o)?vipLencana():''}${bolehAturVip()?vipTombol(o,'order'):''}${(o.phase===0&&o.status!=='Deal')?`<button class="btn ghost sm" style="color:#d9534f" onclick="delOrder('${o.id}')">🗑 Hapus order</button>`:''}</div>
    <div class="dhead">
      <div><h2># ${nm}</h2><div class="meta">${o.type} · ${o.product} · <b>${o.qty} pcs</b> · ${o.mat}${o.soNo?` · <span style="color:#8fd4a8;font-weight:700;cursor:pointer" onclick="soSetManual('${o.id}')" title="klik untuk ubah No. SO">SO ${esc(o.soNo)}</span> <span style="cursor:pointer;opacity:.6" onclick="soClear('${o.id}')" title="batalkan nomor SO">✕</span>`:` · <span style="cursor:pointer;opacity:.75;border:1px dashed rgba(255,255,255,.35);border-radius:5px;padding:1px 6px;font-size:10px" onclick="soSetManual('${o.id}')" title="tetapkan No. SO manual (untuk order pertama saat transisi)">＋ No. SO</span>`}</div></div>
      <div class="right"><div class="phasetag">${selesai?'Status <b>SELESAI</b>':`Fase <b>${o.phase+1}/${PH.length}</b> · ${ph?ph.n+' · PIC '+ph.pic:''}`}</div>
@@ -6346,7 +6408,14 @@ function panelDef(o){
    {k:'cs',t:'Komplain & kepuasan',s:'after sales',h:function(){return (o.phase>=13&&!batal)?csPanel(o):'';}}];}
 function panelBawaan(o){
   if(o.done||(o.phase||0)>=PH.length)return [];       // selesai: semua diringkas
-  return (PH_PANEL[o.phase||0]||[]).slice();}
+  var L=(PH_PANEL[o.phase||0]||[]).slice();
+  /* Satu-satunya hak istimewa VIP yang menabrak urutan: panel Referensi
+     gambar dibuka sebelum fase Sketch, jadi preview bisa dikerjakan lebih
+     dulu. Untuk client biasa panel ini tetap terkunci sampai gilirannya. */
+  if(isVip(o)&&(o.phase||0)<6){
+    if(L.indexOf('ref')<0)L.push('ref');
+    if(L.indexOf('brief')<0)L.push('brief');}   // sketsa butuh logo & spesifikasinya
+  return L;}
 function stepState(o){
   var kunci=o.id+'#'+o.phase;
   if(ST._stepFor!==kunci){ST._stepFor=kunci;ST._stepOpen={};
