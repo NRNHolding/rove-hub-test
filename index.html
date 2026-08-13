@@ -4716,18 +4716,44 @@ function renderTasks(){
    <div class="topbar"><h1>Tugas saya</h1><span class="demo">${role}</span><div class="sp"></div>${can('neworder')?`<button class="btn" onclick="openNew()">＋ Order baru</button>`:''}</div>
    ${tabNote('Hanya order yang <b>menunggu tindakan jabatanmu ('+role+')</b>. Klik kartu → kerjakan langkah yang tertulis → klik <b>✓ Selesai — lanjut fase</b>. Order akan hilang dari sini setelah berpindah ke PIC lain.')}
    <div style="font-size:12px;color:var(--muted);margin-bottom:14px">${tasks.length?tasks.length+' order menunggu tindakanmu.':'Tidak ada tugas aktif untuk peranmu saat ini. 🎉'}</div>
-   ${tasks.map(o=>{const ph=PH[o.phase];return `<div class="oc" style="max-width:660px;margin-bottom:8px" onclick="openOrder('${o.id}')">
-     <div class="on"><span class="pf" style="background:${pfColor(o.prefix)}">${o.prefix.toUpperCase()}</span>${o.customer} <span style="color:var(--muted);font-weight:400">· ${o.product} ${o.qty}pcs</span></div>
-     <div class="om" style="margin-top:5px"><span><b>Fase ${o.phase+1} · ${ph.n}</b> — ${ph.btn}</span><span class="stbadge st-${o.status}">${o.status}</span></div>
-     ${(function(){var dn=dLeft(o.po&&o.po.deadline);if(dn==null||o.phase<7)return '';var c=dn<0?'#d9534f':dn<=3?'var(--warn)':'var(--ok)';return '<div style="margin-top:5px;font-size:10px;font-weight:800;color:'+c+'">⏱ deadline '+(dn<0?('telat '+(-dn)+'h'):dn===0?'hari ini':(dn+'h lagi'))+((o.prod&&o.prod.stage)?(' · '+esc(o.prod.stage)):'')+'</div>';})()}
-     ${ph.gate?`<div style="margin-top:6px"><span class="stbadge" style="background:var(--warn-bg);color:var(--warn)">🔒 gate: ${ph.gate}</span></div>`:''}
-   </div>`;}).join('')}
+   ${(function(){
+     /* dikelompokkan per fase supaya terlihat bagian pipeline mana yang menahan */
+     var perFase={};tasks.forEach(function(o){(perFase[o.phase]=perFase[o.phase]||[]).push(o);});
+     return Object.keys(perFase).map(Number).sort(function(a,b){return a-b;}).map(function(f){
+       var ph=PH[f],n=perFase[f].length;
+       return '<div style="display:flex;align-items:center;gap:9px;max-width:660px;margin:16px 0 8px">'+
+           '<span style="font-size:11px;font-weight:800;letter-spacing:.03em;color:var(--brand)">'+(f+1)+'. '+esc(ph.n)+'</span>'+
+           '<span style="font-size:10px;font-weight:800;color:var(--muted);background:var(--bg);border:1px solid var(--line);border-radius:20px;padding:1px 8px">'+n+'</span>'+
+           '<span style="flex:1;height:1px;background:var(--line)"></span>'+
+           '<span style="font-size:9.5px;color:var(--muted);font-weight:700">'+esc(ph.btn||'')+'</span>'+
+         '</div>'+
+         perFase[f].map(kartuTugas).join('');}).join('');})()}
    ${chkTugasBlok(role)}`;
 }
 
 /* Kelengkapan yang menunggu ORANG INI, termasuk di order yang fase-nya
    dipegang jabatan lain — mis. logo client masih ditunggu Sales padahal
    fase Sketch PIC-nya Creative. */
+
+/* Satu kartu order di daftar "Tugas saya". Dipisah supaya bisa dirender
+   di dalam kelompok fase. */
+function kartuTugas(o){
+  var ph=PH[o.phase];
+  var deadline=(function(){var dn=dLeft(o.po&&o.po.deadline);
+    if(dn==null||o.phase<7)return '';
+    var c=dn<0?'#d9534f':dn<=3?'var(--warn)':'var(--ok)';
+    return '<div style="margin-top:5px;font-size:10px;font-weight:800;color:'+c+'">⏱ deadline '+
+      (dn<0?('telat '+(-dn)+'h'):dn===0?'hari ini':(dn+'h lagi'))+
+      ((o.prod&&o.prod.stage)?(' · '+esc(o.prod.stage)):'')+'</div>';})();
+  return '<div class="oc" style="max-width:660px;margin-bottom:8px" onclick="openOrder(\''+o.id+'\')">'+
+    '<div class="on"><span class="pf" style="background:'+pfColor(o.prefix)+'">'+String(o.prefix||'?').toUpperCase()+'</span>'+
+      esc(o.customer)+' <span style="color:var(--muted);font-weight:400">· '+esc(o.product||'-')+' '+(o.qty||0)+'pcs</span></div>'+
+    '<div class="om" style="margin-top:5px"><span>'+esc(ph.btn||'')+'</span>'+
+      '<span class="stbadge st-'+o.status+'">'+esc(o.status)+'</span></div>'+
+    deadline+
+    (ph.gate?('<div style="margin-top:6px"><span class="stbadge" style="background:var(--warn-bg);color:var(--warn)">🔒 gate: '+esc(ph.gate)+'</span></div>'):'')+
+  '</div>';}
+
 function chkTugasBlok(role){
   var T=chkTugasSaya(role);
   if(!T.length)return '';
@@ -4739,10 +4765,17 @@ function chkTugasBlok(role){
     '<div><div class="t">Yang harus kamu kerjakan</div>'+
       '<div class="s">'+T.length+' item di '+Object.keys(perOrder).length+' order'+(wajib?(' · '+wajib+' wajib'):'')+'</div></div>'+
     '</div><div class="body">'+
-    Object.keys(perOrder).map(function(id){var g=perOrder[id];
-      return '<div style="border-top:1px solid var(--line);padding:9px 0">'+
+    (function(){
+      /* diurutkan menurut fase, dan fase disebut sebagai judul kelompok */
+      var perFase={};
+      Object.keys(perOrder).forEach(function(id){var g=perOrder[id];(perFase[g.fase]=perFase[g.fase]||[]).push(g);});
+      return Object.keys(perFase).map(Number).sort(function(a,b){return a-b;}).map(function(f){
+        return '<div style="font-size:9.5px;font-weight:800;letter-spacing:.04em;color:var(--brand);margin-top:11px;padding-top:9px;border-top:1px solid var(--line)">'+
+            (f+1)+'. '+esc(PH[f].n)+'</div>'+
+          perFase[f].map(function(g){
+      return '<div style="padding:7px 0 3px">'+
         '<div style="font-size:11px;font-weight:800;margin-bottom:4px;cursor:pointer" onclick="openOrder(\''+g.o.id+'\')">'+
-          esc(g.o.customer)+' <span style="color:var(--muted);font-weight:400">· fase '+(g.fase+1)+' '+esc(PH[g.fase].n)+'</span></div>'+
+          esc(g.o.customer)+'</div>'+
         g.items.map(function(it){
           return '<div style="display:flex;gap:8px;align-items:flex-start;padding:3px 0">'+
             '<span style="flex:0 0 14px;margin-top:1px;font-size:12px;font-weight:800;color:var(--muted)">○</span>'+
@@ -4750,7 +4783,7 @@ function chkTugasBlok(role){
               (it.w?'<span style="color:var(--warn);font-size:9px;font-weight:800;margin-left:5px">WAJIB</span>':'')+'</div>'+
             (chkGuna(it)?('<div style="font-size:9.5px;color:var(--muted);line-height:1.5">'+esc(chkGuna(it))+'</div>'):'')+
             '</div></div>';}).join('')+
-      '</div>';}).join('')+
+      '</div>';}).join('');}).join('');})()+
     '</div></div>';}
 
 function rp(n){return 'Rp '+n.toLocaleString('id-ID')+' jt'}
@@ -5792,14 +5825,14 @@ const PH_CHECK=[
    guna:'supaya Purchasing bisa minta harga — vendor tak bisa menghargai "elegant"',
    gunaEn:'so Purchasing can request quotes — no vendor can price "elegant"',
    pic:'PM', w:true, jika:'dariSales'},
-  {auto:function(o){return !!(o.phone&&String(o.phone).trim());}, k:'kontak', t:'Catat nama PIC client beserta nomor HP-nya', en:'Record the client PIC and their phone number', guna:'supaya semua komunikasi order punya tujuan yang jelas', gunaEn:'so every message about this order has somewhere to go',                 pic:'Sales', w:true},
+  {auto:function(o){return !!(o.phone&&String(o.phone).trim());}, k:'kontak', t:'Catat nama PIC client beserta nomor HP-nya', en:'Record the client PIC and their phone number', guna:'supaya semua komunikasi order punya tujuan yang jelas', gunaEn:'so every message about this order has somewhere to go',                 pic:'PM', w:true},
   {auto:function(o){var b=o.brief||{};return !!o.eventDate&&!!b.tglKirim;},
-   k:'acara', t:'Tanyakan tanggal acara dan tanggal kirim yang diminta', en:'Ask for the event date and the requested ship date', guna:'supaya seluruh hitung mundur produksi punya acuan', gunaEn:'so the whole production countdown has a reference', pic:'Sales'},
+   k:'acara', t:'Tanyakan tanggal acara dan tanggal kirim yang diminta', en:'Ask for the event date and the requested ship date', guna:'supaya seluruh hitung mundur produksi punya acuan', gunaEn:'so the whole production countdown has a reference', pic:'PM'},
   {auto:function(o){var b=o.brief||{};return !!String(b.venue||o.venue||'').trim();},
-   k:'kota', t:'Isi kota dan venue acara', en:'Fill in the event city and venue', guna:'supaya tarif ongkir ketemu dan operator live tak salah kota', gunaEn:'so the shipping rate can be found and live operators go to the right city',              pic:'Sales'},
+   k:'kota', t:'Isi kota dan venue acara', en:'Fill in the event city and venue', guna:'supaya tarif ongkir ketemu dan operator live tak salah kota', gunaEn:'so the shipping rate can be found and live operators go to the right city',              pic:'PM'},
   {auto:function(o){var b=o.brief||{};return !!String(b.woHp||'').trim();}, jika:'wo',
-   k:'hpWo', t:'Minta nomor HP WO / EO', en:'Ask for the WO / EO phone number', guna:'supaya ada kontak darurat di hari acara', gunaEn:'so there is an emergency contact on event day',                pic:'Sales'},
-  {auto:function(o){return (((o.brief||{}).refFiles)||[]).length>0;}, k:'ref', t:'Kumpulkan referensi gambar dari client', en:'Collect reference images from the client', guna:'supaya Creative tak mendesain dari tebakan', gunaEn:'so Creative is not designing from guesswork',     pic:'Sales'}
+   k:'hpWo', t:'Minta nomor HP WO / EO', en:'Ask for the WO / EO phone number', guna:'supaya ada kontak darurat di hari acara', gunaEn:'so there is an emergency contact on event day',                pic:'PM'},
+  {auto:function(o){return (((o.brief||{}).refFiles)||[]).length>0;}, k:'ref', t:'Kumpulkan referensi gambar dari client', en:'Collect reference images from the client', guna:'supaya Creative tak mendesain dari tebakan', gunaEn:'so Creative is not designing from guesswork',     pic:'PM'}
  ],
  [ // 1 Pricing Vendor
   {auto:function(o){var R=rfqLines(o);return R.length===0||R.every(function(x){return !!(x.l.rfq&&x.l.rfq.minta);});}, k:'rfq', t:'Kirim permintaan harga ke tiap vendor', en:'Send a quote request to each vendor', guna:'supaya HPP tak ditebak-tebak', gunaEn:'so the cost price is not guessed',      pic:'Sales', w:true},
