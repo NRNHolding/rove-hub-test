@@ -673,6 +673,7 @@ const EN_RULES=[
 
 /* Kamus persis. Kunci = teks Indonesia apa adanya yang muncul di layar. */
 const EN={
+'order ditutup — tak bisa direvisi lagi':'order closed — no longer revisable',
 'PO REVISI':'REVISED PO','1. Konfirmasi ke Radja':'1. Confirm with Radja','2. Approval Direktur atas biaya tambahannya':'2. Director approves the extra cost','PO revisi dikonfirmasi Radja':'Revised PO confirmed by Radja','PO revisi disetujui Direktur':'Revised PO approved by the Director',
 '✎ Revisi order':'✎ Revise order','RIWAYAT REVISI':'REVISION HISTORY','Apa yang berubah':'What changed','Rinciannya':'Details','Revisi order':'Revise order','Qty berubah':'Quantity changed',
 'Sketsa boleh dikerjakan lebih dulu':'The sketch may be started early','buka panel Referensi gambar':'open the Reference images panel',
@@ -7272,9 +7273,14 @@ function revisiBatalkanAcc(o,keFase){
     o.inv.status='Revisi';gugur.push('invoice yang sudah terbit — perlu diterbitkan ulang');}
   return gugur;}
 
+function revisiTutup(o){return !!(o&&(o.done||(o.phase||0)>=PH.length));}
 function revisiOrder(id){
   var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
   if(!bolehRevisi()){alert('Revisi order hanya bisa dimulai Sales, Project Manager, atau Direktur.');return;}
+  /* Setelah order ditutup, angkanya sudah masuk pembukuan dan dokumennya
+     sudah di tangan client. Yang keliru sesudah itu jalurnya retur. */
+  if(revisiTutup(o)){alert('Order ini sudah ditutup — revisi tak bisa lagi dijalankan.\n\n'+
+    'Kalau ada yang keliru, catat lewat panel Komplain & kepuasan supaya jadi retur, bukan mengubah order yang angkanya sudah masuk pembukuan.');return;}
   askForm({judul:'Revisi order',sub:'Order '+o.customer+' · sekarang fase '+((o.phase||0)+1)+' '+PH[o.phase||0].n,
     fields:[
       {k:'sebab',label:'Apa yang berubah',type:'select',req:true,val:REVISI_SEBAB[0].t,
@@ -7328,9 +7334,10 @@ function revisiOrder(id){
    terulang, karena tak ada yang tahu pernah terjadi. */
 function revisiBlok(o){
   var L=revisiAll(o);
-  var tombol=bolehRevisi()
+  var tombol=(bolehRevisi()&&!revisiTutup(o))
     ? '<button class="btn ghost sm" style="font-size:9.5px" onclick="revisiOrder(\''+o.id+'\')">✎ Revisi order</button>'
-    : '';
+    : (revisiTutup(o)&&revisiAll(o).length
+        ? '<span style="font-size:9.5px;color:var(--ink-soft);font-weight:700">order ditutup — tak bisa direvisi lagi</span>' : '');
   if(!L.length)return tombol;
   return '<div style="border:1px solid var(--accent);border-radius:10px;padding:10px 12px;margin:12px 0;background:var(--warn-bg)">'+
     '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px">'+
