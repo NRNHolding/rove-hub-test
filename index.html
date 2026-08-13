@@ -492,7 +492,7 @@ const PH=[
   desc:'Buat channel Discord (server Rove, kategori PRE-DEAL) + input lead ke HUB. Tentukan Katalog/Custom.'},
  {n:'Pricing Vendor',cat:['radja','PRICING → PRICING DONE'],pic:'Sales',btn:'Harga vendor lengkap — lanjut quotation',
   desc:'Hanya untuk barang yang harganya belum ada di master. Produk katalog & collateral standar bisa dilewati.'},
- {n:'Profitability',cat:['rove','PRE-DEAL'],pic:'Sales',btn:'Margin disetujui — lanjut quotation',
+ {n:'Penentuan harga jual',cat:['rove','PRE-DEAL'],pic:'PM',btn:'Harga jual disetujui — lanjut quotation',
   desc:'Bandingkan HPP vendor dengan harga jual. Cek profit per item & total sebelum quotation dikirim.'},
  {n:'Quotation',cat:['rove','PRE-DEAL'],pic:'Finance',btn:'Quotation terkirim — tunggu respon client',gate:'client approve',
   desc:'Generate quotation detail (artikel kulit, soft pouch, thankyou card), kirim ke client, tunggu approve.'},
@@ -665,6 +665,7 @@ const EN_RULES=[
 
 /* Kamus persis. Kunci = teks Indonesia apa adanya yang muncul di layar. */
 const EN={
+'Penentuan harga jual':'Setting the selling price','INFO DARI RADJA':'FROM RADJA','Deadline produksi':'Production deadline','Paling lambat PO turun':'Latest date the PO can be issued','Persetujuan harga jual — Sales':'Selling price approval — Sales','Harga jual disetujui Sales':'Selling price approved by Sales',
 'kelengkapan fase ini sudah lengkap':'this phase’s checklist is complete',
 '💬 Tanya Sales':'💬 Ask Sales','Yang belum jelas':'What is unclear','Ini tugas jabatanmu sendiri — tak ada yang perlu diingatkan.':'This is your own role\u2019s task \u2014 there is nobody to remind.',
 '🔍 Cari produk atau bahan…':'🔍 Search product or material…',
@@ -5861,12 +5862,23 @@ const PH_CHECK=[
   {auto:function(o){var L=(((o.pricing||{}).lines)||[]).filter(function(l){return (l.qty||0)>0;});return L.length>0&&L.every(function(l){return lineHppVendor(l)>0;});}, k:'harga', t:'Catat jawaban harga dari tiap vendor', en:'Record the price each vendor replies with', guna:'supaya profit bisa dihitung sebelum quotation keluar', gunaEn:'so profit can be worked out before the quotation goes out',               pic:'Sales', w:true},
   {auto:function(o){var R=rfqLines(o);return R.length===0||R.every(function(x){return !!(x.l.rfq&&String(x.l.rfq.note||'').trim());});}, k:'moq', t:'Catat MOQ dan lead time tiap vendor', en:'Record each vendor MOQ and lead time', guna:'supaya qty dan deadline yang dijanjikan realistis', gunaEn:'so the qty and deadline you promise are realistic',               pic:'Purchasing'}
  ],
- [ // 2 Profitability
-  {auto:function(o){var L=(((o.pricing||{}).lines)||[]).filter(function(l){return (l.qty||0)>0;});return L.length>0&&L.every(function(l){return lineHppVendor(l)>0;});}, k:'hpp', t:'Periksa HPP tiap item — dari katalog atau jawaban vendor', en:'Check the cost price of each item — from the catalogue or the vendor reply', guna:'supaya tak ada item yang dijual di bawah modal', gunaEn:'so no item is sold below cost',      pic:'Sales', w:true},
-  {auto:function(o){var L=(((o.pricing||{}).lines)||[]).filter(function(l){return (l.qty||0)>0;});return L.length>0&&L.every(function(l){return (l.jual||0)>0;});}, k:'margin', t:'Tetapkan margin dan harga jual tiap item', en:'Set the margin and selling price for each item', guna:'supaya quotation keluar dengan angka yang sudah disepakati', gunaEn:'so the quotation goes out with agreed numbers',            pic:'Sales', w:true},
-  {auto:function(o){return ((o.pricing||{}).ship||0)>0;}, k:'ongkir', t:'Hitung estimasi ongkir dan qty spare', en:'Work out the shipping estimate and spare qty', guna:'supaya ongkir tak jadi beban Rove dan ada cadangan untuk reject', gunaEn:'so shipping is not absorbed by Rove and there is cover for rejects',             pic:'Purchasing'},
-  {auto:function(o){return biayaTotal(o)>0;}, jika:'live',
-   k:'biayaLain', t:'Catat biaya di luar HPP: ongkir alat, akomodasi, fee operator', en:'Record costs outside COGS: equipment freight, lodging, operator fees', guna:'supaya profit live service yang dilaporkan bukan angka palsu', gunaEn:'so the reported live-service profit is not a false number', pic:'Sales'}
+ [ // 2 Penentuan harga jual
+  {auto:function(o){var L=(((o.pricing||{}).lines)||[]).filter(function(l){return (l.qty||0)>0;});
+     return L.length>0&&L.every(function(l){return lineHppVendor(l)>0;});},
+   k:'hpp', t:'Kumpulkan HPP tiap item dari Radja atau katalog', en:'Collect the cost of every item from Radja or the catalogue', guna:'supaya harga jual dihitung dari biaya nyata, bukan kira-kira', gunaEn:'so the selling price is built on real cost, not a guess', pic:'PM', w:true},
+  {auto:function(o){return !!((o.po||{}).deadline);},
+   k:'deadlineProd', t:'Tanyakan deadline produksi ke Radja', en:'Ask Radja for the production deadline', guna:'supaya tanggal janji ke client bukan tebakan', gunaEn:'so the date promised to the client is not a guess', pic:'PM', w:true},
+  {auto:function(o){return !!((o.po||{}).tglPOMax);},
+   k:'tglPOMax', t:'Tanyakan tanggal paling lambat PO boleh turun ke Radja', en:'Ask Radja the latest date the PO can still be issued', guna:'supaya lewat tanggal itu ketahuan sebelum terlambat, bukan sesudah', gunaEn:'so slipping past that date shows up before it is too late, not after', pic:'PM', w:true},
+  {auto:function(o){return ((o.pricing||{}).biayaLain||[]).length>0||!!(o.pricing||{}).biayaLainNol;},
+   k:'biayaLain', t:'Catat biaya di luar HPP: ongkir alat, akomodasi, fee operator', en:'Record costs outside cost price: tool freight, accommodation, operator fees', guna:'supaya profit yang terlihat itu profit bersih', gunaEn:'so the profit shown is the profit that remains', pic:'PM'},
+  {auto:function(o){return !!((o.pricing||{}).ship)||!!o.shipTarif;},
+   k:'ongkir', t:'Hitung estimasi ongkir dan qty spare', en:'Work out the shipping estimate and spare quantity', guna:'supaya ongkir tak menggerus margin diam-diam', gunaEn:'so freight does not quietly eat the margin', pic:'Purchasing'},
+  {auto:function(o){var L=(((o.pricing||{}).lines)||[]).filter(function(l){return (l.qty||0)>0;});
+     return L.length>0&&L.every(function(l){return lineJual(l,((o.pricing||{}).margin||0)/100)>0;});},
+   k:'margin', t:'Tetapkan margin dan harga jual tiap item', en:'Set the margin and selling price for every item', guna:'supaya angka yang masuk quotation sudah diputuskan, bukan bawaan', gunaEn:'so the numbers reaching the quotation are decided, not defaults', pic:'Sales', w:true},
+  {auto:function(o){return !!(((o.pricing||{}).jualAppr||{}).tgl);},
+   k:'accJual', t:'Setujui HPP, kedua tanggal Radja, dan harga jual', en:'Approve the cost, both Radja dates, and the selling price', guna:'supaya tak ada quotation terbit tanpa Sales memeriksanya', gunaEn:'so no quotation goes out without Sales having checked it', pic:'Sales', w:true}
  ],
  [ // 3 Quotation
   {auto:function(o){return !!(o.docs&&o.docs.quotation);}, k:'gen', t:'Generate quotation', en:'Generate the quotation', guna:'supaya ada dokumen resmi untuk dikirim ke client', gunaEn:'so there is a proper document to send the client',                        pic:'Finance', w:true},
@@ -6038,7 +6050,7 @@ function chkTugasSaya(role){
 /* Petunjuk tempat mengisi tiap item — checklist hanya memantau, pengisiannya
    di panel kerja masing-masing. */
 const CHK_SUMBER={'0.terjemah':'Brief → Material utama, Personalization, dan spesifikasi tiap collateral',
-  '0.brief':'form order baru / panel Pricing','0.kontak':'Brief Inquiry','0.acara':'Brief Inquiry','0.ref':'Brief → lampiran Referensi client','0.kota':'Brief → Venue / kota tujuan','0.hpWo':'Brief → WO / EO phone','1.rfq':'panel Minta harga vendor','1.kulit':'panel Minta harga vendor → ketersediaan kulit','1.harga':'panel Minta harga vendor → Catat jawaban','1.moq':'panel Minta harga vendor → catatan vendor','2.hpp':'panel Profitability','2.margin':'panel Profitability','2.ongkir':'panel Pricing → Ongkir','2.biayaLain':'panel Profitability → Biaya di luar HPP','3.gen':'panel Pricing → Generate Quotation','3.kirim':'panel Pricing → status quotation','3.follow':'panel Pricing → tandai Approved','3.email':'Brief → Email client','3.kirimData':'panel Pricing → Ekspedisi, Kota, Berat','3.alamatKantor':'Brief → Alamat client / kantor','3.ppn':'panel Pricing → Status PPN','4.logoCl':'Brief → lampiran Logo client','4.logoPch':'Brief → lampiran Logo soft pouch','4.logoBox':'Brief → lampiran Logo box','4.logoCard':'Brief → lampiran Logo thank you card','4.daftarNama':'Brief → daftar nama tamu','4.preview':'panel Referensi gambar → lampiran preview','4.approve':'panel Referensi gambar → tombol approval sketsa','5.inv':'panel Pricing → Generate Invoice','5.kirim':'panel Pricing → status invoice','5.dp':'panel Pembayaran → Catat DP masuk','5.faktur':'panel Pricing → No. faktur pajak','6.spec':'Form PO Radja','6.appr':'Form PO Radja → approval margin','6.poR':'Form PO Radja → Generate PO','6.poV':'panel PO vendor lain','6.trello':'otomatis saat fase Spec & PO dilewati','6.spare':'Form PO Radja → Qty spare produksi','6.warnaLogo':'Form PO Radja → warna logo','7.mat':'panel Produksi → Tahap','7.sample':'panel Produksi → sample disetujui','7.progres':'panel Produksi → catatan progres','8.qc':'panel Produksi → lampiran foto QC & retur','8.pack':'panel Produksi → lampiran foto packing','8.coll':'panel Produksi → collateral lengkap','9.invP':'panel Pricing → Generate Invoice','9.lunas':'panel Pembayaran → Catat pelunasan','9.alamat':'Brief → Alamat kirim','9.penerima':'panel Pengiriman barang','9.resi':'panel Pengiriman barang','10.tglTerima':'panel Pengiriman barang → Tanggal diterima','10.bukti':'panel Pengiriman barang → foto serah terima','10.testi':'panel Komplain & kepuasan','10.arsip':'otomatis saat order ditutup'};
+  '0.brief':'form order baru / panel Pricing','0.kontak':'Brief Inquiry','0.acara':'Brief Inquiry','0.ref':'Brief → lampiran Referensi client','0.kota':'Brief → Venue / kota tujuan','0.hpWo':'Brief → WO / EO phone','1.rfq':'panel Minta harga vendor','1.kulit':'panel Minta harga vendor → ketersediaan kulit','1.harga':'panel Minta harga vendor → Catat jawaban','1.moq':'panel Minta harga vendor → catatan vendor','2.hpp':'panel Penentuan harga jual','2.margin':'panel Penentuan harga jual','2.ongkir':'panel Pricing → Ongkir','2.biayaLain':'panel Penentuan harga jual → Biaya di luar HPP','2.deadlineProd':'panel Penentuan harga jual → Info dari Radja','2.tglPOMax':'panel Penentuan harga jual → Info dari Radja','2.accJual':'panel Penentuan harga jual → Persetujuan harga jual','3.gen':'panel Pricing → Generate Quotation','3.kirim':'panel Pricing → status quotation','3.follow':'panel Pricing → tandai Approved','3.email':'Brief → Email client','3.kirimData':'panel Pricing → Ekspedisi, Kota, Berat','3.alamatKantor':'Brief → Alamat client / kantor','3.ppn':'panel Pricing → Status PPN','4.logoCl':'Brief → lampiran Logo client','4.logoPch':'Brief → lampiran Logo soft pouch','4.logoBox':'Brief → lampiran Logo box','4.logoCard':'Brief → lampiran Logo thank you card','4.daftarNama':'Brief → daftar nama tamu','4.preview':'panel Referensi gambar → lampiran preview','4.approve':'panel Referensi gambar → tombol approval sketsa','5.inv':'panel Pricing → Generate Invoice','5.kirim':'panel Pricing → status invoice','5.dp':'panel Pembayaran → Catat DP masuk','5.faktur':'panel Pricing → No. faktur pajak','6.spec':'Form PO Radja','6.appr':'Form PO Radja → approval margin','6.poR':'Form PO Radja → Generate PO','6.poV':'panel PO vendor lain','6.trello':'otomatis saat fase Spec & PO dilewati','6.spare':'Form PO Radja → Qty spare produksi','6.warnaLogo':'Form PO Radja → warna logo','7.mat':'panel Produksi → Tahap','7.sample':'panel Produksi → sample disetujui','7.progres':'panel Produksi → catatan progres','8.qc':'panel Produksi → lampiran foto QC & retur','8.pack':'panel Produksi → lampiran foto packing','8.coll':'panel Produksi → collateral lengkap','9.invP':'panel Pricing → Generate Invoice','9.lunas':'panel Pembayaran → Catat pelunasan','9.alamat':'Brief → Alamat kirim','9.penerima':'panel Pengiriman barang','9.resi':'panel Pengiriman barang','10.tglTerima':'panel Pengiriman barang → Tanggal diterima','10.bukti':'panel Pengiriman barang → foto serah terima','10.testi':'panel Komplain & kepuasan','10.arsip':'otomatis saat order ditutup'};
 
 /* "Brief → lampiran Logo client" diterjemahkan per potong, bukan sebagai satu
    entri kamus — tempatnya berkombinasi jadi puluhan kemungkinan. */
@@ -6292,6 +6304,7 @@ function tandaSet(id,jalur,f,label){
   var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
   var wadah=(jalur==='prod')?(o.prod=o.prod||{}):((o.pricing=o.pricing||{lines:[],margin:30}));
   if(jalur==='margin'){if(!o.pricing.marginAppr)o.pricing.marginAppr={};wadah=o.pricing.marginAppr;}
+  if(jalur==='jual'){if(!o.pricing.jualAppr)o.pricing.jualAppr={};wadah=o.pricing.jualAppr;}
   if(jalur==='spare')wadah=o.pricing;                    // spare 0 pun sah, asal sudah diputuskan
   if(wadah[f]){                                   // batalkan
     if(!confirm('Batalkan catatan "'+label+'"?'))return;
@@ -6953,15 +6966,50 @@ function profitTambahKatalog(id){
         hpp:hppKat,jual:Math.round(hppKat*(1+((o.pricing.margin||30)/100))),
         perso:'-',fixed:true,img:c.img||'',imgs:[],tiers:c.t||null});
       o._m=Date.now();logHist(o,'Item katalog ditambah: '+c.name);save();render();}});}
+
+/* ---- info yang harus dikorek PM dari Radja ---- */
+function radjaSet(id,f,v){
+  var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
+  if(!o.po)o.po={};
+  var lama=o.po[f]||'';
+  o.po[f]=v;
+  if(lama!==v)logHist(o,(f==='deadline'?'Deadline produksi':'Batas tanggal PO turun')+': '+(v||'(dikosongkan)'));
+  o._m=Date.now();save();render();}
+/* Sudah lewat batas PO turun? Kalau ya, deadline produksinya sudah tak realistis. */
+function poLewat(o){
+  var t=(o.po||{}).tglPOMax;if(!t)return null;
+  if((o.po||{}).generated)return null;               // PO sudah turun, batasnya tak relevan lagi
+  return dLeft(t);}
+function radjaBlok(o){
+  var P=o.po||{},dn=poLewat(o);
+  var warna=(dn===null)?'var(--muted)':(dn<0?'#8f2a1e':(dn<=3?'var(--warn)':'var(--ok)'));
+  var ket=(dn===null)?'':(dn<0?('PO sudah telat '+(-dn)+' hari dari batas'):(dn===0?'batas PO hari ini':(dn+' hari lagi batas PO turun')));
+  return '<div style="border:1px solid var(--line);border-radius:10px;padding:11px 13px;margin:12px 0;background:var(--bg)">'+
+    '<div style="font-size:9.5px;font-weight:800;color:var(--brand);letter-spacing:.04em;margin-bottom:3px">INFO DARI RADJA</div>'+
+    '<div style="font-size:10px;color:var(--muted);margin-bottom:9px;line-height:1.55">Dikorek PM ke Radja sebelum harga jual ditetapkan. Tanpa ini, tanggal janji ke client cuma tebakan.</div>'+
+    '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:9px">'+
+      '<label class="nlbl">Deadline produksi<input type="date" class="pin" style="width:100%;margin-top:3px" value="'+esc(P.deadline||'')+
+        '" onchange="radjaSet(\''+o.id+'\',\'deadline\',this.value)"></label>'+
+      '<label class="nlbl">Paling lambat PO turun<input type="date" class="pin" style="width:100%;margin-top:3px" value="'+esc(P.tglPOMax||'')+
+        '" onchange="radjaSet(\''+o.id+'\',\'tglPOMax\',this.value)"></label>'+
+    '</div>'+
+    (ket?('<div style="margin-top:8px;font-size:10.5px;font-weight:800;color:'+warna+'">⏱ '+esc(ket)+'</div>'):'')+
+    '<div style="margin-top:11px;border-top:1px dashed var(--line);padding-top:9px">'+
+      '<div style="font-size:10.5px;font-weight:800">Persetujuan harga jual — Sales</div>'+
+      '<div style="font-size:10px;color:var(--muted);line-height:1.55">Sales memeriksa HPP, kedua tanggal di atas, dan harga jual tiap item sebelum quotation dibuat.</div>'+
+      tandaTombol(o,'jual','tgl','Harga jual disetujui Sales')+
+    '</div></div>';}
+
 function profitPanel(o){
   profitSiapkan(o);                      // harga jual selalu terisi, tak pernah 0
   var L=(((o.pricing||{}).lines)||[]).filter(function(l){return (l.qty||0)>0;});
   var m=((o.pricing||{}).margin||0)/100,P=profitTotals(o);
   var ship=+((o.pricing||{}).ship||0);
   return '<div class="card actcard" style="margin-top:14px"><div class="ch"><span class="ico" style="background:#2f6f8f">%</span>'+
-    '<div><div class="t">Profitability</div><div class="s">HPP VENDOR VS HARGA JUAL</div></div>'+
+    '<div><div class="t">Penentuan harga jual</div><div class="s">HPP VENDOR VS HARGA JUAL</div></div>'+
     '<span style="margin-left:auto;font-size:12px;font-weight:800;color:'+profitWarna(P.pct)+'">'+
       (P.jual?('Profit '+fmt0(P.profit)+' · '+P.pct+'%'):'belum ada angka')+'</span></div><div class="body">'+
+    radjaBlok(o)+
     '<div style="font-size:10.5px;color:var(--muted);margin-bottom:10px">Angka di sini bisa langsung diubah — qty, HPP dari vendor, dan harga jual ke client. '+
       'Yang dipakai quotation adalah <b>harga jual</b>; HPP hanya untuk menghitung profit.</div>'+
     (P.kurang?('<div style="font-size:10.5px;color:var(--warn);font-weight:700;margin-bottom:9px">⚠ '+P.kurang+' item belum ada HPP vendor — profitnya belum bisa dihitung penuh.</div>'):'')+
