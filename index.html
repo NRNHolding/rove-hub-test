@@ -488,7 +488,7 @@ const TEAM={Sales:['JB','#e0912f','Jessica B'],Finance:['DA','#16a34a','Danis'],
 
 // phase model: label, discord category, PIC, action button text, gate?, builds
 const PH=[
- {n:'Inquiry',cat:['rove','PRE-DEAL'],pic:'Sales',btn:'Buat channel & input lead',
+ {n:'Inquiry',cat:['rove','PRE-DEAL'],pic:'PM',btn:'Rinci order & lengkapi data client',
   desc:'Buat channel Discord (server Rove, kategori PRE-DEAL) + input lead ke HUB. Tentukan Katalog/Custom.'},
  {n:'Pricing Vendor',cat:['radja','PRICING → PRICING DONE'],pic:'Sales',btn:'Harga vendor lengkap — lanjut quotation',
   desc:'Hanya untuk barang yang harganya belum ada di master. Produk katalog & collateral standar bisa dilewati.'},
@@ -4291,6 +4291,17 @@ function loadMaster(){try{ST.master=JSON.parse(localStorage.getItem('rovehub_mas
    (ST.master.vendors||[]).forEach(function(v){if(v.kapasitas!==undefined)delete v.kapasitas;});
    if(!ST.master.evTpl){ST.master.evTpl=defEvTpl();saveMaster();}
    ST.master.vendors.forEach(function(v){if(!v.cogs)v.cogs=(v.tipe==='Kulit')?'Main Product':(v.tipe==='Live Service'?'Service':'Packaging');});
+
+  /* Hak "buat order" dulu menyala untuk semua jabatan. Peramban yang sudah
+     menyimpan matriks lama tak ikut berubah hanya karena defAccess() diubah,
+     karena migrasi biasa sengaja tak menimpa setelan yang sudah ada.
+     Ini migrasi sekali jalan dan bertanda, jadi kalau Holding kelak
+     menyalakannya lagi, keputusan itu tidak dibatalkan lagi. */
+  if(ST.master.access&&!ST.master._migOrderDariProspek){
+    Object.keys(ST.master.access).forEach(function(r){
+      if(r!=='Holding'&&r!=='Direktur Utama')ST.master.access[r].neworder=false;});
+    ST.master._migOrderDariProspek=1;saveMaster();}
+
    if(!ST.master.msec){ST.master.msec=defMsec();saveMaster();} var dm=defMsec();ROLES.forEach(function(r){if(!ST.master.msec[r]){ST.master.msec[r]=dm[r];saveMaster();}});
    ST.master.catalog.forEach(function(r){if(!r.jenis)r.jenis='Katalog';});}
 function mEdit(sec,i,f,v){var r=ST.master[sec][i];r[f]=v;
@@ -4716,7 +4727,12 @@ function renderTasks(){
   $('#main').innerHTML=`
    <div class="topbar"><h1>Tugas saya</h1><span class="demo">${role}</span><div class="sp"></div>${can('neworder')?`<button class="btn" onclick="openNew()">＋ Order baru</button>`:''}</div>
    ${tabNote('Hanya order yang <b>menunggu tindakan jabatanmu ('+role+')</b>. Klik kartu → kerjakan langkah yang tertulis → klik <b>✓ Selesai — lanjut fase</b>. Order akan hilang dari sini setelah berpindah ke PIC lain.')}
-   <div style="font-size:12px;color:var(--muted);margin-bottom:14px">${tasks.length?tasks.length+' order menunggu tindakanmu.':'Tidak ada tugas aktif untuk peranmu saat ini. 🎉'}</div>
+   <div style="font-size:12px;color:var(--muted);margin-bottom:14px">${(function(){
+     if(tasks.length)return tasks.length+' order menunggu tindakanmu.';
+     /* pesan lama buta: mengaku kosong padahal blok kelengkapan di bawah berisi */
+     var k=chkTugasSaya(role).length;
+     return k?('Tak ada order yang <b>fasenya</b> di tanganmu, tapi ada <b>'+k+' kelengkapan</b> yang menunggumu di bawah.')
+            :'Tidak ada tugas aktif untuk peranmu saat ini. 🎉';})()}</div>
    ${(function(){
      /* dikelompokkan per fase supaya terlihat bagian pipeline mana yang menahan */
      var perFase={};tasks.forEach(function(o){(perFase[o.phase]=perFase[o.phase]||[]).push(o);});
