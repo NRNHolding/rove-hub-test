@@ -7449,12 +7449,16 @@ function dirTolak(id){
       if(!o.pricing)o.pricing={lines:[],margin:30};
       o.pricing.dirAppr={tgl:hariIni(),tglBy:(ST.userName||ST.user||''),
         tolak:true,alasan:pilih[1],catatan:v.catatan};
+      /* persetujuan di hilir ikut gugur — aturannya sama persis dengan revisi,
+         dipanggil dari fungsi yang sama supaya tak bisa berbeda diam-diam */
+      var gugur=revisiBatalkanAcc(o,pilih[2]);
       revisiAll(o).push({tgl:nowStr(),oleh:(ST.userName||ST.user||''),
         sebab:'Ditolak Direktur — '+pilih[1],catatan:v.catatan,
         dari:(o.phase||0),ke:pilih[2],poRev:false});
       o.phase=pilih[2];
       o._faseSejak=Date.now();o.ingatOtomatis={};
-      logHist(o,'✕ Ditolak Direktur ('+pilih[1]+') — dikembalikan ke fase '+(pilih[2]+1)+' '+pilih[3]+'. '+v.catatan);
+      logHist(o,'✕ Ditolak Direktur ('+pilih[1]+') — dikembalikan ke fase '+(pilih[2]+1)+' '+pilih[3]+'. '+v.catatan+
+        (gugur.length?(' Gugur: '+gugur.join(', ')):''));
       notifyOrder(o,'✕ **Order '+o.customer+' ditolak Direktur**\n'+pilih[1]+
         '\nDikembalikan ke fase '+(pilih[2]+1)+' '+pilih[3]+' — '+picMention(PH[pilih[2]].pic)+'\n'+v.catatan);
       o._m=Date.now();save();
