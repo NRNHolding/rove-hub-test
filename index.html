@@ -673,6 +673,7 @@ const EN_RULES=[
 
 /* Kamus persis. Kunci = teks Indonesia apa adanya yang muncul di layar. */
 const EN={
+'Bukti transfer dari client':'Client\u2019s transfer proof','SALES MENERUSKAN · FINANCE MEMERIKSA REKENING':'SALES FORWARDS IT · FINANCE CHECKS THE BANK','Kabar dari client':'What the client says','＋ Lampirkan screenshot / PDF':'＋ Attach a screenshot / PDF','✎ Catat revisi &amp; kembalikan':'✎ Record a revision &amp; send back','PANTAUAN — DIISI TANGAN':'TRACKING — FILLED IN BY HAND','Janji selesai':'Promised completion','Belum pernah diperbarui':'Never updated yet',
 'barang sudah jadi — tak bisa direvisi lagi':'goods already made — no longer revisable',
 'order ditutup — tak bisa direvisi lagi':'order closed — no longer revisable',
 'PO REVISI':'REVISED PO','1. Konfirmasi ke Radja':'1. Confirm with Radja','2. Approval Direktur atas biaya tambahannya':'2. Director approves the extra cost','PO revisi dikonfirmasi Radja':'Revised PO confirmed by Radja','PO revisi disetujui Direktur':'Revised PO approved by the Director',
@@ -5942,7 +5943,7 @@ function invSet(id,st){
    diringkas jadi baris tipis — masih bisa dibuka, tapi tak lagi memenuhi layar. */
 /* 'chk' ikut di semua fase — kelengkapan selalu terlihat di panel fase berjalan. */
 const PH_PANEL=[['chk','brief'],['chk','rfq'],['chk','profit'],['chk','ringkas'],['chk','pricing'],
-                ['chk','pricing'],['chk','ref','brief'],['chk','ref'],['chk','pricing','pay'],['chk','pay'],
+                ['chk','pricing'],['chk','ref','brief'],['chk','ref'],['chk','pricing','pay'],['chk','pay','bukti'],
                 ['chk','po','vpo'],['chk','prod'],['chk','prod'],['chk','pay','kirim'],['chk','kirim','cs']];
 
 /* ================= CHECKLIST PER FASE =================
@@ -6040,7 +6041,7 @@ const PH_CHECK=[
   {auto:function(o){return !!((o.poRevOk||{}).direktur);},
    k:'poRevDir', t:'Setujui PO revisi beserta biaya tambahannya', en:'Approve the revised PO and any extra cost it brings', guna:'supaya biaya perubahan ada yang menanggung keputusannya', gunaEn:'so someone owns the decision behind the extra cost', pic:'Direktur', w:true, jika:'poRev'},
   {auto:function(o){return poMissing(o).length===0;}, k:'spec', t:'Lengkapi Form PO: material, deboss, stitch, prong, benang, finishing', en:'Complete the PO form: material, deboss, stitch, prong, thread, finishing', guna:'supaya vendor tak menebak spesifikasi', gunaEn:'so the vendor is not guessing the spec',               pic:'Purchasing', w:true},
-  {auto:function(o){return !!(((o.pricing||{}).marginAppr||{}).tgl);}, k:'appr', t:'Minta approval margin ke Direktur', en:'Get margin approval from the Director', guna:'supaya PO tak turun tanpa persetujuan', gunaEn:'so the PO does not go out unapproved',                 pic:'Sales',      w:true},
+  {auto:function(o){return !!(((o.pricing||{}).marginAppr||{}).tgl);}, k:'appr', t:'Setujui kelengkapan spesifikasi sebelum PO turun ke produksi', en:'Approve that the specification is complete before the PO goes to production', guna:'supaya yang diperiksa kesiapan produksinya — untungnya sudah diputus di Profitability', gunaEn:'so what gets checked is production readiness — the profit was already decided at Profitability',                 pic:'Direktur',      w:true},
   {auto:function(o){return !!((o.po||{}).generated);}, k:'poR', t:'Terbitkan PO ke Radja', en:'Issue the PO to Radja', guna:'supaya vendor punya dasar mulai produksi', gunaEn:'so the vendor has authority to start',                       pic:'Purchasing', w:true},
   {auto:function(o){var V=poVendors(o);return V.length===0||V.every(function(v){return !!(((o.vpo||{})[v]||{}).generated);});}, k:'poV', t:'Terbitkan PO ke tiap vendor collateral, lengkap dengan ukuran', en:'Issue a PO to each collateral vendor, sizes included', guna:'supaya kemasan siap bersamaan dengan produknya', gunaEn:'so packaging is ready at the same time as the product',           pic:'Purchasing'},
   {auto:function(o){return !!((o.trello||{}).created);}, k:'trello', t:'Pastikan kartu Trello Production sudah terbentuk', en:'Make sure the Trello Production card was created', guna:'supaya progres produksi bisa dipantau', gunaEn:'so production progress can be tracked',               pic:'Project Manager'},
@@ -6264,7 +6265,8 @@ function chkTugasSaya(role){
 
 /* Petunjuk tempat mengisi tiap item — checklist hanya memantau, pengisiannya
    di panel kerja masing-masing. */
-const CHK_SUMBER={'10.poRevRadja':'panel Form PO Radja → PO revisi','10.poRevDir':'panel Form PO Radja → PO revisi',
+const CHK_SUMBER={'9.bukti':'panel Bukti transfer',
+  '10.poRevRadja':'panel Form PO Radja → PO revisi','10.poRevDir':'panel Form PO Radja → PO revisi',
   '5.quoAcc':'panel Pricing → status quotation','7.sketsaAcc':'panel Referensi gambar → tombol approval sketsa','9.dpMasuk':'panel Pembayaran → Catat DP masuk',
   '3.dirAcc':'panel Ringkasan untuk Direktur',
   '0.terjemah':'Brief → Material utama, Personalization, dan spesifikasi tiap collateral',
@@ -6389,7 +6391,7 @@ function chkPanel(o){
   var rows=(milikku.length?sekat('MENUNGGU KAMU ('+milikku.length+')')+milikku.map(function(it){return baris(it,false);}).join(''):'')+
     (lain.length?sekat(milikku.length?'MENUNGGU JABATAN LAIN':'SEMUA ITEM FASE INI')+
       lain.map(function(it){return baris(it,true);}).join(''):'');
-  return revisiBlok(o)+
+  return tungguRevisiBlok(o)+revisiBlok(o)+
     '<div class="card actcard" style="margin-top:14px"><div class="ch">'+
     '<span class="ico" style="background:'+(sisaWajib?'var(--warn)':'var(--ok)')+'">☑</span>'+
     '<div><div class="t">Kelengkapan fase '+(f+1)+' — '+esc(PH[f].n)+'</div>'+
@@ -6410,6 +6412,7 @@ function panelDef(o){
    {k:'rfq',t:'Minta harga vendor',s:'hanya barang yang harganya belum ada',h:function(){return (o.phase>=1&&!batal)?rfqPanel(o):'';}},
    {k:'profit',t:'Penentuan harga jual',s:'HPP vendor vs harga jual',h:function(){return (o.phase>=1&&!batal)?profitPanel(o):'';}},
    {k:'ringkas',t:'Ringkasan untuk Direktur',s:'baca saja — approve atau tolak',h:function(){return ringkasPanel(o);}},
+   {k:'bukti',t:'Bukti transfer',s:'Sales meneruskan, Finance memeriksa',h:function(){return buktiPanel(o);}},
    {k:'pricing',t:'Pricing & Dokumen',s:'baris harga, quotation, invoice',h:function(){return (o.phase>=1)?pricingPanel(o):'';}},
    {k:'pay',t:'Pembayaran',s:'DP & pelunasan',h:function(){return (o.phase>=4)?payPanel(o):'';}},
    {k:'ref',t:'Referensi gambar',s:'sketch & foto produk',h:function(){return refPanel(o);}},
@@ -7368,6 +7371,103 @@ function revisiBlok(o){
     (L.length>4?'<div style="font-size:9.5px;color:var(--ink-soft);padding-top:4px">…'+(L.length-4)+' revisi lebih lama</div>':'')+
     '</div>';}
 
+
+/* ---- tombol revisi di fase menunggu ----
+   Fase menunggu punya dua jalan keluar: disetujui, atau diminta revisi.
+   Selama ini cuma yang pertama yang punya tombol. */
+const FASE_TUNGGU={5:['quotation','Client minta revisi penawaran?'],
+                   7:['sketsa','Client minta revisi sketsa?'],
+                   9:['invoice','Client minta revisi invoice / nilainya?']};
+function tungguRevisiBlok(o){
+  var f=o.phase||0,T=FASE_TUNGGU[f];
+  if(!T||revisiTutup(o)||!bolehRevisi())return '';
+  return '<div style="border:1px solid var(--accent);border-radius:10px;padding:11px 13px;margin:12px 0;background:var(--warn-bg)">'+
+    '<div style="font-size:11px;font-weight:800;color:var(--brand-dark)">'+esc(T[1])+'</div>'+
+    '<div style="font-size:10.5px;color:var(--ink-soft);margin:3px 0 9px;line-height:1.6">'+
+      'Jangan tandai Approved lalu dibetulkan diam-diam — persetujuan client jadi tak berarti. '+
+      'Catat sebagai revisi; HUB mengembalikan ordernya ke fase yang tepat dan menggugurkan persetujuan yang sudah lewat.</div>'+
+    '<button class="btn" style="background:#8f2a1e;border-color:#8f2a1e" onclick="revisiOrder(\''+o.id+'\')">✎ Catat revisi &amp; kembalikan</button>'+
+  '</div>';}
+
+/* ---- bukti transfer: diteruskan Sales, diperiksa Finance ---- */
+function buktiGet(o){if(!o.bukti)o.bukti={teks:'',files:[],oleh:'',tgl:''};
+  if(!Array.isArray(o.bukti.files))o.bukti.files=[];return o.bukti;}
+function buktiSet(id,teks){
+  var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
+  var b=buktiGet(o);b.teks=teks;b.oleh=(ST.userName||ST.user||'');b.tgl=nowStr();
+  logHist(o,'Bukti transfer diteruskan '+b.oleh+': '+teks);
+  o._m=Date.now();save();}
+function buktiUpload(id){
+  var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
+  var inp=document.createElement('input');inp.type='file';inp.accept='image/*,application/pdf';inp.multiple=true;
+  inp.onchange=function(){
+    var F=[].slice.call(inp.files||[]);if(!F.length)return;
+    var b=buktiGet(o),sisa=F.length;
+    F.forEach(function(file){
+      var fr=new FileReader();
+      fr.onload=function(){b.files.push({n:file.name,d:fr.result});
+        if(!--sisa){b.oleh=(ST.userName||ST.user||'');b.tgl=nowStr();
+          logHist(o,'Bukti transfer dilampirkan '+b.oleh+': '+F.map(function(x){return x.name;}).join(', '));
+          o._m=Date.now();save();render();}};
+      fr.readAsDataURL(file);});};
+  inp.click();}
+function buktiHapus(id,i){
+  var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
+  var b=buktiGet(o);b.files.splice(i,1);o._m=Date.now();save();render();}
+function buktiPanel(o){
+  var b=buktiGet(o),ada=!!(b.teks||b.files.length);
+  var akuFinance=(myRoles().indexOf('Finance')>=0||myRoles().indexOf('Holding')>=0);
+  var dpMasuk=(((o.pay||{}).dp)||0)>0;
+  return '<div class="card actcard" style="margin-top:14px"><div class="ch"><span class="ico" style="background:#3f7d54">₪</span>'+
+    '<div><div class="t">Bukti transfer dari client</div><div class="s">SALES MENERUSKAN · FINANCE MEMERIKSA REKENING</div></div>'+
+    '<span style="margin-left:auto;font-size:11px;font-weight:800;color:'+(dpMasuk?'var(--ok)':(ada?'var(--warn)':'var(--muted)'))+'">'+
+      (dpMasuk?'✓ sudah dicocokkan':(ada?'menunggu dicek Finance':'belum ada bukti'))+'</span></div><div class="body">'+
+    '<div style="font-size:10.5px;color:var(--ink-soft);margin-bottom:10px;line-height:1.6">'+
+      'Bukti di sini <b>bukan</b> tanda uangnya sudah masuk — hanya kabar dari client. '+
+      'Yang menentukan tetap Finance setelah melihat rekening.</div>'+
+    '<label class="nlbl">Kabar dari client<input class="pin" style="width:100%;margin-top:3px" value="'+esc(b.teks)+'" '+
+      'placeholder="mis. sudah transfer 12,35jt tgl 13 Agu via BCA a.n. Andre" '+
+      'onchange="buktiSet(\''+o.id+'\',this.value)"></label>'+
+    '<div style="display:flex;gap:7px;flex-wrap:wrap;align-items:center;margin-top:9px">'+
+      '<button class="btn ghost sm" onclick="buktiUpload(\''+o.id+'\')">＋ Lampirkan screenshot / PDF</button>'+
+      (b.files.length?('<span style="font-size:10px;color:var(--ink-soft)">'+b.files.length+' lampiran</span>'):
+                      '<span style="font-size:10px;color:var(--muted)">belum ada lampiran</span>')+
+    '</div>'+
+    (b.files.length?('<div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:9px">'+
+      b.files.map(function(x,i){return '<div style="border:1px solid var(--line);border-radius:8px;padding:5px 8px;font-size:10px;display:flex;gap:6px;align-items:center">'+
+        esc(x.n)+'<button class="xrow" onclick="buktiHapus(\''+o.id+'\','+i+')">✕</button></div>';}).join('')+'</div>'):'')+
+    (b.tgl?('<div style="font-size:9.5px;color:var(--ink-soft);margin-top:8px">Diteruskan '+esc(b.oleh)+' · '+esc(b.tgl)+'</div>'):'')+
+    (ada&&!dpMasuk&&akuFinance
+      ? '<div style="margin-top:11px;border-top:1px solid var(--line);padding-top:10px;font-size:10.5px;color:var(--warn);font-weight:700">'+
+          'Cocokkan dengan rekening, lalu catat DP di panel Pembayaran. Item wajib fase ini baru tuntas setelah itu.</div>'
+      : '')+
+    '</div></div>';}
+
+/* ---- pantauan vendor selain Radja, diisi tangan ---- */
+const VPO_TAHAP=['Belum dihubungi','Sudah dikirim PO','Dikonfirmasi vendor','Produksi','Selesai','Sudah diterima'];
+function vpoProgSet(id,v,f,val){
+  var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
+  var P=vpoGet(o,v);var lama=P[f]||'';
+  P[f]=val;
+  if(f==='tahap'&&lama!==val)logHist(o,'Vendor '+v+': '+(lama||'-')+' → '+val+' (dicatat '+(ST.userName||ST.user||'')+')');
+  P.progUpdate=hariIni();P.progOleh=(ST.userName||ST.user||'');
+  o._m=Date.now();save();
+  if(f!=='catatan')render();}
+function vpoProgBlok(o,v){
+  var P=vpoGet(o,v);
+  return '<div style="border-top:1px dashed var(--line);margin-top:9px;padding-top:9px">'+
+    '<div style="font-size:9.5px;font-weight:800;color:var(--brand);letter-spacing:.04em;margin-bottom:5px">PANTAUAN — DIISI TANGAN</div>'+
+    '<div style="font-size:10px;color:var(--ink-soft);margin-bottom:7px;line-height:1.55">Komunikasi dengan vendor ini lewat WA, jadi Purchasing yang memperbaruinya di sini. Tak ada sambungan otomatis.</div>'+
+    '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px">'+
+      '<label class="nlbl">Tahap<select class="pin" style="width:100%;margin-top:3px" onchange="vpoProgSet(\''+o.id+'\',\''+String(v).replace(/'/g,"\\'")+'\',\'tahap\',this.value)">'+
+        VPO_TAHAP.map(function(t){return '<option '+((P.tahap||VPO_TAHAP[0])===t?'selected':'')+'>'+esc(t)+'</option>';}).join('')+'</select></label>'+
+      '<label class="nlbl">Janji selesai<input type="date" class="pin" style="width:100%;margin-top:3px" value="'+esc(P.janji||'')+'" onchange="vpoProgSet(\''+o.id+'\',\''+String(v).replace(/'/g,"\\'")+'\',\'janji\',this.value)"></label>'+
+    '</div>'+
+    '<input class="pin" style="font-size:11px;margin-top:8px" value="'+esc(P.catatan||'')+'" placeholder="catatan dari WA — mis. bahan kanvas habis, ganti warna krem" onchange="vpoProgSet(\''+o.id+'\',\''+String(v).replace(/'/g,"\\'")+'\',\'catatan\',this.value)">'+
+    (P.progUpdate?('<div style="font-size:9.5px;color:var(--ink-soft);margin-top:6px">Terakhir diperbarui '+esc(P.progOleh||'')+' · '+esc(P.progUpdate)+'</div>'):
+                  '<div style="font-size:9.5px;color:var(--warn);margin-top:6px;font-weight:700">Belum pernah diperbarui</div>')+
+  '</div>';}
+
 function ringkasPanel(o){
   var P=profitTotals(o),T=orderTotals(o),b=o.brief||{},po=o.po||{};
   var L=(((o.pricing||{}).lines)||[]).filter(function(l){return (l.qty||0)>0;});
@@ -7447,11 +7547,14 @@ function dirTolak(id){
     ok:function(v){
       var pilih=DIR_TOLAK.find(function(x){return x[1]===v.sebab;})||DIR_TOLAK[0];
       if(!o.pricing)o.pricing={lines:[],margin:30};
+      /* Persetujuan di hilir gugur — aturannya sama persis dengan revisi,
+         dipanggil dari fungsi yang sama supaya tak bisa berbeda diam-diam.
+         DIJALANKAN DULU: fungsi ini menghapus dirAppr, sedangkan stempel
+         penolakan di bawah juga disimpan di sana. Kalau dibalik, penolakan
+         menghapus dirinya sendiri. */
+      var gugur=revisiBatalkanAcc(o,pilih[2]);
       o.pricing.dirAppr={tgl:hariIni(),tglBy:(ST.userName||ST.user||''),
         tolak:true,alasan:pilih[1],catatan:v.catatan};
-      /* persetujuan di hilir ikut gugur — aturannya sama persis dengan revisi,
-         dipanggil dari fungsi yang sama supaya tak bisa berbeda diam-diam */
-      var gugur=revisiBatalkanAcc(o,pilih[2]);
       revisiAll(o).push({tgl:nowStr(),oleh:(ST.userName||ST.user||''),
         sebab:'Ditolak Direktur — '+pilih[1],catatan:v.catatan,
         dari:(o.phase||0),ke:pilih[2],poRev:false});
@@ -9441,7 +9544,7 @@ function poPanel(o){
           <div style="font-size:10.5px;font-weight:800;margin-top:9px">2. Approval Direktur atas biaya tambahannya</div>
           ${tandaTombol(o,'poRev','direktur','PO revisi disetujui Direktur')}
         </div>`:''}
-        ${tandaTombol(o,'margin','tgl','Approval margin dari Direktur')}
+        ${tandaTombol(o,'margin','tgl','Kelengkapan spesifikasi disetujui Direktur')}
         ${tandaTombol(o,'spare','spareTgl','Qty spare produksi ditentukan')}
       </div>
     </div></div>`;
@@ -9463,7 +9566,7 @@ function isLeatherVendor(n){return vendorTipe(n)==='Kulit';}
 function vendorLines(o,v){return ((o.pricing&&o.pricing.lines)||[]).filter(function(l){return (l.sumber||'')===v&&(l.qty||0)>0;});}
 function poVendors(o){var seen=[];((o.pricing&&o.pricing.lines)||[]).forEach(function(l){var v=l.sumber||'';
   if(!v||isLeatherVendor(v)||(l.qty||0)<=0)return; if(seen.indexOf(v)<0)seen.push(v);});return seen;}
-function vpoGet(o,v){if(!o.vpo)o.vpo={};if(!o.vpo[v])o.vpo[v]={deadline:'',note:'',packing:''};return o.vpo[v];}
+function vpoGet(o,v){if(!o.vpo)o.vpo={};if(!o.vpo[v])o.vpo[v]={deadline:'',note:'',packing:'',tahap:'',janji:'',catatan:''};return o.vpo[v];}
 function vpoSet(id,v,f,val){var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;vpoGet(o,v)[f]=val;save();render();}
 function vpoMissing(o,v){var p=vpoGet(o,v),m=[];if(!p.deadline)m.push('Deadline');if(!vendorLines(o,v).length)m.push('item di pricing');return m;}
 function vendorKontak(n){var v=((ST.master&&ST.master.vendors)||[]).find(function(x){return x.nama===n;});return v?(v.kontak||''):'';}
@@ -9489,7 +9592,11 @@ function vpoPanel(o){
         '<div style="display:flex;flex-wrap:wrap;gap:9px;align-items:center;margin-top:10px">'+
           '<button class="btn sm" onclick="genVPO(\''+o.id+'\',\''+esc(v)+'\')" '+(ready?'':'disabled style="opacity:.5;cursor:not-allowed"')+'>⚡ Generate PO '+esc(v)+'</button>'+
           (p.generated?'<span style="font-size:10.5px;color:var(--ok);font-weight:700">✓ '+esc(p.poNo)+' terkirim</span>':(ready?'<span style="font-size:10.5px;color:var(--muted)">siap generate</span>':'<span style="font-size:10.5px;color:var(--warn)">🔒 isi deadline dulu</span>'))+
-        '</div></div>';
+        '</div>'+
+        /* pantauan manual: vendor selain Radja diurus lewat WA, jadi
+           Purchasing yang memperbaruinya di sini */
+        vpoProgBlok(o,v)+
+      '</div>';
     }).join('')+'</div></div>';
 }
 function genVPO(id,v){
