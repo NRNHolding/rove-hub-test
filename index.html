@@ -673,6 +673,7 @@ const EN_RULES=[
 
 /* Kamus persis. Kunci = teks Indonesia apa adanya yang muncul di layar. */
 const EN={
+'DIBACA DARI PDF':'READ FROM THE PDF','⌕ Baca isinya':'⌕ Read its contents','✎ Pakai hasilnya':'✎ Use these values','Pakai hasil bacaan PDF?':'Use what was read from the PDF?','Periksa dulu — mesin menebak, kamu yang memastikan':'Check first — the machine guesses, you decide',
 'Surat PO resmi client':'Client\u2019s official PO','JALUR KEDUA — PENGGANTI UANG MUKA':'SECOND ROUTE — INSTEAD OF A DOWN PAYMENT','Menunggu DP / PO resmi':'Waiting for down payment or official PO','Izin berjalan tanpa uang muka — Direktur':'Permission to proceed without a down payment — Director','✓ Setujui jalan tanpa DP':'✓ Approve proceeding without a down payment','＋ Catat surat PO':'＋ Record the PO','Nomor PO client':'Client PO number','Nilai yang tertulis di PO':'Value stated on the PO','Termin':'Payment terms',
 'Bisa kamu isi lebih awal':'You can fill this in early','✎ Isi sekarang':'✎ Fill it now','✎ Isi':'✎ Fill','— kalau datanya sudah ada, tak perlu menunggu fasenya':'\u2014 if you already have it, no need to wait for its phase',
 'Retur barang client':'Client returns','BELUM ADA RETUR UNTUK ORDER INI':'NO RETURN ON THIS ORDER YET','↩ Catat retur dari client':'↩ Record a client return','GILIRAN SEKARANG':'YOUR TURN NOW','Kata client:':'The client says:','Keputusan retur':'Return decision','Tindak lanjutnya':'What happens next','Dasar keputusannya':'Basis for the decision','Penyebab sebenarnya':'The actual cause','Biaya yang timbul':'Cost incurred','＋ Foto barang retur':'＋ Photo of the returned goods','Jenis masalahnya':'Type of problem','Kata client apa adanya':'The client\u2019s own words',
@@ -7608,6 +7609,144 @@ function poClientAppr(id){
   notifyOrder(o,'✓ **'+o.customer+' berjalan tanpa DP** atas surat PO '+P.no+'\nDisetujui '+P.apprBy+' — PO ke vendor boleh turun.');
   o._m=Date.now();save();render();}
 
+
+/* ================= PEMBACA PDF SEDERHANA =================
+   Cukup untuk surat PO yang dibuat dari aplikasi (Word, Excel, sistem ERP).
+   PDF hasil scan tak punya teks — itu dikenali dan dikatakan apa adanya. */
+function pdfLatin1(u8){
+  var s='',n=u8.length;
+  for(var i=0;i<n;i+=8192)s+=String.fromCharCode.apply(null,u8.subarray(i,Math.min(i+8192,n)));
+  return s;}
+function pdfInflate(u8){
+  if(typeof DecompressionStream==='undefined')return Promise.resolve(null);
+  return new Response(new Blob([u8]).stream().pipeThrough(new DecompressionStream('deflate')))
+    .arrayBuffer().then(function(b){return new Uint8Array(b);})
+    .catch(function(){
+      /* sebagian PDF memakai deflate mentah tanpa kepala zlib */
+      return new Response(new Blob([u8]).stream().pipeThrough(new DecompressionStream('deflate-raw')))
+        .arrayBuffer().then(function(b){return new Uint8Array(b);}).catch(function(){return null;});});}
+
+/* Teks di dalam content stream: ( … ) Tj  dan  [ (…) n (…) ] TJ */
+function pdfTeksDariStream(s){
+  var out=[];
+  var re=/\((?:\\.|[^\\()])*\)/g,m;
+  while((m=re.exec(s))){
+    var t=m[0].slice(1,-1)
+      .replace(/\\([nrtbf])/g,function(x,c){return {n:'\n',r:'',t:'\t',b:'',f:''}[c];})
+      .replace(/\\([0-7]{1,3})/g,function(x,o){return String.fromCharCode(parseInt(o,8));})
+      .replace(/\\(.)/g,'$1');
+    if(t)out.push(t);}
+  return out.join(' ');}
+
+function pdfBacaTeks(u8){
+  var raw=pdfLatin1(u8),tugas=[];
+  var re=/stream\r?\n/g,m;
+  while((m=re.exec(raw))){
+    var mulai=m.index+m[0].length;
+    var habis=raw.indexOf('endstream',mulai);
+    if(habis<0)continue;
+    var kepala=raw.slice(Math.max(0,m.index-400),m.index);
+    var isi=u8.subarray(mulai,habis);
+    if(/FlateDecode/.test(kepala))tugas.push(pdfInflate(isi).then(function(d){return d?pdfLatin1(d):'';}));
+    else tugas.push(Promise.resolve(pdfLatin1(isi)));}
+  if(!tugas.length)return Promise.resolve('');
+  return Promise.all(tugas).then(function(bagian){
+    return bagian.map(pdfTeksDariStream).join('\n').replace(/[ \t]+/g,' ').trim();});}
+
+/* ---- menebak isian dari teks yang terbaca ---- */
+const PDF_BULAN={januari:1,februari:2,maret:3,april:4,mei:5,juni:6,juli:7,agustus:8,
+  september:9,oktober:10,november:11,desember:12,jan:1,feb:2,mar:3,apr:4,jun:6,jul:7,agu:8,sep:9,okt:10,nov:11,des:12};
+function pdfTebakNo(t){
+  /* nomor PO biasanya mengandung garis miring dan angka tahun */
+  var m=t.match(/(?:\bno(?:mor)?\.?\s*)?\bP\.?O\.?\s*(?:number|no\.?|:)?\s*([A-Z0-9][A-Z0-9\/\-.]{5,40})/i);
+  if(m&&/\d/.test(m[1]))return m[1].replace(/[.,;:]$/,'');
+  m=t.match(/\b([A-Z]{2,}[A-Z0-9]*\/[A-Z0-9\/\-.]{4,36})\b/);
+  return m?m[1]:'';}
+function pdfTebakTgl(t){
+  var m=t.match(/\b(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})\b/);
+  if(m)return m[3]+'-'+String(+m[2]).padStart(2,'0')+'-'+String(+m[1]).padStart(2,'0');
+  m=t.match(/\b(\d{4})-(\d{2})-(\d{2})\b/);
+  if(m)return m[0];
+  m=t.match(/\b(\d{1,2})\s+([A-Za-z]+)\s+(\d{4})\b/);
+  if(m){var b=PDF_BULAN[m[2].toLowerCase()];
+    if(b)return m[3]+'-'+String(b).padStart(2,'0')+'-'+String(+m[1]).padStart(2,'0');}
+  return '';}
+function pdfTebakNilai(t){
+  /* utamakan angka yang berdampingan dengan kata total/jumlah/grand */
+  var kandidat=[];
+  var re=/(?:total|jumlah|grand\s*total|amount|nilai)[^0-9]{0,24}((?:\d{1,3}[.,])+\d{3}(?:[.,]\d{2})?)/gi,m;
+  while((m=re.exec(t)))kandidat.push(m[1]);
+  if(!kandidat.length){
+    re=/(?:Rp|IDR)\.?\s*((?:\d{1,3}[.,])+\d{3}(?:[.,]\d{2})?)/gi;
+    while((m=re.exec(t)))kandidat.push(m[1]);}
+  var angka=kandidat.map(function(s){
+    var b=s.replace(/[.,](\d{2})$/,'');            // buang sen
+    return +b.replace(/[.,]/g,'')||0;}).filter(function(x){return x>0;});
+  return angka.length?Math.max.apply(null,angka):0;}
+
+function pdfTelaah(u8){
+  return pdfBacaTeks(u8).then(function(t){
+    return {teks:t,no:pdfTebakNo(t),tgl:pdfTebakTgl(t),nilai:pdfTebakNilai(t),
+      panjang:t.length};});}
+
+/* ---- dipakai panel surat PO ---- */
+function poClientTelaah(id,i){
+  var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
+  var P=poClientGet(o),f=P.files[i];if(!f||!/pdf/i.test(f.n))return;
+  var b64=String(f.d||'').split(',')[1]||'';
+  var bin=atob(b64),u8=new Uint8Array(bin.length);
+  for(var k=0;k<bin.length;k++)u8[k]=bin.charCodeAt(k);
+  f.baca='…membaca';render();
+  pdfTelaah(u8).then(function(r){
+    f.baca=r;o._m=Date.now();save();render();
+    if(!r.panjang)alert('PDF ini tak punya lapisan teks — kemungkinan hasil scan atau foto.\n\nIsi nomor, tanggal, dan nilainya manual sambil melihat dokumennya.');
+  }).catch(function(e){f.baca={teks:'',no:'',tgl:'',nilai:0,panjang:0,galat:String(e&&e.message||e)};render();});}
+function poClientPakai(id,i){
+  var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
+  var P=poClientGet(o),f=P.files[i];if(!f||!f.baca||!f.baca.panjang)return;
+  var r=f.baca;
+  askForm({judul:'Pakai hasil bacaan PDF?',sub:'Periksa dulu — mesin menebak, kamu yang memastikan',
+    fields:[
+      {k:'no',label:'Nomor PO client',type:'text',req:true,val:r.no||P.no||''},
+      {k:'tgl',label:'Tanggal PO',type:'date',req:true,val:r.tgl||P.tgl||hariIni()},
+      {k:'nilai',label:'Nilai di surat PO',type:'money',val:r.nilai||P.nilai||0,
+       hint:'Cocokkan dengan angka di dokumennya sendiri. Yang salah ketik di sini tak akan tertangkap siapa pun.'}],
+    ok:function(v){
+      P.no=v.no;P.tgl=v.tgl;P.nilai=+v.nilai||0;
+      P.oleh=(ST.userName||ST.user||'');P.tglCatat=nowStr();P.dariPdf=f.n;
+      delete P.apprBy;delete P.apprTgl;
+      logHist(o,'Data surat PO diisi dari bacaan '+f.n+': '+v.no+' ('+fmt0(P.nilai)+')');
+      o._m=Date.now();save();render();}});}
+function poClientBacaBlok(o){
+  var P=poClientGet(o);
+  var pdf=P.files.map(function(f,i){return {f:f,i:i};}).filter(function(x){return /pdf/i.test(x.f.n);});
+  if(!pdf.length)return '';
+  return '<div style="margin-top:10px;border-top:1px dashed var(--line);padding-top:9px">'+
+    '<div style="font-size:9.5px;font-weight:800;color:var(--brand);letter-spacing:.04em;margin-bottom:3px">DIBACA DARI PDF</div>'+
+    '<div style="font-size:10px;color:var(--ink-soft);line-height:1.55;margin-bottom:7px">'+
+      'HUB membaca lapisan teks PDF-nya, lalu <b>mengusulkan</b> isian. PDF hasil scan atau foto tak punya lapisan teks — itu akan dikatakan apa adanya. '+
+      'Angka yang diisi mesin tanpa dilihat orang cuma memindahkan letak salahnya, jadi hasilnya tetap harus kamu benarkan.</div>'+
+    pdf.map(function(x){
+      var b=x.f.baca;
+      return '<div style="border:1px solid var(--line);border-radius:8px;padding:8px 10px;margin-bottom:7px;background:var(--panel)">'+
+        '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">'+
+          '<b style="font-size:10.5px;flex:1;min-width:0">'+esc(x.f.n)+'</b>'+
+          (b===undefined?('<button class="btn ghost sm" style="font-size:9.5px" onclick="poClientTelaah(\''+o.id+'\','+x.i+')">⌕ Baca isinya</button>'):'')+
+          ((b&&b.panjang)?('<button class="btn ghost sm" style="font-size:9.5px" onclick="poClientPakai(\''+o.id+'\','+x.i+')">✎ Pakai hasilnya</button>'):'')+
+        '</div>'+
+        (b===undefined?'':
+          b==='…membaca'?'<div style="font-size:10px;color:var(--ink-soft);margin-top:4px">membaca…</div>':
+          (b.galat?('<div style="font-size:10px;color:#8f2a1e;margin-top:4px">Gagal dibaca: '+esc(b.galat)+'</div>'):
+          (!b.panjang?'<div style="font-size:10px;color:var(--warn);font-weight:700;margin-top:4px">Tak ada lapisan teks — kemungkinan hasil scan atau foto. Isi manual.</div>':
+            ('<div style="font-size:10.5px;margin-top:5px;line-height:1.6">'+
+              '<div>Nomor PO : <b>'+(esc(b.no)||'<span style="color:var(--warn)">tak terbaca</span>')+'</b></div>'+
+              '<div>Tanggal  : <b>'+(esc(b.tgl)||'<span style="color:var(--warn)">tak terbaca</span>')+'</b></div>'+
+              '<div>Nilai    : <b>'+(b.nilai?fmt0(b.nilai):'<span style="color:var(--warn)">tak terbaca</span>')+'</b></div>'+
+              '<div style="color:var(--ink-soft);font-size:9.5px;margin-top:3px">'+b.panjang+' karakter teks terbaca</div>'+
+            '</div>'))))+
+      '</div>';}).join('')+
+  '</div>';}
+
 function poClientPanel(o){
   var P=poClientGet(o),T=orderTotals(o);
   var dp=((o.pay||{}).dp||0);
@@ -7649,7 +7788,9 @@ function poClientPanel(o){
     (P.files.length?('<div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:8px">'+
       P.files.map(function(x,i){return '<div style="border:1px solid var(--line);border-radius:8px;padding:5px 8px;font-size:10px;display:flex;gap:6px;align-items:center">'+
         esc(x.n)+(akuFin?('<button class="xrow" onclick="poClientHapusFile(\''+o.id+'\','+i+')">✕</button>'):'')+'</div>';}).join('')+'</div>'):'')+
-    (P.tglCatat?('<div style="font-size:9.5px;color:var(--ink-soft);margin-top:7px">Dicatat '+esc(P.oleh)+' · '+esc(P.tglCatat)+'</div>'):'')+
+    poClientBacaBlok(o)+
+    (P.tglCatat?('<div style="font-size:9.5px;color:var(--ink-soft);margin-top:7px">Dicatat '+esc(P.oleh)+' · '+esc(P.tglCatat)+
+      (P.dariPdf?(' · diisi dari bacaan '+esc(P.dariPdf)):'')+'</div>'):'')+
 
     '<div style="margin-top:12px;border-top:1px solid var(--line);padding-top:11px">'+
       '<div style="font-size:10.5px;font-weight:800">Izin berjalan tanpa uang muka — Direktur</div>'+
