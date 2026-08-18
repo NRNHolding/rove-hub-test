@@ -673,6 +673,7 @@ const EN_RULES=[
 
 /* Kamus persis. Kunci = teks Indonesia apa adanya yang muncul di layar. */
 const EN={
+'✎ Minta isikan':'✎ Ask someone to fill it','Minta orang lain mengisikan':'Ask someone else to fill this in','Minta ke siapa':'Ask whom','Pesan tambahan':'Extra note','KAMU DIMINTA MENGISIKAN INI':'YOU WERE ASKED TO FILL THIS IN','✓ SUDAH TERISI — TERIMA KASIH':'✓ FILLED IN — THANK YOU',
 '＋ Lampirkan berkas PO dari client':'＋ Attach the client PO file','✎ Olah jadi data':'✎ Turn it into data','✎ Ubah data PO':'✎ Edit the PO data',
 'DIBACA DARI PDF':'READ FROM THE PDF','⌕ Baca isinya':'⌕ Read its contents','✎ Pakai hasilnya':'✎ Use these values','Pakai hasil bacaan PDF?':'Use what was read from the PDF?','Periksa dulu — mesin menebak, kamu yang memastikan':'Check first — the machine guesses, you decide',
 'Surat PO resmi client':'Client\u2019s official PO','JALUR KEDUA — PENGGANTI UANG MUKA':'SECOND ROUTE — INSTEAD OF A DOWN PAYMENT','Menunggu DP / PO resmi':'Waiting for down payment or official PO','Izin berjalan tanpa uang muka — Direktur':'Permission to proceed without a down payment — Director','✓ Setujui jalan tanpa DP':'✓ Approve proceeding without a down payment','＋ Catat surat PO':'＋ Record the PO','Nomor PO client':'Client PO number','Nilai yang tertulis di PO':'Value stated on the PO','Termin':'Payment terms',
@@ -1749,7 +1750,8 @@ function load(){const r=localStorage.getItem(KEY);
 if(r){ST.orders=JSON.parse(r);}else{ST.orders=[];} ST.user=sesiGet('rovehub_user')||null;ST.userName=sesiGet('rovehub_username')||'';
   try{ST._roles=JSON.parse(sesiGet('rovehub_roles')||'null');}catch(e){ST._roles=null;}
   try{ST.cfg=JSON.parse(localStorage.getItem('rovehub_cfg')||'{"url":"","live":false,"catalogUrl":""}');}catch(e){ST.cfg={url:'',live:false,catalogUrl:''};}
-  loadLang();migrasiFaseProfit();migrasiFase12();migrasiFase15();migrasiStatus();finData();asetAll();loadCatalogCache();loadMaster();loadLeads();loadTax();loadKonten();loadHR();loadBuy();loadInv();
+  loadLang();migrasiFaseProfit();migrasiFase12();migrasiFase15();migrasiStatus();
+  try{bukaDariTautan();}catch(e){}   // link permintaan dari DiscordfinData();asetAll();loadCatalogCache();loadMaster();loadLeads();loadTax();loadKonten();loadHR();loadBuy();loadInv();
   if(!hasEstColl()){try{var cd=JSON.parse(localStorage.getItem('rovehub_colldata')||'null');if(cd&&Object.keys(cd).length){setEstColl(collRowsFrom(cd));saveMaster();}}catch(e){}}
   buildCollatData();}
 
@@ -3620,6 +3622,7 @@ function render(){
   try{setTimeout(perbaruiTanda,0);}catch(e){}   // tanda di tab ikut keadaan terbaru
   try{pitaUji();}catch(e){}
   if(!ST.user){renderLogin();return;}
+  if(ST._tautanGagal){var pesanTautan=ST._tautanGagal;ST._tautanGagal=null;setTimeout(function(){alert(pesanTautan);},200);}
   if(!ST.cur&&{report:1,master:1,board:1,live:1}[ST.view]&&!can(ST.view))ST.view=can('tasks')?'tasks':'board';
   syncSidebar();
   $('#main').dataset.v=ST.view;
@@ -6334,6 +6337,11 @@ const CHK_PANEL={
   hpp:'profit', margin:'profit', ongkir:'pricing', biayaLain:'profit',
   gen:'pricing', kirim:'pricing', follow:'pricing', email:'brief',
   kirimData:'pricing', alamatKantor:'brief', ppn:'pricing',
+  /* item yang ditambahkan belakangan — tanpa didaftarkan di sini, klik-lompat
+     dan tombol "Minta isikan" diam saja di baris itu */
+  terjemah:'brief', deadlineProd:'profit', tglPOMax:'profit', accJual:'profit',
+  dirAcc:'ringkas', quoAcc:'pricing', sketsaAcc:'ref', dpMasuk:'pay',
+  poRevRadja:'po', poRevDir:'po',
   logoCl:'brief', logoPch:'brief', logoBox:'brief', logoCard:'brief',
   daftarNama:'brief', preview:'ref', approve:'ref',
   inv:'pricing', dp:'pay', faktur:'pricing',
@@ -6390,14 +6398,20 @@ function chkPanel(o){
           '"' + (ok||!chkTugasku(it) ? '' : ' title="buka tempat mengisinya" onclick="chkLompat(\'' + o.id + '\',' + f + ',\'' + it.k + '\')"') + '>'+esc(chkT(it))+
           (it.w?'<span style="color:var(--warn);font-size:9px;font-weight:800;margin-left:5px">WAJIB</span>':'')+'</div>'+
         (chkGuna(it)?('<div style="font-size:10px;color:var(--muted);margin-top:2px;line-height:1.5">'+esc(chkGuna(it))+'</div>'):'')+
+        (function(){var m=mintaCatatan(o,f,it.k);
+          return m?('<div style="font-size:9.5px;color:var(--brand-dark);margin-top:2px;font-weight:700">✎ sudah diminta '+esc(m.ke)+' · '+esc(m.tgl)+'</div>'):'';})()+
         '<div style="font-size:9.5px;color:var(--muted);margin-top:2px">PIC '+esc(it.pic)+
           (src?('<span> · </span><span>diisi di '+esc(src)+'</span>'):'')+'</div>'+
       '</div>'+
       (ok?'':(chkTugasku(it)
-        ? (chkLawanTanya(o)
+        ? ((chkLawanTanya(o)
             ? ('<button class="btn ghost sm" style="flex:0 0 auto" title="tanyakan yang belum jelas ke Sales" '+
                'onclick="tanyaKirim(\'' + o.id + '\',' + f + ',\'' + it.k + '\')">💬 Tanya Sales</button>')
-            : '')
+            : '')+
+           (CHK_PANEL[it.k]
+            ? ('<button class="btn ghost sm" style="flex:0 0 auto" title="kirim link ke orang yang punya jawabannya" '+
+               'onclick="mintaIsi(\'' + o.id + '\',' + f + ',\'' + it.k + '\')">✎ Minta isikan</button>')
+            : ''))
         : ('<button class="btn ghost sm" style="flex:0 0 auto" title="ingatkan '+esc(it.pic)+'" '+
            'onclick="chkIngat(\'' + o.id + '\',' + f + ',\'' + it.k + '\')">⏰ Ingatkan</button>')))+
     '</div>'+
@@ -6412,7 +6426,7 @@ function chkPanel(o){
   var rows=(milikku.length?sekat('MENUNGGU KAMU ('+milikku.length+')')+milikku.map(function(it){return baris(it,false);}).join(''):'')+
     (lain.length?sekat(milikku.length?'MENUNGGU JABATAN LAIN':'SEMUA ITEM FASE INI')+
       lain.map(function(it){return baris(it,true);}).join(''):'');
-  return tungguRevisiBlok(o)+revisiBlok(o)+bukaAwalBlok(o)+
+  return tautanBlok(o)+tungguRevisiBlok(o)+revisiBlok(o)+bukaAwalBlok(o)+
     '<div class="card actcard" style="margin-top:14px"><div class="ch">'+
     '<span class="ico" style="background:'+(sisaWajib?'var(--warn)':'var(--ok)')+'">☑</span>'+
     '<div><div class="t">Kelengkapan fase '+(f+1)+' — '+esc(PH[f].n)+'</div>'+
@@ -6444,6 +6458,84 @@ function panelDef(o){
    {k:'kirim',t:'Pengiriman barang',s:'penerima, resi, tanggal',h:function(){return (o.phase>=13&&!batal)?kirimPanel(o):'';}},
    {k:'cs',t:'Komplain & kepuasan',s:'after sales',h:function(){return (o.phase>=13&&!batal)?csPanel(o):'';}},
    {k:'retur',t:'Retur barang client',s:'R18 — tiap tahap punya penerimanya',h:function(){return returBolehMulai(o)?returPanel(o):'';}}];}
+
+
+/* ================= MINTA ORANG LAIN MENGISIKAN =================
+   Alamat HUB dibaca dari halaman yang sedang dibuka, jadi linknya selalu
+   benar tanpa perlu disetel di mana pun. */
+function hubUrl(){
+  try{return location.origin+location.pathname;}catch(e){return '';}}
+function mintaTautan(o,fase,k){
+  var u=hubUrl();if(!u)return '';
+  return u+'?o='+encodeURIComponent(o.id)+'&isi='+fase+'.'+encodeURIComponent(k);}
+function mintaSemua(o){if(!o.mintaIsi)o.mintaIsi={};return o.mintaIsi;}
+function mintaCatatan(o,fase,k){return mintaSemua(o)[fase+'.'+k]||null;}
+
+function mintaIsi(id,fase,k){
+  var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
+  var it=(PH_CHECK[fase]||[]).find(function(x){return x.k===k;});if(!it)return;
+  var pk=CHK_PANEL[k];
+  if(!pk){alert('Kolom ini tak punya tempat pengisian — biasanya tercentang sendiri dari data lain.\n\n'+chkT(it));return;}
+  var lawan=chkLawanTanya(o);
+  var bawaan=(lawan&&lawan.role)||'Sales';
+  askForm({judul:'Minta orang lain mengisikan',sub:chkT(it),
+    fields:[
+      {k:'ke',label:'Minta ke siapa',type:'select',req:true,val:bawaan,
+       opts:['Sales','PM','Finance','Purchasing','Creative','Packing'],
+       hint:'Yang ditagih kalau kolom ini kosong tetap '+it.pic+'. Yang berubah cuma siapa boleh mengetiknya.'},
+      {k:'pesan',label:'Pesan tambahan',type:'text',val:'',
+       ph:'mis. yang di WA kemarin itu tanggal berapa persisnya?'}],
+    ok:function(v){
+      var tautan=mintaTautan(o,fase,k);
+      mintaSemua(o)[fase+'.'+k]={ke:v.ke,oleh:(ST.userName||ST.user||''),tgl:nowStr(),pesan:v.pesan||''};
+      logHist(o,'Minta '+v.ke+' mengisikan: '+chkT(it)+(v.pesan?(' — '+v.pesan):''));
+      notifyOrder(o,'✎ '+picMention(v.ke)+' — tolong isikan untuk order **'+o.customer+'**\n'+
+        chkT(it)+(v.pesan?('\n'+v.pesan):'')+
+        (tautan?('\n'+tautan):'\n(alamat HUB belum terbaca — buka ordernya manual)'));
+      o._m=Date.now();save();render();
+      alert('Permintaan dikirim ke '+v.ke+'.'+
+        ((ST.cfg&&ST.cfg.live&&ST.cfg.url)
+          ?'\n\nPesannya masuk ke channel Discord order ini, lengkap dengan link yang membuka kolomnya.'
+          :'\n\n(Relay Discord belum aktif — permintaan tercatat di histori order saja.)'));}});}
+
+/* ---- membuka HUB dari link permintaan ---- */
+function bukaDariTautan(){
+  var q;
+  try{q=new URLSearchParams(location.search);}catch(e){return;}
+  var id=q.get('o'),isi=q.get('isi');
+  if(!id)return;
+  var o=(ST.orders||[]).find(function(x){return x.id===id;});
+  if(!o){ST._tautanGagal='Order dari link itu tak ada di perangkat ini. Muat dari cloud dulu, atau minta linknya dikirim ulang.';return;}
+  ST.cur=o.id;ST.view='board';
+  if(isi){
+    var b=String(isi).split('.'),fase=+b[0],k=b[1]||'';
+    var pk=CHK_PANEL[k];
+    if(pk){
+      /* Undangannya sekaligus izinnya: panel dibuka untuk yang diminta,
+         meski kolomnya bukan miliknya. */
+      try{var L=bukaAwalSet(o);if(L.indexOf(pk)<0)L.push(pk);}catch(e){}
+    }
+    ST._tautanIsi={id:o.id,fase:fase,k:k};
+  }
+  /* bersihkan alamatnya supaya tak terbuka lagi saat halaman dimuat ulang */
+  try{history.replaceState(null,'',hubUrl());}catch(e){}}
+
+function tautanBlok(o){
+  var T=ST._tautanIsi;
+  if(!T||T.id!==o.id)return '';
+  var it=(PH_CHECK[T.fase]||[]).find(function(x){return x.k===T.k;});
+  if(!it)return '';
+  var m=mintaCatatan(o,T.fase,T.k),sudah=chkDone(o,T.fase,T.k);
+  return '<div style="border:1px solid '+(sudah?'var(--ok)':'var(--accent)')+';border-radius:10px;padding:11px 13px;margin:12px 0;'+
+      'background:'+(sudah?'var(--ok-bg)':'var(--warn-bg)')+'">'+
+    '<div style="font-size:9.5px;font-weight:800;letter-spacing:.04em;color:'+(sudah?'var(--ok)':'var(--brand-dark)')+'">'+
+      (sudah?'✓ SUDAH TERISI — TERIMA KASIH':'KAMU DIMINTA MENGISIKAN INI')+'</div>'+
+    '<div style="font-size:11.5px;font-weight:800;margin-top:3px">'+esc(chkT(it))+'</div>'+
+    (m?('<div style="font-size:10.5px;color:var(--ink-soft);margin-top:2px;line-height:1.55">Diminta '+esc(m.oleh)+' · '+esc(m.tgl)+
+       (m.pesan?('<div style="color:var(--ink)">'+esc(m.pesan)+'</div>'):'')+'</div>'):'')+
+    (sudah?'':'<div style="font-size:10px;color:var(--ink-soft);margin-top:6px;line-height:1.55">Panelnya sudah dibuka di bawah — '+
+      esc(CHK_SUMBER[T.fase+'.'+T.k]||'cari kolomnya di panel yang terbuka')+'</div>')+
+  '</div>';}
 
 /* ---- panel yang dibuka lebih awal atas permintaan sendiri ---- */
 function bukaAwalSet(o){
