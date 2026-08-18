@@ -506,7 +506,7 @@ const PH=[
   desc:'Preview sudah dikirim ke client. Satu-satunya yang ditunggu di sini: persetujuannya.'},
  {n:'Invoice',cat:['rove','→ Deal Bulan'],pic:'Finance',btn:'Invoice terkirim — tunggu DP masuk',
   desc:'Buat & tagih invoice DP. DP masuk (Billing 1) → channel pindah ke kategori Deal Bulan.'},
- {n:'Menunggu DP masuk',cat:['rove','DEAL'],pic:'Finance',btn:'DP masuk — lanjut spec & PO',gate:'DP masuk',
+ {n:'Menunggu DP / PO resmi',cat:['rove','DEAL'],pic:'Finance',btn:'Uang muka atau surat PO beres — lanjut spec & PO',gate:'DP masuk / PO resmi',
   desc:'Invoice sudah dikirim. Satu-satunya yang ditunggu di sini: uangnya benar-benar masuk rekening.'},
  {n:'Spec & PO',cat:['rove','Deal Bulan'],pic:'Purchasing',btn:'Spesifikasi disetujui → PO turun',gate:'invoice terbayar',
   desc:'Approval margin (Direktur+Sales). Spec lengkap → GENERATE kartu Trello Production + turun PO ke Radja.'},
@@ -673,6 +673,7 @@ const EN_RULES=[
 
 /* Kamus persis. Kunci = teks Indonesia apa adanya yang muncul di layar. */
 const EN={
+'Surat PO resmi client':'Client\u2019s official PO','JALUR KEDUA — PENGGANTI UANG MUKA':'SECOND ROUTE — INSTEAD OF A DOWN PAYMENT','Menunggu DP / PO resmi':'Waiting for down payment or official PO','Izin berjalan tanpa uang muka — Direktur':'Permission to proceed without a down payment — Director','✓ Setujui jalan tanpa DP':'✓ Approve proceeding without a down payment','＋ Catat surat PO':'＋ Record the PO','Nomor PO client':'Client PO number','Nilai yang tertulis di PO':'Value stated on the PO','Termin':'Payment terms',
 'Bisa kamu isi lebih awal':'You can fill this in early','✎ Isi sekarang':'✎ Fill it now','✎ Isi':'✎ Fill','— kalau datanya sudah ada, tak perlu menunggu fasenya':'\u2014 if you already have it, no need to wait for its phase',
 'Retur barang client':'Client returns','BELUM ADA RETUR UNTUK ORDER INI':'NO RETURN ON THIS ORDER YET','↩ Catat retur dari client':'↩ Record a client return','GILIRAN SEKARANG':'YOUR TURN NOW','Kata client:':'The client says:','Keputusan retur':'Return decision','Tindak lanjutnya':'What happens next','Dasar keputusannya':'Basis for the decision','Penyebab sebenarnya':'The actual cause','Biaya yang timbul':'Cost incurred','＋ Foto barang retur':'＋ Photo of the returned goods','Jenis masalahnya':'Type of problem','Kata client apa adanya':'The client\u2019s own words',
 'Bukti transfer dari client':'Client\u2019s transfer proof','SALES MENERUSKAN · FINANCE MEMERIKSA REKENING':'SALES FORWARDS IT · FINANCE CHECKS THE BANK','Kabar dari client':'What the client says','＋ Lampirkan screenshot / PDF':'＋ Attach a screenshot / PDF','✎ Catat revisi &amp; kembalikan':'✎ Record a revision &amp; send back','PANTAUAN — DIISI TANGAN':'TRACKING — FILLED IN BY HAND','Janji selesai':'Promised completion','Belum pernah diperbarui':'Never updated yet',
@@ -4401,7 +4402,7 @@ function mEdit(sec,i,f,v){var r=ST.master[sec][i];r[f]=v;
   if(sec==='customers'&&(f==='bride'||f==='groom'||f==='tipe'))render();}
 function mSet(f,v){ST.master[f]=v;saveMaster();render();}
 function mEditM(sec,i,f,v){ST.master[sec][i][f]=moneyVal(v);stampRow(ST.master[sec][i]);saveMaster();}
-function mAdd(sec){var r=(sec==='users'?{username:'',password:'',jabatan:'Sales',jabatans:['Sales'],aktif:true}:sec==='shipping'?{ekspedisi:'JNE',kota:'',tarif:0}:sec==='jenis'?{label:'',code:''}:(sec==='perso'||sec==='bank'||sec==='vtipe'||sec==='cogs'||sec==='mainmat'||sec==='filler'||sec==='lining'||sec==='finreq'||sec==='stitch'||sec==='warna')?{v:''}:sec==='customers'?{nama:'',bride:'',groom:'',kontak:'',email:'',alamat:'',alamatKantor:'',kota:'',npwp:'',pic:'',
+function mAdd(sec){var r=(sec==='users'?{username:'',password:'',jabatan:'Sales',jabatans:['Sales'],aktif:true}:sec==='shipping'?{ekspedisi:'JNE',kota:'',tarif:0}:sec==='jenis'?{label:'',code:''}:(sec==='perso'||sec==='bank'||sec==='vtipe'||sec==='cogs'||sec==='mainmat'||sec==='filler'||sec==='lining'||sec==='finreq'||sec==='stitch'||sec==='warna')?{v:''}:sec==='customers'?{nama:'',termin:'DP',bride:'',groom:'',kontak:'',email:'',alamat:'',alamatKantor:'',kota:'',npwp:'',pic:'',
     tipe:((ST._custTab&&ST._custTab!=='ALL')?ST._custTab:'Corporate'),lokasi:'HQ',catatan:''}:sec==='coll'?{type:'Hardbox',kind:'Material',value:''}:sec==='catalog'?{name:'',material:'',jenis:'Katalog',t:[0,0,0,0,0,0,0]}:sec==='operator'?{nama:'',lokasi:'',hp:'',stamper:true,assist:true,aktif:true}:sec==='tools'?{nama:'',qty:1}:sec==='kardus'?{size:'',L:0,W:0,H:0,wg:0}:sec==='kurs'?{kode:'',nilai:0}:sec==='kulit'?{nama:'',warna:'',stok:'Ready',minOrder:'',vendor:'Radja Leather',catatan:''}:sec==='jasa'?{nama:'',jenis:'Service',teknik:'-',fix:0,harga:0}:{nama:'',tipe:'',cogs:'Main Product',kontak:'',hp:'',bank:'',rek:'',alamat:''});
   ST.master[sec].push(stampRow(r));if(sec==='coll')buildCollatData();saveMaster();render();}
 function mDel(sec,i){delRow(sec,i);}
@@ -4489,7 +4490,7 @@ function renderMaster(){
        .concat(adaWed?[['bride','Bride'],['groom','Groom']]:[])
        .concat([['pic','PIC / kontak person'],['kontak','No. HP'],['email','Email'],
        ['alamat','Alamat kirim'],['alamatKantor','Alamat client / kantor'],['kota','Kota'],
-       ['npwp','NPWP'],['catatan','Catatan']]);
+       ['npwp','NPWP'],['termin','Termin',TERMIN],['catatan','Catatan']]);
      var baris=idx.map(function(i){var r=all[i];
        return '<tr'+(r._del?' style="opacity:.55;background:var(--warn-bg)"':'')+'>'+
          cols.map(function(c){
@@ -5956,7 +5957,7 @@ const PH_PANEL=[['chk','brief'],['chk','rfq'],
                 /* fase 5: Sales mengisi email & alamat penagihan di Brief — tanpa
                    ini fase menahan pada data yang tak punya tempat pengisian */
                 ['chk','pricing','brief'],
-                ['chk','pricing'],['chk','ref','brief'],['chk','ref'],['chk','pricing','pay'],['chk','pay','bukti'],
+                ['chk','pricing'],['chk','ref','brief'],['chk','ref'],['chk','pricing','pay'],['chk','pay','bukti','poclient'],
                 ['chk','po','vpo'],['chk','prod'],['chk','prod','retur'],
                 /* fase 14: Finance menerbitkan invoice pelunasan (Pricing),
                    Sales mengisi alamat kirim final (Brief) */
@@ -6049,8 +6050,8 @@ const PH_CHECK=[
    k:'faktur', t:'Terbitkan faktur pajak, isi nomor & tanggalnya', en:'Issue the tax invoice and fill in its number and date', guna:'supaya client bisa mengkreditkan pajaknya', gunaEn:'so the client can claim the tax back',                                pic:'Finance', w:true, jika:'ppn'}
  ],
  [ // 9 Menunggu DP masuk
-  {auto:function(o){return ((o.pay||{}).dp||0)>0;},
-   k:'dpMasuk', t:'Catat DP yang masuk, cocokkan dengan rekening', en:'Record the incoming down payment and reconcile it against the bank', guna:'supaya produksi tak jalan tanpa uang muka', gunaEn:'so production does not start without money in', pic:'Finance', w:true}
+  {auto:function(o){return dpTerpenuhi(o);},
+   k:'dpMasuk', t:'Catat DP yang masuk — atau surat PO resmi client yang sudah disetujui Direktur', en:'Record the incoming down payment and reconcile it against the bank', guna:'supaya produksi tak jalan tanpa uang muka', gunaEn:'so production does not start without money in', pic:'Finance', w:true}
  ],
  [ // 10 Spec & PO
   {auto:function(o){return !!((o.poRevOk||{}).radja);},
@@ -6282,7 +6283,8 @@ function chkTugasSaya(role){
 
 /* Petunjuk tempat mengisi tiap item — checklist hanya memantau, pengisiannya
    di panel kerja masing-masing. */
-const CHK_SUMBER={'9.bukti':'panel Bukti transfer',
+const CHK_SUMBER={'9.dpMasuk':'panel Pembayaran → Catat DP masuk, atau panel Surat PO resmi client',
+  '9.bukti':'panel Bukti transfer',
   '10.poRevRadja':'panel Form PO Radja → PO revisi','10.poRevDir':'panel Form PO Radja → PO revisi',
   '5.quoAcc':'panel Pricing → status quotation','7.sketsaAcc':'panel Referensi gambar → tombol approval sketsa','9.dpMasuk':'panel Pembayaran → Catat DP masuk',
   '3.dirAcc':'panel Ringkasan untuk Direktur',
@@ -6430,6 +6432,7 @@ function panelDef(o){
    {k:'profit',t:'Penentuan harga jual',s:'HPP vendor vs harga jual',h:function(){return (o.phase>=1&&!batal)?profitPanel(o):'';}},
    {k:'ringkas',t:'Ringkasan untuk Direktur',s:'baca saja — approve atau tolak',h:function(){return ringkasPanel(o);}},
    {k:'bukti',t:'Bukti transfer',s:'Sales meneruskan, Finance memeriksa',h:function(){return buktiPanel(o);}},
+   {k:'poclient',t:'Surat PO resmi client',s:'jalur kedua — pengganti uang muka',h:function(){return poClientPanel(o);}},
    {k:'pricing',t:'Pricing & Dokumen',s:'baris harga, quotation, invoice',h:function(){return (o.phase>=1)?pricingPanel(o):'';}},
    {k:'pay',t:'Pembayaran',s:'DP & pelunasan',h:function(){return (o.phase>=4)?payPanel(o):'';}},
    {k:'ref',t:'Referensi gambar',s:'sketch & foto produk',h:function(){return refPanel(o);}},
@@ -7322,7 +7325,15 @@ function radjaSet(id,f,v){
   if(!o.po)o.po={};
   var lama=o.po[f]||'';
   o.po[f]=v;
-  if(lama!==v)logHist(o,(f==='deadline'?'Deadline produksi':'Batas tanggal PO turun')+': '+(v||'(dikosongkan)'));
+  if(lama!==v){
+    var label=(f==='deadline'?'Deadline produksi':'Batas tanggal PO turun');
+    logHist(o,label+': '+(v||'(dikosongkan)'));
+    /* Sales memiliki fase ini tapi tak mengorek Radja sendiri — supaya
+       "overview" berarti sesuatu, angkanya datang ke dia, bukan menunggu
+       dia membuka panelnya. */
+    notifyOrder(o,'📅 **'+label+' — '+o.customer+'**: '+(v||'(dikosongkan)')+
+      '\\nDikonfirmasi '+(ST.userName||ST.user||'PM')+' ke Radja · '+picMention('Sales')+' silakan lanjut menetapkan harga jual.');
+  }
   o._m=Date.now();save();render();}
 /* Sudah lewat batas PO turun? Kalau ya, deadline produksinya sudah tak realistis. */
 function poLewat(o){
@@ -7526,6 +7537,132 @@ function buktiUpload(id){
 function buktiHapus(id,i){
   var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
   var b=buktiGet(o);b.files.splice(i,1);o._m=Date.now();save();render();}
+
+/* ================= PO RESMI CLIENT — ganti DP =================
+   Termin bawaan client disimpan di Master (kolom Termin), tapi keputusan
+   per order tetap harus dicatat dan disetujui — client boleh punya termin
+   PO resmi dan tetap ditagih DP untuk order tertentu. */
+const TERMIN=['DP','PO resmi'];
+function clientTermin(o){
+  var m=custMaster(o);return String((m&&m.termin)||'DP');
+}
+function poClientGet(o){
+  if(!o.poClient)o.poClient={no:'',tgl:'',nilai:0,files:[],oleh:'',tglCatat:'',apprBy:'',apprTgl:''};
+  if(!Array.isArray(o.poClient.files))o.poClient.files=[];
+  return o.poClient;}
+function poClientAda(o){var P=poClientGet(o);return !!(String(P.no||'').trim()&&P.files.length);}
+function poClientSah(o){return poClientAda(o)&&!!poClientGet(o).apprTgl;}
+/* Gerbang fase Menunggu DP: uang masuk ATAU surat PO resmi yang disetujui. */
+function dpTerpenuhi(o){return ((o.pay||{}).dp||0)>0||poClientSah(o);}
+
+function poClientCatat(id){
+  var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
+  if(myRoles().indexOf('Finance')<0&&myRoles().indexOf('Holding')<0){
+    alert('Surat PO client dicatat Finance — merekalah yang menerima dan menyimpan dokumennya.');return;}
+  var P=poClientGet(o);
+  askForm({judul:'Catat surat PO resmi client',sub:'Order '+o.customer+' — pengganti DP',
+    fields:[
+      {k:'no',label:'Nomor PO client',type:'text',req:true,val:P.no,ph:'mis. PO/UT/2026/VIII/0142'},
+      {k:'tgl',label:'Tanggal PO',type:'date',req:true,val:P.tgl||hariIni()},
+      {k:'nilai',label:'Nilai yang tertulis di PO',type:'money',val:P.nilai||0,
+       hint:'Dicocokkan dengan nilai order — kalau beda, itu ketahuan sekarang, bukan saat menagih.'}],
+    ok:function(v){
+      P.no=v.no;P.tgl=v.tgl;P.nilai=+v.nilai||0;
+      P.oleh=(ST.userName||ST.user||'');P.tglCatat=nowStr();
+      delete P.apprBy;delete P.apprTgl;                 // dokumen berubah → persetujuan lama gugur
+      logHist(o,'Surat PO client dicatat: '+v.no+' ('+fmt0(P.nilai)+') oleh '+P.oleh);
+      notifyOrder(o,'📄 **Surat PO client '+o.customer+'** — '+v.no+' senilai '+fmt0(P.nilai)+
+        '\nMenunggu persetujuan '+picMention('Direktur')+' untuk berjalan tanpa DP.');
+      o._m=Date.now();save();render();}});}
+function poClientUpload(id){
+  var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
+  var inp=document.createElement('input');inp.type='file';inp.accept='image/*,application/pdf';inp.multiple=true;
+  inp.onchange=function(){
+    var F=[].slice.call(inp.files||[]);if(!F.length)return;
+    var P=poClientGet(o),sisa=F.length;
+    F.forEach(function(file){var fr=new FileReader();
+      fr.onload=function(){P.files.push({n:file.name,d:fr.result});
+        if(!--sisa){delete P.apprBy;delete P.apprTgl;
+          logHist(o,'Surat PO client dilampirkan: '+F.map(function(x){return x.name;}).join(', '));
+          o._m=Date.now();save();render();}};
+      fr.readAsDataURL(file);});};
+  inp.click();}
+function poClientHapusFile(id,i){
+  var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
+  var P=poClientGet(o);P.files.splice(i,1);delete P.apprBy;delete P.apprTgl;
+  o._m=Date.now();save();render();}
+function poClientAppr(id){
+  var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
+  if(myRoles().indexOf('Direktur Utama')<0&&myRoles().indexOf('Holding')<0){
+    alert('Hanya Direktur Utama yang bisa menyetujui order berjalan tanpa uang muka.');return;}
+  var P=poClientGet(o);
+  if(P.apprTgl){
+    if(!confirm('Batalkan persetujuan berjalan tanpa DP?'))return;
+    delete P.apprBy;delete P.apprTgl;
+    logHist(o,'↺ Persetujuan tanpa DP dibatalkan');o._m=Date.now();save();render();return;}
+  if(!poClientAda(o)){alert('Nomor PO dan lampiran dokumennya harus lengkap dulu.\n\nMenyetujui dokumen yang belum ada isinya sama saja dengan tidak memeriksanya.');return;}
+  if(!confirm('Setujui order ini berjalan TANPA uang muka, atas dasar surat PO '+P.no+'?\n\n'+
+    'Produksi akan turun sebelum ada uang masuk. Risikonya ditanggung Rove.'))return;
+  P.apprBy=(ST.userName||ST.user||'');P.apprTgl=hariIni();
+  logHist(o,'✓ Disetujui berjalan tanpa DP atas surat PO '+P.no+' ('+P.apprBy+')');
+  notifyOrder(o,'✓ **'+o.customer+' berjalan tanpa DP** atas surat PO '+P.no+'\nDisetujui '+P.apprBy+' — PO ke vendor boleh turun.');
+  o._m=Date.now();save();render();}
+
+function poClientPanel(o){
+  var P=poClientGet(o),T=orderTotals(o);
+  var dp=((o.pay||{}).dp||0);
+  var akuFin=(myRoles().indexOf('Finance')>=0||myRoles().indexOf('Holding')>=0);
+  var akuDir=(myRoles().indexOf('Direktur Utama')>=0||myRoles().indexOf('Holding')>=0);
+  var terminMaster=clientTermin(o);
+  var beda=(P.nilai&&Math.abs(P.nilai-T.grand)>1);
+
+  return '<div class="card actcard" style="margin-top:14px"><div class="ch"><span class="ico" style="background:#5a7d9a">📄</span>'+
+    '<div><div class="t">Surat PO resmi client</div><div class="s">JALUR KEDUA — PENGGANTI UANG MUKA</div></div>'+
+    '<span style="margin-left:auto;font-size:11px;font-weight:800;color:'+
+      (poClientSah(o)?'var(--ok)':(poClientAda(o)?'var(--warn)':'var(--muted)'))+'">'+
+      (poClientSah(o)?'✓ disetujui — boleh jalan tanpa DP':(poClientAda(o)?'menunggu approval Direktur':'belum ada surat PO'))+
+    '</span></div><div class="body">'+
+    '<div style="font-size:10.5px;color:var(--ink-soft);margin-bottom:10px;line-height:1.6">'+
+      'Client besar sering tak membayar di muka, melainkan menerbitkan surat PO resmi. '+
+      'Fase ini boleh dilewati lewat jalur itu — <b>tapi bukan dengan mencatat DP yang tak pernah masuk</b>. '+
+      (terminMaster==='PO resmi'
+        ?'<b>Termin client ini di Master: PO resmi.</b>'
+        :'Termin client ini di Master: <b>DP</b> — kalau order ini berbeda, tetap catat di sini.')+'</div>'+
+
+    (dp>0?('<div style="font-size:10.5px;color:var(--ok);font-weight:700;margin-bottom:10px">DP sudah masuk '+fmt0(dp)+' — jalur ini tak diperlukan.</div>'):'')+
+
+    '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:9px">'+
+      '<div><div class="nlbl">Nomor PO client</div><div style="font-size:11.5px;font-weight:800;margin-top:2px">'+(esc(P.no)||'—')+'</div></div>'+
+      '<div><div class="nlbl">Tanggal PO</div><div style="font-size:11.5px;margin-top:2px">'+(esc(P.tgl)||'—')+'</div></div>'+
+      '<div><div class="nlbl">Nilai di surat PO</div><div style="font-size:11.5px;font-weight:800;margin-top:2px">'+(P.nilai?fmt0(P.nilai):'—')+'</div></div>'+
+      '<div><div class="nlbl">Nilai order di HUB</div><div style="font-size:11.5px;margin-top:2px">'+fmt0(T.grand)+'</div></div>'+
+    '</div>'+
+    (beda?('<div style="margin-top:8px;font-size:10.5px;color:#8f2a1e;font-weight:700;line-height:1.55">⚠ Nilai di surat PO berbeda '+
+      fmt0(Math.abs(P.nilai-T.grand))+' dari nilai order. Cocokkan sekarang — kalau tidak, bedanya baru ketahuan saat menagih.</div>'):'')+
+
+    '<div style="display:flex;gap:7px;flex-wrap:wrap;align-items:center;margin-top:11px">'+
+      (akuFin?('<button class="btn ghost sm" onclick="poClientCatat(\''+o.id+'\')">'+(P.no?'✎ Ubah data PO':'＋ Catat surat PO')+'</button>'+
+               '<button class="btn ghost sm" onclick="poClientUpload(\''+o.id+'\')">＋ Lampirkan dokumen</button>'):'')+
+      (P.files.length?('<span style="font-size:10px;color:var(--ink-soft)">'+P.files.length+' lampiran</span>')
+                     :'<span style="font-size:10px;color:var(--muted)">belum ada lampiran</span>')+
+    '</div>'+
+    (P.files.length?('<div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:8px">'+
+      P.files.map(function(x,i){return '<div style="border:1px solid var(--line);border-radius:8px;padding:5px 8px;font-size:10px;display:flex;gap:6px;align-items:center">'+
+        esc(x.n)+(akuFin?('<button class="xrow" onclick="poClientHapusFile(\''+o.id+'\','+i+')">✕</button>'):'')+'</div>';}).join('')+'</div>'):'')+
+    (P.tglCatat?('<div style="font-size:9.5px;color:var(--ink-soft);margin-top:7px">Dicatat '+esc(P.oleh)+' · '+esc(P.tglCatat)+'</div>'):'')+
+
+    '<div style="margin-top:12px;border-top:1px solid var(--line);padding-top:11px">'+
+      '<div style="font-size:10.5px;font-weight:800">Izin berjalan tanpa uang muka — Direktur</div>'+
+      '<div style="font-size:10px;color:var(--ink-soft);line-height:1.55;margin-bottom:7px">'+
+        'Produksi akan turun sebelum ada uang masuk. Finance yang menyimpan dokumennya, Direktur yang menanggung risikonya — karena itu dua tanda tangan, bukan satu.</div>'+
+      (poClientSah(o)
+        ? ('<div style="font-size:10.5px;color:var(--ok);font-weight:800">✓ Disetujui '+esc(P.apprBy)+' · '+esc(P.apprTgl)+
+           (akuDir?(' <button class="btn ghost sm" style="font-size:9.5px;margin-left:6px" onclick="poClientAppr(\''+o.id+'\')">↺ Batalkan</button>'):'')+'</div>')
+        : (akuDir
+            ? ('<button class="btn" style="background:var(--ok);border-color:var(--ok)" onclick="poClientAppr(\''+o.id+'\')">✓ Setujui jalan tanpa DP</button>')
+            : '<div style="font-size:10.5px;color:var(--warn);font-weight:700">Menunggu persetujuan Direktur Utama.</div>'))+
+    '</div></div></div>';}
+
 function buktiPanel(o){
   var b=buktiGet(o),ada=!!(b.teks||b.files.length);
   var akuFinance=(myRoles().indexOf('Finance')>=0||myRoles().indexOf('Holding')>=0);
