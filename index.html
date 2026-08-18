@@ -490,9 +490,9 @@ const TEAM={Sales:['JB','#e0912f','Jessica B'],Finance:['DA','#16a34a','Danis'],
 const PH=[
  {n:'Inquiry',cat:['rove','PRE-DEAL'],pic:'PM',btn:'Rinci order & lengkapi data client',
   desc:'Buat channel Discord (server Rove, kategori PRE-DEAL) + input lead ke HUB. Tentukan Katalog/Custom.'},
- {n:'Pricing Vendor',cat:['radja','PRICING → PRICING DONE'],pic:'Sales',btn:'Harga vendor lengkap — lanjut quotation',
+ {n:'Pricing Vendor',cat:['radja','PRICING → PRICING DONE'],pic:'PM',btn:'Harga vendor lengkap — lanjut penentuan harga jual',
   desc:'Hanya untuk barang yang harganya belum ada di master. Produk katalog & collateral standar bisa dilewati.'},
- {n:'Penentuan harga jual',cat:['rove','PRE-DEAL'],pic:'PM',btn:'Harga jual disetujui — lanjut quotation',
+ {n:'Penentuan harga jual',cat:['rove','PRE-DEAL'],pic:'Sales',btn:'Harga jual disetujui — lanjut quotation',
   desc:'Bandingkan HPP vendor dengan harga jual. Cek profit per item & total sebelum quotation dikirim.'},
  {n:'Profitability',cat:['rove','PRE-DEAL'],pic:'Direktur Utama',btn:'Approve — lanjut quotation',gate:'approval direktur',
   desc:'Ringkasan order sebelum quotation. Direktur menyetujui atau menolak. Ditolak karena harga → balik ke Pricing Vendor; di luar harga → balik ke Inquiry.'},
@@ -508,7 +508,7 @@ const PH=[
   desc:'Buat & tagih invoice DP. DP masuk (Billing 1) → channel pindah ke kategori Deal Bulan.'},
  {n:'Menunggu DP masuk',cat:['rove','DEAL'],pic:'Finance',btn:'DP masuk — lanjut spec & PO',gate:'DP masuk',
   desc:'Invoice sudah dikirim. Satu-satunya yang ditunggu di sini: uangnya benar-benar masuk rekening.'},
- {n:'Spec & PO',cat:['rove','Deal Bulan'],pic:'Purchasing',btn:'Approve margin → Generate Trello',gate:'margin approved',
+ {n:'Spec & PO',cat:['rove','Deal Bulan'],pic:'Purchasing',btn:'Spesifikasi disetujui → PO turun',gate:'invoice terbayar',
   desc:'Approval margin (Direktur+Sales). Spec lengkap → GENERATE kartu Trello Production + turun PO ke Radja.'},
  {n:'Produksi',cat:['radja','ON GOING → DONE MASS PROD'],pic:'PM',btn:'Mulai produksi (baca progres)',
   desc:'Radja jalankan produksi. HUB baca progres Trello + kategori Radja (read-only).'},
@@ -673,6 +673,7 @@ const EN_RULES=[
 
 /* Kamus persis. Kunci = teks Indonesia apa adanya yang muncul di layar. */
 const EN={
+'Bisa kamu isi lebih awal':'You can fill this in early','✎ Isi sekarang':'✎ Fill it now','✎ Isi':'✎ Fill','— kalau datanya sudah ada, tak perlu menunggu fasenya':'\u2014 if you already have it, no need to wait for its phase',
 'Retur barang client':'Client returns','BELUM ADA RETUR UNTUK ORDER INI':'NO RETURN ON THIS ORDER YET','↩ Catat retur dari client':'↩ Record a client return','GILIRAN SEKARANG':'YOUR TURN NOW','Kata client:':'The client says:','Keputusan retur':'Return decision','Tindak lanjutnya':'What happens next','Dasar keputusannya':'Basis for the decision','Penyebab sebenarnya':'The actual cause','Biaya yang timbul':'Cost incurred','＋ Foto barang retur':'＋ Photo of the returned goods','Jenis masalahnya':'Type of problem','Kata client apa adanya':'The client\u2019s own words',
 'Bukti transfer dari client':'Client\u2019s transfer proof','SALES MENERUSKAN · FINANCE MEMERIKSA REKENING':'SALES FORWARDS IT · FINANCE CHECKS THE BANK','Kabar dari client':'What the client says','＋ Lampirkan screenshot / PDF':'＋ Attach a screenshot / PDF','✎ Catat revisi &amp; kembalikan':'✎ Record a revision &amp; send back','PANTAUAN — DIISI TANGAN':'TRACKING — FILLED IN BY HAND','Janji selesai':'Promised completion','Belum pernah diperbarui':'Never updated yet',
 'barang sudah jadi — tak bisa direvisi lagi':'goods already made — no longer revisable',
@@ -4850,7 +4851,7 @@ function renderTasks(){
            '<span style="font-size:9.5px;color:var(--muted);font-weight:700">'+esc(ph.btn||'')+'</span>'+
          '</div>'+
          perFase[f].map(kartuTugas).join('');}).join('');})()}
-   ${tanyaBlokTugas()}${chkTugasBlok(role)}`;
+   ${tanyaBlokTugas()}${chkTugasBlok(role)}${bukaAwalBlokTugas()}`;
 }
 
 /* Kelengkapan yang menunggu ORANG INI, termasuk di order yang fase-nya
@@ -5986,9 +5987,9 @@ const PH_CHECK=[
   {auto:function(o){return (((o.brief||{}).refFiles)||[]).length>0;}, k:'ref', t:'Kumpulkan referensi gambar dari client', en:'Collect reference images from the client', guna:'supaya Creative tak mendesain dari tebakan', gunaEn:'so Creative is not designing from guesswork',     pic:'PM'}
  ],
  [ // 1 Pricing Vendor
-  {auto:function(o){var R=rfqLines(o);return R.length===0||R.every(function(x){return !!(x.l.rfq&&x.l.rfq.minta);});}, k:'rfq', t:'Kirim permintaan harga ke tiap vendor', en:'Send a quote request to each vendor', guna:'supaya HPP tak ditebak-tebak', gunaEn:'so the cost price is not guessed',      pic:'Sales', w:true},
-  {auto:function(o){var K=rfqLines(o).filter(function(x){return lineKulit(x.l);});return K.length===0||K.every(function(x){return (rfqKulit(x.l).jawab||[]).length>0;});}, k:'kulit', t:'Tanyakan ketersediaan kulit ke Radja', en:'Ask Radja which leather is available', guna:'supaya tak kaget kehabisan bahan saat produksi mulai', gunaEn:'so you are not caught short of material once production starts',            pic:'Sales'},
-  {auto:function(o){var L=(((o.pricing||{}).lines)||[]).filter(function(l){return (l.qty||0)>0;});return L.length>0&&L.every(function(l){return lineHppVendor(l)>0;});}, k:'harga', t:'Catat jawaban harga dari tiap vendor', en:'Record the price each vendor replies with', guna:'supaya profit bisa dihitung sebelum quotation keluar', gunaEn:'so profit can be worked out before the quotation goes out',               pic:'Sales', w:true},
+  {auto:function(o){var R=rfqLines(o);return R.length===0||R.every(function(x){return !!(x.l.rfq&&x.l.rfq.minta);});}, k:'rfq', t:'Kirim permintaan harga ke tiap vendor', en:'Send a quote request to each vendor', guna:'supaya HPP tak ditebak-tebak', gunaEn:'so the cost price is not guessed',      pic:'PM', w:true},
+  {auto:function(o){var K=rfqLines(o).filter(function(x){return lineKulit(x.l);});return K.length===0||K.every(function(x){return (rfqKulit(x.l).jawab||[]).length>0;});}, k:'kulit', t:'Tanyakan ketersediaan kulit ke Radja', en:'Ask Radja which leather is available', guna:'supaya tak kaget kehabisan bahan saat produksi mulai', gunaEn:'so you are not caught short of material once production starts',            pic:'PM'},
+  {auto:function(o){var L=(((o.pricing||{}).lines)||[]).filter(function(l){return (l.qty||0)>0;});return L.length>0&&L.every(function(l){return lineHppVendor(l)>0;});}, k:'harga', t:'Catat jawaban harga dari tiap vendor', en:'Record the price each vendor replies with', guna:'supaya profit bisa dihitung sebelum quotation keluar', gunaEn:'so profit can be worked out before the quotation goes out',               pic:'PM', w:true},
   {auto:function(o){var R=rfqLines(o);return R.length===0||R.every(function(x){return !!(x.l.rfq&&String(x.l.rfq.note||'').trim());});}, k:'moq', t:'Catat MOQ dan lead time tiap vendor', en:'Record each vendor MOQ and lead time', guna:'supaya qty dan deadline yang dijanjikan realistis', gunaEn:'so the qty and deadline you promise are realistic',               pic:'Purchasing'}
  ],
  [ // 2 Penentuan harga jual
@@ -6407,7 +6408,7 @@ function chkPanel(o){
   var rows=(milikku.length?sekat('MENUNGGU KAMU ('+milikku.length+')')+milikku.map(function(it){return baris(it,false);}).join(''):'')+
     (lain.length?sekat(milikku.length?'MENUNGGU JABATAN LAIN':'SEMUA ITEM FASE INI')+
       lain.map(function(it){return baris(it,true);}).join(''):'');
-  return tungguRevisiBlok(o)+revisiBlok(o)+
+  return tungguRevisiBlok(o)+revisiBlok(o)+bukaAwalBlok(o)+
     '<div class="card actcard" style="margin-top:14px"><div class="ch">'+
     '<span class="ico" style="background:'+(sisaWajib?'var(--warn)':'var(--ok)')+'">☑</span>'+
     '<div><div class="t">Kelengkapan fase '+(f+1)+' — '+esc(PH[f].n)+'</div>'+
@@ -6438,6 +6439,93 @@ function panelDef(o){
    {k:'kirim',t:'Pengiriman barang',s:'penerima, resi, tanggal',h:function(){return (o.phase>=13&&!batal)?kirimPanel(o):'';}},
    {k:'cs',t:'Komplain & kepuasan',s:'after sales',h:function(){return (o.phase>=13&&!batal)?csPanel(o):'';}},
    {k:'retur',t:'Retur barang client',s:'R18 — tiap tahap punya penerimanya',h:function(){return returBolehMulai(o)?returPanel(o):'';}}];}
+
+/* ---- panel yang dibuka lebih awal atas permintaan sendiri ---- */
+function bukaAwalSet(o){
+  ST._bukaAwal=ST._bukaAwal||{};
+  var kunci=(o&&o.id)+'#'+((o&&o.phase)||0);      // reset sendiri saat fase berganti
+  if(ST._bukaAwalFor!==kunci){ST._bukaAwalFor=kunci;ST._bukaAwal={};}
+  if(!Array.isArray(ST._bukaAwal[o.id]))ST._bukaAwal[o.id]=[];
+  return ST._bukaAwal[o.id];}
+function bukaAwal(id,fase,k){
+  var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
+  var it=(PH_CHECK[fase]||[]).find(function(x){return x.k===k;});if(!it)return;
+  if(!chkTugasku(it)){alert('Ini tugas '+it.pic+', bukan jabatanmu.');return;}
+  var pk=CHK_PANEL[k];
+  if(!pk){alert('Item ini tak punya panel pengisian — biasanya tercentang sendiri dari data lain.\n\n'+chkT(it));return;}
+  var L=bukaAwalSet(o);
+  if(L.indexOf(pk)<0)L.push(pk);
+  ST.cur=o.id;render();
+  setTimeout(function(){var e=document.getElementById('pnl_'+pk);
+    if(e&&e.scrollIntoView)e.scrollIntoView({block:'start'});},60);}
+
+/* Tugas milikku di fase-fase BERIKUTNYA yang sudah bisa dijawab sekarang. */
+function tugasMasaDepan(o){
+  var out=[],f=(o.phase||0);
+  if(o.deleted||o.done||o.status==='Cancel')return out;
+  for(var i=f+1;i<PH.length;i++){
+    chkKurang(o,i).forEach(function(it){
+      if(!chkTugasku(it))return;
+      if(!CHK_PANEL[it.k])return;                 // tak ada tempat mengisinya — lewati
+      out.push({fase:i,it:it});});}
+  return out;}
+function bukaAwalBlok(o){
+  var L=tugasMasaDepan(o);
+  if(!L.length)return '';
+  var buka=!!(ST._awalBuka&&ST._awalBuka[o.id]);
+  var kepala='<button class="btn ghost sm" style="width:100%;text-align:left;font-size:10.5px;margin-top:12px" '+
+    'onclick="ST._awalBuka=ST._awalBuka||{};ST._awalBuka[\''+o.id+'\']=!ST._awalBuka[\''+o.id+'\'];render()">'+
+    (buka?'▾':'▸')+' Bisa kamu isi lebih awal'+
+    '<span style="color:var(--brand-dark);font-weight:800;margin-left:6px">'+L.length+' item</span>'+
+    '<span style="color:var(--muted);font-weight:400;margin-left:6px">— kalau datanya sudah ada, tak perlu menunggu fasenya</span></button>';
+  if(!buka)return kepala;
+  return kepala+'<div style="border:1px solid var(--line);border-radius:9px;padding:4px 12px 11px;margin-top:6px;background:var(--bg)">'+
+    '<div style="font-size:10px;color:var(--ink-soft);padding:9px 0 4px;line-height:1.55">'+
+      'Mengisi sekarang tak memajukan fase — cuma menghapus satu pertanyaan yang nanti harus ditanyakan lagi ke client.</div>'+
+    L.map(function(x){
+      return '<div style="display:flex;gap:9px;align-items:flex-start;padding:7px 0;border-top:1px solid var(--line)">'+
+        '<span style="flex:0 0 auto;font-size:9px;font-weight:800;color:var(--brand);background:var(--panel);border:1px solid var(--line);border-radius:5px;padding:2px 6px">F'+(x.fase+1)+'</span>'+
+        '<div style="flex:1;min-width:0">'+
+          '<div style="font-size:10.5px;font-weight:700;line-height:1.5">'+esc(chkT(x.it))+
+            (x.it.w?'<span style="color:var(--warn);font-size:9px;font-weight:800;margin-left:5px">WAJIB</span>':'')+'</div>'+
+          '<div style="font-size:9.5px;color:var(--ink-soft);line-height:1.5">'+esc(CHK_SUMBER[x.fase+'.'+x.it.k]||'')+'</div>'+
+        '</div>'+
+        '<button class="btn ghost sm" style="flex:0 0 auto;font-size:9.5px" onclick="bukaAwal(\''+o.id+'\','+x.fase+',\''+x.it.k+'\')">✎ Isi sekarang</button>'+
+      '</div>';}).join('')+
+    '</div>';}
+
+/* Ringkasan lintas order untuk halaman Tugas saya. */
+function bukaAwalSemua(){
+  var out=[];
+  (ST.orders||[]).forEach(function(o){
+    tugasMasaDepan(o).forEach(function(x){out.push({o:o,fase:x.fase,it:x.it});});});
+  return out;}
+function bukaAwalBlokTugas(){
+  var L=bukaAwalSemua();if(!L.length)return '';
+  var perOrder={};
+  L.forEach(function(x){(perOrder[x.o.id]=perOrder[x.o.id]||{o:x.o,items:[]}).items.push(x);});
+  var buka=!!ST._awalTugas;
+  return '<div class="card" style="max-width:660px;margin-top:18px"><div class="ch" style="cursor:pointer" '+
+      'onclick="ST._awalTugas=!ST._awalTugas;render()">'+
+    '<span class="ico" style="background:#6a6f8a">✎</span>'+
+    '<div><div class="t">'+(buka?'▾':'▸')+' Bisa kamu isi lebih awal</div>'+
+      '<div class="s">'+L.length+' item di fase berikutnya — isi sekarang kalau datanya sudah ada</div></div></div>'+
+    (buka?'':'')+'<div class="body" style="'+(buka?'':'display:none')+'">'+
+    '<div style="font-size:10px;color:var(--ink-soft);line-height:1.55;margin-bottom:4px">'+
+      'Bukan tunggakan. Ini hal yang nanti akan ditanyakan ke client — kalau jawabannya sudah kamu pegang sekarang, tak perlu menanyakannya dua kali.</div>'+
+    Object.keys(perOrder).map(function(id){var g=perOrder[id];
+      return '<div style="border-top:1px solid var(--line);padding:8px 0">'+
+        '<div style="font-size:11px;font-weight:800;cursor:pointer" onclick="openOrder(\''+g.o.id+'\')">'+esc(g.o.customer)+
+          ' <span style="color:var(--ink-soft);font-weight:400">· sekarang fase '+((g.o.phase||0)+1)+' '+esc(PH[g.o.phase||0].n)+'</span></div>'+
+        g.items.map(function(x){
+          return '<div style="display:flex;gap:8px;align-items:flex-start;padding:4px 0">'+
+            '<span style="flex:0 0 auto;font-size:9px;font-weight:800;color:var(--brand)">F'+(x.fase+1)+'</span>'+
+            '<div style="flex:1;min-width:0;font-size:10.5px;line-height:1.5">'+esc(chkT(x.it))+'</div>'+
+            '<button class="btn ghost sm" style="flex:0 0 auto;font-size:9px" onclick="bukaAwal(\''+g.o.id+'\','+x.fase+',\''+x.it.k+'\')">✎ Isi</button>'+
+          '</div>';}).join('')+
+      '</div>';}).join('')+
+    '</div></div>';}
+
 function panelBawaan(o){
   if(o.done||(o.phase||0)>=PH.length)return [];       // selesai: semua diringkas
   var L=(PH_PANEL[o.phase||0]||[]).slice();
@@ -6447,6 +6535,8 @@ function panelBawaan(o){
   if(isVip(o)&&(o.phase||0)<6){
     if(L.indexOf('ref')<0)L.push('ref');
     if(L.indexOf('brief')<0)L.push('brief');}   // sketsa butuh logo & spesifikasinya
+  /* panel yang sengaja dibuka lebih awal ikut, tanpa mengubah fase */
+  try{bukaAwalSet(o).forEach(function(k){if(L.indexOf(k)<0)L.push(k);});}catch(e){}
   return L;}
 function stepState(o){
   var kunci=o.id+'#'+o.phase;
