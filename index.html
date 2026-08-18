@@ -673,6 +673,7 @@ const EN_RULES=[
 
 /* Kamus persis. Kunci = teks Indonesia apa adanya yang muncul di layar. */
 const EN={
+'Retur barang client':'Client returns','BELUM ADA RETUR UNTUK ORDER INI':'NO RETURN ON THIS ORDER YET','↩ Catat retur dari client':'↩ Record a client return','GILIRAN SEKARANG':'YOUR TURN NOW','Kata client:':'The client says:','Keputusan retur':'Return decision','Tindak lanjutnya':'What happens next','Dasar keputusannya':'Basis for the decision','Penyebab sebenarnya':'The actual cause','Biaya yang timbul':'Cost incurred','＋ Foto barang retur':'＋ Photo of the returned goods','Jenis masalahnya':'Type of problem','Kata client apa adanya':'The client\u2019s own words',
 'Bukti transfer dari client':'Client\u2019s transfer proof','SALES MENERUSKAN · FINANCE MEMERIKSA REKENING':'SALES FORWARDS IT · FINANCE CHECKS THE BANK','Kabar dari client':'What the client says','＋ Lampirkan screenshot / PDF':'＋ Attach a screenshot / PDF','✎ Catat revisi &amp; kembalikan':'✎ Record a revision &amp; send back','PANTAUAN — DIISI TANGAN':'TRACKING — FILLED IN BY HAND','Janji selesai':'Promised completion','Belum pernah diperbarui':'Never updated yet',
 'barang sudah jadi — tak bisa direvisi lagi':'goods already made — no longer revisable',
 'order ditutup — tak bisa direvisi lagi':'order closed — no longer revisable',
@@ -3596,7 +3597,8 @@ function applyTrigger(o,silent){
   else if(p===11){push('Radja',`Mass prod jalan, progres di Trello.`);push('PM',`HUB pantau via Trello + kategori Radja (read-only).`);o.checks=['Potong & skiving','Deboss logo','Jahit / stitch'];}
   else if(p===12){push('Packing',`QC di Radja, tim Rove hadir. Retur difoto + alasan.`);push('Bot',`QC <b>lolos</b>. Barang dikemas + dokumentasi.`);o.checks=['Potong & skiving','Deboss logo','Jahit / stitch','Finishing','QC + retur','Packing + foto'];}
   else if(p===13){push('Finance',`Invoice pelunasan terkirim, reminder H-3.`);push('Bot',`Pelunasan masuk — <b>Billing 2</b> (lunas). Pengiriman dibuka.`);push('Packing',`Kirim via ekspedisi, resi auto-detect (OCR).`);o.checks=CHECK.slice();}
-  else if(p===14){push('Sales',`Client konfirmasi diterima. 🙏 Minta testimoni.`);push('Bot',`Order <b>Selesai</b>. Channel diarsipkan (ARCHIVED) + masuk laporan & evaluasi.`);o.done=true;o.leadDays=14+(o.qty%23);o.returns=o.qty>=100?3:0;
+  else if(p===14){push('Sales',`Client konfirmasi diterima. 🙏 Minta testimoni.`);push('Bot',`Order <b>Selesai</b>. Channel diarsipkan (ARCHIVED) + masuk laporan & evaluasi.`);o.done=true;o.leadDays=14+(o.qty%23);
+    o.returns=returAktif(o)?1:0;   // retur sungguhan, bukan tebakan dari qty
     o.revisi=(o.revisiLog||[]).length;}   // jumlah revisi sungguhan, bukan tebakan
   o._m=Date.now();logHist(o,'Fase → '+((ph&&ph.n)||('fase '+(p+1))));
   if(p<PH.length-1)o.phase++;else o.phase=PH.length; // 10 = selesai
@@ -5954,11 +5956,11 @@ const PH_PANEL=[['chk','brief'],['chk','rfq'],
                    ini fase menahan pada data yang tak punya tempat pengisian */
                 ['chk','pricing','brief'],
                 ['chk','pricing'],['chk','ref','brief'],['chk','ref'],['chk','pricing','pay'],['chk','pay','bukti'],
-                ['chk','po','vpo'],['chk','prod'],['chk','prod'],
+                ['chk','po','vpo'],['chk','prod'],['chk','prod','retur'],
                 /* fase 14: Finance menerbitkan invoice pelunasan (Pricing),
                    Sales mengisi alamat kirim final (Brief) */
-                ['chk','pay','kirim','pricing','brief'],
-                ['chk','kirim','cs']];
+                ['chk','pay','kirim','pricing','brief','retur'],
+                ['chk','kirim','cs','retur']];
 
 /* ================= CHECKLIST PER FASE =================
    Tiap fase punya daftar kelengkapan dengan PIC-nya sendiri. Item "w:true"
@@ -6434,7 +6436,8 @@ function panelDef(o){
    {k:'vpo',t:'PO vendor lain',s:'collateral & jasa',h:function(){return (o.phase>=10&&!batal)?vpoPanel(o):'';}},
    {k:'prod',t:'Produksi Radja',s:'tahap & progres',h:function(){return (o.phase>=11&&!batal)?prodPanel(o):'';}},
    {k:'kirim',t:'Pengiriman barang',s:'penerima, resi, tanggal',h:function(){return (o.phase>=13&&!batal)?kirimPanel(o):'';}},
-   {k:'cs',t:'Komplain & kepuasan',s:'after sales',h:function(){return (o.phase>=13&&!batal)?csPanel(o):'';}}];}
+   {k:'cs',t:'Komplain & kepuasan',s:'after sales',h:function(){return (o.phase>=13&&!batal)?csPanel(o):'';}},
+   {k:'retur',t:'Retur barang client',s:'R18 — tiap tahap punya penerimanya',h:function(){return returBolehMulai(o)?returPanel(o):'';}}];}
 function panelBawaan(o){
   if(o.done||(o.phase||0)>=PH.length)return [];       // selesai: semua diringkas
   var L=(PH_PANEL[o.phase||0]||[]).slice();
@@ -7919,6 +7922,176 @@ function puasSet(id,f,v){var o=ST.orders.find(function(x){return x.id===id;});if
   c.puas[f]=(f==='rating')?+v:v;c.puas.t=nowStr();c.puas.by=(ST.userName||ST.user);
   if(f==='rating')logHist(o,'Follow-up kepuasan: '+v+'/5');
   o._m=Date.now();save();render();}
+
+/* ================= RETUR BARANG CLIENT (R18) =================
+   Delapan tahap, tiap tahap punya yang MENJALANKAN dan yang MENERIMA
+   hasilnya — dua-duanya disebut, supaya tak ada tahap yang selesai lalu
+   menggantung tanpa tahu siapa berikutnya. */
+const RETUR_LANGKAH=[
+  {k:'info',   t:'Catat info retur dari client',              oleh:'Sales',    ke:'Packing',
+   d:'Alasan, dokumentasi pendukung, dan produk mana yang bermasalah.'},
+  {k:'verif',  t:'Verifikasi klaim: garansi, histori, bukti', oleh:'Sales',    ke:'Sales',
+   d:'Cocokkan dengan syarat garansi dan penyebabnya — sebelum barang bergerak.'},
+  {k:'inspek', t:'Terima barang & inspeksi fisik',            oleh:'Packing',  ke:'Packing',
+   d:'Pastikan kondisi barangnya cocok dengan yang diklaim.'},
+  {k:'putus',  t:'Putuskan: perbaiki, ganti, atau tolak',     oleh:'Direktur', ke:'PM',
+   d:'Keputusan ada biayanya — karena itu di tangan Direktur, bukan di tangan yang mengerjakan.'},
+  {k:'kerja',  t:'Jalankan perbaikan atau penggantian',       oleh:'PM',       ke:'Packing',
+   d:'PM mengoordinasikan Radja; tahapnya dicatat seperti produksi biasa.'},
+  {k:'qc',     t:'QC ulang hasil perbaikan',                  oleh:'Packing',  ke:'Packing',
+   d:'Barang yang pernah kembali tak boleh berangkat lagi tanpa diperiksa.'},
+  {k:'kirim',  t:'Packing & kirim ulang ke client',           oleh:'Packing',  ke:'Sales',
+   d:'Catat resinya, sama seperti pengiriman pertama.'},
+  {k:'arsip',  t:'Catat biaya & penyebab retur',              oleh:'Finance',  ke:'Direktur',
+   d:'Biayanya masuk evaluasi — retur yang tak dihitung akan terulang.'}];
+const RETUR_PUTUSAN=['Perbaiki','Ganti baru','Tolak klaim'];
+const RETUR_LEWAT=['inspek','kerja','qc','kirim'];   // tak dijalankan kalau klaimnya ditolak
+
+function returGet(o){
+  if(!o.retur)o.retur={aktif:false,mulai:'',oleh:'',alasan:'',kategori:'',
+    putusan:'',putusCatatan:'',biaya:0,penyebab:'',langkah:{},files:[]};
+  if(!o.retur.langkah)o.retur.langkah={};
+  if(!Array.isArray(o.retur.files))o.retur.files=[];
+  return o.retur;}
+function returAktif(o){return !!returGet(o).aktif;}
+/* Retur cuma masuk akal setelah barangnya jadi — sebelum itu jalurnya revisi. */
+function returBolehMulai(o){return (o.phase||0)>=faseQC();}
+function returSisa(o){
+  var R=returGet(o);
+  return RETUR_LANGKAH.filter(function(x){
+    if(R.putusan==='Tolak klaim'&&RETUR_LEWAT.indexOf(x.k)>=0)return false;
+    return !R.langkah[x.k];});}
+function returTuntas(o){return returAktif(o)&&returSisa(o).length===0;}
+
+function returMulai(id){
+  var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
+  if(!returBolehMulai(o)){alert('Retur baru bisa dicatat setelah barangnya jadi (fase QC & Packing ke atas).\n\nSebelum itu, perubahan dari client jalurnya Revisi order.');return;}
+  askForm({judul:'Catat retur dari client',sub:'Order '+o.customer,
+    fields:[
+      {k:'kategori',label:'Jenis masalahnya',type:'select',req:true,val:KOM_KAT[0],opts:KOM_KAT},
+      {k:'alasan',label:'Kata client apa adanya',type:'textarea',req:true,
+       ph:'mis. 12 pcs jahitannya lepas di bagian lipatan, sudah difoto dan dikirim ke WA.',
+       hint:'Ditulis apa adanya — yang menilai klaimnya nanti bukan yang menerima kabarnya.'}],
+    ok:function(v){
+      var R=returGet(o);
+      R.aktif=true;R.mulai=hariIni();R.oleh=(ST.userName||ST.user||'');
+      R.kategori=v.kategori;R.alasan=v.alasan;
+      R.langkah.info={tgl:hariIni(),oleh:R.oleh};
+      logHist(o,'↩ Retur dibuka ('+v.kategori+'): '+v.alasan);
+      notifyOrder(o,'↩ **Retur — '+o.customer+'**\n'+v.kategori+': '+v.alasan+
+        '\nVerifikasi klaim: '+picMention('Sales')+' · terima & inspeksi: '+picMention('Packing'));
+      o._m=Date.now();save();render();}});}
+
+function returLangkahSet(id,k){
+  var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
+  var L=RETUR_LANGKAH.find(function(x){return x.k===k;});if(!L)return;
+  var R=returGet(o);
+  if(R.langkah[k]){
+    if(!confirm('Batalkan catatan "'+L.t+'"?'))return;
+    delete R.langkah[k];logHist(o,'↺ Retur — '+L.t+' dibatalkan');
+    o._m=Date.now();save();render();return;}
+
+  /* Dua tahap tak cukup dicentang: keputusan dan pengarsipan minta isinya. */
+  if(k==='putus'){
+    askForm({judul:'Keputusan retur',sub:'Order '+o.customer+' — '+R.kategori,
+      fields:[
+        {k:'putusan',label:'Tindak lanjutnya',type:'select',req:true,val:RETUR_PUTUSAN[0],opts:RETUR_PUTUSAN,
+         hint:'Tolak klaim menutup returnya tanpa barang bergerak; perbaiki & ganti meneruskan ke PM.'},
+        {k:'catatan',label:'Dasar keputusannya',type:'textarea',req:true,
+         ph:'mis. jahitan memang cacat produksi, diganti baru dan ongkosnya ditanggung Rove.'}],
+      ok:function(v){
+        R.putusan=v.putusan;R.putusCatatan=v.catatan;
+        R.langkah.putus={tgl:hariIni(),oleh:(ST.userName||ST.user||'')};
+        logHist(o,'↩ Retur diputus: '+v.putusan+' — '+v.catatan);
+        notifyOrder(o,'↩ **Retur '+o.customer+' diputus: '+v.putusan+'**\n'+v.catatan+
+          (v.putusan==='Tolak klaim'?'':('\nDikerjakan: '+picMention('PM'))));
+        o._m=Date.now();save();render();}});
+    return;}
+  if(k==='arsip'){
+    askForm({judul:'Catat biaya & penyebab retur',sub:'Order '+o.customer,
+      fields:[
+        {k:'biaya',label:'Biaya yang timbul',type:'money',val:R.biaya||0,
+         hint:'Ongkos kirim balik, bahan pengganti, jam kerja — seadanya yang diketahui.'},
+        {k:'penyebab',label:'Penyebab sebenarnya',type:'textarea',req:true,
+         ph:'mis. benang yang dipakai beda dari spesifikasi PO.'}],
+      ok:function(v){
+        R.biaya=+v.biaya||0;R.penyebab=v.penyebab;
+        R.langkah.arsip={tgl:hariIni(),oleh:(ST.userName||ST.user||'')};
+        logHist(o,'↩ Retur diarsipkan — biaya '+fmt0(R.biaya)+', penyebab: '+v.penyebab);
+        o._m=Date.now();save();render();}});
+    return;}
+
+  R.langkah[k]={tgl:hariIni(),oleh:(ST.userName||ST.user||'')};
+  logHist(o,'↩ Retur — '+L.t+' (dicatat '+(ST.userName||ST.user||'')+')');
+  var nx=returSisa(o)[0];
+  if(nx)notifyOrder(o,'↩ Retur '+o.customer+' — "'+L.t+'" selesai.\nBerikutnya: '+nx.t+' — '+picMention(nx.oleh));
+  o._m=Date.now();save();render();}
+
+function returUpload(id){
+  var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
+  var inp=document.createElement('input');inp.type='file';inp.accept='image/*';inp.multiple=true;
+  inp.onchange=function(){
+    var F=[].slice.call(inp.files||[]);if(!F.length)return;
+    var R=returGet(o),sisa=F.length;
+    F.forEach(function(file){var fr=new FileReader();
+      fr.onload=function(){R.files.push({n:file.name,d:fr.result});
+        if(!--sisa){logHist(o,'↩ Retur — foto dilampirkan: '+F.map(function(x){return x.name;}).join(', '));
+          o._m=Date.now();save();render();}};
+      fr.readAsDataURL(file);});};
+  inp.click();}
+
+function returPanel(o){
+  var R=returGet(o);
+  if(!R.aktif){
+    return '<div class="card actcard" style="margin-top:14px"><div class="ch"><span class="ico" style="background:#8a5a3c">↩</span>'+
+      '<div><div class="t">Retur barang client</div><div class="s">BELUM ADA RETUR UNTUK ORDER INI</div></div></div><div class="body">'+
+      '<div style="font-size:10.5px;color:var(--ink-soft);margin-bottom:10px;line-height:1.6">'+
+        'Kalau client mengembalikan barang, catat di sini — bukan sebagai komplain biasa. '+
+        'Retur menggerakkan barang, menimbulkan biaya, dan butuh keputusan Direktur di tengahnya.</div>'+
+      '<button class="btn" onclick="returMulai(\''+o.id+'\')">↩ Catat retur dari client</button>'+
+      '</div></div>';}
+
+  var sisa=returSisa(o),tuntas=returTuntas(o);
+  var baris=RETUR_LANGKAH.map(function(L,i){
+    var dilewati=(R.putusan==='Tolak klaim'&&RETUR_LEWAT.indexOf(L.k)>=0);
+    var d=R.langkah[L.k];
+    var giliran=(!d&&!dilewati&&sisa.length&&sisa[0].k===L.k);
+    var akuPelaku=(myRoles().indexOf(PIC2ROLE[L.oleh]||L.oleh)>=0||myRoles().indexOf('Holding')>=0);
+    return '<div style="display:flex;gap:9px;align-items:flex-start;padding:8px 0;border-top:1px solid var(--line)'+
+        (dilewati?';opacity:.45':(giliran?';background:var(--warn-bg)':''))+'">'+
+      '<span style="flex:0 0 18px;font-size:13px;font-weight:800;color:'+(d?'var(--ok)':(dilewati?'var(--muted)':'var(--warn)'))+'">'+
+        (d?'✓':(dilewati?'–':String(i+1)))+'</span>'+
+      '<div style="flex:1;min-width:0">'+
+        '<div style="font-size:11px;font-weight:800;line-height:1.5">'+esc(L.t)+
+          (giliran?'<span style="color:var(--brand-dark);font-size:9px;font-weight:800;margin-left:6px">GILIRAN SEKARANG</span>':'')+'</div>'+
+        '<div style="font-size:10px;color:var(--ink-soft);line-height:1.55;margin-top:1px">'+esc(L.d)+'</div>'+
+        '<div style="font-size:9.5px;color:var(--ink-soft);margin-top:3px">'+
+          'dijalankan <b>'+esc(L.oleh)+'</b> · hasilnya diterima <b>'+esc(L.ke)+'</b>'+
+          (d?(' · dicatat '+esc(d.oleh)+' '+esc(d.tgl)):'')+'</div>'+
+      '</div>'+
+      (dilewati?'':('<button class="btn ghost sm" style="flex:0 0 auto;font-size:9.5px'+(akuPelaku?'':';opacity:.45')+'"'+
+        (akuPelaku?'':' title="tugas '+esc(L.oleh)+'"')+
+        ' onclick="returLangkahSet(\''+o.id+'\',\''+L.k+'\')">'+(d?'↺ Batal':'✓ Catat')+'</button>'))+
+    '</div>';}).join('');
+
+  return '<div class="card actcard" style="margin-top:14px"><div class="ch"><span class="ico" style="background:#8a5a3c">↩</span>'+
+    '<div><div class="t">Retur barang client</div><div class="s">'+esc(R.kategori||'')+' · dibuka '+esc(R.mulai)+' oleh '+esc(R.oleh)+'</div></div>'+
+    '<span style="margin-left:auto;font-size:11px;font-weight:800;color:'+(tuntas?'var(--ok)':'var(--warn)')+'">'+
+      (tuntas?'✓ selesai':(sisa.length+' tahap lagi'))+'</span></div><div class="body">'+
+    '<div style="border-left:3px solid var(--gold);background:var(--warn-bg);border-radius:0 7px 7px 0;padding:7px 10px;margin-bottom:10px;font-size:10.5px;line-height:1.55">'+
+      '<b style="color:var(--brand-dark)">Kata client:</b> '+esc(R.alasan)+'</div>'+
+    (R.putusan?('<div style="font-size:10.5px;font-weight:800;margin-bottom:8px">Keputusan: '+esc(R.putusan)+
+      (R.putusCatatan?('<div style="font-weight:400;color:var(--ink-soft);line-height:1.55">'+esc(R.putusCatatan)+'</div>'):'')+'</div>'):'')+
+    baris+
+    '<div style="display:flex;gap:7px;flex-wrap:wrap;align-items:center;margin-top:11px;border-top:1px solid var(--line);padding-top:10px">'+
+      '<button class="btn ghost sm" onclick="returUpload(\''+o.id+'\')">＋ Foto barang retur</button>'+
+      (R.files.length?('<span style="font-size:10px;color:var(--ink-soft)">'+R.files.length+' foto</span>'):
+                      '<span style="font-size:10px;color:var(--muted)">belum ada foto</span>')+
+      (R.biaya?('<span style="margin-left:auto;font-size:10.5px;font-weight:800">Biaya retur '+fmt0(R.biaya)+'</span>'):'')+
+    '</div>'+
+    (R.penyebab?('<div style="margin-top:8px;font-size:10.5px;line-height:1.55"><b>Penyebab:</b> '+esc(R.penyebab)+'</div>'):'')+
+    '</div></div>';}
+
 function csPanel(o){
   var c=csGet(o),ks=c.komplain,p=c.puas||{},selesai=o.phase>=PH.length||o.done;
   var buka=ks.filter(function(k){return k.status!=='Selesai';}).length;
