@@ -7046,7 +7046,12 @@ function biayaList(o){
   if(!o.pricing.biaya)o.pricing.biaya=[];
   return o.pricing.biaya;}
 function biayaTotal(o){
-  return biayaList(o).reduce(function(s,b){return s+(+b.nominal||0);},0);}
+  var t=biayaList(o).reduce(function(s,b){return s+(+b.nominal||0);},0);
+  /* Ongkos retur adalah biaya nyata order ini — kirim balik, bahan pengganti,
+     jam kerja. Kalau tak ikut dihitung, order yang bermasalah terlihat sama
+     untungnya dengan yang mulus. */
+  t+=+(((o&&o.retur)||{}).biaya)||0;
+  return t;}
 function biayaAdd(id){
   var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
   biayaList(o).push({kat:BIAYA_KAT[0],nama:'',nominal:0});
@@ -7527,7 +7532,7 @@ function ringkasPanel(o){
     '<div style="margin-top:11px;border-top:1px solid var(--line);padding-top:9px">'+
       dirBaris('Omset (sebelum diskon &amp; ongkir)',fmt0(P.jual))+
       dirBaris('HPP vendor','− '+fmt0(P.hpp))+
-      dirBaris('Biaya di luar HPP','− '+fmt0(P.biayaLain))+
+      dirBaris('Biaya di luar HPP'+(((o.retur||{}).biaya)?' (termasuk retur '+fmt0(o.retur.biaya)+')':''),'− '+fmt0(P.biayaLain))+
       dirBaris('Profit bersih',fmt0(P.profit)+' · '+P.pct+'%',true)+
     '</div>'+
     '<div style="margin-top:11px;border-top:1px solid var(--line);padding-top:9px">'+
