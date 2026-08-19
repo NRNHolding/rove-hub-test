@@ -6623,10 +6623,17 @@ function notifSerahTerima(o,pre,gate){
     perPic[it.pic].push(it);});
   /* PIC fase disebut duluan — dialah yang memegang bolanya sekarang */
   urut.sort(function(a,b){return (a===ph.pic?0:1)-(b===ph.pic?0:1);});
+  /* Pemilik fase selalu disebut, walau tak ada isian wajib yang tersisa —
+     dialah yang memegang bolanya, dan tombol lanjut cuma bisa ditekan olehnya. */
+  /* PH memakai "Direktur Utama", checklist memakai "Direktur" — orang yang sama.
+     Dibandingkan lewat PIC2ROLE, kalau tidak namanya disebut dua kali. */
+  var peranPh=PIC2ROLE[ph.pic]||ph.pic;
+  if(!urut.some(function(x){return (PIC2ROLE[x]||x)===peranPh;}))urut.unshift(ph.pic);
   var badan=urut.map(function(pic){
+    if(!perPic[pic])return picMention(pic)+' — giliranmu. Tak ada isian wajib tersisa, tinggal tekan tombol lanjut.';
     return picMention(pic)+' — yang wajib darimu:\n'+
       perPic[pic].map(function(x){return '• '+chkT(x);}).join('\n');}).join('\n');
-  if(!badan)badan=picMention(ph.pic)+' — tak ada isian wajib tersisa, tinggal tekan tombol lanjut.';
+
   var tautan=orderTautan(o);
   notifyOrder(o,'▶ **Fase '+(f+1)+' · '+ph.n+'** — order **'+o.customer+'**\n'+
     ((pre>=0&&PH[pre])?('Fase '+(pre+1)+' '+PH[pre].n+' selesai'+(gate?(', gerbang "'+gate+'" terpenuhi'):'')+'.\n'):'')+
