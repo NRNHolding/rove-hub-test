@@ -4454,7 +4454,9 @@ function renderMaster(){
     return '<td style="white-space:nowrap"><button class="xrow" title="'+(ST.user==='Holding'?'hapus':'ajukan hapus ke Holding')+'" onclick="mDel(\''+sec+'\','+i+')">✕</button></td>';};
   /* `idx` dipakai kalau barisnya hasil saringan — indeks aslinya harus tetap
      dipakai oleh mEdit/mDel, bukan urutan setelah disaring. */
-  const tbl=(sec,cols,rows,idx)=>`<table class="rtable"><thead><tr>${cols.map(c=>`<th${c[2]==='img'?' style="width:80px;font-size:9px"':''}>${c[1]}</th>`).join('')}<th style="width:120px;font-size:9px">Diubah</th><th style="width:60px"></th></tr></thead>
+  /* table-layout:fixed — tanpa ini lebar kolom mengikuti isi terpanjang,
+     jadi tabel melar dan halaman minta digeser kanan-kiri. */
+  const tbl=(sec,cols,rows,idx)=>`<table class="rtable" style="table-layout:fixed"><thead><tr>${cols.map(c=>`<th${c[2]==='img'?' style="width:80px;font-size:9px"':''}>${c[1]}</th>`).join('')}<th style="width:120px;font-size:9px">Diubah</th><th style="width:60px"></th></tr></thead>
     <tbody>${rows.map((r,n)=>{const i=idx?idx[n]:n;return `<tr${r&&r._del?' style="opacity:.55;background:var(--warn-bg)"':''}>${cols.map(c=>{if(c[2]==='img')return mImgCell(sec,i,r);if(Array.isArray(c[2]))return '<td><select class="pin" onchange="mEdit(\''+sec+'\','+i+',\''+c[0]+'\',this.value)">'+c[2].map(function(op){return '<option '+(r[c[0]]===op?'selected':'')+'>'+op+'</option>';}).join('')+'</select></td>';var mny=c[2]==='money',num=c[2]==='number';
        /* 'datalist:nama' = ketik bebas, tapi nilai yang sudah dipakai muncul sebagai saran */
        var dl=(typeof c[2]==='string'&&c[2].slice(0,9)==='datalist:')?c[2].slice(9):'';
@@ -4469,7 +4471,7 @@ function renderMaster(){
        <td style="text-align:center"><input type="checkbox" ${u.aktif?'checked':''} onchange="mEdit('users',${i},'aktif',this.checked)" style="accent-color:var(--brand)"></td>
        <td><button class="xrow" onclick="mDel('users',${i})">✕</button></td></tr>`).join('')}</tbody></table></div>
      <button class="btn ghost sm" style="margin-top:9px" onclick="mAdd('users')">＋ Tambah akun</button></div>`,
-   access:`<div class="rcard" style="max-width:760px"><h3>Hak akses per jabatan</h3>
+   access:`<div class="rcard" style="max-width:1160px"><h3>Hak akses per jabatan</h3>
      <div style="font-size:10.5px;color:var(--muted);margin-bottom:9px">Centang menu yang boleh diakses tiap jabatan — langsung berlaku.</div>
      ${discordRoleBlok()}
      <div class="xscroll"><table class="rtable"><thead><tr><th>Jabatan</th>${ACCESS_FEATURES.map(f=>`<th style="text-align:center">${f[1]}</th>`).join('')}</tr></thead>
