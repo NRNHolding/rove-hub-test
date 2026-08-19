@@ -19,7 +19,7 @@ Set-Location $PSScriptRoot
 git add -A
 $adaPerubahan = git status --porcelain
 if (-not $adaPerubahan) {
-  Write-Host "Tak ada perubahan — versi web sudah sama dengan yang lokal."
+  Write-Host "Tak ada perubahan - versi web sudah sama dengan yang lokal."
   exit 0
 }
 
