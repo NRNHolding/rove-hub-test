@@ -1751,7 +1751,10 @@ if(r){ST.orders=JSON.parse(r);}else{ST.orders=[];} ST.user=sesiGet('rovehub_user
   try{ST._roles=JSON.parse(sesiGet('rovehub_roles')||'null');}catch(e){ST._roles=null;}
   try{ST.cfg=JSON.parse(localStorage.getItem('rovehub_cfg')||'{"url":"","live":false,"catalogUrl":""}');}catch(e){ST.cfg={url:'',live:false,catalogUrl:''};}
   loadLang();migrasiFaseProfit();migrasiFase12();migrasiFase15();migrasiStatus();
-  try{bukaDariTautan();}catch(e){}   // link permintaan dari DiscordfinData();asetAll();loadCatalogCache();loadMaster();loadLeads();loadTax();loadKonten();loadHR();loadBuy();loadInv();
+  finData();asetAll();loadCatalogCache();loadMaster();loadLeads();loadTax();loadKonten();loadHR();loadBuy();loadInv();
+  /* Link permintaan dari Discord dibaca paling akhir, sesudah semua data
+     termuat — ordernya harus sudah ada sebelum linknya dicari. */
+  try{bukaDariTautan();}catch(e){}
   if(!hasEstColl()){try{var cd=JSON.parse(localStorage.getItem('rovehub_colldata')||'null');if(cd&&Object.keys(cd).length){setEstColl(collRowsFrom(cd));saveMaster();}}catch(e){}}
   buildCollatData();}
 
