@@ -3748,8 +3748,8 @@ function jabatanSel(i,u){
   var L=jabatanList(u);
   return '<div style="display:flex;flex-wrap:wrap;gap:4px">'+ROLES.map(function(r){
     var on=L.indexOf(r)>=0;
-    return '<label style="display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:'+(on?'800':'400')+
-      ';padding:2px 7px;border-radius:20px;cursor:pointer;white-space:nowrap;border:1px solid '+(on?'var(--brand)':'var(--line)')+
+    return '<label style="display:inline-flex;align-items:center;gap:3px;font-size:9.5px;font-weight:'+(on?'800':'400')+
+      ';padding:2px 6px;border-radius:20px;cursor:pointer;white-space:nowrap;border:1px solid '+(on?'var(--brand)':'var(--line)')+
       ';background:'+(on?'var(--accent,#efe7d8)':'transparent')+';color:'+(on?'var(--brand)':'var(--muted)')+'">'+
       '<input type="checkbox" '+(on?'checked':'')+' style="width:auto;margin:0;accent-color:var(--brand)" '+
         'onchange="jabatanToggle('+i+',\''+r+'\',this.checked)">'+esc(r)+'</label>';}).join('')+
@@ -4460,9 +4460,9 @@ function renderMaster(){
        var dl=(typeof c[2]==='string'&&c[2].slice(0,9)==='datalist:')?c[2].slice(9):'';
        return '<td><input class="pin'+(mny?' n money':(num?' n':''))+'" '+(dl?('list="'+dl+'" '):'')+(mny?'inputmode="numeric" ':(num?'type="number" ':''))+'value="'+(mny?moneyInp(r[c[0]]):esc(r[c[0]]))+'" onchange="'+(mny?'mEditM':'mEdit')+'(\''+sec+'\','+i+',\''+c[0]+'\',this.value)" placeholder="'+esc(c[1])+'"></td>';}).join('')}<td style="font-size:9px;color:var(--muted)">${fmtStamp(r)}</td>${actCell(sec,i,r)}</tr>`;}).join('')}</tbody></table>`;
   const SEC={
-   users:`<div class="rcard" style="max-width:760px"><h3>Users / Akun (${M.users.length})</h3>
+   users:`<div class="rcard" style="max-width:1060px"><h3>Users / Akun (${M.users.length})</h3>
      <div style="font-size:10.5px;color:var(--muted);margin-bottom:9px">Akun login. Akses ditentukan <b>jabatan</b>, bukan nama. <b>Satu orang boleh lebih dari satu jabatan</b> — akses, tugas, dan checklist jadi gabungan semuanya. (Prototype: password tersimpan lokal — ganti mekanisme aman saat backend.)</div>
-     <div class="xscroll"><table class="rtable"><thead><tr><th style="width:120px">Username</th><th style="width:120px">Password</th><th style="min-width:300px">Jabatan (boleh lebih dari satu)</th><th style="width:55px;text-align:center">Aktif</th><th style="width:30px"></th></tr></thead>
+     <div class="xscroll"><table class="rtable" style="table-layout:fixed"><thead><tr><th style="width:118px">Username</th><th style="width:126px">Password</th><th>Jabatan (boleh lebih dari satu)</th><th style="width:46px;text-align:center">Aktif</th><th style="width:28px"></th></tr></thead>
      <tbody>${M.users.map((u,i)=>`<tr><td><input class="pin" value="${esc(u.username)}" onchange="mEdit('users',${i},'username',this.value)" placeholder="username"></td>
        <td><input class="pin" type="password" value="" onchange="setUserPw(${i},this.value)" placeholder="${u.pwHash?'•••• (isi utk ganti)':'set password'}"></td>
        <td>${jabatanSel(i,u)}</td>
