@@ -1,0 +1,21 @@
+Pesan Discord tiap fase pindah tangan, link di tombol Ingatkan, panel Discord ditulis ulang
+
+Tiga hal yang keluar dari tes per-jabatan:
+
+1. Perpindahan fase tak berbunyi. 7 dari 15 tak mengirim apa pun; 8 sisanya
+   cuma menyebut fase yang ditinggalkan, tanpa nama siapa pun. Pesan pertama
+   yang menyebut orang baru datang 2 hari kerja kemudian - saat fase dengan
+   target 1-2 hari sudah telat. Sekarang tiap perpindahan mengirim satu pesan:
+   fase apa, siapa gilirannya, apa yang wajib darinya, dan link ordernya.
+
+2. Link cuma ada di baris tugas sendiri. Di baris orang lain yang tersedia
+   cuma tombol Ingatkan, dan pengingatnya tanpa link - padahal di 6 dari 15
+   fase pemilik fase justru tertahan item orang lain. Pengingat sekarang ikut
+   membawa link ke kolomnya, dan jejaknya tercatat di baris itu.
+
+3. Panel Discord di dalam app masih menceritakan alur 11 fase yang lama:
+   menyebut Sales untuk pekerjaan PM, approval margin untuk gerbang
+   kelengkapan, dan resi auto-detect OCR yang tak pernah ada. Empat fase
+   terbaru tak menghasilkan pesan sama sekali. Ditulis ulang untuk 15 fase.
+
+Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>

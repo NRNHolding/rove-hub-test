@@ -3589,21 +3589,47 @@ function applyTrigger(o,silent){
   const p=o.phase, ph=PH[p];
   const nm=chName(o);
   const push=(who,txt)=>o.disc.push({cat:ph.cat,who,txt});
-  if(p===0){push('Sales',`Inquiry ${o.customer} masuk. Aku buat channel-nya.`);push('Bot',`Channel <b>#${nm}</b> dibuat di kategori PRE-DEAL. Tipe: <b>${o.type}</b>.`);}
-  else if(p===1){push('Sales',`Minta harga ${o.product} ${o.qty}pcs (${o.mat}) ke Radja.`);push('Radja',`Harga fix. Channel dipindah ke <b>PRICING DONE</b>.`);push('Bot',`Harga vendor terekam. Harga jual + margin dihitung di HUB.`);}
-  else if(p===2){var Pp=profitTotals(o);push('Sales',`Cek profit: jual ${fmt0(Pp.jual)} − HPP ${fmt0(Pp.hpp)} = <b>${fmt0(Pp.profit)}</b> (${Pp.pct}%).`);push('Bot',`Margin disetujui. ✅ Lanjut quotation.`);}
-  else if(p===4){push('Finance',`Quotation ${o.customer} di-generate (detail lengkap).`);push('Sales',`Terkirim ke client.`);push('Bot',`Client <b>approve quotation</b>. ✅ Lanjut sketch.`);}
-  else if(p===6){push('Creative',`Preview sketch ${o.product} selesai & dirapikan.`);push('Bot',`Client <b>approve sketsa</b>. ✅ Menuju invoice.`);}
-  else if(p===8){push('Finance',`Invoice terkirim + reminder tagih.`);push('Bot',`DP masuk — <b>Billing 1</b>. Channel dipindah ke <b>Deal Bulan</b>.`);}
+  /* Satu ringkasan pendek tiap fase yang baru selesai. Isinya harus sama
+     dengan pembagian PIC yang berlaku sekarang — panel yang menyebut orang
+     yang salah lebih menyesatkan daripada panel kosong. */
+  if(p===0){push('PM','Order '+o.customer+' dirinci: produk, qty, tanggal acara, material, spek collateral.');
+    push('Bot','Channel <b>#'+nm+'</b> di kategori PRE-DEAL. Tipe: <b>'+(o.type||'-')+'</b>. Lanjut cari harga vendor.');}
+  else if(p===1){push('PM','Permintaan harga dikirim ke Radja &amp; vendor collateral, jawabannya dicatat.');
+    push('Radja','Harga fix. Channel dipindah ke <b>PRICING DONE</b>.');
+    push('Bot','HPP vendor lengkap. Giliran <b>Sales</b> menetapkan harga jual.');}
+  else if(p===2){var Pp=profitTotals(o);
+    push('Sales','Harga jual &amp; margin ditetapkan: jual '+fmt0(Pp.jual)+' − HPP '+fmt0(Pp.hpp)+' = <b>'+fmt0(Pp.profit)+'</b> ('+Pp.pct+'%).');
+    push('Bot','Harga jual disetujui Sales. Menunggu keputusan <b>Direktur</b> di Profitability.');}
+  else if(p===3){push('Direktur','Ringkasan dibaca — profit, deadline produksi, batas tanggal PO turun. <b>Approve.</b>');
+    push('Bot','Gerbang approval direktur lewat. Giliran <b>Finance</b> membuat quotation.');}
+  else if(p===4){push('Finance','Quotation '+o.customer+' di-generate lengkap lalu dikirim ke client.');
+    push('Bot','Quotation terkirim. Menunggu jawaban client — yang memegang <b>Sales</b>.');}
+  else if(p===5){push('Sales','Client menyetujui penawarannya.');
+    push('Bot','Gerbang approve client lewat. Giliran <b>Creative</b> menyiapkan sketsa.');}
+  else if(p===6){push('Creative','Preview sketsa beserta collateral-nya selesai dan dirapikan.');
+    push('Bot','Preview siap dikirim. Menunggu approval sketsa dari client — yang memegang <b>Sales</b>.');}
+  else if(p===7){push('Sales','Client menyetujui sketsanya.');
+    push('Bot','Gerbang approve sketsa lewat. Giliran <b>Finance</b> menerbitkan invoice.');}
+  else if(p===8){push('Finance','Invoice DP diterbitkan dan ditagihkan ke client.');
+    push('Bot','Invoice terkirim. Menunggu uang masuk — atau surat PO resmi client.');}
+  else if(p===9){push('Finance','Pembayaran masuk dicocokkan lalu dicatat.');
+    push('Bot','Gerbang DP masuk / PO resmi lewat. Giliran <b>Purchasing</b> menyiapkan spec &amp; PO.');}
   else if(p===10){
-    push('Sales',`Draft spec lengkap. Minta approval margin @Direktur.`);push('Direktur',`Margin & profitability oke. Lanjut. ✅`);
-    push('Bot',`Gate margin approved. ⚡ Generate kartu Trello Production + turun PO ke Radja.`);
+    push('Purchasing','Form PO Radja diisi lengkap, PO ke Radja &amp; vendor collateral di-generate.');
+    push('Direktur','Kelengkapan spesifikasi untuk turun produksi <b>disetujui</b>.');
+    push('Bot','Gerbang invoice terbayar lewat. ⚡ Kartu Trello Production dibuat, PO turun ke Radja.');
     o.trello={created:true};o.checks=[];
   }
-  else if(p===11){push('Radja',`Mass prod jalan, progres di Trello.`);push('PM',`HUB pantau via Trello + kategori Radja (read-only).`);o.checks=['Potong & skiving','Deboss logo','Jahit / stitch'];}
-  else if(p===12){push('Packing',`QC di Radja, tim Rove hadir. Retur difoto + alasan.`);push('Bot',`QC <b>lolos</b>. Barang dikemas + dokumentasi.`);o.checks=['Potong & skiving','Deboss logo','Jahit / stitch','Finishing','QC + retur','Packing + foto'];}
-  else if(p===13){push('Finance',`Invoice pelunasan terkirim, reminder H-3.`);push('Bot',`Pelunasan masuk — <b>Billing 2</b> (lunas). Pengiriman dibuka.`);push('Packing',`Kirim via ekspedisi, resi auto-detect (OCR).`);o.checks=CHECK.slice();}
-  else if(p===14){push('Sales',`Client konfirmasi diterima. 🙏 Minta testimoni.`);push('Bot',`Order <b>Selesai</b>. Channel diarsipkan (ARCHIVED) + masuk laporan & evaluasi.`);o.done=true;o.leadDays=14+(o.qty%23);
+  else if(p===11){push('Radja','Produksi jalan, progresnya diperbarui di Trello.');
+    push('PM','Tahap produksi dipantau dari HUB + kategori Radja (read-only).');o.checks=['Potong & skiving','Deboss logo','Jahit / stitch'];}
+  else if(p===12){push('Packing','QC di Radja dihadiri tim Rove. Barang retur difoto beserta alasannya.');
+    push('Bot','QC <b>lolos</b>. Barang dikemas lengkap dengan collateral dan didokumentasikan.');o.checks=['Potong & skiving','Deboss logo','Jahit / stitch','Finishing','QC + retur','Packing + foto'];}
+  else if(p===13){push('Finance','Invoice pelunasan terkirim, ditagih sampai lunas.');
+    push('Packing','Nomor resi dan tanggal kirim dicatat di HUB.');
+    push('Bot','Pelunasan masuk — <b>Billing 2</b> (lunas). Barang berangkat.');o.checks=CHECK.slice();}
+  else if(p===14){push('Packing','Tanggal barang diterima client dicatat, bukti serah terima dilampirkan.');
+    push('Sales','Client konfirmasi diterima. 🙏 Minta foto / testimoni.');
+    push('Bot','Order <b>Selesai</b>. Channel diarsipkan (ARCHIVED) + masuk laporan &amp; evaluasi.');o.done=true;o.leadDays=14+(o.qty%23);
     o.returns=returAktif(o)?1:0;   // retur sungguhan, bukan tebakan dari qty
     o.revisi=(o.revisiLog||[]).length;}   // jumlah revisi sungguhan, bukan tebakan
   o._m=Date.now();logHist(o,'Fase → '+((ph&&ph.n)||('fase '+(p+1))));
@@ -6252,9 +6278,14 @@ function chkIngat(id,fase,k){
   /* mengingatkan jabatan sendiri itu tak ada gunanya — kerjakan saja */
   if(chkTugasku(it)){alert('Ini tugas jabatanmu sendiri — tak ada yang perlu diingatkan.\n\n'+chkT(it)+
     (chkGuna(it)?('\n'+chkGuna(it)):''));return;}
+  /* linknya membuka kolomnya langsung — pengingat tanpa link berarti orangnya
+     masih harus mencari sendiri, dan itu yang bikin pengingat diabaikan */
+  var tautan=CHK_PANEL[k]?mintaTautan(o,fase,k):'';
   var pesan='⏰ Pengingat untuk '+picMention(it.pic)+' — order '+o.customer+' (fase '+(fase+1)+' '+PH[fase].n+')\n'+
-            'Belum tuntas: '+it.t+(it.guna?('\n'+it.guna):'');   // notifikasi Discord tetap bahasa Indonesia
+            'Belum tuntas: '+it.t+(it.guna?('\n'+it.guna):'')+
+            (tautan?('\n'+tautan):'');   // notifikasi Discord tetap bahasa Indonesia
   pushBackend('notify',{name:chName(o),content:pesan});
+  if(tautan)mintaSemua(o)[fase+'.'+k]={ke:it.pic,oleh:(ST.userName||ST.user||''),tgl:nowStr(),pesan:''};
   logHist(o,'Pengingat dikirim ke '+it.pic+': '+it.t);
   o._m=Date.now();save();
   alert('Pengingat dikirim ke '+it.pic+'.\n\n'+it.t+
@@ -6267,13 +6298,17 @@ function chkIngatSemua(id,fase){
   var sisa=chkKurang(o,fase).filter(function(it){return !chkTugasku(it);});
   if(!sisa.length){alert('Tak ada jabatan lain yang perlu ditagih di fase ini.\n\nYang tersisa (kalau ada) adalah tugas jabatanmu sendiri.');return;}
   var perPic={};sisa.forEach(function(it){(perPic[it.pic]=perPic[it.pic]||[]).push(it.t);});
+  var tautanO=orderTautan(o);
   Object.keys(perPic).forEach(function(pic){
     pushBackend('notify',{name:chName(o),content:'⏰ '+picMention(pic)+' — order '+o.customer+' (fase '+(fase+1)+' '+PH[fase].n+') masih menunggu:\n'+
-      perPic[pic].map(function(t){return '• '+t;}).join('\n')});});
+      perPic[pic].map(function(t){return '• '+t;}).join('\n')+(tautanO?('\n'+tautanO):'')});});
   logHist(o,'Pengingat massal dikirim ke: '+Object.keys(perPic).join(', '));
   o._m=Date.now();save();render();
+  var bisu=Object.keys(perPic).filter(function(pic){return !mentionSiap(pic);});
   alert('Pengingat dikirim ke '+Object.keys(perPic).length+' PIC:\n'+
-    Object.keys(perPic).map(function(pic){return '• '+pic+' ('+perPic[pic].length+' item)';}).join('\n'));}
+    Object.keys(perPic).map(function(pic){return '• '+pic+' ('+perPic[pic].length+' item)';}).join('\n')+
+    (bisu.length?('\n\n⚠ ID role Discord belum diisi untuk: '+bisu.join(', ')+
+      '\nPesannya terkirim tapi TIDAK membunyikan notifikasi siapa pun. Isi di Master data → Hak akses.'):''));}
 /* Kelengkapan checklist milik satu orang, lintas order — untuk tab Tugas saya. */
 function chkTugasSaya(role){
   var out=[];
@@ -6495,8 +6530,36 @@ function mintaIsi(id,fase,k){
       o._m=Date.now();save();render();
       alert('Permintaan dikirim ke '+v.ke+'.'+
         ((ST.cfg&&ST.cfg.live&&ST.cfg.url)
-          ?'\n\nPesannya masuk ke channel Discord order ini, lengkap dengan link yang membuka kolomnya.'
+          ?('\n\nPesannya masuk ke channel Discord order ini, lengkap dengan link yang membuka kolomnya.'+
+            (mentionSiap(v.ke)?'':'\n\n⚠ ID role Discord untuk '+v.ke+' belum diisi di Master data → Hak akses, jadi pesannya TIDAK membunyikan notifikasi siapa pun.'))
           :'\n\n(Relay Discord belum aktif — permintaan tercatat di histori order saja.)'));}});}
+
+
+/* ---- serah terima fase: orang berikutnya diberi tahu, tanpa membuka HUB ---- */
+function orderTautan(o){var u=hubUrl();return u?(u+'?o='+encodeURIComponent(o.id)):'';}
+function notifSerahTerima(o,pre,gate){
+  var f=o.phase||0;
+  if(f>=PH.length){
+    notifyOrder(o,'🎉 **Order '+o.customer+' SELESAI** — seluruh '+PH.length+' fase lewat.'+
+      '\nNilai '+fmt0(orderTotals(o).grand)+' · masuk laporan & evaluasi.');
+    return;}
+  var ph=PH[f];
+  var sisa=[];try{sisa=chkKurang(o,f,true);}catch(e){}
+  var perPic={},urut=[];
+  sisa.forEach(function(it){
+    if(!perPic[it.pic]){perPic[it.pic]=[];urut.push(it.pic);}
+    perPic[it.pic].push(it);});
+  /* PIC fase disebut duluan — dialah yang memegang bolanya sekarang */
+  urut.sort(function(a,b){return (a===ph.pic?0:1)-(b===ph.pic?0:1);});
+  var badan=urut.map(function(pic){
+    return picMention(pic)+' — yang wajib darimu:\n'+
+      perPic[pic].map(function(x){return '• '+chkT(x);}).join('\n');}).join('\n');
+  if(!badan)badan=picMention(ph.pic)+' — tak ada isian wajib tersisa, tinggal tekan tombol lanjut.';
+  var tautan=orderTautan(o);
+  notifyOrder(o,'▶ **Fase '+(f+1)+' · '+ph.n+'** — order **'+o.customer+'**\n'+
+    ((pre>=0&&PH[pre])?('Fase '+(pre+1)+' '+PH[pre].n+' selesai'+(gate?(', gerbang "'+gate+'" terpenuhi'):'')+'.\n'):'')+
+    'Target '+phHari(f)+' hari kerja'+(ph.gate?(' · gerbang fase ini: '+ph.gate):'')+'.\n'+
+    badan+(tautan?('\n'+tautan):''));}
 
 /* ---- membuka HUB dari link permintaan ---- */
 function bukaDariTautan(){
@@ -6813,7 +6876,7 @@ function trigger(id){if(playing)return;const o=ST.orders.find(x=>x.id===id);cons
   pushBackend('phase',{id:o.id,phase:o.phase,channel:chName(o)});
   if(pre===5)pushBackend('channel.move',{name:chName(o),catName:dealCat(o)});
   else if(pre===10)pushBackend('channel.move',{name:chName(o),catName:'ARCHIVED'});
-  if(gate)pushBackend('notify',{name:chName(o),content:'🔒 Gate: '+gate+' — fase '+(pre+1)+' ('+PH[pre].n+')'});
+  try{notifSerahTerima(o,pre,gate);}catch(e){}
   render();}
 function dLeft(dstr){if(!dstr)return null;var d=new Date(dstr);if(isNaN(d))return null;return Math.ceil((d-new Date().setHours(0,0,0,0))/864e5);}
 function prodSet(id,f,v){const o=ST.orders.find(x=>x.id===id);if(!o)return;if(!o.prod)o.prod={stage:'',note:'',updated:''};
