@@ -4462,7 +4462,7 @@ function renderMaster(){
   const SEC={
    users:`<div class="rcard" style="max-width:1060px"><h3>Users / Akun (${M.users.length})</h3>
      <div style="font-size:10.5px;color:var(--muted);margin-bottom:9px">Akun login. Akses ditentukan <b>jabatan</b>, bukan nama. <b>Satu orang boleh lebih dari satu jabatan</b> — akses, tugas, dan checklist jadi gabungan semuanya. (Prototype: password tersimpan lokal — ganti mekanisme aman saat backend.)</div>
-     <div class="xscroll"><table class="rtable" style="table-layout:fixed"><thead><tr><th style="width:118px">Username</th><th style="width:126px">Password</th><th>Jabatan (boleh lebih dari satu)</th><th style="width:46px;text-align:center">Aktif</th><th style="width:28px"></th></tr></thead>
+     <div class="xscroll"><table class="rtable" style="table-layout:fixed"><thead><tr><th style="width:118px">Username</th><th style="width:126px">Password</th><th>Jabatan (boleh lebih dari satu)</th><th style="width:46px;text-align:center">Aktif</th><th style="width:38px"></th></tr></thead>
      <tbody>${M.users.map((u,i)=>`<tr><td><input class="pin" value="${esc(u.username)}" onchange="mEdit('users',${i},'username',this.value)" placeholder="username"></td>
        <td><input class="pin" type="password" value="" onchange="setUserPw(${i},this.value)" placeholder="${u.pwHash?'•••• (isi utk ganti)':'set password'}"></td>
        <td>${jabatanSel(i,u)}</td>
