@@ -6422,7 +6422,11 @@ const PH_CHECK=[
    k:'kota', t:'Isi kota dan venue acara', en:'Fill in the event city and venue', guna:'supaya tarif ongkir ketemu dan operator live tak salah kota', gunaEn:'so the shipping rate can be found and live operators go to the right city',              pic:'PM'},
   {auto:function(o){var b=o.brief||{};return !!String(b.woHp||'').trim();}, jika:'wo',
    k:'hpWo', t:'Minta nomor HP WO / EO', en:'Ask for the WO / EO phone number', guna:'supaya ada kontak darurat di hari acara', gunaEn:'so there is an emergency contact on event day',                pic:'PM'},
-  {auto:function(o){return (((o.brief||{}).refFiles)||[]).length>0;}, k:'ref', t:'Kumpulkan referensi gambar dari client', en:'Collect reference images from the client', guna:'supaya Creative tak mendesain dari tebakan', gunaEn:'so Creative is not designing from guesswork',     pic:'PM'}
+  {auto:function(o){return (((o.brief||{}).refFiles)||[]).length>0;}, k:'ref', t:'Kumpulkan referensi gambar dari client', en:'Collect reference images from the client', guna:'supaya Creative tak mendesain dari tebakan', gunaEn:'so Creative is not designing from guesswork',     pic:'PM'},
+  /* Logo ditanyakan di sini, bukan nanti di Sketch. Kotaknya memang sudah
+     ada di panel Brief; yang dulu tak ada cuma yang menagihnya. Tak wajib di
+     sini — di Sketch barulah menahan fase. */
+  {auto:function(o){return (((o.brief||{}).logoFiles)||[]).length>0;}, k:'logoCl', t:'Minta file logo vektor (.ai / .eps) ke client', en:'Ask the client for the vector logo file (.ai / .eps)', guna:'biasanya sudah ada sejak awal — kalau ditagih sekarang, Creative tak menunggu di fase Sketch', gunaEn:'usually available from the start — asking now means Creative does not wait at Sketch', pic:'Sales'}
  ],
  [ // 1 Pricing Vendor
   {auto:function(o){var R=rfqLines(o);return R.length===0||R.every(function(x){return !!(x.l.rfq&&x.l.rfq.minta);});}, k:'rfq', t:'Kirim permintaan harga ke tiap vendor', en:'Send a quote request to each vendor', guna:'supaya HPP tak ditebak-tebak', gunaEn:'so the cost price is not guessed',      pic:'PM', w:true},
@@ -6729,7 +6733,8 @@ function chkTugasSaya(role){
 
 /* Petunjuk tempat mengisi tiap item — checklist hanya memantau, pengisiannya
    di panel kerja masing-masing. */
-const CHK_SUMBER={'9.dpMasuk':'panel Pembayaran → Catat DP masuk, atau panel Surat PO resmi (Sales lampirkan → PM olah → Direktur setujui)',
+const CHK_SUMBER={'0.logoCl':'Brief → lampiran Logo client',
+  '6.logoCl':'Brief → lampiran Logo client','9.dpMasuk':'panel Pembayaran → Catat DP masuk, atau panel Surat PO resmi (Sales lampirkan → PM olah → Direktur setujui)',
   '9.bukti':'panel Bukti transfer',
   '10.poRevRadja':'panel Form PO Radja → PO revisi','10.poRevDir':'panel Form PO Radja → PO revisi',
   '5.quoAcc':'panel Pricing → status quotation','7.sketsaAcc':'panel Referensi gambar → tombol approval sketsa','9.dpMasuk':'panel Pembayaran → Catat DP masuk',
