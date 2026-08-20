@@ -5105,8 +5105,113 @@ function taskOrders(role){
     return R.indexOf(PIC2ROLE[ph.pic])>=0;
   });
 }
+
+/* ================= DAFTAR DIREKTUR =================
+   Dua pertanyaan yang beda: "apa yang menunggu tanda tanganku?" dan
+   "apa yang perlu kuawasi?". Dulu keduanya dijawab dengan daftar yang sama. */
+function faseSpecPO(){var i=PH.findIndex(function(x){return /^Spec/i.test(x.n);});return i<0?10:i;}
+
+/* Yang benar-benar menunggu keputusan Direktur, apa pun fasenya. */
+function dirPutusanSebab(o){
+  var out=[],f=o.phase||0;
+  if(f===FASE_PROFIT&&!dirAppr(o))out.push('Approve atau tolak profitability');
+  if(f===faseSpecPO()&&!(((o.pricing||{}).marginAppr||{}).tgl))out.push('Setujui kelengkapan sebelum PO turun');
+  if((o.poRev||0)>0&&!((o.poRevOk||{}).direktur))out.push('Setujui biaya PO revisi R'+o.poRev);
+  try{var P=poClientGet(o);
+    if(poClientAda(o)&&String(P.no||'').trim()&&!poClientSah(o))out.push('Sahkan surat PO resmi client');}catch(e){}
+  try{var s=returSisa(o);
+    if(returAktif(o)&&s.length&&s[0].k==='putus')out.push('Putuskan retur');}catch(e){}
+  return out;}
+
+/* Kenapa order ini perlu diawasi. Urutan daftar = urutan kegentingan. */
+const DIR_NILAI_BESAR=50000000;
+const DIR_MARGIN_TIPIS=20;
+const DIR_DEADLINE_DEKAT=7;
+const DIR_KONTROL=[
+  {k:'retur',   t:'Ada retur',        w:'#8f2a1e',
+   uji:function(o){try{return returAktif(o);}catch(e){return false;}}},
+  {k:'telat',   t:'Deadline lewat',   w:'#8f2a1e',
+   uji:function(o){var d=dLeft((o.po||{}).deadline);return d!=null&&d<0&&(o.phase||0)<faseQC();}},
+  {k:'vip',     t:'Client VIP',       w:'#8a6212',
+   uji:function(o){try{return isVip(o);}catch(e){return false;}}},
+  {k:'lama',    t:'Fase kelamaan',    w:'#8a6212',
+   uji:function(o){var f=o.phase||0;return hariKerjaSejak(faseSejak(o))>phHari(f);}},
+  {k:'mepet',   t:'Deadline mepet',   w:'#8a6212',
+   uji:function(o){var d=dLeft((o.po||{}).deadline);
+     return d!=null&&d>=0&&d<=DIR_DEADLINE_DEKAT&&(o.phase||0)<faseQC();}},
+  {k:'revisi',  t:'Revisi berulang',  w:'#8a6212',
+   uji:function(o){return ((o.revisiLog||[]).length>=2)||((o.poRev||0)>0);}},
+  {k:'tipis',   t:'Margin tipis',     w:'#8f2a1e',
+   uji:function(o){var P=profitTotals(o);return P.jual>0&&P.pct<DIR_MARGIN_TIPIS;}},
+  {k:'besar',   t:'Nilai besar',      w:'#1f4d7a',
+   uji:function(o){return orderGrand(o)>=DIR_NILAI_BESAR;}},
+];
+function dirKontrolSebab(o){
+  var out=[];
+  DIR_KONTROL.forEach(function(x){
+    var ya=false;try{ya=!!x.uji(o);}catch(e){ya=false;}
+    if(ya)out.push(x);});
+  return out;}
+function dirKontrolKet(o,k){
+  var f=o.phase||0;
+  if(k==='lama')return hariKerjaSejak(faseSejak(o))+' hari kerja di fase ini, target '+phHari(f);
+  if(k==='mepet'||k==='telat'){var d=dLeft((o.po||{}).deadline);
+    return d<0?('telat '+(-d)+' hari'):(d===0?'hari ini':(d+' hari lagi'));}
+  if(k==='besar')return fmt0(orderGrand(o));
+  if(k==='tipis')return profitTotals(o).pct+'%';
+  if(k==='revisi')return ((o.revisiLog||[]).length)+' revisi'+((o.poRev||0)?(' · PO R'+o.poRev):'');
+  if(k==='retur'){try{return (o.retur||{}).kategori||'';}catch(e){return '';}}
+  return '';}
+
+function dirLencana(o){
+  var s=dirKontrolSebab(o);
+  if(!s.length)return '';
+  return '<div style="display:flex;flex-wrap:wrap;gap:5px;max-width:660px;margin:0 0 -4px 2px">'+
+    s.map(function(x){
+      var ket=dirKontrolKet(o,x.k);
+      return '<span style="font-size:9.5px;font-weight:800;border:1px solid '+x.w+';color:'+x.w+
+        ';border-radius:20px;padding:1px 8px;background:var(--panel)">'+esc(x.t)+
+        (ket?('<span style="font-weight:400;opacity:.85"> · '+esc(ket)+'</span>'):'')+'</span>';}).join('')+
+  '</div>';}
+
+function dirJudul(teks, jumlah, warna, ket) {
+  return '<div style="display:flex;align-items:center;gap:9px;max-width:660px;margin:16px 0 8px">'+
+      '<span style="font-size:11px;font-weight:800;letter-spacing:.03em;color:'+warna+'">'+teks+'</span>'+
+      '<span style="font-size:10px;font-weight:800;color:#fff;background:'+warna+';border-radius:20px;padding:1px 8px">'+jumlah+'</span>'+
+      '<span style="flex:1;height:1px;background:'+warna+';opacity:.35"></span>'+
+      '<span style="font-size:9.5px;color:var(--muted);font-weight:700">'+esc(ket||'')+'</span>'+
+    '</div>';}
+
+function dirTugasBlok(tasks){
+  var putus=[],kontrol=[];
+  tasks.forEach(function(o){
+    (dirPutusanSebab(o).length?putus:kontrol).push(o);});
+  /* yang paling banyak alasannya naik ke atas — retur & telat sudah di urutan pertama */
+  kontrol.sort(function(a,b){
+    var sa=dirKontrolSebab(a),sb=dirKontrolSebab(b);
+    if(sb.length!==sa.length)return sb.length-sa.length;
+    var ia=sa.length?DIR_KONTROL.indexOf(sa[0]):99,ib=sb.length?DIR_KONTROL.indexOf(sb[0]):99;
+    return ia-ib;});
+
+  var html='';
+  html+=putus.length
+    ? dirJudul('⚑ PERLU KEPUTUSANMU',putus.length,'#8f2a1e','order berhenti sampai kamu memutuskan')+
+      putus.map(function(o){
+        /* tanda pengawasan tetap ditampilkan di sini juga — VIP atau margin tipis
+           ikut menentukan bagaimana keputusannya diambil */
+        return '<div style="max-width:660px;font-size:10.5px;font-weight:800;color:#8f2a1e;margin:0 0 -2px 2px">'+
+            dirPutusanSebab(o).map(esc).join(' · ')+'</div>'+dirLencana(o)+kartuTugas(o);}).join('')
+    : dirJudul('⚑ PERLU KEPUTUSANMU',0,'var(--ok)','tak ada yang menunggu tanda tanganmu');
+
+  html+=kontrol.length
+    ? dirJudul('◎ PERLU DIKONTROL',kontrol.length,'var(--brand)','jalan sendiri — kamu cukup mengawasi')+
+      kontrol.map(function(o){return dirLencana(o)+kartuTugas(o);}).join('')
+    : '';
+  return html;}
 function renderTasks(){
   const role=ST.user,tasks=taskOrders(role);
+  /* Direktur menjawab dua pertanyaan berbeda, jadi daftarnya juga dua. */
+  const akuDirektur=(myRoles().indexOf('Direktur Utama')>=0);
   if(role==='Holding'){
     $('#main').innerHTML=`
      <div class="topbar"><h1>Panel Holding</h1><span class="demo">Admin sistem</span></div>
@@ -5161,6 +5266,7 @@ function renderTasks(){
    ${(function(){
      /* VIP naik ke paling atas, di luar pengelompokan fase — perlakuan
         istimewa yang terkubur di tengah daftar sama saja tak ada. */
+     if(akuDirektur)return dirTugasBlok(tasks);
      var vip=tasks.filter(isVip);
      return vip.length
        ? '<div style="display:flex;align-items:center;gap:9px;max-width:660px;margin:4px 0 8px">'+
@@ -5172,6 +5278,7 @@ function renderTasks(){
        : '';})()}
    ${(function(){
      /* sisanya dikelompokkan per fase supaya terlihat bagian pipeline mana yang menahan */
+     if(akuDirektur)return '';
      var perFase={};tasks.filter(function(o){return !isVip(o);}).forEach(function(o){(perFase[o.phase]=perFase[o.phase]||[]).push(o);});
      return Object.keys(perFase).map(Number).sort(function(a,b){return a-b;}).map(function(f){
        var ph=PH[f],n=perFase[f].length;
