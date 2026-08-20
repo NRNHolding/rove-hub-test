@@ -2088,7 +2088,8 @@ function kirimKeInquiry(id){
   ST.orders.unshift(o);saveLeads();save();
   pushBackend('channel.create',{name:chName(o),catName:preCat(o)});
   notifyOrder(o,'📥 Order baru masuk Inquiry dari prospek **'+l.nama+'**.\n'+
-    picMention('PM')+' — mohon rinci ordernya (bahan, collateral, ukuran).');
+    picMention('PM')+' — mohon rinci ordernya (bahan, collateral, ukuran).'+
+    (function(){var u='';try{u=orderTautan(o);}catch(e){}return u?('\n'+u):'';})());
   ST.view='board';ST.cur=o.id;render();
   alert('Kartunya sudah ada di Inquiry.\n\nRincian ordernya diisi Project Manager dari sini.');}
 
