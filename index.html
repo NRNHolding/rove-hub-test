@@ -3516,7 +3516,7 @@ function jalankanIngatOtomatis(){
     Object.keys(perPic).forEach(function(pic){
       var isi=perPic[pic];
       var pesan='⏰ '+picMention(pic)+' — order '+o.customer+' sudah '+umur+' hari kerja di fase '+
-        (f+1)+' '+PH[f].n+'.\nBelum tuntas:\n'+isi.map(function(x){return '• '+x.t;}).join('\n');
+        PH[f].n+'.\nBelum tuntas:\n'+isi.map(function(x){return '• '+x.t;}).join('\n');
       if(live)pushBackend('notify',{name:chName(o),content:pesan});
       logHist(o,'Pengingat otomatis ke '+pic+' ('+umur+' hari kerja): '+isi.map(function(x){return x.t;}).join(', '));
     });
@@ -6671,7 +6671,7 @@ function tanyaBlokTugas(){
     L.map(function(x){
       return '<div style="border-top:1px solid var(--line);padding:9px 0">'+
         '<div style="font-size:11px;font-weight:800;cursor:pointer" onclick="openOrder(\''+x.o.id+'\')">'+
-          esc(x.o.customer)+' <span style="color:var(--muted);font-weight:400">· fase '+(x.t.fase+1)+' '+esc(PH[x.t.fase].n)+'</span></div>'+
+          esc(x.o.customer)+' <span style="color:var(--muted);font-weight:400">· '+esc(PH[x.t.fase].n)+'</span></div>'+
         '<div style="font-size:9.5px;color:var(--muted);margin-top:1px">soal: '+esc(x.t.item)+'</div>'+
         '<div style="font-size:10.5px;line-height:1.55;margin-top:4px"><b>'+esc(x.t.dari)+':</b> '+esc(x.t.q)+'</div>'+
         '<button class="btn ghost sm" style="margin-top:6px;font-size:9.5px" onclick="tanyaJawab(\''+x.o.id+'\',\''+x.t.id+'\')">✍ Jawab</button>'+
@@ -6687,7 +6687,7 @@ function chkIngat(id,fase,k){
   /* linknya membuka kolomnya langsung — pengingat tanpa link berarti orangnya
      masih harus mencari sendiri, dan itu yang bikin pengingat diabaikan */
   var tautan=CHK_PANEL[k]?mintaTautan(o,fase,k):'';
-  var pesan='⏰ Pengingat untuk '+picMention(it.pic)+' — order '+o.customer+' (fase '+(fase+1)+' '+PH[fase].n+')\n'+
+  var pesan='⏰ Pengingat untuk '+picMention(it.pic)+' — order '+o.customer+' ('+PH[fase].n+')\n'+
             'Belum tuntas: '+it.t+(it.guna?('\n'+it.guna):'')+
             (tautan?('\n'+tautan):'');   // notifikasi Discord tetap bahasa Indonesia
   pushBackend('notify',{name:chName(o),content:pesan});
@@ -6706,7 +6706,7 @@ function chkIngatSemua(id,fase){
   var perPic={};sisa.forEach(function(it){(perPic[it.pic]=perPic[it.pic]||[]).push(it.t);});
   var tautanO=orderTautan(o);
   Object.keys(perPic).forEach(function(pic){
-    pushBackend('notify',{name:chName(o),content:'⏰ '+picMention(pic)+' — order '+o.customer+' (fase '+(fase+1)+' '+PH[fase].n+') masih menunggu:\n'+
+    pushBackend('notify',{name:chName(o),content:'⏰ '+picMention(pic)+' — order '+o.customer+' ('+PH[fase].n+') masih menunggu:\n'+
       perPic[pic].map(function(t){return '• '+t;}).join('\n')+(tautanO?('\n'+tautanO):'')});});
   logHist(o,'Pengingat massal dikirim ke: '+Object.keys(perPic).join(', '));
   o._m=Date.now();save();render();
@@ -6870,7 +6870,7 @@ function chkPanel(o){
   return tautanBlok(o)+tungguRevisiBlok(o)+revisiBlok(o)+bukaAwalBlok(o)+
     '<div class="card actcard" style="margin-top:14px"><div class="ch">'+
     '<span class="ico" style="background:'+(sisaWajib?'var(--warn)':'var(--ok)')+'">☑</span>'+
-    '<div><div class="t">Kelengkapan fase '+(f+1)+' — '+esc(PH[f].n)+'</div>'+
+    '<div><div class="t">Kelengkapan '+esc(PH[f].n)+'</div>'+
       '<div class="s">tabel kontrol — tercentang sendiri begitu datanya terisi. Klik item yang jadi tugasmu untuk langsung ke tempat mengisinya.</div></div>'+
     '<span style="margin-left:auto;font-size:12px;font-weight:800;color:'+(sisaWajib?'var(--warn)':'var(--ok)')+'">'+
       sudah+'/'+items.length+'</span></div><div class="body">'+rows+
@@ -6969,8 +6969,8 @@ function notifSerahTerima(o,pre,gate){
       perPic[pic].map(function(x){return '• '+chkT(x);}).join('\n');}).join('\n');
 
   var tautan=orderTautan(o);
-  notifyOrder(o,'▶ **Fase '+(f+1)+' · '+ph.n+'** — order **'+o.customer+'**\n'+
-    ((pre>=0&&PH[pre])?('Fase '+(pre+1)+' '+PH[pre].n+' selesai'+(gate?(', gerbang "'+gate+'" terpenuhi'):'')+'.\n'):'')+
+  notifyOrder(o,'▶ **'+ph.n+'** — order **'+o.customer+'**\n'+
+    ((pre>=0&&PH[pre])?(PH[pre].n+' selesai'+(gate?(', gerbang "'+gate+'" terpenuhi'):'')+'.\n'):'')+
     'Target '+phHari(f)+' hari kerja'+(ph.gate?(' · gerbang fase ini: '+ph.gate):'')+'.\n'+
     badan+(tautan?('\n'+tautan):''));}
 
@@ -7277,7 +7277,7 @@ function trigger(id){if(playing)return;const o=ST.orders.find(x=>x.id===id);cons
   /* penjaga fase: yang wajib benar-benar menahan, bukan sekadar diingatkan */
   const w=wajibFase(o,pre);
   if(w.length){
-    const pesan='Belum bisa lanjut dari fase '+(pre+1)+' · '+PH[pre].n+'.\n\nYang wajib dilengkapi:\n'
+    const pesan='Belum bisa lanjut dari fase '+PH[pre].n+'.\n\nYang wajib dilengkapi:\n'
       +w.map(function(x){return '• '+x;}).join('\n');
     if(ST.user!=='Holding'){alert(pesan);return;}
     if(!confirm(pesan+'\n\nKamu Holding — tetap lanjutkan?'))return;
@@ -8024,8 +8024,8 @@ function revisiOrder(id){
 
       var ringkas=[];
       ringkas.push('Perubahan: '+S.t);
-      ringkas.push(ke===null?'Order TETAP di fase '+(dari+1)+' '+PH[dari].n+' — cukup dihitung ulang di tempat.'
-                            :'Order mundur ke fase '+(ke+1)+' '+PH[ke].n+'.');
+      ringkas.push(ke===null?'Order TETAP di fase '+PH[dari].n+' — cukup dihitung ulang di tempat.'
+                            :'Order mundur ke fase '+PH[ke].n+'.');
       if(poRev)ringkas.push('PO sudah turun ke vendor — akan jadi PO REVISI yang butuh konfirmasi Radja dan approval Direktur.');
       if((o.prod||{}).stage&&o.prod.stage!=='Belum mulai')
         ringkas.push('⚠ Produksi sudah berjalan (' + o.prod.stage + '). Bahan mungkin sudah dipotong.');
@@ -8047,12 +8047,12 @@ function revisiOrder(id){
         sebab:S.t,catatan:v.catatan,dari:dari,ke:(ke===null?dari:ke),poRev:poRev});
       if(ke!==null){o.phase=ke;o._faseSejak=Date.now();o.ingatOtomatis={};}
       logHist(o,'✎ Revisi ('+S.t+'): '+v.catatan+
-        (ke===null?' — tetap di fase '+(dari+1):' — mundur ke fase '+(ke+1)+' '+PH[ke].n)+
+        (ke===null?' — tetap di fase '+PH[dari].n:' — mundur ke fase '+PH[ke].n)+
         (gugur.length?('. Gugur: '+gugur.join(', ')):'')+
         (poRev?'. PO revisi R'+o.poRev+' menunggu konfirmasi Radja.':''));
       notifyOrder(o,'✎ **Revisi order '+o.customer+'**\n'+S.t+' — '+v.catatan+'\n'+
-        (ke===null?'Tetap di fase '+(dari+1)+' '+PH[dari].n
-                  :'Mundur ke fase '+(ke+1)+' '+PH[ke].n+' — '+picMention(PH[ke].pic))+
+        (ke===null?'Tetap di fase '+PH[dari].n
+                  :'Mundur ke fase '+PH[ke].n+' — '+picMention(PH[ke].pic))+
         (poRev?('\n⚠ PO sudah turun — PO revisi R'+o.poRev+' butuh konfirmasi Radja & approval Direktur.'):''));
       o._m=Date.now();save();render();
       alert(ringkas.join('\n\n'));}});}
@@ -8076,7 +8076,7 @@ function revisiBlok(o){
       return '<div style="font-size:10.5px;line-height:1.55;padding:4px 0;border-top:1px dashed var(--accent)">'+
         '<b>'+esc(r.sebab)+'</b> <span style="color:var(--ink-soft)">· '+esc(r.oleh)+' · '+esc(r.tgl)+'</span>'+
         '<div>'+esc(r.catatan)+'</div>'+
-        '<div style="color:var(--ink-soft)">'+(r.dari===r.ke?('tetap di fase '+(r.dari+1)):('fase '+(r.dari+1)+' → '+(r.ke+1)+' '+esc(PH[r.ke].n)))+
+        '<div style="color:var(--ink-soft)">'+(r.dari===r.ke?('tetap di '+esc(PH[r.dari].n)):(esc(PH[r.dari].n)+' → '+esc(PH[r.ke].n)))+
           (r.poRev?' · PO revisi':'')+'</div></div>';}).join('')+
     (L.length>4?'<div style="font-size:9.5px;color:var(--ink-soft);padding-top:4px">…'+(L.length-4)+' revisi lebih lama</div>':'')+
     '</div>';}
@@ -8433,13 +8433,13 @@ function dirTolak(id){
         dari:(o.phase||0),ke:pilih[2],poRev:false});
       o.phase=pilih[2];
       o._faseSejak=Date.now();o.ingatOtomatis={};
-      logHist(o,'✕ Ditolak Direktur ('+pilih[1]+') — dikembalikan ke fase '+(pilih[2]+1)+' '+pilih[3]+'. '+v.catatan+
+      logHist(o,'✕ Ditolak Direktur ('+pilih[1]+') — dikembalikan ke fase '+pilih[3]+'. '+v.catatan+
         (gugur.length?(' Gugur: '+gugur.join(', ')):''));
       notifyOrder(o,'✕ **Order '+o.customer+' ditolak Direktur**\n'+pilih[1]+
-        '\nDikembalikan ke fase '+(pilih[2]+1)+' '+pilih[3]+' — '+picMention(PH[pilih[2]].pic)+'\n'+v.catatan);
+        '\nDikembalikan ke fase '+pilih[3]+' — '+picMention(PH[pilih[2]].pic)+'\n'+v.catatan);
       o._m=Date.now();save();
       ST.cur=o.id;render();
-      alert('Order dikembalikan ke fase '+(pilih[2]+1)+' · '+pilih[3]+'.');}});}
+      alert('Order dikembalikan ke fase '+pilih[3]+'.');}});}
 function dirBatal(id){
   var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
   var A=dirAppr(o);if(!A)return;
