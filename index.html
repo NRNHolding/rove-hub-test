@@ -6427,7 +6427,14 @@ const PH_CHECK=[
   /* Logo ditanyakan di sini, bukan nanti di Sketch. Kotaknya memang sudah
      ada di panel Brief; yang dulu tak ada cuma yang menagihnya. Tak wajib di
      sini — di Sketch barulah menahan fase. */
-  {auto:function(o){return (((o.brief||{}).logoFiles)||[]).length>0;}, k:'logoCl', t:'Minta file logo vektor (.ai / .eps) ke client', en:'Ask the client for the vector logo file (.ai / .eps)', guna:'biasanya sudah ada sejak awal — kalau ditagih sekarang, Creative tak menunggu di fase Sketch', gunaEn:'usually available from the start — asking now means Creative does not wait at Sketch', pic:'Sales'}
+  {auto:function(o){return (((o.brief||{}).logoFiles)||[]).length>0;}, k:'logoCl', t:'Minta file logo vektor (.ai / .eps) ke client', en:'Ask the client for the vector logo file (.ai / .eps)', guna:'biasanya sudah ada sejak awal — kalau ditagih sekarang, Creative tak menunggu di fase Sketch', gunaEn:'usually available from the start — asking now means Creative does not wait at Sketch', pic:'Sales'},
+  {auto:function(o){var b=o.brief||{};
+    return String(b.logoLetak||'').trim().length>0||((b.persoFiles)||[]).length>0;},
+   k:'logoLetak', t:'Tanyakan peletakan logo — di mana dan seberapa besar',
+   en:'Ask where the logo goes and how big',
+   guna:'ini yang paling sering menahan Creative — sketsanya cepat, menunggu jawabannya yang lama',
+   gunaEn:'this is what usually stalls Creative — the sketch is quick, waiting for the answer is not',
+   pic:'Sales'}
  ],
  [ // 1 Pricing Vendor
   {auto:function(o){var R=rfqLines(o);return R.length===0||R.every(function(x){return !!(x.l.rfq&&x.l.rfq.minta);});}, k:'rfq', t:'Kirim permintaan harga ke tiap vendor', en:'Send a quote request to each vendor', guna:'supaya HPP tak ditebak-tebak', gunaEn:'so the cost price is not guessed',      pic:'PM', w:true},
@@ -6475,6 +6482,13 @@ const PH_CHECK=[
  ],
  [ // 6 Sketch
   {auto:function(o){return (((o.brief||{}).logoFiles)||[]).length>0;}, k:'logoCl', t:'Minta file logo vektor (.ai / .eps) ke client', en:'Ask the client for the vector logo file (.ai / .eps)', guna:'supaya Creative bisa mulai mendesain', gunaEn:'so Creative can start designing',pic:'Sales',    w:true},
+  {auto:function(o){var b=o.brief||{};
+    return String(b.logoLetak||'').trim().length>0||((b.persoFiles)||[]).length>0;},
+   k:'logoLetak', t:'Tanyakan peletakan logo — di mana dan seberapa besar',
+   en:'Ask where the logo goes and how big',
+   guna:'ini yang paling sering menahan Creative — sketsanya cepat, menunggu jawabannya yang lama',
+   gunaEn:'this is what usually stalls Creative — the sketch is quick, waiting for the answer is not',
+   pic:'Sales', w:true},
   {auto:function(o){return !(o.coll||{}).pouch||(((o.brief||{}).logoPouchFiles)||[]).length>0;}, k:'logoPch', t:'Siapkan logo untuk soft pouch', en:'Prepare the logo for the soft pouch', guna:'supaya pouch tak dicetak polos', gunaEn:'so the pouch is not printed blank',            pic:'Creative', w:true},
   {auto:function(o){return !(o.coll||{}).box||(((o.brief||{}).logoBoxFiles)||[]).length>0;}, k:'logoBox', t:'Siapkan logo untuk box', en:'Prepare the logo for the box', guna:'supaya box tak dicetak polos', gunaEn:'so the box is not printed blank',                   pic:'Creative', w:true},
   {auto:function(o){return !(o.coll||{}).card||(((o.brief||{}).logoCardFiles)||[]).length>0;}, k:'logoCard', t:'Siapkan logo untuk thank you card', en:'Prepare the logo for the thank you card', guna:'supaya kartu tak dicetak tanpa logo', gunaEn:'so the card is not printed without a logo',        pic:'Creative'},
@@ -6735,6 +6749,8 @@ function chkTugasSaya(role){
 /* Petunjuk tempat mengisi tiap item — checklist hanya memantau, pengisiannya
    di panel kerja masing-masing. */
 const CHK_SUMBER={'0.logoCl':'Brief → lampiran Logo client',
+  '0.logoLetak':'Brief → Peletakan logo (atau lampirkan Acuan personalisasi)',
+  '6.logoLetak':'Brief → Peletakan logo (atau lampirkan Acuan personalisasi)',
   '6.logoCl':'Brief → lampiran Logo client','9.dpMasuk':'panel Pembayaran → Catat DP masuk, atau panel Surat PO resmi (Sales lampirkan → PM olah → Direktur setujui)',
   '9.bukti':'panel Bukti transfer',
   '10.poRevRadja':'panel Form PO Radja → PO revisi','10.poRevDir':'panel Form PO Radja → PO revisi',
@@ -6778,7 +6794,7 @@ function chkSumber(fase,k){return CHK_SUMBER[fase+'.'+k]||'';}
 
 /* Item checklist -> panel tempat mengisinya. Dipakai supaya PIC bisa menekan
    barisnya sendiri dan langsung mendarat di panel yang benar, tanpa menebak. */
-const CHK_PANEL={
+const CHK_PANEL={logoLetak:'brief',
   brief:'brief', kontak:'brief', acara:'brief', kota:'brief', hpWo:'brief', ref:'brief',
   rfq:'rfq', kulit:'rfq', harga:'rfq', moq:'rfq',
   hpp:'profit', margin:'profit', ongkir:'pricing', biayaLain:'profit',
@@ -10282,6 +10298,9 @@ function briefPanel(o){
     salesPita(o,'perso')+
     persoBlok(o)+
     lampiranBlok(o,'logoFiles','Logo client')+
+    txt('logoLetak','Peletakan logo — di mana & seberapa besar',
+      'mis. tengah depan, 15mm; box di tutup pojok kanan bawah','grid-column:1/-1')+
+    '<div style="font-size:9.5px;color:var(--muted);margin:-6px 0 10px">Boleh diisi kalimat, boleh dilampirkan gambar acuannya di <b>Acuan personalisasi</b> di bawah — Creative tak bisa mulai tanpa salah satunya.</div>'+
     ((o.coll||{}).pouch?lampiranBlok(o,'logoPouchFiles','Logo soft pouch'):'')+
     ((o.coll||{}).box?lampiranBlok(o,'logoBoxFiles','Logo box'):'')+
     ((o.coll||{}).card?lampiranBlok(o,'logoCardFiles','Logo thank you card'):'')+
