@@ -443,6 +443,13 @@
 </div>
 
 <!-- FORM ISIAN SERBAGUNA (pengganti prompt berantai) -->
+<div id="mtov" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:60;align-items:center;justify-content:center;padding:18px" onclick="if(event.target.id==='mtov')mutasiTutup()">
+  <div style="background:var(--card,#fff);border-radius:14px;max-width:720px;width:100%;max-height:92vh;overflow:auto;padding:20px 22px;box-shadow:0 18px 50px rgba(0,0,0,.3)">
+    <div style="font-weight:800;font-size:15px">Mutasi rekening</div>
+    <div id="mt_sub" style="font-size:10.5px;color:var(--muted);margin:2px 0 14px"></div>
+    <div id="mt_body"></div>
+    <div style="display:flex;gap:8px;margin-top:16px"><button class="btn ghost" onclick="mutasiTutup()">Tutup</button></div>
+  </div></div>
 <div id="fmov" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:59;align-items:center;justify-content:center;padding:18px" onclick="if(event.target.id==='fmov')askClose()">
   <div style="background:var(--card,#fff);border-radius:14px;max-width:460px;width:100%;max-height:92vh;overflow:auto;padding:20px 22px;box-shadow:0 18px 50px rgba(0,0,0,.3)">
     <div id="fm_title" style="font-weight:800;font-size:15px"></div>
@@ -2586,6 +2593,160 @@ function lsStokBlok(o){
           '<td>'+(pakai?('<button class="btn ghost sm" onclick="lsKembali(\''+o.id+'\','+i+')">↩ Kembalikan</button>'):'<span style="font-size:9.5px;color:var(--muted)">selesai</span>')+'</td></tr>';}).join('')+
       '</tbody></table></div>'):'')+
   '</div>';}
+
+/* ================= IMPOR MUTASI REKENING =================
+   CSV hasil unduhan m-banking dibaca, tiap baris uang masuk dicocokkan
+   dengan order yang menunggu bayaran. HUB cuma mengusulkan; yang menekan
+   "Catat" tetap orang. */
+var _mutasi=null;
+function mutasiTutup(){var e=document.getElementById('mtov');if(e)e.style.display='none';_mutasi=null;}
+function mutasiSel(baris,pem){
+  var out=[],cur='',q=false;
+  for(var i=0;i<baris.length;i++){
+    var c=baris[i];
+    if(c==='"'){if(q&&baris[i+1]==='"'){cur+='"';i++;}else q=!q;}
+    else if(c===pem&&!q){out.push(cur);cur='';}
+    else cur+=c;}
+  out.push(cur);
+  return out.map(function(x){return String(x).trim();});}
+function mutasiTgl(s){
+  s=String(s||'').trim();
+  var m=s.match(/(\d{4})-(\d{2})-(\d{2})/);if(m)return m[0];
+  m=s.match(/(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})/);      // dd/mm/yyyy — lazim di bank Indonesia
+  if(m){var th=m[3].length===2?('20'+m[3]):m[3];
+    return th+'-'+('0'+m[2]).slice(-2)+'-'+('0'+m[1]).slice(-2);}
+  return '';}
+function mutasiAngka(s){
+  var t=String(s||'').replace(/[^\d.,-]/g,'').trim();
+  if(!t)return 0;
+  var neg=/-/.test(t);t=t.replace(/-/g,'');
+  var des=Math.max(t.lastIndexOf(','),t.lastIndexOf('.'));
+  var ekor=des<0?-1:(t.length-des-1);
+  if(des>=0&&ekor>0&&ekor<=2){                       // yang paling kanan itu desimal
+    var n=parseFloat(t.slice(0,des).replace(/[.,]/g,'')+'.'+t.slice(des+1));
+    return (neg?-1:1)*Math.round(n||0);}
+  return (neg?-1:1)*(parseInt(t.replace(/[.,]/g,''),10)||0);}
+function mutasiParse(teks){
+  var baris=String(teks).replace(/\r/g,'').split('\n').filter(function(x){return x.trim();});
+  if(!baris.length)throw new Error('berkasnya kosong');
+  /* Ditebak dari 20 baris pertama, bukan baris pertama saja: berkas bank
+     sering dibuka dengan judul yang tak punya pemisah apa pun. */
+  var cobaan=baris.slice(0,20);
+  var lebar=function(c){var m=0;cobaan.forEach(function(x){m=Math.max(m,mutasiSel(x,c).length);});return m;};
+  var pem=[',',';','\t'].reduce(function(a,c){return lebar(c)>lebar(a)?c:a;},',');
+  var tabel=baris.map(function(b){return mutasiSel(b,pem);});
+  var hIdx=-1;
+  for(var i=0;i<Math.min(tabel.length,20);i++){
+    var s=tabel[i].join('|').toLowerCase();
+    if(/tanggal|tgl|date/.test(s)&&/kredit|credit|masuk|nominal|amount|jumlah|mutasi/.test(s)){hIdx=i;break;}}
+  if(hIdx<0)throw new Error('tak menemukan baris judul kolom.\n\nBerkasnya harus punya kolom tanggal dan kolom nominal/kredit.');
+  var head=tabel[hIdx].map(function(x){return String(x).toLowerCase();});
+  var cari=function(re){for(var i=0;i<head.length;i++)if(re.test(head[i]))return i;return -1;};
+  var cTgl=cari(/tanggal|tgl|date/),
+      cKet=cari(/keterangan|uraian|deskripsi|description|berita|catatan|remark/),
+      cKre=cari(/kredit|credit|masuk|\bcr\b/),
+      cNom=cari(/nominal|amount|jumlah|mutasi/),
+      cTipe=cari(/tipe|type|d\/k|dk|db\/cr/);
+  if(cTgl<0)throw new Error('kolom tanggal tak ketemu');
+  if(cKre<0&&cNom<0)throw new Error('kolom nominal / kredit tak ketemu');
+  var out=[];
+  for(var r=hIdx+1;r<tabel.length;r++){
+    var row=tabel[r];if(!row.length||!row.join('').trim())continue;
+    var tgl=mutasiTgl(row[cTgl]);if(!tgl)continue;
+    var nom=0;
+    if(cKre>=0)nom=mutasiAngka(row[cKre]);
+    if(!nom&&cNom>=0){
+      var n2=mutasiAngka(row[cNom]);
+      var tipe=cTipe>=0?String(row[cTipe]||'').toUpperCase():'';
+      if(cTipe>=0){if(/^(K|C|CR|CREDIT|KREDIT)/.test(tipe))nom=Math.abs(n2);}
+      else if(n2>0)nom=n2;}
+    if(nom<=0)continue;                                // yang keluar rekening dilewati
+    out.push({tgl:tgl,nom:nom,ket:cKet>=0?row[cKet]:''});}
+  if(!out.length)throw new Error('tak ada baris uang MASUK yang terbaca dari berkas ini');
+  return out;}
+function mutasiCocokkan(baris){
+  var hidup=(ST.orders||[]).filter(function(o){
+    return !o.deleted&&!o.done&&o.status!=='Cancel'&&(o.phase||0)<PH.length;});
+  return baris.map(function(r){
+    var calon=[],kunci=String(r.ket||'').toLowerCase();
+    hidup.forEach(function(o){
+      var G=orderGrand(o);if(G<=0)return;
+      var pay=o.pay||{},sisa=Math.max(0,G-((+pay.dp||0)+(+pay.pel||0)));
+      var namaAwal=String(o.customer||'').toLowerCase().split(/\s+/)[0];
+      var namaCocok=!!(namaAwal&&namaAwal.length>=3&&kunci.indexOf(namaAwal)>=0);
+      var uji=function(jenis,harap){
+        if(harap<=0)return;
+        var beda=Math.abs(r.nom-harap);
+        if(beda<=Math.max(50000,harap*0.02)||namaCocok)
+          calon.push({id:o.id,nama:o.customer,jenis:jenis,harap:harap,beda:beda,namaCocok:namaCocok});};
+      if(!(+pay.dp>0))uji('dp',Math.round(G*((+o.dpPct||50)/100)));
+      else if(!(+pay.pel>0))uji('pel',sisa);});
+    calon.sort(function(a,b){return (b.namaCocok?1:0)-(a.namaCocok?1:0)||a.beda-b.beda;});
+    return {r:r,calon:calon.slice(0,3),selesai:false};});}
+function mutasiImpor(){
+  var inp=document.createElement('input');inp.type='file';inp.accept='.csv,.txt,text/csv,text/plain';
+  inp.onchange=function(){
+    var f=(inp.files||[])[0];if(!f)return;
+    var fr=new FileReader();
+    fr.onload=function(){
+      try{
+        var baris=mutasiParse(String(fr.result));
+        _mutasi={berkas:f.name,hasil:mutasiCocokkan(baris)};
+        mutasiGambar();
+        var e=document.getElementById('mtov');if(e)e.style.display='flex';
+      }catch(err){alert('Berkas mutasi tak terbaca.\n\n'+err.message);}};
+    fr.readAsText(f);};
+  inp.click();}
+function mutasiGambar(){
+  if(!_mutasi)return;
+  var H=_mutasi.hasil;
+  var sudah=H.filter(function(x){return x.selesai;}).length;
+  var sub=document.getElementById('mt_sub');
+  if(sub)sub.textContent=_mutasi.berkas+' · '+H.length+' baris uang masuk · '+sudah+' sudah dicatat';
+  var b=document.getElementById('mt_body');if(!b)return;
+  b.innerHTML='<div style="font-size:10.5px;color:var(--muted);line-height:1.6;margin-bottom:12px">'+
+      'HUB cuma mengusulkan pasangannya. Yang menentukan tetap kamu — tekan <b>Catat</b> pada order yang benar.</div>'+
+    H.map(function(d,i){
+      var r=d.r;
+      return '<div style="border:1px solid '+(d.selesai?'var(--ok)':'var(--line)')+';border-radius:10px;padding:10px 12px;margin-bottom:9px;'+
+          'background:'+(d.selesai?'var(--ok-bg)':'transparent')+'">'+
+        '<div style="display:flex;gap:10px;align-items:baseline;flex-wrap:wrap">'+
+          '<b style="font-size:13px">'+fmt0(r.nom)+'</b>'+
+          '<span style="font-size:10.5px;color:var(--muted)">'+esc(r.tgl)+'</span>'+
+          '<span style="font-size:10px;color:var(--ink-soft);flex:1;min-width:120px">'+esc(String(r.ket||'').slice(0,90))+'</span>'+
+        '</div>'+
+        (d.selesai
+          ? '<div style="font-size:10.5px;color:var(--ok);font-weight:700;margin-top:6px">✓ sudah dicatat</div>'
+          : (d.calon.length
+              ? '<div style="display:flex;flex-direction:column;gap:5px;margin-top:8px">'+
+                  d.calon.map(function(c,j){
+                    return '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:10.5px">'+
+                      '<button class="btn sm" onclick="mutasiCatat('+i+','+j+')">Catat</button>'+
+                      '<b>'+esc(c.nama)+'</b>'+
+                      '<span style="color:var(--muted)">'+(c.jenis==='dp'?'DP':'Pelunasan')+' · diharapkan '+fmt0(c.harap)+
+                        (c.beda?(' · selisih '+fmt0(c.beda)):' · pas')+
+                        (c.namaCocok?' · nama cocok':'')+'</span></div>';}).join('')+
+                '</div>'
+              : '<div style="font-size:10.5px;color:var(--muted);margin-top:6px">Tak ada order yang cocok — mungkin bukan bayaran order, atau nominalnya beda jauh.</div>'))+
+      '</div>';}).join('');}
+function mutasiCatat(i,j){
+  if(!_mutasi)return;
+  var d=_mutasi.hasil[i];if(!d||d.selesai)return;
+  var c=d.calon[j];if(!c)return;
+  var o=ST.orders.find(function(x){return x.id===c.id;});if(!o)return;
+  var dp=(c.jenis==='dp');
+  if(!confirm('Catat '+(dp?'DP':'pelunasan')+' '+fmt0(d.r.nom)+' untuk order '+o.customer+'?\n\n'+
+      'Tanggal '+d.r.tgl+'\n'+(d.r.ket||'')))return;
+  if(!o.pay)o.pay={dp:0,pel:0,dpDate:'',pelDate:''};
+  o.pay[dp?'dp':'pel']=d.r.nom;
+  o.pay[dp?'dpDate':'pelDate']=d.r.tgl;
+  o.pay[dp?'dpNote':'pelNote']='dari mutasi rekening: '+String(d.r.ket||'').slice(0,120);
+  var lunas=((+o.pay.dp||0)+(+o.pay.pel||0))>=orderGrand(o)-1;
+  logHist(o,(dp?'DP':'Pelunasan')+' dicatat dari impor mutasi '+fmt0(d.r.nom)+' tgl '+d.r.tgl);
+  notifyOrder(o,'💰 **'+(dp?'DP diterima':'Pelunasan diterima')+'** '+fmt0(d.r.nom)+' — '+o.customer+
+    '\nTanggal masuk: '+d.r.tgl+'\n(dicocokkan dari mutasi rekening)'+(lunas?'\n✅ Order LUNAS':''));
+  d.selesai=true;o._m=Date.now();save();
+  mutasiGambar();render();}
 function renderFin(){
   var t=ST._finTab||'rekon',F=finData();
   var tab=function(v,l){return '<button class="btn '+(t===v?'':'ghost')+' sm" onclick="finTab(\''+v+'\')">'+esc(l)+'</button>';};
@@ -2593,6 +2754,11 @@ function renderFin(){
   if(t==='rekon'){
     var P=finPembayaran(),belum=P.filter(function(x){return !x.cocok;});
     isi=tabNote('Cocokkan pembayaran yang tercatat di HUB dengan mutasi rekening. Yang sudah cocok ikut menambah saldo di tab <b>Kas &amp; bank</b>.')+
+      '<div style="margin-bottom:12px;display:flex;gap:9px;align-items:center;flex-wrap:wrap">'+
+        '<button class="btn" onclick="mutasiImpor()">⇩ Impor mutasi rekening (CSV)</button>'+
+        '<span style="font-size:10px;color:var(--muted);line-height:1.5">Unduh mutasi dari m-banking sebagai CSV, lalu buka di sini — '+
+          'HUB mencarikan order yang cocok dan kamu tinggal menekan Catat.</span>'+
+      '</div>'+
       '<div class="rcard"><h3>Rekonsiliasi pembayaran ('+P.length+')</h3>'+
       '<div style="display:flex;flex-wrap:wrap;gap:18px;margin-bottom:12px;font-size:12px">'+
         '<div><div style="color:var(--muted);font-size:10px;font-weight:700">SUDAH COCOK</div><b style="font-size:15px;color:var(--ok)">'+(P.length-belum.length)+'</b></div>'+
@@ -7134,7 +7300,7 @@ function quoCatatGenerate(o){
 /* ================= PEMBAYARAN LEWAT TRIGGER =================
    Nominal & tanggal tak lagi diketik bebas di tabel — dicatat lewat tombol,
    dan tanggal masuknya wajib dipilih dari kalender. */
-function bayarCatat(id,jenis){
+function bayarCatat(id,jenis,dariBukti){
   var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
   var G=orderGrand(o),pay=o.pay||{dp:0,pel:0};
   var sudah=(+pay.dp||0)+(+pay.pel||0),sisa=Math.max(0,G-sudah);
@@ -7144,11 +7310,15 @@ function bayarCatat(id,jenis){
   if(!dp&&(+pay.dp||0)<=0){alert('Catat DP dulu sebelum pelunasan.');return;}
   if(!dp&&sisa<=0){alert('Sudah lunas — tak ada sisa tagihan.');return;}
   var saran=dp?Math.round(G*((+o.dpPct||50)/100)):sisa;
+  var bk=buktiGet(o),dariTeks=dariBukti?angkaDariTeks(bk.teks):0;
+  if(dariTeks>0)saran=dariTeks;
   askForm({judul:dp?'Catat DP masuk':'Catat pelunasan masuk',
-    sub:o.customer+' · grand total '+fmt0(G)+(dp?'':(' · sisa '+fmt0(sisa))),
+    sub:o.customer+' · grand total '+fmt0(G)+(dp?'':(' · sisa '+fmt0(sisa)))+
+      (dariBukti&&bk.teks?('   ·   kata client: "'+bk.teks+'"'):''),
     fields:[
       {k:'nominal',label:'Nominal diterima',type:'money',val:saran,req:true,
-       hint:dp?('Saran '+(o.dpPct||50)+'% dari grand total. Ubah kalau client bayar beda.'):'Sisa tagihan sampai lunas.'},
+       hint:dariTeks>0?('Terbaca '+fmt0(dariTeks)+' dari kabar client. Pastikan sama dengan rekening sebelum disimpan.')
+            :(dp?('Saran '+(o.dpPct||50)+'% dari grand total. Ubah kalau client bayar beda.'):'Sisa tagihan sampai lunas.')},
       {k:'tgl',label:'Tanggal uang masuk',type:'date',val:hariIni(),req:true,
        hint:'Pilih dari kalender — tanggal rekening koran, bukan tanggal invoice.'},
       {k:'via',label:'Masuk ke',type:'select',opts:bankOpts(),val:(pay.via||'')},
@@ -7823,6 +7993,20 @@ function tungguRevisiBlok(o){
   '</div>';}
 
 /* ---- bukti transfer: diteruskan Sales, diperiksa Finance ---- */
+
+/* ---- membaca nominal dari kalimat client ---- */
+function angkaDariTeks(s){
+  if(!s)return 0;
+  var t=String(s).toLowerCase().replace(/rp\.?/g,' ');
+  var m=t.match(/(\d+(?:[.,]\d+)?)\s*(jt|juta)\b/);
+  if(m)return Math.round(parseFloat(m[1].replace(',','.'))*1e6);
+  m=t.match(/(\d+(?:[.,]\d+)?)\s*(rb|ribu)\b/);
+  if(m)return Math.round(parseFloat(m[1].replace(',','.'))*1e3);
+  var besar=0;
+  (t.match(/\d[\d.,]{4,}/g)||[]).forEach(function(x){
+    var n=parseInt(x.replace(/[.,]/g,''),10);
+    if(n>besar)besar=n;});
+  return besar>=10000?besar:0;}
 function buktiGet(o){if(!o.bukti)o.bukti={teks:'',files:[],oleh:'',tgl:''};
   if(!Array.isArray(o.bukti.files))o.bukti.files=[];return o.bukti;}
 function buktiSet(id,teks){
@@ -8013,8 +8197,15 @@ function buktiPanel(o){
         esc(x.n)+'<button class="xrow" onclick="buktiHapus(\''+o.id+'\','+i+')">✕</button></div>';}).join('')+'</div>'):'')+
     (b.tgl?('<div style="font-size:9.5px;color:var(--ink-soft);margin-top:8px">Diteruskan '+esc(b.oleh)+' · '+esc(b.tgl)+'</div>'):'')+
     (ada&&!dpMasuk&&akuFinance
-      ? '<div style="margin-top:11px;border-top:1px solid var(--line);padding-top:10px;font-size:10.5px;color:var(--warn);font-weight:700">'+
-          'Cocokkan dengan rekening, lalu catat DP di panel Pembayaran. Item wajib fase ini baru tuntas setelah itu.</div>'
+      ? (function(){var terbaca=angkaDariTeks(b.teks);
+          return '<div style="margin-top:11px;border-top:1px solid var(--line);padding-top:10px">'+
+            '<div style="font-size:10.5px;color:var(--warn);font-weight:700;line-height:1.55;margin-bottom:8px">'+
+              'Cek rekening dulu. Kalau uangnya memang sudah masuk, tekan tombol ini — nominalnya sudah diisikan, tinggal dipastikan.</div>'+
+            '<div style="display:flex;gap:9px;align-items:center;flex-wrap:wrap">'+
+              '<button class="btn" onclick="bayarCatat(\''+o.id+'\',\'dp\',true)">✓ Cocok — catat DP</button>'+
+              (terbaca?('<span style="font-size:10px;color:var(--ink-soft)">terbaca <b>'+fmt0(terbaca)+'</b> dari kabar client</span>')
+                      :'<span style="font-size:10px;color:var(--muted)">nominalnya diisi dari invoice — kabar client tak menyebut angka</span>')+
+            '</div></div>';})()
       : '')+
     '</div></div>';}
 
@@ -9852,6 +10043,54 @@ function briefPackBlok(o){
           return packBaris(o,p,pl.on,pl.spec,pl.desc,i);}).join('')+
       '</div>';}).join('');}
 
+
+/* ---- daftar artikel kulit Radja, dipakai di brief maupun master ---- */
+function kulitNama(){
+  var out=[];
+  kulitAll().forEach(function(k){
+    var n=String(k.nama||'').trim();
+    if(n&&out.indexOf(n)<0)out.push(n);});
+  return out;}
+function kulitInfo(nama){
+  var baris=kulitAll().filter(function(k){return String(k.nama||'').trim()===String(nama||'').trim();});
+  if(!baris.length)return '';
+  var warna=[],stok=[];
+  baris.forEach(function(k){
+    if(k.warna&&warna.indexOf(k.warna)<0)warna.push(k.warna);
+    if(k.stok&&stok.indexOf(k.stok)<0)stok.push(k.stok);});
+  var mo=(baris.find(function(k){return k.minOrder;})||{}).minOrder||'';
+  return [stok.length?('stok '+stok.join('/')):'',warna.length?('warna: '+warna.join(', ')):'',
+          mo?('min '+mo):''].filter(Boolean).join(' · ');}
+const MAT_BARU='__kulit_baru__';
+function briefMatSet(id,v){
+  if(v===MAT_BARU){kulitBaru(id);return;}
+  briefSet(id,'mainMat',v);}
+/* Artikel baru dari Radja: dicatat ke master supaya order berikutnya tinggal memilih. */
+function kulitBaru(id){
+  var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
+  askForm({judul:'Artikel kulit baru dari Radja',
+    sub:'Masuk ke Master data → Kulit, dan langsung dipasang di order '+o.customer,
+    fields:[
+      {k:'nama',label:'Nama artikel',type:'text',req:true,ph:'mis. Buttero Pull Up',
+       hint:'Tulis persis seperti yang disebut Radja — nama ini yang nanti muncul di PO.'},
+      {k:'warna',label:'Warna',type:'text',ph:'mis. Coklat tua'},
+      {k:'stok',label:'Stok',type:'select',val:'Ready',opts:['Ready','Terbatas','Indent','Habis']},
+      {k:'minOrder',label:'Minimal order',type:'text',ph:'mis. 1 lembar / 200 pcs'},
+      {k:'catatan',label:'Catatan',type:'text',ph:'mis. produksi 2 minggu'}],
+    ok:function(v){
+      var nama=String(v.nama||'').trim();if(!nama)return;
+      if(!ST.master.kulit)ST.master.kulit=[];
+      var sudah=ST.master.kulit.find(function(k){
+        return String(k.nama||'').trim().toLowerCase()===nama.toLowerCase()&&
+               String(k.warna||'').trim().toLowerCase()===String(v.warna||'').trim().toLowerCase();});
+      if(!sudah)ST.master.kulit.push({nama:nama,warna:v.warna||'',stok:v.stok||'Ready',
+        minOrder:v.minOrder||'',vendor:'Radja Leather',catatan:v.catatan||''});
+      saveMaster();
+      var b=briefGet(o);b.mainMat=nama;if(v.warna)b.mainMatWarna=v.warna;
+      logHist(o,'Artikel kulit baru dari Radja ditambahkan ke master: '+nama+(v.warna?(' — '+v.warna):''));
+      o._m=Date.now();save();render();
+      alert('"'+nama+'" masuk Master data → Kulit'+(sudah?' (sudah ada, tak digandakan)':'')+
+        '\n\nOrder ini sudah memakainya. Order berikutnya tinggal memilih dari daftar.');}});}
 function briefPanel(o){
   briefAutoIsi(o);                      // kolom kosong terisi dari Master, tanpa tombol
   var b=briefGet(o),W=(o.prefix==='w');   // Jenis order sudah menentukan ini
@@ -9867,6 +10106,24 @@ function briefPanel(o){
   var grid=function(isi,min){return '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax('+(min||160)+'px,1fr));gap:9px;margin-bottom:11px">'+isi+'</div>';};
   var sub=function(t,ket){return '<div style="font-weight:800;font-size:10.5px;color:var(--brand);letter-spacing:.04em;margin:14px 0 8px;border-top:1px solid var(--line);padding-top:11px">'+t+
     (ket?'<span style="font-weight:400;color:var(--muted);letter-spacing:0"> — '+ket+'</span>':'')+'</div>';};
+  /* Main material dipisah dari sel() biasa: daftarnya dari Radja, dan ada
+     satu pilihan tambahan untuk mendaftarkan artikel yang belum ada. */
+  var selMat=function(){
+    var radja=kulitNama(),umum=listArr('mainmat').filter(function(x){return radja.indexOf(x)<0;});
+    var kini=b.mainMat||'-';
+    var opsi=['-'].concat(radja);
+    if(kini!=='-'&&opsi.indexOf(kini)<0)opsi.push(kini);      // isian lama tetap terpilih
+    var info=kulitInfo(kini);
+    return '<label class="nlbl">Main material'+
+      '<select class="pin" style="width:100%;margin-top:3px" onchange="briefMatSet(\''+o.id+'\',this.value)">'+
+        opsi.map(function(x){return '<option value="'+esc(x)+'" '+(kini===x?'selected':'')+'>'+esc(x)+'</option>';}).join('')+
+        (umum.length?('<optgroup label="Bukan kulit">'+umum.map(function(x){
+          return '<option value="'+esc(x)+'" '+(kini===x?'selected':'')+'>'+esc(x)+'</option>';}).join('')+'</optgroup>'):'')+
+        '<option value="'+MAT_BARU+'">＋ Artikel baru dari Radja…</option>'+
+      '</select>'+
+      '<div style="font-size:9px;color:var(--muted);margin-top:3px;line-height:1.4">'+
+        (info?esc(info):(kini==='-'?'daftar artikel dari Master data → Kulit':'belum terdaftar di master'))+'</div>'+
+    '</label>';};
   var dye=/dye|celup/i.test(b.finishing||'');
   return '<div class="card actcard" style="margin-top:14px"><div class="ch"><span class="ico" style="background:#5a7d9a">📝</span>'+
     '<div><div class="t">Brief Inquiry</div><div class="s">DETAIL KLIEN &amp; SPESIFIKASI PRODUK</div></div>'+
@@ -9892,7 +10149,7 @@ function briefPanel(o){
     sub('SPESIFIKASI PRODUK')+
     salesPita(o,'produk')+
     briefProduk(o)+
-    grid(sel('mainMat','Main material',listArr('mainmat'))+
+    grid(selMat()+
       briefWarna(o,'mainMatWarna','Warna main material')+
       sel('lining','Lining',listArr('lining'))+
       briefWarna(o,'liningWarna','Warna lining')+
