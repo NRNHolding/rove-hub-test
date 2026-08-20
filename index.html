@@ -9672,11 +9672,13 @@ function briefFitur(id,i,v){var o=ST.orders.find(function(x){return x.id===id;})
    nama kolom yang benar-benar terisi. */
 function salinBriefKePO(o,timpa){
   var b=briefGet(o);if(!o.po)o.po={};
+  if(!Array.isArray(o.po._dariBrief))o.po._dariBrief=[];
   var isi=[],taruh=function(k,v,label){
     if(!v)return;
     if(!timpa&&String(o.po[k]||'').trim())return;   // sudah ada isinya — jangan disentuh
     if(String(o.po[k]||'')===String(v))return;
-    o.po[k]=v;isi.push(label||k);};
+    o.po[k]=v;isi.push(label||k);
+    if(o.po._dariBrief.indexOf(k)<0)o.po._dariBrief.push(k);};
   taruh('mainMaterial',b.mainMat?(b.mainMat+(b.mainMatWarna?(' — '+b.mainMatWarna):'')):'','Main material');
   taruh('materialPendukung',b.lining?(('Lining: '+b.lining)+(b.liningWarna?(' '+b.liningWarna):'')):'','Material pendukung');
   taruh('stitch',b.stitch?(/hand|saddle/i.test(b.stitch)?'Handmade':'Machine'):'','Stitch');
@@ -10508,15 +10510,72 @@ function accInput(el){const o=ST.orders.find(x=>x.id===el.dataset.id);if(!o||!o.
 function addAcc(id){const o=ST.orders.find(x=>x.id===id);if(!o.po)o.po={};if(!o.po.accs)o.po.accs=[];o.po.accs.push({nama:'',size:'',warna:''});save();render();}
 function delAcc(id,i){const o=ST.orders.find(x=>x.id===id);o.po.accs.splice(i,1);save();render();}
 function poCardName(o){return o.id.toUpperCase()+' - PO Rove'+(orderAU(o)?' AU':'')+' x Radja - '+o.product+' - '+o.customer;}
+
+/* ---- apa yang sudah ada di Form PO, dan apa yang belum ---- */
+const PO_ASAL={deadline:'dari brief (tanggal kirim)',mainMaterial:'dari brief (main material)',
+  materialPendukung:'dari brief (lining)',stitch:'dari brief',warnaBenang:'dari brief',finishing:'dari brief'};
+function poIsiNilai(p,k){return PO_SEL[k]?(p[k]||PO_SEL[k][0]):p[k];}
+function poRingkas(o){
+  var p=o.po||{},dari=p._dariBrief||[];
+  var sudah=[],kurang=[];
+  PO_REQ.forEach(function(x){
+    var k=x[0],v=poIsiNilai(p,k);
+    if(!v||v==='-')kurang.push({k:k,label:x[1]});
+    else sudah.push({k:k,label:x[1],v:String(v),auto:dari.indexOf(k)>=0});});
+  var lain=poMissing(o).filter(function(t){return !PO_REQ.some(function(x){return x[1]===t;});});
+  var n=sudah.length+kurang.length;
+
+  return '<div style="border:1px solid '+(kurang.length||lain.length?'var(--warn)':'var(--ok)')+
+      ';border-radius:10px;padding:11px 13px;margin-bottom:13px;background:'+
+      (kurang.length||lain.length?'var(--warn-bg)':'var(--ok-bg)')+'">'+
+    '<div style="font-size:9.5px;font-weight:800;letter-spacing:.04em;color:'+
+      (kurang.length||lain.length?'var(--brand-dark)':'var(--ok)')+'">'+
+      (kurang.length||lain.length?'TINGGAL DICEK — '+sudah.length+' dari '+n+' sudah terisi'
+                                 :'✓ LENGKAP — '+n+' dari '+n+' terisi')+'</div>'+
+    '<div style="font-size:10.5px;color:var(--ink-soft);margin-top:3px;line-height:1.55">'+
+      'Form PO tak diisi dari nol: yang bisa diambil dari brief sudah dituliskan sendiri. '+
+      'Periksa isinya, betulkan nama resmi Radja kalau berbeda, lalu lengkapi sisanya.</div>'+
+
+    (sudah.length?('<div style="margin-top:9px">'+
+      '<div style="font-size:9px;font-weight:800;color:var(--muted);letter-spacing:.03em;margin-bottom:4px">SUDAH ADA</div>'+
+      '<div style="display:flex;flex-wrap:wrap;gap:5px 7px">'+
+      sudah.map(function(s){
+        return '<span style="font-size:10px;border:1px solid var(--line);border-radius:20px;padding:2px 9px;background:var(--panel)">'+
+          '<b>'+esc(s.label)+'</b> '+esc(s.v.slice(0,32))+
+          (s.auto?('<span style="color:var(--muted)"> · '+esc(PO_ASAL[s.k]||'dari brief')+'</span>'):'')+'</span>';}).join('')+
+      '</div></div>'):'')+
+
+    ((kurang.length||lain.length)?('<div style="margin-top:10px">'+
+      '<div style="font-size:9px;font-weight:800;color:#8f2a1e;letter-spacing:.03em;margin-bottom:4px">MASIH KURANG — '+
+        (kurang.length+lain.length)+' hal</div>'+
+      '<div style="display:flex;flex-wrap:wrap;gap:5px 7px">'+
+      kurang.map(function(s){
+        return '<span style="font-size:10.5px;font-weight:700;border:1px solid #8f2a1e;color:#8f2a1e;border-radius:20px;padding:2px 10px">'+
+          esc(s.label)+'</span>';}).join('')+
+      lain.map(function(t){
+        return '<span style="font-size:10.5px;font-weight:700;border:1px solid #8f2a1e;color:#8f2a1e;border-radius:20px;padding:2px 10px">'+
+          esc(t)+'</span>';}).join('')+
+      '</div>'+
+      '<div style="font-size:9.5px;color:var(--ink-soft);margin-top:6px">Kotaknya diberi warna kuning di formulir bawah.</div>'+
+    '</div>'):'')+
+  '</div>';}
 function poPanel(o){
+  /* Order yang sudah telanjur duduk di fase ini ikut terisi — hanya yang kosong. */
+  try{if(salinBriefKePO(o,false).length){o._m=Date.now();save();}}catch(e){}
   const p=o.po||{},miss=poMissing(o),ready=miss.length===0;
-  const sel=(f,label)=>`<div style="display:flex;flex-direction:column;gap:3px"><span class="nlbl">${label}</span><select class="pin" data-id="${o.id}" data-field="${f}" onchange="poInput(this)">${PO_SEL[f].map(v=>`<option ${((p[f]||PO_SEL[f][0])===v)?'selected':''}>${v}</option>`).join('')}</select>${p[f]==='Others'?`<input class="pin" data-id="${o.id}" data-field="${f}Other" value="${esc(p[f+'Other'])}" onchange="poInput(this)" placeholder="sebutkan ${label} lainnya…">`:''}</div>`;
-  const txt=(f,label,ph)=>`<div style="display:flex;flex-direction:column;gap:3px"><span class="nlbl">${label}</span><input class="pin" data-id="${o.id}" data-field="${f}" value="${esc(p[f])}" onchange="poInput(this)" placeholder="${ph||''}"></div>`;
-  const date=(f,label)=>`<div style="display:flex;flex-direction:column;gap:3px"><span class="nlbl">${label}</span><input type="date" class="pin" data-id="${o.id}" data-field="${f}" value="${esc(p[f])}" onchange="poInput(this)"></div>`;
+  /* kotak yang wajib tapi masih kosong diberi warna, supaya tak perlu dicari */
+  const kurangF=(f)=>{
+    if(!PO_REQ.some(function(x){return x[0]===f;}))return false;
+    const v=poIsiNilai(p,f);return !v||v==='-';};
+  const tandai=(f)=>kurangF(f)?';border-color:var(--warn);background:var(--warn-bg)':'';
+  const sel=(f,label)=>`<div style="display:flex;flex-direction:column;gap:3px"><span class="nlbl">${label}</span><select class="pin" style="${tandai(f)}" data-id="${o.id}" data-field="${f}" onchange="poInput(this)">${PO_SEL[f].map(v=>`<option ${((p[f]||PO_SEL[f][0])===v)?'selected':''}>${v}</option>`).join('')}</select>${p[f]==='Others'?`<input class="pin" data-id="${o.id}" data-field="${f}Other" value="${esc(p[f+'Other'])}" onchange="poInput(this)" placeholder="sebutkan ${label} lainnya…">`:''}</div>`;
+  const txt=(f,label,ph)=>`<div style="display:flex;flex-direction:column;gap:3px"><span class="nlbl">${label}</span><input class="pin" style="${tandai(f)}" data-id="${o.id}" data-field="${f}" value="${esc(p[f])}" onchange="poInput(this)" placeholder="${ph||''}"></div>`;
+  const date=(f,label)=>`<div style="display:flex;flex-direction:column;gap:3px"><span class="nlbl">${label}</span><input type="date" class="pin" style="${tandai(f)}" data-id="${o.id}" data-field="${f}" value="${esc(p[f])}" onchange="poInput(this)"></div>`;
   const ta=(f,label,ph)=>`<div style="display:flex;flex-direction:column;gap:3px"><span class="nlbl">${label}</span><textarea class="nta" data-id="${o.id}" data-field="${f}" onchange="poInput(this)" placeholder="${ph||''}">${esc(p[f])}</textarea></div>`;
   return `<div class="card actcard" style="margin-top:14px"><div class="ch"><span class="ico" style="background:#0079bf;font-size:10px">PO</span><div><div class="t">Form PO — Penurunan <span style="color:var(--muted);font-weight:400">(fase Spec & PO)</span></div><div class="s">DRAFT LENGKAP → PDF PO + KARTU TRELLO + NOTIF RADJA</div></div>
       <span class="badge" style="background:${ready?'var(--ok-bg)':'var(--warn-bg)'};color:${ready?'var(--ok)':'var(--warn)'}">${ready?'draft lengkap ✓':miss.length+' field kurang'}</span></div>
     <div class="body">
+      ${poRingkas(o)}
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
         ${date('deadline','Deadline produksi')}
         <div style="display:flex;flex-direction:column;gap:3px"><span class="nlbl">Barang titipan klien</span><label style="font-size:12px;display:flex;align-items:center;gap:7px;padding-top:7px"><input type="checkbox" data-id="${o.id}" data-field="titipan" ${p.titipan?'checked':''} onchange="poInput(this)" style="width:auto;accent-color:var(--brand)"> Ada barang titipan</label></div>
