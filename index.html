@@ -6466,9 +6466,11 @@ const PH_CHECK=[
  ],
  [ // 4 Quotation
   {auto:function(o){return !!(o.docs&&o.docs.quotation);}, k:'gen', t:'Generate quotation', en:'Generate the quotation', guna:'supaya ada dokumen resmi untuk dikirim ke client', gunaEn:'so there is a proper document to send the client',                        pic:'Finance', w:true},
-  {auto:function(o){var s=(o.quo||{}).status;return s==='Terkirim'||s==='Approved';}, k:'kirim', t:'Kirim quotation ke email client', en:'Send the quotation to the client email', guna:'supaya client bisa menimbang penawarannya', gunaEn:'so the client can consider the offer',            pic:'Finance', w:true},
+  {auto:function(o){var s=(o.quo||{}).status;return s==='Terkirim'||s==='Approved';}, k:'kirim', t:'Kirim quotation ke client, lalu tandai terkirim', en:'Send the quotation to the client, then mark it sent', guna:'lewat WhatsApp, email, atau apa pun — yang dicatat HUB adalah sudah terkirimnya', gunaEn:'by WhatsApp, email, or anything else — what HUB records is that it went out',            pic:'Finance', w:true},
   {auto:function(o){return !!clientEmail(o);},
-   k:'email', t:'Minta alamat email client', en:'Ask for the client email address', guna:'supaya quotation punya tujuan kirim', gunaEn:'so the quotation has somewhere to go', pic:'Sales', w:true},
+   k:'email', t:'Catat email client kalau ada', en:'Note the client email if there is one',
+   guna:'dokumen tak dikirim lewat email — ini untuk arsip dan keperluan pajak, jadi tak menahan fase',
+   gunaEn:'documents are not emailed — this is for filing and tax purposes, so it does not hold the phase', pic:'Sales'},
   {auto:function(o){return !!(o.shipEksp&&o.shipKota&&(o.shipKg||0)>0);},
    k:'kirimData', t:'Pilih ekspedisi & kota tujuan, lalu isi berat kirim', en:'Pick the courier and destination city, then fill in the shipping weight', guna:'supaya ongkir terhitung dan tak jadi tanggungan Rove', gunaEn:'so shipping is calculated and not absorbed by Rove', pic:'Finance', w:true},
   {auto:function(o){return !!clientAlamatKantor(o);},
