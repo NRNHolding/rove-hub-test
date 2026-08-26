@@ -746,6 +746,8 @@ const EN={
 'Nomor resi':'Tracking number','Tanggal kirim':'Ship date','Tanggal diterima client':'Client delivery date',
 '✓ Barang sudah diterima hari ini':'✓ Delivered today','Foto bukti serah terima':'Handover proof photo',
 'Tiap pcs beda nama':'Each piece has a different name','daftar nama wajib lengkap sebelum plate dipesan':'the name list must be complete before plates are ordered',
+'dicatat Finance, Direktur, Sales, atau PM':'recorded by Finance, the Director, Sales, or the PM',
+'bukan jabatanmu':'not your role',
 'Hanya Direktur Utama yang bisa menyetujui profitability.':'Only the Managing Director can approve profitability.',
 'Hanya Direktur Utama yang bisa menolak order.':'Only the Managing Director can reject an order.',
 'Font / tipografi':'Font / typography','✓ jumlah cocok':'✓ count matches','⧉ Salin untuk PO':'⧉ Copy for the PO',
@@ -2443,6 +2445,7 @@ function finPembayaran(){
   return out.sort(function(a,b){return (b.tgl||'').localeCompare(a.tgl||'');});}
 function finCocok(oid,jenis){
   var o=ST.orders.find(function(x){return x.id===oid;});if(!o)return;
+  if(!bolehUang()){tolakUang('Pencocokan dengan rekening');return;}
   if(!o.pay)o.pay={};
   var k=(jenis==='DP')?'dpCocok':'pelCocok';
   o.pay[k]=!o.pay[k];o._m=Date.now();
@@ -2749,6 +2752,7 @@ function mutasiGambar(){
       '</div>';}).join('');}
 function mutasiCatat(i,j){
   if(!_mutasi)return;
+  if(!bolehUang()){tolakUang('Uang dari mutasi rekening');return;}
   var d=_mutasi.hasil[i];if(!d||d.selesai)return;
   var c=d.calon[j];if(!c)return;
   var o=ST.orders.find(function(x){return x.id===c.id;});if(!o)return;
@@ -7624,6 +7628,16 @@ let playing=false;
 function rolePunya(nama){
   var R=myRoles();
   return R.indexOf('Holding')>=0||R.indexOf(PIC2ROLE[nama]||nama)>=0||R.indexOf(nama)>=0;}
+/* Siapa yang boleh menyentuh catatan uang masuk — bukan Finance saja.
+   Bukti transfer sering sampai lebih dulu ke Sales; PM dan Direktur ikut
+   mencatat kalau Finance sedang tak di tempat. Creative, Purchasing, dan
+   Packing tak ada urusan dengan uang, jadi tak masuk daftar. */
+const UANG_BOLEH=['Finance','Direktur Utama','Sales','Project Manager'];
+function bolehUang(){return UANG_BOLEH.some(function(r){return rolePunya(r);});}
+function tolakUang(apa){
+  alert(apa+' hanya bisa dicatat oleh '+UANG_BOLEH.join(', ')+'.\n\n'+
+    'Kalau bukti transfernya ada padamu, teruskan ke salah satu dari mereka — '+
+    'yang tercatat di histori adalah nama pencatatnya.');}
 function fasePemilik(o){var ph=PH[o.phase||0]||{};return PIC2ROLE[ph.pic]||ph.pic||'';}
 function faseMilikku(o){var ph=PH[o.phase||0];return !ph||rolePunya(ph.pic);}
 function tolakBukanMilikku(o,apa){
@@ -7768,6 +7782,7 @@ function quoCatatGenerate(o){
    dan tanggal masuknya wajib dipilih dari kalender. */
 function bayarCatat(id,jenis,dariBukti){
   var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
+  if(!bolehUang()){tolakUang(jenis==='dp'?'DP':'Pelunasan');return;}
   var G=orderGrand(o),pay=o.pay||{dp:0,pel:0};
   var sudah=(+pay.dp||0)+(+pay.pel||0),sisa=Math.max(0,G-sudah);
   if(G<=0){alert('Grand total masih 0 — isi baris pricing dulu sebelum mencatat pembayaran.');return;}
@@ -7808,6 +7823,7 @@ function bayarCatat(id,jenis,dariBukti){
       o._m=Date.now();save();render();}});}
 function bayarHapus(id,jenis){
   var o=ST.orders.find(function(x){return x.id===id;});if(!o||!o.pay)return;
+  if(!bolehUang()){tolakUang('Pembatalan catatan uang');return;}
   var dp=(jenis==='dp'),n=dp?o.pay.dp:o.pay.pel;
   if(!(+n>0))return;
   if(!confirm('Batalkan catatan '+(dp?'DP':'pelunasan')+' '+fmt0(n)+'?\n\nDipakai kalau salah catat — riwayat tetap tersimpan.'))return;
@@ -7818,7 +7834,8 @@ function hariIni(){var d=new Date();return ymd(d.getFullYear(),d.getMonth()+1,d.
 function bankOpts(){var b=((ST.master&&ST.master.bank)||[]).map(function(x){return x.v;});
   return [''].concat(b);}
 
-function payEdit(id,f,v){const o=ST.orders.find(x=>x.id===id);if(!o)return;if(!o.pay)o.pay={dp:0,pel:0,dpDate:'',pelDate:''};
+function payEdit(id,f,v){const o=ST.orders.find(x=>x.id===id);if(!o)return;
+  if((f==='dp'||f==='pel')&&!bolehUang()){tolakUang('Nominal uang masuk');return;}if(!o.pay)o.pay={dp:0,pel:0,dpDate:'',pelDate:''};
   o.pay[f]=(f==='dp'||f==='pel')?Math.max(0,moneyVal(v)):v;
   if(f==='dp'&&+o.pay.dp>0)notifyOrder(o,'💰 **DP diterima** '+fmt0(o.pay.dp)+' — '+o.customer);
   if(f==='pel'&&+o.pay.pel>0)notifyOrder(o,'💰 **Pelunasan diterima** '+fmt0(o.pay.pel)+' — '+o.customer);
@@ -9121,9 +9138,10 @@ function bayarKotak(o,jenis,judul,nom,tgl,grand){
       ? '<div style="font-size:15px;font-weight:800;color:var(--ok);margin:3px 0 1px">'+fmt0(nom)+'</div>'+
         '<div style="font-size:10px;color:var(--muted)">masuk '+tglID(tgl)+((o.pay||{}).via?(' · '+esc(o.pay.via)):'')+'</div>'+
         '<div style="display:flex;gap:6px;margin-top:7px">'+
-          '<button class="btn ghost sm" onclick="bayarHapus(\''+o.id+'\',\''+jenis+'\')">✕ Batalkan catatan</button></div>'
+          '<button class="btn ghost sm"'+(bolehUang()?'':' disabled title="bukan jabatanmu"')+' onclick="bayarHapus(\''+o.id+'\',\''+jenis+'\')">✕ Batalkan catatan</button></div>'
       : '<div style="font-size:12px;color:var(--muted);margin:5px 0 8px">belum ada</div>'+
-        '<button class="btn sm"'+(kunci?' disabled title="Catat DP dulu"':'')+' onclick="bayarCatat(\''+o.id+'\',\''+jenis+'\')">＋ Catat '+esc(judul)+' masuk</button>')+
+        '<button class="btn sm"'+(kunci?' disabled title="Catat DP dulu"':(bolehUang()?'':' disabled title="bukan jabatanmu"'))+' onclick="bayarCatat(\''+o.id+'\',\''+jenis+'\')">＋ Catat '+esc(judul)+' masuk</button>'+
+        (bolehUang()?'':'<div style="font-size:9.5px;color:var(--muted);margin-top:5px">dicatat Finance, Direktur, Sales, atau PM</div>'))+
     '</div>';}
 /* ---- Komplain & kepuasan (CS) ---- */
 const KOM_KAT=['Kualitas produk','Keterlambatan','Jumlah kurang','Salah kirim','Kemasan rusak','Personalization salah','Lainnya'];
