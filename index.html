@@ -708,7 +708,7 @@ const EN={
 '🔍 Cari produk atau bahan…':'🔍 Search product or material…',
 '◇ Prospek':'◇ Leads',
 'Jenis order':'Order type',
-'JENIS ORDER':'ORDER TYPE','DARI KATALOG':'FROM THE CATALOGUE','CUSTOM — TULIS APA ADANYA':'CUSTOM — JUST WRITE IT DOWN','＋ Pilih produk dari katalog':'＋ Pick products from the catalogue','▾ Tutup daftar katalog':'▾ Close the catalogue list','Collateral untuk produk ini':'Collateral for this product','jenis belum dipilih':'type not chosen yet','belum diisi':'nothing filled in yet','→ Kirim ke Inquiry':'→ Send to Inquiry',
+'JENIS ORDER':'ORDER TYPE','DARI KATALOG':'FROM THE CATALOGUE','CUSTOM — TULIS APA ADANYA':'CUSTOM — JUST WRITE IT DOWN','＋ Tambah produk lain':'＋ Add another product','＋ Pilih produk dari katalog':'＋ Pick products from the catalogue','▾ Tutup daftar katalog':'▾ Close the catalogue list','Collateral untuk produk ini':'Collateral for this product','jenis belum dipilih':'type not chosen yet','belum diisi':'nothing filled in yet','→ Kirim ke Inquiry':'→ Send to Inquiry',
 '◇ Prospek':'◇ Leads','Belum ada prospek aktif.':'No active leads yet.','brief kosong':'brief empty','belum disebut':'not stated yet',
 'RINGKASAN DARI PROSPEK':'FROM THE LEAD','Belum diterjemahkan jadi spesifikasi:':'Not yet turned into a specification:','Semua yang diminta client sudah punya spesifikasi.':'Everything the client asked for now has a specification.','Catatan lain':'Other notes','tidak dipakai':'not used',
 'Brief singkat untuk PM':'Short brief for the PM','— centang & tulis sekenanya, boleh dikosongkan':'\u2014 tick and jot; leaving it empty is fine','Produk utama':'Main product','Personalisasi':'Personalisation','kata client apa adanya — mis. pokoknya elegant, warna earth tone':'the client\u2019s own words \u2014 e.g. wants it elegant, earth tones',
@@ -759,6 +759,11 @@ const EN={
 'bukan jabatanmu':'not your role',
 'Hanya Direktur Utama yang bisa menyetujui profitability.':'Only the Managing Director can approve profitability.',
 'Hanya Direktur Utama yang bisa menolak order.':'Only the Managing Director can reject an order.',
+'Mulai dari kosong':'Start from blank',
+'Yang menghubungi':'Who got in touch','Client sendiri':'The client themselves',
+'WO / EO / perantara':'WO / EO / intermediary',
+'KATEGORI':'CATEGORY','BRIEF SINGKAT UNTUK PM':'SHORT BRIEF FOR THE PM','ubah':'change',
+'cara menghargainya':'how it is priced','nama client sebenarnya belum diisi':'the real client name is not filled in yet',
 'KATEGORI CLIENT':'CLIENT CATEGORY','JENIS ORDER — cara menghargainya':'ORDER TYPE — how it is priced',
 'Kategori client':'Client category','Nama perusahaan':'Company name','Nama client utama':'Main client name',
 'Wedding':'Wedding','Corporate':'Corporate','Custom':'Custom',
@@ -1073,6 +1078,7 @@ const EN={
 'Ya — order berikutnya tinggal pilih, tak perlu tanya lagi':'Yes — the next order can just pick it',
 'Kosongkan kalau vendor baru menjawab soal kulit, harganya menyusul.':
   'Leave empty if the vendor only answered about the leather and the price follows later.',
+'↻ tersimpan sendiri ke Master & Form PO':'↻ saved automatically to Master & the PO form',
 '💾 Perbarui Master':'💾 Update Master','💾 Simpan ke Master':'💾 Save to Master',
 'perbarui data client yang sudah ada di Master':'update this client record in the Master',
 'tambahkan client ini ke Master':'add this client to the Master',
@@ -1844,7 +1850,9 @@ function orderKategori(o){
 function katKolom(o){return KAT_KOLOM[orderKategori(o)]||[];}
 function leadKategoriSet(id,v){
   var l=leadsAll().find(function(x){return x.id===id;});if(!l)return;
-  l.kategori=v;l._m=Date.now();saveLeads();render();}
+  l.kategori=v;l._m=Date.now();
+  if(ST._katUbah)delete ST._katUbah[id];      // sudah dipilih, ringkas lagi
+  saveLeads();render();}
 const LEAD_SEK=[['produk','Produk utama'],['box','Box'],['pouch','Soft Pouch'],
                 ['card','Thank You Card'],['perso','Personalisasi']];
 /* Kata yang benar-benar dipakai client saat menyebut keinginannya. Sales cukup
@@ -1915,12 +1923,18 @@ function leadColl(l){var c={others:''};
   return c;}
 function leadJenisSet(id,v){
   var l=leadsAll().find(function(x){return x.id===id;});if(!l)return;
-  l.jenis=v;l._m=Date.now();saveLeads();render();}
+  l.jenis=v;l._m=Date.now();
+  if(ST._jnsUbah)delete ST._jnsUbah[id];
+  saveLeads();render();}
 function leadItemAdd(id,nama,img){
   var l=leadsAll().find(function(x){return x.id===id;});if(!l)return;
   var I=leadItems(l);
   if(I.some(function(x){return x.nama===nama;})){alert('"'+nama+'" sudah ada di daftar.');return;}
   I.push({nama:nama,img:img||'',qty:0,note:'',coll:{}});
+  /* daftarnya ditutup: yang perlu dilihat sekarang pesanannya, bukan katalognya.
+     Kalau mau menambah lagi, tombol ＋ di bawahnya membukanya kembali. */
+  if(ST._lkat)delete ST._lkat[id];
+  if(ST._lkq)delete ST._lkq[id];                 // kata pencarian ikut bersih
   l._m=Date.now();saveLeads();render();}
 function leadItemDel(id,i){
   var l=leadsAll().find(function(x){return x.id===id;});if(!l)return;
@@ -1962,8 +1976,22 @@ function leadNamaAsli(l){
     var w=[l.brideNama,l.groomNama].filter(Boolean).join(' & ');
     return w?('Bride & groom: '+w):'';}
   return l.clientUtama?((kat==='Corporate'?'Perusahaan: ':'Client utama: ')+l.clientUtama):'';}
+function leadKategoriUbah(id){
+  ST._katUbah=ST._katUbah||{};ST._katUbah[id]=true;render();}
 function leadPilihKategori(l){
   var kini=leadKategori(l);
+  var sudah=!!l.kategori, buka=!!((ST._katUbah||{})[l.id]);
+  /* sudah dipilih → cukup sebaris, tak perlu tiga tombol besar terus-menerus */
+  if(sudah&&!buka)
+    return '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:11px 0 0">'+
+      '<span style="font-size:9.5px;font-weight:800;color:var(--muted);letter-spacing:.03em">KATEGORI</span>'+
+      '<span class="tlabel" style="background:var(--brand)">'+esc(kini)+'</span>'+
+      (function(){var n=leadNamaAsli(l);
+        return n?('<span style="font-size:10.5px;color:var(--ink-soft)">'+esc(n)+'</span>'):
+          '<span style="font-size:10px;color:var(--muted)">nama client sebenarnya belum diisi</span>';})()+
+      '<button class="xrow" style="margin-left:auto;font-size:10px;color:var(--muted)" '+
+        'title="ganti kategori" onclick="leadKategoriUbah(\''+l.id+'\')">ubah</button>'+
+      '</div>';
   return '<div style="font-size:10px;font-weight:800;color:var(--muted);margin:11px 0 5px;letter-spacing:.03em">KATEGORI CLIENT</div>'+
     '<div style="display:flex;flex-wrap:wrap;gap:7px">'+
     LEAD_KAT.map(function(k){var on=(kini===k);
@@ -1976,7 +2004,19 @@ function leadPilihKategori(l){
         return n?('<b>'+esc(n)+'</b> — ikut terbawa ke Brief, PM tak mengetiknya lagi.')
           :'Nama client sebenarnya belum diisi. Boleh dikosongkan kalau ordernya lewat WO/EO dan namanya belum diberikan — tak menahan fase.';})()+
       '</div>';}
+function leadJenisUbah(id){
+  ST._jnsUbah=ST._jnsUbah||{};ST._jnsUbah[id]=true;render();}
 function leadPilihJenis(l){
+  var bukaJ=!!((ST._jnsUbah||{})[l.id]);
+  if(l.jenis&&!bukaJ)
+    return leadPilihKategori(l)+
+      '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:9px 0 0">'+
+        '<span style="font-size:9.5px;font-weight:800;color:var(--muted);letter-spacing:.03em">JENIS ORDER</span>'+
+        '<span class="tlabel" style="background:#6a6f8a">'+esc(l.jenis)+'</span>'+
+        '<span style="font-size:10px;color:var(--muted)">cara menghargainya</span>'+
+        '<button class="xrow" style="margin-left:auto;font-size:10px;color:var(--muted)" '+
+          'title="ganti jenis order" onclick="leadJenisUbah(\''+l.id+'\')">ubah</button>'+
+      '</div>';
   return leadPilihKategori(l)+
     '<div style="font-size:10px;font-weight:800;color:var(--muted);margin:11px 0 5px;letter-spacing:.03em">JENIS ORDER — cara menghargainya</div>'+
     '<div style="display:flex;flex-wrap:wrap;gap:7px">'+
@@ -2028,7 +2068,8 @@ function leadKatalogBlok(l){
       (I.length?(' <span style="color:var(--muted);font-weight:400">— '+I.length+' produk dipilih</span>'):'')+'</div>'+
     daftar+
     '<button class="btn ghost sm" style="width:100%;font-size:10.5px" onclick="leadKatBuka(\''+l.id+'\')">'+
-      (buka?'▾ Tutup daftar katalog':'＋ Pilih produk dari katalog')+'</button>'+
+      (buka?'▾ Tutup daftar katalog'
+          :(I.length?'＋ Tambah produk lain':'＋ Pilih produk dari katalog'))+'</button>'+
     pilihan+'</div>';}
 
 function leadRawBlok(l){
@@ -2072,7 +2113,7 @@ function leadSpekBlok(l){
     ((l.jenis==='Katalog'||l.jenis==='Mix')?leadKatalogBlok(l):'')+
     ((l.jenis==='Custom'||l.jenis==='Mix')?leadRawBlok(l):'');
   return kepala+'<div style="background:var(--bg);border:1px solid var(--line);border-radius:9px;padding:11px 12px;margin-top:6px">'+
-    '<div style="font-size:9.5px;font-weight:800;color:var(--muted);letter-spacing:.04em">JENIS ORDER</div>'+
+    '<div style="font-size:9.5px;font-weight:800;color:var(--muted);letter-spacing:.04em">BRIEF SINGKAT UNTUK PM</div>'+
     isi+'</div>';}
 
 function saveLeads(){localStorage.setItem(LEAD_KEY,JSON.stringify(ST.leads||[]));cloudSave();}
@@ -2114,6 +2155,9 @@ function leadAdd(){
       {k:'tglAcara',label:'Tanggal acara',type:'date',
         hint:'Kalau client sudah menyebutkannya. Ikut terbawa ke Brief, jadi PM tak menanyakannya lagi.'},
       {k:'tglKirim',label:'Tanggal kirim diminta',type:'date'},
+      {k:'kontakOleh',label:'Yang menghubungi',type:'select',val:'Client sendiri',
+        opts:['Client sendiri','WO / EO / perantara'],
+        hint:'Kalau lewat perantara, nama di kolom paling atas dianggap nama WO/EO — dan nanti masuk ke kolom WO, bukan kolom client.'},
       {k:'kategori',label:'Kategori client',type:'select',val:'Corporate',opts:LEAD_KAT,
         hint:'Order lewat WO/EO tetap pilih kategori client aslinya — nama penyelenggaranya sudah tercatat di kolom paling atas.'},
       /* muncul mengikuti kategori — Sales yang sedang bicara dengan clientnya
@@ -2137,6 +2181,10 @@ function leadAdd(){
         tglAcara:v.tglAcara||'',tglKirim:v.tglKirim||'',
         brideNama:v.brideNama||'',groomNama:v.groomNama||'',
         clientUtama:v.clientUtama||v.clientUtama2||'',
+        kontakOleh:v.kontakOleh||'Client sendiri',
+        /* lewat perantara: nama & nomor yang tadi diketik itu milik WO/EO */
+        woNama:(v.kontakOleh==='WO / EO / perantara')?(v.nama||''):'',
+        woHp:(v.kontakOleh==='WO / EO / perantara')?(v.kontak||''):'',
         items:[],pic:(ST.userName||ST.user||''),
         catatan:'',touch:new Date().toISOString().slice(0,10),log:[],_m:Date.now()});
       saveLeads();render();}});}
@@ -2192,8 +2240,10 @@ function kirimKeInquiry(id){
   o.pricing={margin:MARGIN_BAWAAN,lines:lines};
   o.brief=Object.assign({fitur:['','','']},o.brief||{});
   /* yang sudah disebut client waktu prospek — jangan ditanya dua kali */
-  if(l.tglAcara)o.eventDate=l.tglAcara;
+  if(l.tglAcara){o.eventDate=l.tglAcara;o.brief.tglAcara=l.tglAcara;}
   if(l.tglKirim)o.brief.tglKirim=l.tglKirim;
+  if(l.woNama)o.brief.woNama=l.woNama;
+  if(l.woHp)o.brief.woHp=l.woHp;
   if(l.brideNama)o.brief.brideNama=l.brideNama;
   if(l.groomNama)o.brief.groomNama=l.groomNama;
   if(l.clientUtama)o.brief.clientUtama=l.clientUtama;
@@ -3865,6 +3915,26 @@ function cloudLoad(){var c=cfgSerap();if(!c.dbUrl){alert('Kotak "Cloud DB" di Ho
   }).catch(function(e){ST.cloudStatus='GAGAL: '+((e&&e.message)||e);render();});}
 function uid(){return 'o'+Math.random().toString(36).slice(2,7)}
 function today(){const d=new Date();return String(d.getDate()).padStart(2,'0')+String(d.getMonth()+1).padStart(2,'0')+String(d.getFullYear()).slice(2)}
+/* Nama client sebenarnya, kalau sudah diketahui. Kosong berarti yang kita
+   punya baru nama perantaranya. */
+function namaClientAsli(o){
+  var b=(o&&o.brief)||{};
+  if(orderKategori(o)==='Wedding'){
+    var w=[b.brideNama,b.groomNama].filter(function(x){return String(x||'').trim();});
+    return w.length?w.join(' & '):'';}
+  return String(b.clientUtama||'').trim();}
+/* Dipanggil saat masuk fase Quotation: channel yang tadi bernama WO diganti
+   jadi nama client aslinya. Sebelum itu namanya dibiarkan — waktu prospek
+   sering memang cuma nama perantaranya yang kita tahu. */
+function sinkronNamaClient(o){
+  var asliNama=namaClientAsli(o);
+  if(!asliNama||asliNama===o.customer)return false;
+  var lama=chName(o), lamaCust=o.customer;
+  o.customer=asliNama;
+  var baru=chName(o);
+  logHist(o,'Nama order diganti dari "'+lamaCust+'" jadi "'+asliNama+'" — nama client sebenarnya sudah diketahui');
+  try{pushBackend('channel.rename',{name:lama,baru:baru});}catch(e){}
+  return true;}
 function chName(o){return `${o.prefix}-${(o.customer||'order').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'')}-${o.date}-${o.qty||''}pcs`}
 const MONTHS=['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
 function preCat(o){return orderAU(o)?'PRE-DEAL ROVE AU':'PRE-DEAL';}
@@ -4308,13 +4378,39 @@ function evFill(o,k){var e=o.event||{};
 /* ---- form isian serbaguna: satu dialog rapi, ganti prompt berantai ----
    askForm({judul,sub,fields:[{k,label,type,val,opts,ph,req,hint}],ok:fn(v)}) */
 var _ask=null;
+/* ================= DRAF FORM =================
+   Disimpan di localStorage, bukan di memori: kalau halamannya tertutup atau
+   di-refresh, ketikannya tetap ada. Kuncinya judul formnya — draf "Prospek
+   baru" tak akan pernah muncul di form lain. */
+const DRAF_KEY='rovehub_draf_form_v1';
+function drafSemua(){try{return JSON.parse(localStorage.getItem(DRAF_KEY)||'{}')||{};}catch(e){return {};}}
+function drafTulis(m){try{localStorage.setItem(DRAF_KEY,JSON.stringify(m));}catch(e){}}
+function drafKunci(o){return String((o&&o.draf)||(o&&o.judul)||'');}
+function drafAda(o){var k=drafKunci(o);if(!k)return null;var d=drafSemua()[k];
+  return (d&&d.nilai&&Object.keys(d.nilai).length)?d:null;}
+function drafSimpan(){
+  if(!_ask)return;
+  var k=drafKunci(_ask);if(!k)return;
+  var v=askNilaiKini(),isi=false;
+  Object.keys(v).forEach(function(f){
+    var x=v[f];
+    if(typeof x==='string'?x.trim():x)isi=true;});
+  var m=drafSemua();
+  if(isi)m[k]={nilai:v,tgl:nowStr()}; else delete m[k];
+  drafTulis(m);}
+function drafBuang(k){var m=drafSemua();delete m[k];drafTulis(m);
+  if(_ask&&drafKunci(_ask)===k){var o=_ask;o._tanpaDraf=true;askForm(o);}}
 function askForm(o){
   _ask=o;var b=document.getElementById('fm_body');
   document.getElementById('fm_title').textContent=o.judul||'Isi data';
   document.getElementById('fm_sub').textContent=o.sub||'';
   document.getElementById('fm_err').style.display='none';
+  /* draf dari percobaan sebelumnya — kecuali memang diminta mulai bersih */
+  var draf=o._tanpaDraf?null:drafAda(o);
+  delete o._tanpaDraf;
   b.innerHTML=(o.fields||[]).map(function(f,i){
     var id='fmf'+i,v=(f.val===undefined||f.val===null)?'':f.val;
+    if(draf&&Object.prototype.hasOwnProperty.call(draf.nilai,f.k))v=draf.nilai[f.k];
     var inp;
     if(f.type==='select')inp='<select class="pin" id="'+id+'" style="width:100%;margin-top:3px">'+
       (f.opts||[]).map(function(x){var val=(typeof x==='object')?x.v:x,lab=(typeof x==='object')?x.l:x;
@@ -4325,9 +4421,18 @@ function askForm(o){
     else inp='<input class="pin'+(f.type==='number'?' n':'')+'" id="'+id+'" type="'+(f.type||'text')+'" style="width:100%;margin-top:3px" value="'+esc(String(v))+'" placeholder="'+esc(f.ph||'')+'">';
     return '<div id="fmw'+i+'" style="margin-bottom:11px"><label class="nlbl">'+esc(f.label)+(f.req?' <span style="color:#d9534f">*</span>':'')+'</label>'+inp+
       (f.hint?'<div style="font-size:9.5px;color:var(--muted);margin-top:3px">'+f.hint+'</div>':'')+'</div>';}).join('');
-  /* kolom bersyarat: disaring sekarang, lalu tiap kali ada yang diubah */
-  b.addEventListener('change',askSaring);
-  b.addEventListener('input',askSaring);
+  if(draf)
+    b.insertAdjacentHTML('afterbegin',
+      '<div style="border:1px dashed var(--accent);background:var(--warn-bg);border-radius:9px;'+
+      'padding:8px 11px;margin-bottom:12px;font-size:10.5px;line-height:1.6;color:var(--brand-dark)">'+
+      '<b>Isian yang tadi ditinggalkan sudah dikembalikan</b> — terakhir diketik '+esc(draf.tgl)+'. '+
+      '<span style="cursor:pointer;text-decoration:underline" onclick="drafBuang(\''+
+        String(drafKunci(o)).replace(/'/g,"\\'")+'\')">Mulai dari kosong</span></div>');
+  /* kolom bersyarat: disaring sekarang, lalu tiap kali ada yang diubah.
+     Draf ikut disimpan tiap ketikan, jadi tertutup tak sengaja tak
+     menghapus apa pun. */
+  b.addEventListener('change',function(){askSaring();drafSimpan();});
+  b.addEventListener('input',function(){askSaring();drafSimpan();});
   askSaring();
   document.getElementById('fmov').style.display='flex';trDOM(document.getElementById('fmov'));
   setTimeout(function(){var e=document.getElementById('fmf0');if(e)e.focus();},30);}
@@ -4347,7 +4452,9 @@ function askSaring(){
   (_ask.fields||[]).forEach(function(f,i){
     var w=document.getElementById('fmw'+i);if(!w)return;
     w.hidden=!askTampil(f,v);});}
-function askClose(){var e=document.getElementById('fmov');if(e)e.style.display='none';_ask=null;}
+function askClose(){
+  try{drafSimpan();}catch(e){}          // ditutup tak sengaja pun ketikannya aman
+  var e=document.getElementById('fmov');if(e)e.style.display='none';_ask=null;}
 function askOk(){
   if(!_ask)return;var v={},err='';
   var kini=askNilaiKini();
@@ -4361,7 +4468,11 @@ function askOk(){
       if(f.req&&(x===''||x===0&&f.type!=='number'))err=err||('"'+f.label+'" wajib diisi.');}
     v[f.k]=x;});
   if(err){var el=document.getElementById('fm_err');el.textContent=err;el.style.display='block';return;}
-  var fn=_ask.ok;askClose();if(fn)fn(v);}
+  /* tersimpan — drafnya tak diperlukan lagi */
+  var k=drafKunci(_ask),m=drafSemua();delete m[k];drafTulis(m);
+  var fn=_ask.ok;_ask=null;
+  var el2=document.getElementById('fmov');if(el2)el2.style.display='none';
+  if(fn)fn(v);}
 /* ================= LINK PORTAL CLIENT =================
    Tiap customer punya token acak sendiri. Token itu ditukar di Worker
    (/klien?k=…) yang menyaring datanya DI SERVER — halaman client tak pernah
@@ -8119,6 +8230,9 @@ function trigger(id){if(playing)return;const o=ST.orders.find(x=>x.id===id);cons
     logHist(o,'Fase dilanjutkan Holding walau belum lengkap: '+w.join(', '));
   }
   applyTrigger(o);
+  /* masuk Quotation: dokumennya akan memakai nama client, jadi namanya
+     disamakan sekarang — termasuk nama channel Discord-nya */
+  if(o.phase===4){try{sinkronNamaClient(o);}catch(e){}}
   o._faseSejak=Date.now();          // penghitung umur fase dimulai lagi
   o.ingatOtomatis={};               // pengingat fase lama tak boleh terbawa
   pushBackend('phase',{id:o.id,phase:o.phase,channel:chName(o)});
@@ -10023,7 +10137,10 @@ function hitungKardus(o){ // pilih kardus paling hemat untuk seluruh baris
   out.kg=Math.round(out.kg*100)/100;out.volKg=Math.round(out.volKg*100)/100;out.tagih=Math.round(out.tagih*100)/100;
   return out;}
 function priceTotals(o){const m=(o.pricing.margin||0)/100;let hppT=0,jualT=0;o.pricing.lines.forEach(l=>{jualT+=lineNet(l,m)*(l.qty||0);hppT+=(l.hpp||0)*(l.qty||0);});return{hppT,jualT,m};}
+/* data client (nama PIC, HP, email, alamat) juga ikut tersalin sendiri */
+function clientEditOtomatis(o){try{briefKeMasterOtomatis(o);}catch(e){}}
 function clientEdit(id,f,v){var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;o[f]=v;
+  try{clientEditOtomatis(o);}catch(e){}      // client baru pun ikut terdaftar
   if(ST.master&&ST.master.customers&&(f==='phone'||f==='email'||f==='addr'||f==='addrKantor')){var c=ST.master.customers.find(function(x){return x.nama===o.customer;});
     if(c){if(f==='phone')c.kontak=v;else if(f==='email')c.email=v;else if(f==='addr')c.alamat=v;else c.alamatKantor=v;saveMaster();}}
   save();}
@@ -10696,7 +10813,14 @@ function salesRingkasBlok(o){
     '</div>';}
 function briefGet(o){if(!o.brief)o.brief={fitur:['','','']};if(!o.brief.fitur)o.brief.fitur=['','',''];return o.brief;}
 function briefSet(id,f,v){var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
-  briefGet(o)[f]=v;o._m=Date.now();save();
+  briefGet(o)[f]=v;o._m=Date.now();
+  /* tanggal acara dipakai dua tempat: kolom Brief dan o.eventDate yang jadi
+     acuan kartu, kategori Deal, dan laporan. Dijaga selalu sama. */
+  if(f==='tglAcara')o.eventDate=v;
+  /* dua salinan yang dulu ada di balik tombol — sekarang jalan sendiri */
+  try{briefKeMasterOtomatis(o);}catch(e){}
+  try{salinBriefKePO(o,false);}catch(e){}          // tak menimpa ketikan Purchasing
+  save();
   /* field yang memunculkan/menyembunyikan kolom lain harus digambar ulang */
   if(['finishing','perso','filler','boxAda','pouchAda','cardAda'].indexOf(f)>=0)render();}
 function briefFitur(id,i,v){var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
@@ -10721,11 +10845,7 @@ function salinBriefKePO(o,timpa){
     ?((b.finishing==='Dye'?'Dying':'Burnish')+(b.finishWarna?(' — '+b.finishWarna):'')):'','Finishing');
   taruh('deadline',b.tglKirim,'Deadline produksi');
   return isi;}
-function briefKeProd(id){ // tombol manual: menyalin ulang, boleh menimpa
-  var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
-  var isi=salinBriefKePO(o,true);
-  o._m=Date.now();logHist(o,'Brief disalin ke Form PO'+(isi.length?(': '+isi.join(', ')):' (tak ada yang berubah)'));save();render();
-  alert('✓ Main material + warna, lining, stitch technique, warna benang, finishing, dan deadline disalin ke Form PO.');}
+/* briefKeProd dihapus — salinannya kini otomatis tiap Brief diubah. */
 
 /* ---- data client: order dulu, lalu Master Customer ---- */
 function clientEmail(o){
@@ -10796,8 +10916,13 @@ function briefAutoIsi(o){
   isi('picNama',picBawaan(o));
   if(n){o._m=Date.now();save();}
   return n>0;}
-function briefKeMaster(id){ // simpan yang bisa dipakai ulang ke Master Customer
-  var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;var b=briefGet(o);
+/* Dipanggil sendiri tiap Brief berubah — tanpa alert, tanpa render, supaya
+   tak mengganggu orang yang sedang mengetik. */
+function briefKeMasterOtomatis(o){
+  if(!o)return false;
+  try{return simpanKeMaster(o,true);}catch(e){return false;}}
+function simpanKeMaster(o,senyap){
+  var b=briefGet(o);
   if(!ST.master.customers)ST.master.customers=[];
   var c=custMaster(o),baru=!c;
   if(!c){c={nama:o.customer,tipe:jenisKeTipe(o.prefix)||'Corporate',lokasi:orderAU(o)?'AU':'HQ'};ST.master.customers.push(c);}
@@ -10811,7 +10936,9 @@ function briefKeMaster(id){ // simpan yang bisa dipakai ulang ke Master Customer
   if(o.addr)c.alamat=o.addr;
   var pjn=((o.pricing||{}).pajak||{}).npwp;if(pjn)c.npwp=pjn;   // NPWP dipakai lagi order berikutnya
   if(b.venue)c.kota=b.venue;
-  stampRow(c);saveMaster();render();
+  stampRow(c);saveMaster();
+  if(senyap)return baru;
+  render();
   alert((baru?'✓ Client baru ditambahkan ke Master Customer: ':'✓ Master Customer diperbarui: ')+'"'+o.customer+'".\n\nTersimpan: PIC, HP, email, alamat kantor, alamat kirim, kota — dipakai otomatis untuk order berikutnya.');}
 /* ================= BRIEF INQUIRY — versi ringkas =================
    Kembali ke tata letak lama yang padat: Detail klien + Spesifikasi produk.
@@ -11140,7 +11267,10 @@ function briefPanel(o){
     '<input class="pin" data-f="'+esc(f)+'" style="width:100%;margin-top:3px" value="'+esc(b[f])+'" onchange="briefSet(\''+o.id+'\',\''+f+'\',this.value)" placeholder="'+esc(ph||'')+'"></label>';};
   var ord=function(f,label,ph,lebar){return '<label class="nlbl" style="'+(lebar||'')+'">'+label+
     '<input class="pin" style="width:100%;margin-top:3px" value="'+esc(o[f]||'')+'" onchange="clientEdit(\''+o.id+'\',\''+f+'\',this.value)" placeholder="'+esc(ph||'')+'"></label>';};
-  var tgl=function(f,label){return '<label class="nlbl">'+label+'<input type="date" class="pin" data-f="'+esc(f)+'" style="width:100%;margin-top:3px" value="'+esc(b[f])+'" onchange="briefSet(\''+o.id+'\',\''+f+'\',this.value)"></label>';};
+  var tgl=function(f,label){
+    /* order lama menyimpan tanggal acara di o.eventDate saja */
+    var nilai=b[f]||((f==='tglAcara')?(o.eventDate||''):'');
+    return '<label class="nlbl">'+label+'<input type="date" class="pin" data-f="'+esc(f)+'" style="width:100%;margin-top:3px" value="'+esc(nilai)+'" onchange="briefSet(\''+o.id+'\',\''+f+'\',this.value)"></label>';};
   var grid=function(isi,min){return '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax('+(min||160)+'px,1fr));gap:9px;margin-bottom:11px">'+isi+'</div>';};
   var sub=function(t,ket){return '<div style="font-weight:800;font-size:10.5px;color:var(--brand);letter-spacing:.04em;margin:14px 0 8px;border-top:1px solid var(--line);padding-top:11px">'+t+
     (ket?'<span style="font-weight:400;color:var(--muted);letter-spacing:0"> — '+ket+'</span>':'')+'</div>';};
@@ -11166,8 +11296,10 @@ function briefPanel(o){
   return '<div class="card actcard" style="margin-top:14px"><div class="ch"><span class="ico" style="background:#5a7d9a">📝</span>'+
     '<div><div class="t">Brief Inquiry</div><div class="s">DETAIL KLIEN &amp; SPESIFIKASI PRODUK</div></div>'+
     '<span style="margin-left:auto;display:flex;gap:6px;flex-wrap:wrap">'+
-    '<button class="btn ghost sm" onclick="briefKeMaster(\''+o.id+'\')" title="'+(cm?'perbarui data client yang sudah ada di Master':'tambahkan client ini ke Master')+'">💾 '+(cm?'Perbarui Master':'Simpan ke Master')+'</button>'+
-    '<button class="btn ghost sm" onclick="briefKeProd(\''+o.id+'\')" title="isi Form PO dari brief ini">→ Form PO</button></span></div><div class="body">'+
+    /* Tombol "Perbarui Master" & "→ Form PO" dihapus: keduanya berjalan
+       sendiri tiap Brief diubah. Yang tersisa keterangannya saja. */
+    '<span style="font-size:9.5px;color:var(--muted)" title="tersimpan sendiri tiap kolom diubah">'+
+      '↻ tersimpan sendiri ke Master &amp; Form PO</span></span></div><div class="body">'+
 
     salesRingkasBlok(o)+
     '<div style="font-size:10px;font-weight:700;color:var(--muted);margin-bottom:7px">Client — '+esc(o.customer)+
