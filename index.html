@@ -137,6 +137,7 @@
   .evtag{font-size:9px;font-weight:800;padding:2px 7px;border-radius:20px;background:var(--warn-bg);color:var(--warn);margin-right:3px}
 
   /* status + collaterals */
+  .stbadge.stlead{background:transparent;border:1px dashed #8a7a5c;color:#8a7a5c}
   .stbadge{font-size:9px;font-weight:800;padding:3px 9px;border-radius:20px;white-space:nowrap}
   .st-Inquiry{background:var(--bg);color:var(--muted)}
   .st-Quotation{background:var(--warn-bg);color:var(--warn)}
@@ -1861,6 +1862,21 @@ function leadSpecRingkas(l){
 /* ---- item katalog di prospek ---- */
 const LEAD_JENIS=['Katalog','Custom','Mix'];
 function leadItems(l){if(!Array.isArray(l.items))l.items=[];return l.items;}
+/* Ringkasan prospek — dipakai kartu di papan DAN kirimKeInquiry, supaya
+   kartunya tak pernah menjanjikan sesuatu yang lain dari yang lahir. */
+function leadPrefix(l){return /wedding|pernikahan/i.test(l.nama||'')?'w':'c';}
+function leadBaris(l){
+  var out=leadItems(l).map(function(it){return {nama:it.nama,qty:+it.qty||0};});
+  if(!out.length)out.push({nama:l.produk||'(belum dirinci)',qty:+l.qty||0});
+  return out;}
+function leadJudul(l){var b=leadBaris(l);
+  return b[0].nama+(b.length>1?(' (+'+(b.length-1)+' item)'):'');}
+function leadQty(l){return leadBaris(l).reduce(function(s,x){return s+(x.qty||0);},0);}
+function leadColl(l){var c={others:''};
+  ['box','pouch','card'].forEach(function(k){
+    c[k]=leadSpec(l,k).ada||leadItems(l).some(function(it){
+      var x=(it.coll||{})[k];return !!(x&&x.ada);});});
+  return c;}
 function leadJenisSet(id,v){
   var l=leadsAll().find(function(x){return x.id===id;});if(!l)return;
   l.jenis=v;l._m=Date.now();saveLeads();render();}
@@ -2082,15 +2098,12 @@ function kirimKeInquiry(id){
     sumber:vendorNames()[0]||'Radja Leather',qty:+l.qty||0,hpp:0,jual:0,
     img:'',imgs:[],detail:'dari prospek — belum dirinci',perso:'-',fixed:false});
 
-  /* collateral yang diminta client, dari dua sumber */
-  var coll={others:''};
-  ['box','pouch','card'].forEach(function(k){
-    coll[k]=leadSpec(l,k).ada||leadItems(l).some(function(it){
-      var c=(it.coll||{})[k];return !!(c&&c.ada);});});
-
-  var qtyTotal=lines.reduce(function(s,x){return s+(x.qty||0);},0);
-  var judul=lines[0].produk+(lines.length>1?(' (+'+(lines.length-1)+' item)'):'');
-  var o=mk({prefix:/wedding|pernikahan/i.test(l.nama||'')?'w':'c',
+  /* collateral, judul, qty, dan prefix — dihitung fungsi yang sama dengan
+     yang dipakai kartu prospek, jadi tak bisa berbeda diam-diam */
+  var coll=leadColl(l);
+  var qtyTotal=leadQty(l);
+  var judul=leadJudul(l);
+  var o=mk({prefix:leadPrefix(l),
     type:l.jenis,customer:l.nama||'Order Baru',product:judul,
     qty:qtyTotal,mat:lines[0].bahan||'',date:today(),
     phone:l.kontak||'',sales:l.pic||(ST.userName||ST.user||''),
@@ -6530,15 +6543,20 @@ function bukaProspek(id){
   setTimeout(function(){var e=document.getElementById('lead_'+id);
     if(e&&e.scrollIntoView)e.scrollIntoView({block:'center'});},60);}
 function kartuProspek(l){
-  var u=leadUrgensi(l),n=leadSpecN(l);
-  return '<div class="oc" style="border-left-color:'+(u==='merah'?'#d9534f':(u==='kuning'?'#c78a24':'#8a7a5c'))+
+  var u=leadUrgensi(l),p=leadPrefix(l);
+  /* susunan tiga barisnya sama dengan kartu order: nama, produk·qty, status.
+     Garis kirinya ikut warna urgensi kalau sudah lama didiamkan — itu yang
+     perlu terlihat lebih dulu daripada jenis ordernya. */
+  return '<div class="oc" style="border-left-color:'+(u==='merah'?'#d9534f':(u==='kuning'?'#c78a24':pfColor(p)))+
       ';border-style:dashed;opacity:.93" onclick="bukaProspek(\''+l.id+'\')">'+
-    '<div class="on"><span class="pf" style="background:#8a7a5c">◇</span>'+esc(l.nama||'(tanpa nama)')+'</div>'+
-    '<div class="om"><span>'+esc(l.produk||'belum disebut')+'</span><span>'+esc(l.channel||'')+'</span></div>'+
+    '<div class="on"><span class="pf" style="background:'+pfColor(p)+'">'+p.toUpperCase()+'</span>'+
+      esc(l.nama||'(tanpa nama)')+'</div>'+
+    '<div class="om"><span>'+esc(leadJudul(l))+' · '+leadQty(l)+'pcs</span>'+
+      '<span>'+esc(l.channel||'')+'</span></div>'+
     '<div class="om" style="margin-top:5px">'+
-      '<span style="font-size:9px;font-weight:800;color:#8a7a5c;letter-spacing:.05em">'+
-        (l.jenis?esc(l.jenis.toUpperCase()):'BELUM DIPILIH')+' · '+esc(l.status)+'</span>'+
-      '<span style="font-size:9px;font-weight:700;color:'+leadWarna(l)+'">'+esc(leadKet(l))+'</span>'+
+      '<span class="stbadge stlead">'+esc(l.jenis||'belum dipilih')+' · '+esc(l.status)+'</span>'+
+      '<span>'+collIcons(leadColl(l))+
+        ' <span style="font-size:9px;font-weight:700;color:'+leadWarna(l)+'">'+esc(leadKet(l))+'</span></span>'+
     '</div></div>';}
 function renderBoard(){
   const ALL=ST.orders.filter(o=>!o.deleted);
