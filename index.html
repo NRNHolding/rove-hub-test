@@ -543,6 +543,7 @@ const BULAN_EN={Januari:'January',Februari:'February',Maret:'March',April:'April
 
 /* Aturan untuk kalimat yang mengandung angka — dicoba setelah kamus persis gagal. */
 const EN_RULES=[
+  [/^⚠ nama dobel: (.+)$/,function(m,x){return '⚠ duplicate names: '+x;}],
   [/^MENUNGGU KAMU \((\d+)\)$/,function(m,n){return 'WAITING ON YOU ('+n+')';}],
   [/^utama: (.+)$/,function(m,x){return 'primary: '+x;}],
   [/^(d+) jabatan belum diisi — pengingatnya tak membunyikan notifikasi$/,function(m,n){return n+' role'+(+n===1?'':'s')+' not filled in — their reminders will not notify anyone';}],
@@ -743,6 +744,12 @@ const EN={
 'Tiap pcs beda nama':'Each piece has a different name','daftar nama wajib lengkap sebelum plate dipesan':'the name list must be complete before plates are ordered',
 'Font / tipografi':'Font / typography','✓ jumlah cocok':'✓ count matches','⧉ Salin untuk PO':'⧉ Copy for the PO',
 '📋 Tempel daftar nama':'📋 Paste the name list','📋 Ubah / tempel ulang':'📋 Edit / paste again','Catatan':'Notes',
+'📁 Impor CSV':'📁 Import CSV','⬇ Unduh untuk Radja':'⬇ Download for Radja','⚠ dobel':'⚠ duplicate',
+'Simpan daftar':'Save the list','Daftar nama — satu baris satu nama':'Name list — one name per line',
+'Boleh copy langsung dua kolom dari Excel (nama + catatan). Pemisah | atau ; juga bisa. Nomor urut otomatis dibuang.':
+  'You can copy two columns straight from Excel (name + notes). | or ; separators also work. Row numbers are removed automatically.',
+'Daftar nama belum ada. Minta ke client (biasanya spreadsheet), lalu tempel isinya atau impor file .csv — jumlahnya langsung dicocokkan dengan qty pesanan.':
+  'No name list yet. Ask the client (usually a spreadsheet), then paste it in or import the .csv — the count is checked against the ordered qty right away.',
 'Overview order':'Order overview','Kelengkapan fase':'Phase checklist','checklist + PIC':'checklist + owner',
 'Kelengkapan yang menunggumu':'Items waiting on you','tiap item punya PIC; yang WAJIB menahan lanjut fase':'each item has an owner; MANDATORY ones block the next phase',
 'ISI INQUIRY':'INQUIRY DETAILS','HASIL PRICING':'PRICING RESULT','Belum bisa dikunci':'Cannot be locked yet',
@@ -4503,23 +4510,99 @@ function persoTogglePcs(id,on){
   persoGet(o).perPcs=!!on;o._m=Date.now();
   logHist(o,on?'Personalisasi per pcs diaktifkan (tiap pcs beda nama)':'Personalisasi per pcs dimatikan');
   save();render();}
-/* Tempel dari WhatsApp/Excel. Satu baris satu nama; "nama | catatan" kalau ada
-   permintaan khusus per orang. Baris kosong & nomor urut "1." dibuang. */
+/* Daftar nama datang dari client sebagai spreadsheet, lalu diteruskan ke Radja.
+   Tiga jalan masuk: tempel (copy dari Excel = kolom dipisah TAB), impor file
+   .csv, atau ketik. Satu jalan keluar: unduh CSV rapi untuk dikirim ke Radja.
+   prompt() tidak dipakai lagi — prompt menelan baris baru saat tempel. */
+function persoParse(teks){
+  return String(teks).split(/\r?\n/).map(function(b){
+      b=b.replace(/^\s*\d+[\.\)]\s*/,'').trim();          // buang "1." / "1)"
+      if(!b)return null;
+      var p=/\t/.test(b)?b.split('\t'):(b.indexOf('|')>=0?b.split('|'):b.split(';'));
+      p=p.map(function(x){return x.trim();});
+      if(p.length>1&&/^\d+$/.test(p[0]))p.shift();           // kolom nomor dari Excel
+      var nama=(p.shift()||'').trim();
+      if(!nama)return null;
+      return {nama:nama,catatan:p.filter(Boolean).join(', ')};
+    }).filter(Boolean);}
+function persoBuangJudul(rows){                              // baris judul spreadsheet
+  if(rows.length&&/^(no\.?|nama|name|guest|tamu|initial|inisial)$/i.test(rows[0].nama))return rows.slice(1);
+  return rows;}
+function persoCsvBaris(line){                                // pecah satu baris CSV, sadar tanda kutip
+  var d=/\t/.test(line)?'\t':(line.indexOf(';')>=0&&line.indexOf(',')<0?';':',');
+  var out=[],cur='',q=false;
+  for(var i=0;i<line.length;i++){var c=line[i];
+    if(q){if(c==='"'){if(line[i+1]==='"'){cur+='"';i++;}else q=false;}else cur+=c;}
+    else if(c==='"')q=true;
+    else if(c===d){out.push(cur);cur='';}
+    else cur+=c;}
+  out.push(cur);return out;}
+function persoSimpanDaftar(o,baru,sumber){
+  persoGet(o).daftar=baru;o._m=Date.now();
+  logHist(o,'Daftar nama personalisasi diperbarui'+(sumber?(' dari '+sumber):'')+': '+baru.length+' nama');
+  save();render();}
 function persoTempel(id){
   var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
   var N=persoGet(o);
   var awal=N.daftar.map(function(d){return d.nama+(d.catatan?(' | '+d.catatan):'');}).join('\n');
-  var isi=prompt('Tempel daftar nama — satu baris satu nama.\n\nBoleh "Nama | catatan" kalau ada permintaan khusus.\nNomor urut (1. 2. 3.) otomatis dibuang.',awal);
-  if(isi===null)return;
-  var baru=String(isi).split(/\r?\n/).map(function(b){
-      return b.replace(/^\s*\d+[\.\)]\s*/,'').trim();       // buang "1." / "1)"
-    }).filter(Boolean).map(function(b){
-      var s=b.split('|');
-      return {nama:s[0].trim(),catatan:(s[1]||'').trim()};
-    });
-  N.daftar=baru;o._m=Date.now();
-  logHist(o,'Daftar nama personalisasi diperbarui: '+baru.length+' nama');
-  save();render();}
+  var ov=document.createElement('div');
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:70;display:flex;align-items:center;justify-content:center;padding:18px';
+  ov.innerHTML='<div style="background:var(--card,#fff);border-radius:14px;padding:18px 18px 14px;width:min(480px,100%);max-height:90vh;display:flex;flex-direction:column;gap:9px;box-shadow:0 18px 50px rgba(0,0,0,.3)">'+
+    '<div style="font-weight:800;font-size:13px">Daftar nama \u2014 satu baris satu nama</div>'+
+    '<div style="font-size:10.5px;color:var(--muted)">Boleh copy langsung dua kolom dari Excel (nama + catatan). Pemisah | atau ; juga bisa. Nomor urut otomatis dibuang.</div>'+
+    '<textarea style="width:100%;height:250px;font:11px/1.7 ui-monospace,Consolas,monospace;padding:9px 11px;border:1px solid var(--bd,#ccc);border-radius:9px;resize:vertical;background:var(--card,#fff);color:inherit"></textarea>'+
+    '<div style="display:flex;gap:8px;justify-content:flex-end"><button class="btn ghost sm" data-a="x">Batal</button>'+
+    '<button class="btn sm" data-a="ok">Simpan daftar</button></div></div>';
+  document.body.appendChild(ov);
+  try{trDOM(ov);}catch(e){}
+  var ta=ov.querySelector('textarea');ta.value=awal;ta.focus();
+  ov.addEventListener('click',function(ev){
+    var a=(ev.target.dataset||{}).a;
+    if(ev.target===ov||a==='x'){ov.remove();return;}
+    if(a!=='ok')return;
+    persoSimpanDaftar(o,persoBuangJudul(persoParse(ta.value)),null);
+    ov.remove();});}
+function persoImpor(id){
+  var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
+  var N=persoGet(o);
+  var inp=document.createElement('input');inp.type='file';
+  inp.accept='.csv,.txt,.xls,.xlsx,text/csv,text/plain';
+  inp.onchange=function(){
+    var f=(inp.files||[])[0];if(!f)return;
+    if(/\.xlsx?$/i.test(f.name)){
+      alert('File Excel tak bisa dibaca langsung.\n\nBuka filenya \u2192 blok kolom nama (+ catatan) \u2192 copy \u2192 pakai tombol "Tempel daftar nama". Atau Save As \u2192 CSV lalu impor lagi.');return;}
+    var fr=new FileReader();
+    fr.onload=function(){
+      var rows=persoBuangJudul(persoParse(String(fr.result).split(/\r?\n/)
+        .map(function(l){return persoCsvBaris(l).join('\t');}).join('\n')));
+      if(!rows.length){alert('Tak ada nama yang terbaca dari '+f.name+'.');return;}
+      if(N.daftar.length&&!confirm('Ganti '+N.daftar.length+' nama yang ada dengan '+rows.length+' nama dari '+f.name+'?'))return;
+      persoSimpanDaftar(o,rows,f.name);};
+    fr.readAsText(f);};
+  inp.click();}
+/* CSV yang diunduh = yang diteruskan ke Radja: identitas order + teknik + font
+   di atas, lalu tabel nama. BOM supaya Excel membaca huruf ber-aksen dgn benar. */
+function persoUnduh(id){
+  var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
+  var N=persoGet(o),b=briefGet(o);
+  if(!N.daftar.length){alert('Daftar masih kosong.');return;}
+  var e2=function(v){v=String(v==null?'':v);return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v;};
+  var produk=(((o.pricing||{}).lines)||[]).filter(function(l){return !l.coll;})
+    .map(function(l){return (l.produk||'')+' \u00d7 '+(l.qty||0)+' pcs';}).join('; ');
+  var q=persoQty(o);
+  var atas=[['DAFTAR NAMA PERSONALISASI'],['Order',o.customer||'-'],['No. SO',o.soNo||'-'],
+    ['Produk',produk||'-'],
+    ['Teknik',(b.perso==='Others'||b.perso==='Other')?(b.persoLain||b.perso):(b.perso||'-')],
+    ['Font / tipografi',N.font||'-'],
+    ['Jumlah nama',N.daftar.length+(N.daftar.length===q?' (cocok dengan qty pesanan)':(' \u2014 qty pesanan '+q))],[]];
+  var csv='\ufeff'+atas.concat([['No','Nama','Catatan']])
+    .concat(N.daftar.map(function(d,i){return [i+1,d.nama,d.catatan||''];}))
+    .map(function(r){return r.map(e2).join(',');}).join('\n');
+  var a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
+  a.download=('Daftar nama - '+(o.customer||o.id)+(o.soNo?(' - '+o.soNo):''))
+    .replace(/[\\\/:*?"<>|]+/g,'').trim()+'.csv';
+  a.click();
+  logHist(o,'Daftar nama diunduh untuk diteruskan ke vendor ('+N.daftar.length+' nama)');save();}
 function persoHapusSemua(id){
   var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
   var N=persoGet(o);if(!N.daftar.length)return;
@@ -4538,6 +4621,8 @@ function persoFont(id,v){
 function persoBlok(o){
   var N=persoGet(o),q=persoQty(o),n=N.daftar.length;
   var beda=n-q, warna=(!n?'var(--muted)':beda===0?'var(--ok)':'var(--warn)');
+  var hit={},dupK={};N.daftar.forEach(function(d){var k=d.nama.toLowerCase();if(hit[k])dupK[k]=1;hit[k]=1;});
+  var dobel=[];N.daftar.forEach(function(d){if(dupK[d.nama.toLowerCase()]&&dobel.indexOf(d.nama)<0)dobel.push(d.nama);});
   var kepala='<div style="display:flex;flex-wrap:wrap;gap:9px;align-items:center;margin-bottom:7px">'+
     '<label style="font-size:11px;font-weight:700;display:flex;align-items:center;gap:7px;cursor:pointer">'+
       '<input type="checkbox" '+(N.perPcs?'checked':'')+' style="width:auto;accent-color:var(--brand)" '+
@@ -4549,19 +4634,23 @@ function persoBlok(o){
       '(nama tamu, inisial). Kalau logonya sama semua, biarkan kosong.</div>';
   var isi=batasKe('perso'+o.id,N.daftar,6,20).map(function(d,i){
     return '<tr><td class="num" style="width:34px;color:var(--muted)">'+(i+1)+'</td>'+
-      '<td><b>'+esc(d.nama)+'</b></td>'+
+      '<td><b>'+esc(d.nama)+'</b>'+(dupK[d.nama.toLowerCase()]?' <span style="color:var(--warn);font-size:9.5px;font-weight:800">\u26a0 dobel</span>':'')+'</td>'+
       '<td style="color:var(--muted)">'+esc(d.catatan||'')+'</td></tr>';}).join('');
   return kepala+
     '<div style="display:flex;flex-wrap:wrap;gap:9px;align-items:center;margin-bottom:9px">'+
       '<span style="font-size:12px;font-weight:800;color:'+warna+'">'+n+' nama</span>'+
       '<span style="font-size:10.5px;color:var(--muted)">vs '+q+' pcs dipesan</span>'+
       (n&&beda!==0?('<span style="font-size:10.5px;font-weight:800;color:var(--warn)">'+
-        (beda>0?('⚠ kelebihan '+beda+' nama'):('⚠ kurang '+(-beda)+' nama'))+'</span>'):'')+
-      (n&&beda===0?'<span style="font-size:10.5px;font-weight:800;color:var(--ok)">✓ jumlah cocok</span>':'')+
+        (beda>0?('\u26a0 kelebihan '+beda+' nama'):('\u26a0 kurang '+(-beda)+' nama'))+'</span>'):'')+
+      (n&&beda===0&&!dobel.length?'<span style="font-size:10.5px;font-weight:800;color:var(--ok)">\u2713 jumlah cocok</span>':'')+
+      (dobel.length?('<span style="font-size:10.5px;font-weight:800;color:var(--warn)">\u26a0 nama dobel: '+
+        esc(dobel.slice(0,3).join(', '))+(dobel.length>3?(' +'+(dobel.length-3)):'')+'</span>'):'')+
       '<span style="margin-left:auto;display:flex;gap:6px;flex-wrap:wrap">'+
-        '<button class="btn sm" onclick="persoTempel(\'' + o.id + '\')">📋 '+(n?'Ubah / tempel ulang':'Tempel daftar nama')+'</button>'+
-        (n?('<button class="btn ghost sm" onclick="persoSalin(\'' + o.id + '\')">⧉ Salin untuk PO</button>'+
-            '<button class="xrow" title="kosongkan daftar" onclick="persoHapusSemua(\'' + o.id + '\')">✕</button>'):'')+
+        '<button class="btn sm" onclick="persoTempel(\'' + o.id + '\')">\ud83d\udccb '+(n?'Ubah / tempel ulang':'Tempel daftar nama')+'</button>'+
+        '<button class="btn ghost sm" onclick="persoImpor(\'' + o.id + '\')">\ud83d\udcc1 Impor CSV</button>'+
+        (n?('<button class="btn ghost sm" onclick="persoUnduh(\'' + o.id + '\')">\u2b07 Unduh untuk Radja</button>'+
+            '<button class="btn ghost sm" onclick="persoSalin(\'' + o.id + '\')">\u29c9 Salin untuk PO</button>'+
+            '<button class="xrow" title="kosongkan daftar" onclick="persoHapusSemua(\'' + o.id + '\')">\u2715</button>'):'')+
       '</span></div>'+
     '<label style="font-size:10px;font-weight:700;color:var(--muted);display:block;margin-bottom:9px">Font / tipografi'+
       '<br><input class="pin" style="width:220px;margin-top:3px" value="'+esc(N.font||'')+
@@ -4569,7 +4658,7 @@ function persoBlok(o){
     (n?('<div class="xscroll"><table class="rtable"><thead><tr><th style="width:34px">#</th><th>Nama</th><th>Catatan</th></tr></thead>'+
         '<tbody>'+isi+'</tbody></table></div>'+batasBtn('perso'+o.id,n,6,20))
       :'<div style="border:1px dashed var(--warn);border-radius:9px;padding:11px 13px;font-size:10.5px;color:var(--warn)">'+
-       'Daftar nama belum ada. Minta ke client, lalu tempel di sini — jumlahnya langsung dicocokkan dengan qty pesanan.</div>')+
+       'Daftar nama belum ada. Minta ke client (biasanya spreadsheet), lalu tempel isinya atau impor file .csv \u2014 jumlahnya langsung dicocokkan dengan qty pesanan.</div>')+
     '<div style="height:11px"></div>';}
 
 function persoVals(){return listArr('perso');}
