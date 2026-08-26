@@ -2104,6 +2104,9 @@ function leadAdd(){
       {k:'channel',label:'Datang dari mana',type:'select',val:'WhatsApp',opts:LEAD_CH},
       {k:'produk',label:'Minat produk',type:'text',ph:'mis. Pouch + Card — jumlahnya di kolom sebelah'},
       {k:'estimasi',label:'Perkiraan nilai',type:'money'},
+      {k:'tglAcara',label:'Tanggal acara',type:'date',
+        hint:'Kalau client sudah menyebutkannya. Ikut terbawa ke Brief, jadi PM tak menanyakannya lagi.'},
+      {k:'tglKirim',label:'Tanggal kirim diminta',type:'date'},
       {k:'kategori',label:'Kategori client',type:'select',val:'Corporate',opts:LEAD_KAT,
         hint:'Menentukan kolom nama yang muncul di Brief: Wedding → bride & groom, Corporate → nama perusahaan, Custom → nama client utama. Order lewat WO/EO tetap pilih kategori client aslinya.'},
       {k:'jenis',label:'Jenis order',type:'select',val:'',opts:['','Katalog','Custom','Mix'],
@@ -2112,6 +2115,7 @@ function leadAdd(){
       leadsAll().unshift({id:'L'+Math.random().toString(36).slice(2,7),nama:v.nama,kontak:v.kontak,
         channel:v.channel,produk:v.produk,qty:0,estimasi:+v.estimasi||0,status:'Baru',
         masuk:new Date().toISOString().slice(0,10),jenis:v.jenis||'',kategori:v.kategori||'Corporate',
+        tglAcara:v.tglAcara||'',tglKirim:v.tglKirim||'',
         items:[],pic:(ST.userName||ST.user||''),
         catatan:'',touch:new Date().toISOString().slice(0,10),log:[],_m:Date.now()});
       saveLeads();render();}});}
@@ -2166,6 +2170,9 @@ function kirimKeInquiry(id){
     status:'Inquiry',coll:coll});
   o.pricing={margin:MARGIN_BAWAAN,lines:lines};
   o.brief=Object.assign({fitur:['','','']},o.brief||{});
+  /* tanggal yang sudah disebut client waktu prospek — jangan ditanya dua kali */
+  if(l.tglAcara)o.eventDate=l.tglAcara;
+  if(l.tglKirim)o.brief.tglKirim=l.tglKirim;
   o.vip=isVip(l);                       // status VIP ikut, tak perlu ditetapkan ulang
   if(vipMinta(l))o.vipMinta=JSON.parse(JSON.stringify(l.vipMinta));  // pengajuan ikut juga
   o.dariSales={dari:l.nama,channel:l.channel,pic:l.pic,catatan:l.catatan||'',
@@ -7742,16 +7749,39 @@ function bukaAwal(id,fase,k){
   if(L.indexOf(pk)<0)L.push(pk);
   ST.cur=o.id;render();
   setTimeout(function(){sorotPanel(pk);},60);}
-/* dipakai bersama oleh "Isi sekarang" dan lompatan dari checklist */
+/* dipakai bersama oleh "Isi sekarang" dan lompatan dari checklist.
+   Membuka panelnya saja tak cukup — panel bisa berisi belasan kolom. Yang
+   dicari kolom pertama yang masih kosong di dalamnya: itu yang diberi fokus
+   supaya langsung bisa diketik, dan dikedipkan supaya matanya tertuju ke
+   sana. Kalau semuanya sudah terisi, panelnya saja yang disorot. */
+function kedip(el,warna){
+  if(!el)return;
+  var lama=el.style.boxShadow;
+  el.style.transition='box-shadow .18s';
+  el.style.boxShadow='0 0 0 3px '+(warna||'var(--brand)');
+  setTimeout(function(){el.style.boxShadow='0 0 0 6px transparent';},420);
+  setTimeout(function(){el.style.boxShadow='0 0 0 3px '+(warna||'var(--brand)');},640);
+  setTimeout(function(){el.style.boxShadow=lama||'';},1500);}
+function kolomKosongPertama(wadah){
+  var isian=[].slice.call(wadah.querySelectorAll('input:not([type=checkbox]):not([type=radio]):not([disabled]),textarea:not([disabled]),select:not([disabled])'));
+  var kosong=isian.filter(function(el){
+    if(el.offsetParent===null)return false;                       // tersembunyi
+    if(el.tagName==='SELECT')return !el.value||el.value==='-'||el.value==='';
+    return !String(el.value||'').trim();});
+  return kosong[0]||isian.filter(function(el){return el.offsetParent!==null;})[0]||null;}
 function sorotPanel(pk){
   var e=document.getElementById('pnl_'+pk);
   if(!e)return false;
   try{e.scrollIntoView({block:'start',behavior:'smooth'});}catch(err){e.scrollIntoView();}
   var kartu=e.querySelector('.card')||e;
-  var lama=kartu.style.boxShadow;
-  kartu.style.transition='box-shadow .25s';
-  kartu.style.boxShadow='0 0 0 3px var(--brand)';
-  setTimeout(function(){kartu.style.boxShadow=lama||'';},1400);
+  kedip(kartu);
+  setTimeout(function(){
+    var kol=kolomKosongPertama(e);
+    if(!kol)return;
+    try{kol.scrollIntoView({block:'center',behavior:'smooth'});}catch(err){}
+    kedip(kol,'var(--gold)');
+    try{kol.focus({preventScroll:true});}catch(err){try{kol.focus();}catch(e2){}}
+  },420);
   return true;}
 
 /* Tugas milikku di fase-fase BERIKUTNYA yang sudah bisa dijawab sekarang. */
@@ -11060,10 +11090,10 @@ function briefPanel(o){
     return '<label class="nlbl">'+label+'<select class="pin" style="width:100%;margin-top:3px" onchange="briefSet(\''+o.id+'\',\''+f+'\',this.value)">'+
       opts.map(function(x){return '<option '+((b[f]||'-')===x?'selected':'')+'>'+esc(x)+'</option>';}).join('')+'</select></label>';};
   var txt=function(f,label,ph,lebar){return '<label class="nlbl" style="'+(lebar||'')+'">'+label+
-    '<input class="pin" style="width:100%;margin-top:3px" value="'+esc(b[f])+'" onchange="briefSet(\''+o.id+'\',\''+f+'\',this.value)" placeholder="'+esc(ph||'')+'"></label>';};
+    '<input class="pin" data-f="'+esc(f)+'" style="width:100%;margin-top:3px" value="'+esc(b[f])+'" onchange="briefSet(\''+o.id+'\',\''+f+'\',this.value)" placeholder="'+esc(ph||'')+'"></label>';};
   var ord=function(f,label,ph,lebar){return '<label class="nlbl" style="'+(lebar||'')+'">'+label+
     '<input class="pin" style="width:100%;margin-top:3px" value="'+esc(o[f]||'')+'" onchange="clientEdit(\''+o.id+'\',\''+f+'\',this.value)" placeholder="'+esc(ph||'')+'"></label>';};
-  var tgl=function(f,label){return '<label class="nlbl">'+label+'<input type="date" class="pin" style="width:100%;margin-top:3px" value="'+esc(b[f])+'" onchange="briefSet(\''+o.id+'\',\''+f+'\',this.value)"></label>';};
+  var tgl=function(f,label){return '<label class="nlbl">'+label+'<input type="date" class="pin" data-f="'+esc(f)+'" style="width:100%;margin-top:3px" value="'+esc(b[f])+'" onchange="briefSet(\''+o.id+'\',\''+f+'\',this.value)"></label>';};
   var grid=function(isi,min){return '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax('+(min||160)+'px,1fr));gap:9px;margin-bottom:11px">'+isi+'</div>';};
   var sub=function(t,ket){return '<div style="font-weight:800;font-size:10.5px;color:var(--brand);letter-spacing:.04em;margin:14px 0 8px;border-top:1px solid var(--line);padding-top:11px">'+t+
     (ket?'<span style="font-weight:400;color:var(--muted);letter-spacing:0"> — '+ket+'</span>':'')+'</div>';};
