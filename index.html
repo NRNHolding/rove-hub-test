@@ -1865,9 +1865,17 @@ function leadItems(l){if(!Array.isArray(l.items))l.items=[];return l.items;}
 /* Ringkasan prospek — dipakai kartu di papan DAN kirimKeInquiry, supaya
    kartunya tak pernah menjanjikan sesuatu yang lain dari yang lahir. */
 function leadPrefix(l){return /wedding|pernikahan/i.test(l.nama||'')?'w':'c';}
+/* "Pouch + Card 250pcs" dengan qty 250 → "Pouch + Card", tanpa ekor jumlah.
+   Ekornya dibuang hanya kalau angkanya persis sama dengan kolom qty; kalau
+   beda, biarkan apa adanya — itu keterangan client, bukan salah ketik. */
+function leadProdukBersih(l){
+  var t=String(l.produk||'').trim(),q=+l.qty||0;
+  if(!q)return t;
+  var m=t.match(/^(.*?)[\s,\u2014-]*\b(\d+)\s*(pcs|pc|buah)\b\.?$/i);
+  return (m&&+m[2]===q&&m[1].trim())?m[1].trim().replace(/[\s,\u2014-]+$/,''):t;}
 function leadBaris(l){
   var out=leadItems(l).map(function(it){return {nama:it.nama,qty:+it.qty||0};});
-  if(!out.length)out.push({nama:l.produk||'(belum dirinci)',qty:+l.qty||0});
+  if(!out.length)out.push({nama:leadProdukBersih(l)||'(belum dirinci)',qty:+l.qty||0});
   return out;}
 function leadJudul(l){var b=leadBaris(l);
   return b[0].nama+(b.length>1?(' (+'+(b.length-1)+' item)'):'');}
@@ -2020,9 +2028,9 @@ function loadLeads(){try{ST.leads=JSON.parse(localStorage.getItem(LEAD_KEY)||'nu
   if(!ST.leads){ST.leads=defLeads();localStorage.setItem(LEAD_KEY,JSON.stringify(ST.leads));}}
 function defLeads(){var d=function(n){var x=new Date();x.setDate(x.getDate()+n);return x.toISOString().slice(0,10);};
   return [
-   {id:'L001',nama:'Wedding Sinta & Bagas',kontak:'+62 813-2200-1101',channel:'Instagram',produk:'Pouch + Card 250pcs',qty:250,estimasi:32000000,status:'Follow-up',masuk:d(-12),fuNext:d(-2),pic:'Jessica B',catatan:'',touch:d(-6),log:[{t:'',by:'Jessica B',txt:'Sudah kirim katalog, minta waktu diskusi pasangan'}],_m:Date.now()},
-   {id:'L002',nama:'PT Astra Finance',kontak:'+62 811-9000-2202',channel:'Email',produk:'Gift set akhir tahun 500pcs',qty:500,estimasi:145000000,status:'Ditanggapi',masuk:d(-4),fuNext:d(3),pic:'David Edward',catatan:'',touch:d(-1),log:[{t:'',by:'David Edward',txt:'Minta proposal + sample'}],_m:Date.now()},
-   {id:'L003',nama:'Hotel Padma Bali',kontak:'+62 812-7788-3303',channel:'WhatsApp',produk:'Menu book kulit 80pcs',qty:80,estimasi:24000000,status:'Baru',masuk:d(-1),fuNext:d(2),pic:'Rani P',catatan:'',touch:d(-1),log:[],_m:Date.now()},
+   {id:'L001',nama:'Wedding Sinta & Bagas',kontak:'+62 813-2200-1101',channel:'Instagram',produk:'Pouch + Card',qty:250,estimasi:32000000,status:'Follow-up',masuk:d(-12),fuNext:d(-2),pic:'Jessica B',catatan:'',touch:d(-6),log:[{t:'',by:'Jessica B',txt:'Sudah kirim katalog, minta waktu diskusi pasangan'}],_m:Date.now()},
+   {id:'L002',nama:'PT Astra Finance',kontak:'+62 811-9000-2202',channel:'Email',produk:'Gift set akhir tahun',qty:500,estimasi:145000000,status:'Ditanggapi',masuk:d(-4),fuNext:d(3),pic:'David Edward',catatan:'',touch:d(-1),log:[{t:'',by:'David Edward',txt:'Minta proposal + sample'}],_m:Date.now()},
+   {id:'L003',nama:'Hotel Padma Bali',kontak:'+62 812-7788-3303',channel:'WhatsApp',produk:'Menu book kulit',qty:80,estimasi:24000000,status:'Baru',masuk:d(-1),fuNext:d(2),pic:'Rani P',catatan:'',touch:d(-1),log:[],_m:Date.now()},
    {id:'L004',nama:'Wedding Vina & Reno',kontak:'+62 815-4400-5505',channel:'Referral',produk:'Keychain 150pcs',qty:150,estimasi:11000000,status:'Batal',masuk:d(-30),fuNext:'',pic:'Jessica B',catatan:'',touch:d(-20),log:[{t:'',by:'Jessica B',txt:'Pilih vendor lain, harga lebih murah'}],_m:Date.now()},
    {id:'L005',nama:'Bank Jatim',kontak:'+62 811-3300-7707',channel:'WhatsApp',produk:'Luggage tag 300pcs',qty:300,estimasi:28000000,status:'Jadi order',masuk:d(-25),fuNext:'',pic:'David Edward',catatan:'',touch:d(-18),log:[{t:'',by:'David Edward',txt:'Deal, lanjut ke order'}],_m:Date.now()}];}
 function leadAktif(l){return l.status!=='Jadi order'&&l.status!=='Batal';}
@@ -2049,7 +2057,7 @@ function leadAdd(){
     fields:[{k:'nama',label:'Nama calon client / acara',type:'text',req:true,ph:'mis. Wedding Sinta & Bagas'},
       {k:'kontak',label:'No. HP / kontak',type:'text',ph:'+62 812-…'},
       {k:'channel',label:'Datang dari mana',type:'select',val:'WhatsApp',opts:LEAD_CH},
-      {k:'produk',label:'Minat produk',type:'text',ph:'mis. Pouch + Card 250pcs'},
+      {k:'produk',label:'Minat produk',type:'text',ph:'mis. Pouch + Card — jumlahnya di kolom sebelah'},
       {k:'estimasi',label:'Perkiraan nilai',type:'money'},
       {k:'jenis',label:'Jenis order',type:'select',val:'',opts:['','Katalog','Custom','Mix'],
         hint:'Boleh dikosongkan dulu kalau belum jelas — bisa dipilih di kartunya nanti.'}],
