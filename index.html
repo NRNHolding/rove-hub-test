@@ -2143,8 +2143,36 @@ function kirimKeInquiry(id){
 
 
 /* ---- client VIP ---- */
-function isVip(x){return !!(x&&x.vip);}
-function bolehAturVip(){return myRoles().indexOf('Direktur Utama')>=0;}
+/* VIP menempel pada CLIENT-nya, bukan pada satu ordernya. Ditandai sekali di
+   Master → Customers, lalu semua order dan prospek client itu ikut VIP —
+   tanpa perlu ditandai satu per satu tiap ada order baru. Penanda per order
+   tetap dihormati untuk pengecualian. */
+function custCari(nama){
+  var n=String(nama||'').trim().toLowerCase();if(!n)return null;
+  var C=((ST.master||{}).customers)||[];
+  return C.find(function(x){return String(x.nama||'').trim().toLowerCase()===n;})||null;}
+function custVip(nama){var c=custCari(nama);return !!(c&&c.vip);}
+function isVip(x){
+  if(!x)return false;
+  if(x.vip)return true;
+  return custVip(x.customer||x.nama);}
+function bolehAturVip(){var R=myRoles();
+  return R.indexOf('Direktur Utama')>=0||R.indexOf('Holding')>=0;}
+/* ditandai di master, berlaku untuk semua order client itu */
+function custVipToggle(i){
+  var C=((ST.master||{}).customers)||[],c=C[i];if(!c)return;
+  var jadi=!c.vip;
+  if(jadi&&!confirm('Jadikan "'+(c.nama||'client ini')+'" client VIP?\n\n'+
+    'Berlaku untuk SEMUA ordernya: boleh minta sketsa lebih dulu, dan ordernya '+
+    'naik ke paling atas di daftar tugas tiap jabatan.'))return;
+  if(!jadi&&!confirm('Cabut status VIP dari "'+(c.nama||'client ini')+'"?'))return;
+  c.vip=jadi;stampRow(c);saveMaster();render();}
+function custVipTombol(i,c){
+  var on=!!c.vip;
+  if(!bolehAturVip())return on?vipLencana():'<span style="font-size:9.5px;color:var(--muted)">—</span>';
+  return '<button class="btn '+(on?'':'ghost ')+'sm" style="font-size:9.5px'+
+    (on?';background:var(--gold);border-color:var(--gold);color:#2b1d0e':'')+
+    '" onclick="vipToggle(\'cust\','+i+')">'+(on?'★ Client VIP':'☆ Jadikan VIP')+'</button>';}
 function vipLencana(kecil){
   return '<span title="Client VIP — boleh minta sketsa lebih dulu" style="background:var(--gold);color:#2b1d0e;'+
     'border-radius:5px;padding:'+(kecil?'0 5px':'1px 7px')+';font-size:'+(kecil?'8.5px':'9px')+
@@ -2160,6 +2188,7 @@ function vipTombol(x,jenis){
     (on?'★ Client VIP':'☆ Jadikan VIP')+'</button>';}
 function vipToggle(jenis,id){
   if(!bolehAturVip()){alert('Hanya Direktur Utama yang bisa menetapkan client VIP.');return;}
+  if(jenis==='cust'){custVipToggle(id);return;}
   var x=(jenis==='lead')?leadsAll().find(function(y){return y.id===id;})
                         :ST.orders.find(function(y){return y.id===id;});
   if(!x)return;
@@ -2175,10 +2204,14 @@ function vipToggle(jenis,id){
     save();}
   render();}
 
+function lepasFokusProspek(){ST._lfokus=null;render();}
 function leadPanel(){
   var L=leadsAll().slice();
   var q=(ST._lq||'').toLowerCase(),fs=ST._lst||'';
-  var tampil=L.filter(function(l){
+  /* dibuka dari kartu papan: satu client saja, seperti membuka satu order */
+  var fokus=ST._lfokus?L.find(function(x){return x.id===ST._lfokus;}):null;
+  if(ST._lfokus&&!fokus)ST._lfokus=null;
+  var tampil=fokus?[fokus]:L.filter(function(l){
     if(fs&&l.status!==fs)return false;
     if(ST._lhide&&!leadAktif(l))return false;
     if(q&&[l.nama,l.kontak,l.produk,l.pic,l.catatan].concat(leadSpecRingkas(l)).join(' ').toLowerCase().indexOf(q)<0)return false;
@@ -2215,6 +2248,16 @@ function leadPanel(){
         l.log.slice(-3).reverse().map(function(x){return '<div>'+esc(x.t)+' · '+esc(x.by||'')+' — '+esc(x.txt)+'</div>';}).join('')+
         (l.log.length>3?'<div style="opacity:.7">…'+(l.log.length-3)+' catatan lain</div>':'')+'</div>':'')+
       '</div>';}).join('');
+  if(fokus)
+    /* satu client saja — persis seperti membuka satu order, lengkap dengan
+       jalan kembalinya. Penyaring & ringkasan sengaja disembunyikan: yang
+       sedang dilihat cuma satu, tak ada yang perlu disaring. */
+    return '<div class="back" onclick="lepasFokusProspek()">‹ Kembali ke semua prospek</div>'+
+      '<div class="topbar" style="margin-top:8px"><h1>'+esc(fokus.nama||'(tanpa nama)')+'</h1>'+
+        '<span class="demo">'+esc(fokus.status)+'</span>'+
+        (isVip(fokus)?('<span style="margin-left:8px">'+vipLencana()+'</span>'):'')+
+        '<div class="sp"></div><button class="btn ghost sm" onclick="lepasFokusProspek()">Lihat semua prospek ('+L.length+')</button></div>'+
+      baris;
   return '<div class="topbar"><h1>Prospek</h1><span class="demo">'+aktif+' aktif</span>'+
       (telat?'<span style="margin-left:auto;background:var(--warn-bg);color:var(--warn);border-radius:20px;padding:5px 13px;font-size:11px;font-weight:800">🔔 '+telat+' perlu di-follow up</span>':'')+
       '<div class="sp"></div><button class="btn" onclick="leadAdd()">＋ Prospek baru</button></div>'+
@@ -5095,6 +5138,9 @@ function renderMaster(){
          '<td style="font-size:9px;color:var(--muted)">'+fmtStamp(r)+'</td>'+actCell('customers',i,r)+'</tr>';
        var bawah='<tr'+redup+'><td colspan="'+(colsAtas.length+3)+'" style="padding-top:0;border-bottom:2px solid var(--line)">'+
          '<div style="display:flex;flex-wrap:wrap;gap:7px 10px">'+
+         '<div style="flex:0 0 auto;min-width:0">'+
+           '<div style="font-size:8.5px;color:var(--muted);font-weight:700;letter-spacing:.02em;margin-bottom:2px">Status VIP</div>'+
+           custVipTombol(i,r)+'</div>'+
          colsBawah.map(function(c){
            return '<div style="flex:'+(lebarBawah[c[0]]||'1 1 130px')+';min-width:0">'+
              '<div style="font-size:8.5px;color:var(--muted);font-weight:700;letter-spacing:.02em;margin-bottom:2px">'+esc(c[1])+'</div>'+
@@ -6547,25 +6593,29 @@ function papanProspek(){
 function bukaProspek(id){
   ST.view='leads';ST.cur=null;
   ST._lspek=ST._lspek||{};ST._lspek[id]=true;   // buka langsung brief singkatnya
+  ST._lfokus=id;                                 // hanya client ini yang ditampilkan
   ST._lq='';ST._lst='';render();
   setTimeout(function(){var e=document.getElementById('lead_'+id);
     if(e&&e.scrollIntoView)e.scrollIntoView({block:'center'});},60);}
 function kartuProspek(l){
-  var u=leadUrgensi(l),p=leadPrefix(l);
-  /* susunan tiga barisnya sama dengan kartu order: nama, produk·qty, status.
-     Garis kirinya ikut warna urgensi kalau sudah lama didiamkan — itu yang
-     perlu terlihat lebih dulu daripada jenis ordernya. */
+  var u=leadUrgensi(l),p=leadPrefix(l),q=leadQty(l);
+  /* Empat baris, sama persis dengan kartu order: nama, produk·qty,
+     status|kemasan, lalu baris peringatan yang hanya muncul kalau perlu.
+     Di kartu order baris keempat itu deadline produksi; di sini berapa lama
+     prospeknya didiamkan. Ditaruh sendiri supaya tak bertabrakan dengan
+     lencana status seperti sebelumnya. */
+  var diam=(u==='biasa')?''
+    :('<div style="margin-top:5px;font-size:10px;font-weight:800;color:'+leadWarna(l)+'">⏱ '+esc(leadKet(l))+'</div>');
   return '<div class="oc" style="border-left-color:'+(u==='merah'?'#d9534f':(u==='kuning'?'#c78a24':pfColor(p)))+
       ';border-style:dashed;opacity:.93" onclick="bukaProspek(\''+l.id+'\')">'+
     '<div class="on"><span class="pf" style="background:'+pfColor(p)+'">'+p.toUpperCase()+'</span>'+
-      esc(l.nama||'(tanpa nama)')+'</div>'+
-    '<div class="om"><span>'+esc(leadJudul(l))+' · '+leadQty(l)+'pcs</span>'+
+      esc(l.nama||'(tanpa nama)')+(isVip(l)?(' '+vipLencana(true)):'')+'</div>'+
+    '<div class="om"><span>'+esc(leadJudul(l))+(q?(' · '+q+'pcs'):'')+'</span>'+
       '<span>'+esc(l.channel||'')+'</span></div>'+
     '<div class="om" style="margin-top:5px">'+
       '<span class="stbadge stlead">'+esc(l.jenis||'belum dipilih')+' · '+esc(l.status)+'</span>'+
-      '<span>'+collIcons(leadColl(l))+
-        ' <span style="font-size:9px;font-weight:700;color:'+leadWarna(l)+'">'+esc(leadKet(l))+'</span></span>'+
-    '</div></div>';}
+      '<span>'+collIcons(leadColl(l))+'</span>'+
+    '</div>'+diam+'</div>';}
 function renderBoard(){
   const ALL=ST.orders.filter(o=>!o.deleted);
   const A=ALL.filter(boardMatch);
@@ -6655,6 +6705,7 @@ function renderDetail(){
            : 'terisi sendiri dari fase &amp; dokumen · <span style="cursor:pointer;text-decoration:underline" onclick="orderCancel(\u0027'+o.id+'\u0027)">batalkan order</span>'}</div></div></div>
    </div>
    <div class="card actcard" style="margin-top:14px"><div class="ch"><span class="ico" style="background:var(--hub)">▶</span><div><div class="t">Langkah saat ini</div><div class="s">FASE ${selesai?'—':(o.phase+1)}/${PH.length}</div></div></div><div class="body">${actHTML}</div></div>
+   ${peringatanBlok(o)}
    ${panelStack(o)}
    ${histPanel(o)}`;
 }
@@ -6776,7 +6827,7 @@ const PH_CHECK=[
   /* Logo ditanyakan di sini, bukan nanti di Sketch. Kotaknya memang sudah
      ada di panel Brief; yang dulu tak ada cuma yang menagihnya. Tak wajib di
      sini — di Sketch barulah menahan fase. */
-  {auto:function(o){return (((o.brief||{}).logoFiles)||[]).length>0;}, k:'logoCl', t:'Minta file logo vektor (.ai / .eps) ke client', en:'Ask the client for the vector logo file (.ai / .eps)', guna:'biasanya sudah ada sejak awal — kalau ditagih sekarang, Creative tak menunggu di fase Sketch', gunaEn:'usually available from the start — asking now means Creative does not wait at Sketch', pic:'Sales'},
+  {auto:function(o){return (((o.brief||{}).logoFiles)||[]).length>0;}, k:'logoCl', t:'Kalau client punya logo, minta file vektornya (.ai / .eps)', en:'If the client has a logo, ask for the vector file (.ai / .eps)', guna:'tak wajib — logonya bisa saja dibuat tim Rove sendiri. Kalau client memang punya, meminta sekarang membuat Creative tak menunggu di fase Sketch', gunaEn:'not required — the logo may be made by the Rove team. If the client does have one, asking now means Creative does not wait at Sketch', pic:'Sales'},
   {auto:function(o){var b=o.brief||{};
     return String(b.logoLetak||'').trim().length>0||((b.persoFiles)||[]).length>0;},
    k:'logoLetak', t:'Tanyakan peletakan logo — di mana dan seberapa besar',
@@ -6838,7 +6889,7 @@ const PH_CHECK=[
    k:'quoAcc', t:'Tandai Approved begitu client menyetujui penawaran', en:'Mark Approved as soon as the client accepts the quotation', guna:'supaya penawaran tak menggantung tanpa jawaban', gunaEn:'so the offer does not hang unanswered', pic:'Sales', w:true}
  ],
  [ // 6 Sketch
-  {auto:function(o){return (((o.brief||{}).logoFiles)||[]).length>0;}, k:'logoCl', t:'Minta file logo vektor (.ai / .eps) ke client', en:'Ask the client for the vector logo file (.ai / .eps)', guna:'supaya Creative bisa mulai mendesain', gunaEn:'so Creative can start designing',pic:'Sales',    w:true},
+  {auto:function(o){return (((o.brief||{}).logoFiles)||[]).length>0;}, k:'logoCl', t:'Logo siap dipakai — dari client, atau dibuat Creative', en:'Logo ready to use — from the client, or made by Creative', guna:'Creative tak bisa mulai tanpa logonya. Dari mana asalnya tak jadi soal: kalau client tak punya, Creative yang membuatnya lalu mengunggahnya di sini', gunaEn:'Creative cannot start without it. The source does not matter: if the client has none, Creative makes it and uploads it here',pic:'Creative',    w:true},
   {auto:function(o){var b=o.brief||{};
     return String(b.logoLetak||'').trim().length>0||((b.persoFiles)||[]).length>0;},
    k:'logoLetak', t:'Tanyakan peletakan logo — di mana dan seberapa besar',
@@ -7109,7 +7160,7 @@ function chkTugasSaya(role){
 const CHK_SUMBER={'0.logoCl':'Brief → lampiran Logo client',
   '0.logoLetak':'Brief → Peletakan logo (atau lampirkan Acuan personalisasi)',
   '6.logoLetak':'Brief → Peletakan logo (atau lampirkan Acuan personalisasi)',
-  '6.logoCl':'Brief → lampiran Logo client','9.dpMasuk':'panel Pembayaran → Catat DP masuk, atau panel Surat PO resmi (Sales lampirkan → PM olah → Direktur setujui)',
+  '6.logoCl':'Brief → lampiran Logo client (diunggah Sales kalau dari client, atau Creative kalau dibuat sendiri)','9.dpMasuk':'panel Pembayaran → Catat DP masuk, atau panel Surat PO resmi (Sales lampirkan → PM olah → Direktur setujui)',
   '9.bukti':'panel Bukti transfer',
   '10.poRevRadja':'panel Form PO Radja → PO revisi','10.poRevDir':'panel Form PO Radja → PO revisi',
   '5.quoAcc':'panel Pricing → status quotation','7.sketsaAcc':'panel Referensi gambar → tombol approval sketsa','9.dpMasuk':'panel Pembayaran → Catat DP masuk',
@@ -7240,14 +7291,26 @@ function chkPanel(o){
        supaya terbaca bersama kolom yang dipersoalkan */
     (function(){var q=tanyaBlok(o,f,it.k);
       return q?('<div style="padding:0 0 7px 25px">'+q+'</div>'):'';})();};
-  var milikku=items.filter(function(it){return chkTugasku(it)&&!chkAuto(o,f,it.k);});
-  var lain   =items.filter(function(it){return milikku.indexOf(it)<0;});
+  /* Yang menahan fase dan yang tidak dipisah: kalau semuanya ditumpuk di
+     "MENUNGGU KAMU", yang benar-benar mengunci fase jadi tenggelam di antara
+     pengingat yang sebenarnya boleh menyusul. */
+  var akuBelum=items.filter(function(it){return chkTugasku(it)&&!chkAuto(o,f,it.k);});
+  var milikku=akuBelum.filter(function(it){return !!it.w;});
+  var santai =akuBelum.filter(function(it){return !it.w;});
+  var lain   =items.filter(function(it){return akuBelum.indexOf(it)<0;});
   var sekat=function(t){return '<div style="font-size:9.5px;font-weight:800;color:var(--muted);letter-spacing:.04em;'+
     'margin-top:11px;padding-top:9px;border-top:1px solid var(--line)">'+t+'</div>';};
-  var rows=(milikku.length?sekat('MENUNGGU KAMU ('+milikku.length+')')+milikku.map(function(it){return baris(it,false);}).join(''):'')+
-    (lain.length?sekat(milikku.length?'MENUNGGU JABATAN LAIN':'SEMUA ITEM FASE INI')+
+  var rows=(milikku.length?sekat('MENUNGGU KAMU ('+milikku.length+') — menahan fase ini')+
+      milikku.map(function(it){return baris(it,false);}).join(''):'')+
+    (santai.length?sekat('BISA KAMU ISI SEKARANG ('+santai.length+') — tak menahan fase')+
+      santai.map(function(it){return baris(it,false);}).join(''):'')+
+    (lain.length?sekat((milikku.length||santai.length)?'MENUNGGU JABATAN LAIN':'SEMUA ITEM FASE INI')+
       lain.map(function(it){return baris(it,true);}).join(''):'');
-  return tautanBlok(o)+tungguRevisiBlok(o)+revisiBlok(o)+bukaAwalBlok(o)+
+  /* Yang mendesak (permintaan isi, revisi) sudah naik ke atas lewat
+     peringatanBlok. Yang tersisa di sini: kolom yang boleh diisi lebih awal,
+     lalu tabel kontrolnya — keduanya di paling bawah, sesudah ringkasan
+     langkah-langkah sebelumnya. */
+  return bukaAwalBlok(o)+
     '<div class="card actcard" style="margin-top:14px"><div class="ch">'+
     '<span class="ico" style="background:'+(sisaWajib?'var(--warn)':'var(--ok)')+'">☑</span>'+
     '<div><div class="t">Kelengkapan '+esc(PH[f].n)+'</div>'+
@@ -7260,10 +7323,13 @@ function chkPanel(o){
         : '<span style="font-size:10px;color:var(--muted)">Tak ada jabatan lain yang perlu ditagih di fase ini.</span>')+
     '</div></div></div>';}
 
+/* Yang tak boleh terlewat: permintaan mengisikan dari orang lain, dan revisi
+   yang sedang berjalan. Ditaruh tepat di bawah "Langkah saat ini". */
+function peringatanBlok(o){
+  return tautanBlok(o)+tungguRevisiBlok(o)+revisiBlok(o);}
 function panelDef(o){
   var batal=(o.status==='Cancel');
   return [
-   {k:'chk',t:'Kelengkapan fase',s:'checklist + PIC',h:function(){return chkPanel(o);}},
    {k:'brief',t:'Brief Inquiry',s:'data client, project, packaging',h:function(){return briefPanel(o);}},
    {k:'rfq',t:'Minta harga vendor',s:'hanya barang yang harganya belum ada',h:function(){return (o.phase>=1&&!batal)?rfqPanel(o):'';}},
    {k:'profit',t:'Penentuan harga jual',s:'HPP vendor vs harga jual',h:function(){return (o.phase>=1&&!batal)?profitPanel(o):'';}},
@@ -7278,7 +7344,9 @@ function panelDef(o){
    {k:'prod',t:'Produksi Radja',s:'tahap & progres',h:function(){return (o.phase>=11&&!batal)?prodPanel(o):'';}},
    {k:'kirim',t:'Pengiriman barang',s:'penerima, resi, tanggal',h:function(){return (o.phase>=13&&!batal)?kirimPanel(o):'';}},
    {k:'cs',t:'Komplain & kepuasan',s:'after sales',h:function(){return (o.phase>=13&&!batal)?csPanel(o):'';}},
-   {k:'retur',t:'Retur barang client',s:'R18 — tiap tahap punya penerimanya',h:function(){return returBolehMulai(o)?returPanel(o):'';}}];}
+   {k:'retur',t:'Retur barang client',s:'R18 — tiap tahap punya penerimanya',h:function(){return returBolehMulai(o)?returPanel(o):'';}},
+   /* paling bawah — tabel kontrol dibaca sesudah semua ringkasan di atasnya */
+   {k:'chk',t:'Kelengkapan fase',s:'checklist + PIC',h:function(){return chkPanel(o);}}];}
 
 
 /* ================= MINTA ORANG LAIN MENGISIKAN =================
