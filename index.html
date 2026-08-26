@@ -7166,7 +7166,25 @@ const PH_CHECK=[
  ],
  [ // 1 Pricing Vendor
   {auto:function(o){var R=rfqLines(o);return R.length===0||R.every(function(x){return !!(x.l.rfq&&x.l.rfq.minta);});}, k:'rfq', t:'Kirim permintaan harga ke tiap vendor', en:'Send a quote request to each vendor', guna:'supaya HPP tak ditebak-tebak', gunaEn:'so the cost price is not guessed',      pic:'PM', w:true},
-  {auto:function(o){var K=rfqLines(o).filter(function(x){return lineKulit(x.l);});return K.length===0||K.every(function(x){return (rfqKulit(x.l).jawab||[]).length>0;});}, k:'kulit', t:'Tanyakan ketersediaan kulit ke Radja', en:'Ask Radja which leather is available', guna:'supaya tak kaget kehabisan bahan saat produksi mulai', gunaEn:'so you are not caught short of material once production starts',            pic:'PM'},
+  /* Dulu cukup "sudah ditanya". Tak cukup: jawaban yang tak dipakai memilih
+     bahan sama saja dengan tak bertanya. Sekarang tiap baris kulit harus
+     punya jawaban Radja DAN satu kulit yang dipilih dari jawaban itu — dan
+     itu menahan fase, karena inilah pengganti "pastikan material siap di
+     vendor" yang dulu berdiri di fase Produksi. Baris yang harganya dari
+     master lolos lewat konfirmasi katalog, yang sekalian menanyakan stok. */
+  {auto:function(o){
+     var K=(((o.pricing||{}).lines)||[]).filter(function(l){return (l.qty||0)>0&&lineKulit(l);});
+     return K.length===0||K.every(function(l){
+       var k=rfqKulit(l),J=k.jawab||[];
+       if(!J.length)return konfSah(l);           // harga dari master — dipastikan lewat konfirmasi katalog
+       var nama=k.pilih||l.bahan;                // yang dijawab Radja HABIS tak boleh lolos
+       var d=J.filter(function(x){return x.nama===nama;})[0];
+       return !!d&&d.stok!=='Habis';});},
+   k:'kulit', t:'Pastikan kulit yang dipakai ready di Radja — tanya, lalu pilih dari jawabannya',
+   en:'Confirm the leather is ready at Radja — ask, then pick from the reply',
+   guna:'bahan yang baru ketahuan habis saat produksi mulai tak bisa dikejar lagi — DP sudah masuk, tanggal sudah dijanjikan',
+   gunaEn:'material found missing once production starts cannot be caught up — the DP is in and the date is promised',
+   pic:'PM', w:true},
   {auto:function(o){var L=(((o.pricing||{}).lines)||[]).filter(function(l){return (l.qty||0)>0;});return L.length>0&&L.every(function(l){return lineHppVendor(l)>0;});}, k:'harga', t:'Catat jawaban harga dari tiap vendor', en:'Record the price each vendor replies with', guna:'supaya profit bisa dihitung sebelum quotation keluar', gunaEn:'so profit can be worked out before the quotation goes out',               pic:'PM', w:true},
   {auto:function(o){return konfBelum(o).length===0;},
    k:'konfKatalog', t:'Pastikan harga katalog masih berlaku ke tiap vendor',
@@ -7261,7 +7279,6 @@ const PH_CHECK=[
    k:'warnaLogo', t:'Isi warna logo beserta kode warnanya', en:'Fill in the logo colour and its colour code', guna:'supaya vendor tak salah warna dari brand client', gunaEn:'so the vendor does not miss the client brand colour', pic:'Creative'}
  ],
  [ // 11 Produksi
-  {auto:function(o){var s=(o.prod||{}).stage;return !!s&&s!=='Belum mulai';}, k:'mat', t:'Pastikan material sudah siap di vendor', en:'Confirm the material is ready at the vendor', guna:'supaya deadline tak mundur tanpa ketahuan', gunaEn:'so the deadline does not slip unnoticed',                       pic:'PM', w:true},
   {auto:function(o){return !!((o.prod||{}).sampleTgl);}, k:'sample', t:'Setujui sample / first article sebelum produksi massal', en:'Approve the sample / first article before mass production', guna:'supaya kesalahan tak terlanjur di semua pcs', gunaEn:'so a mistake does not run through every piece',             pic:'PM'},
   {auto:function(o){return !!((o.prod||{}).updated);}, k:'progres', t:'Perbarui tahap dan catatan progres produksi', en:'Update the production stage and progress notes', guna:'supaya tim tahu produksi sampai mana', gunaEn:'so the team knows how far production has got',           pic:'PM'}
  ],
@@ -7494,7 +7511,7 @@ const CHK_SUMBER={'0.logoCl':'Brief → lampiran Logo client',
   '5.quoAcc':'panel Pricing → status quotation','7.sketsaAcc':'panel Referensi gambar → tombol approval sketsa','9.dpMasuk':'panel Pembayaran → Catat DP masuk',
   '3.dirAcc':'panel Ringkasan untuk Direktur',
   '0.terjemah':'Brief → Material utama, Personalization, dan spesifikasi tiap collateral',
-  '0.brief':'form order baru / panel Pricing','0.kontak':'Brief Inquiry','0.acara':'Brief Inquiry','0.ref':'Brief → lampiran Referensi client','0.kota':'Brief → Venue / kota tujuan','0.hpWo':'Brief → WO / EO phone','1.rfq':'panel Minta harga vendor','1.kulit':'panel Minta harga vendor → ketersediaan kulit','1.harga':'panel Minta harga vendor → Catat jawaban','1.konfKatalog':'panel Minta harga vendor → Harga dari master → tombol Harga masih berlaku','1.moq':'panel Minta harga vendor → catatan vendor','2.hpp':'panel Penentuan harga jual','2.margin':'panel Penentuan harga jual','2.ongkir':'panel Pricing → Ongkir','2.biayaLain':'panel Penentuan harga jual → Biaya di luar HPP','2.deadlineProd':'panel Penentuan harga jual → Info dari Radja','2.tglPOMax':'panel Penentuan harga jual → Info dari Radja','2.accJual':'panel Penentuan harga jual → Persetujuan harga jual','4.gen':'panel Pricing → Generate Quotation','4.kirim':'panel Pricing → status quotation','4.follow':'panel Pricing → tandai Approved','4.email':'Master data → Customers (atau Brief → Email client kalau order ini beda)','4.kirimData':'panel Pricing → Ekspedisi, Kota, Berat','4.alamatKantor':'Brief → Alamat client / kantor','4.ppn':'panel Pricing → Status PPN','6.logoCl':'Brief → lampiran Logo client','6.logoPch':'Brief → lampiran Logo soft pouch','6.logoBox':'Brief → lampiran Logo box','6.logoCard':'Brief → lampiran Logo thank you card','6.daftarNama':'Brief → daftar nama tamu','6.preview':'panel Referensi gambar → lampiran preview','6.approve':'panel Referensi gambar → tombol approval sketsa','8.inv':'panel Pricing → Generate Invoice','8.kirim':'panel Pricing → status invoice','8.dp':'panel Pembayaran → Catat DP masuk','8.faktur':'panel Pricing → No. faktur pajak','10.spec':'Form PO Radja','10.appr':'Form PO Radja → approval margin','10.poR':'Form PO Radja → Generate PO','10.poV':'panel PO vendor lain','10.trello':'otomatis saat fase Spec & PO dilewati','10.spare':'Form PO Radja → Qty spare produksi','10.warnaLogo':'Form PO Radja → warna logo','11.mat':'panel Produksi → Tahap','11.sample':'panel Produksi → sample disetujui','11.progres':'panel Produksi → catatan progres','12.qc':'panel Produksi → lampiran foto QC & retur','12.pack':'panel Produksi → lampiran foto packing','12.coll':'panel Produksi → collateral lengkap','13.invP':'panel Pricing → Generate Invoice','13.lunas':'panel Pembayaran → Catat pelunasan','13.alamat':'Brief → Alamat kirim','13.penerima':'panel Pengiriman barang','13.resi':'panel Pengiriman barang','14.tglTerima':'panel Pengiriman barang → Tanggal diterima','14.bukti':'panel Pengiriman barang → foto serah terima','14.testi':'panel Komplain & kepuasan','14.arsip':'otomatis saat order ditutup'};
+  '0.brief':'form order baru / panel Pricing','0.kontak':'Brief Inquiry','0.acara':'Brief Inquiry','0.ref':'Brief → lampiran Referensi client','0.kota':'Brief → Venue / kota tujuan','0.hpWo':'Brief → WO / EO phone','1.rfq':'panel Minta harga vendor','1.kulit':'panel Minta harga vendor → ketersediaan kulit','1.harga':'panel Minta harga vendor → Catat jawaban','1.konfKatalog':'panel Minta harga vendor → Harga dari master → tombol Harga masih berlaku','1.moq':'panel Minta harga vendor → catatan vendor','2.hpp':'panel Penentuan harga jual','2.margin':'panel Penentuan harga jual','2.ongkir':'panel Pricing → Ongkir','2.biayaLain':'panel Penentuan harga jual → Biaya di luar HPP','2.deadlineProd':'panel Penentuan harga jual → Info dari Radja','2.tglPOMax':'panel Penentuan harga jual → Info dari Radja','2.accJual':'panel Penentuan harga jual → Persetujuan harga jual','4.gen':'panel Pricing → Generate Quotation','4.kirim':'panel Pricing → status quotation','4.follow':'panel Pricing → tandai Approved','4.email':'Master data → Customers (atau Brief → Email client kalau order ini beda)','4.kirimData':'panel Pricing → Ekspedisi, Kota, Berat','4.alamatKantor':'Brief → Alamat client / kantor','4.ppn':'panel Pricing → Status PPN','6.logoCl':'Brief → lampiran Logo client','6.logoPch':'Brief → lampiran Logo soft pouch','6.logoBox':'Brief → lampiran Logo box','6.logoCard':'Brief → lampiran Logo thank you card','6.daftarNama':'Brief → daftar nama tamu','6.preview':'panel Referensi gambar → lampiran preview','6.approve':'panel Referensi gambar → tombol approval sketsa','8.inv':'panel Pricing → Generate Invoice','8.kirim':'panel Pricing → status invoice','8.dp':'panel Pembayaran → Catat DP masuk','8.faktur':'panel Pricing → No. faktur pajak','10.spec':'Form PO Radja','10.appr':'Form PO Radja → approval margin','10.poR':'Form PO Radja → Generate PO','10.poV':'panel PO vendor lain','10.trello':'otomatis saat fase Spec & PO dilewati','10.spare':'Form PO Radja → Qty spare produksi','10.warnaLogo':'Form PO Radja → warna logo','11.sample':'panel Produksi → sample disetujui','11.progres':'panel Produksi → catatan progres','12.qc':'panel Produksi → lampiran foto QC & retur','12.pack':'panel Produksi → lampiran foto packing','12.coll':'panel Produksi → collateral lengkap','13.invP':'panel Pricing → Generate Invoice','13.lunas':'panel Pembayaran → Catat pelunasan','13.alamat':'Brief → Alamat kirim','13.penerima':'panel Pengiriman barang','13.resi':'panel Pengiriman barang','14.tglTerima':'panel Pengiriman barang → Tanggal diterima','14.bukti':'panel Pengiriman barang → foto serah terima','14.testi':'panel Komplain & kepuasan','14.arsip':'otomatis saat order ditutup'};
 
 /* "Brief → lampiran Logo client" diterjemahkan per potong, bukan sebagai satu
    entri kamus — tempatnya berkombinasi jadi puluhan kemungkinan. */
@@ -7856,24 +7873,28 @@ function mintaCatatan(o,fase,k){return mintaSemua(o)[fase+'.'+k]||null;}
 
 /* Urutan Sales menanyakannya ke client, bukan urutan checklist. */
 const MINTA_URUT=[
-  ['Spesifikasi produk',['terjemah','brief','ref','kontak','acara','kota','hpWo','kulit','harga','moq']],
+  /* kulit, harga, dan MOQ sengaja TIDAK di sini — itu ditanyakan PM ke vendor,
+     bukan Sales ke client. Menaruhnya di sini membuat tombol "Ingatkan Sales"
+     muncul di fase Pricing Vendor, fase yang seluruh isinya pekerjaan PM. */
+  ['Spesifikasi produk',['terjemah','brief','ref','kontak','acara','kota','hpWo']],
   ['Logo',['logoCl','logoLetak','logoPch','logoBox','logoCard']],
   ['Packaging',['coll','spec']],
   ['Live service',['live','operator']],
   ['Add-on',['perso','daftarNama','svc']]];
+/* Kunci yang tak terdaftar berarti bukan pertanyaan untuk client — dan yang
+   bukan pertanyaan untuk client tak boleh ikut ke pesan Sales. */
 function mintaKelompok(k){
   for(var i=0;i<MINTA_URUT.length;i++)
     if(MINTA_URUT[i][1].indexOf(k)>=0)return MINTA_URUT[i][0];
-  return 'Lain-lain';}
+  return '';}
 /* Semua yang masih kurang di fase ini, dikelompokkan & diurutkan. */
 function mintaDaftar(o,fase){
   var kurang=[];
   try{kurang=chkKurang(o,fase,false);}catch(e){}
   var G={};
-  kurang.forEach(function(it){var g=mintaKelompok(it.k);(G[g]=G[g]||[]).push(it);});
+  kurang.forEach(function(it){var g=mintaKelompok(it.k);if(!g)return;(G[g]=G[g]||[]).push(it);});
   var rapi=[];
   MINTA_URUT.forEach(function(x){if(G[x[0]])rapi.push([x[0],G[x[0]]]);});
-  if(G['Lain-lain'])rapi.push(['Lain-lain',G['Lain-lain']]);
   return rapi;}
 function mintaSales(id,fase){
   var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
@@ -8063,6 +8084,17 @@ function sorotPanel(pk,kunci){
   },420);
   return true;}
 
+/* Yang benar-benar bisa dijawab hari ini: keterangan yang datang dari client,
+   atau angka yang dihitung sendiri dari data yang sudah ada. Sisanya —
+   persetujuan, dokumen, kartu Trello, sample, progres produksi — menunggu
+   sesuatu terjadi lebih dulu, dan menawarkannya lebih awal cuma memperpanjang
+   daftar tanpa ada yang bisa dikerjakan.
+
+   Sengaja daftar putih, bukan daftar hitam: item checklist baru tak ikut
+   ditawarkan sampai memang dinilai bisa didahulukan. */
+const AWAL_BOLEH=['brief','terjemah','kontak','acara','kota','hpWo','ref',
+  'logoCl','logoLetak','daftarNama','email','alamatKantor','alamat','penerima',
+  'ppn','biayaLain','ongkir'];
 /* Tugas milikku di fase-fase BERIKUTNYA yang sudah bisa dijawab sekarang. */
 function tugasMasaDepan(o){
   var out=[],f=(o.phase||0);
@@ -8071,6 +8103,7 @@ function tugasMasaDepan(o){
     chkKurang(o,i).forEach(function(it){
       if(!chkTugasku(it))return;
       if(!CHK_PANEL[it.k])return;                 // tak ada tempat mengisinya — lewati
+      if(AWAL_BOLEH.indexOf(it.k)<0)return;       // menunggu sesuatu terjadi dulu
       out.push({fase:i,it:it});});}
   return out;}
 function bukaAwalBlok(o){
@@ -8604,7 +8637,8 @@ function konfSet(id,vendor){
     logHist(o,'↺ Konfirmasi harga '+vendor+' dibatalkan');
   } else {
     var rinci=grup.baris.map(function(x){return (x.l.produk||'item')+' '+fmt0(x.l.hpp||0)+'/pcs';}).join(', ');
-    if(!confirm('Sudah dipastikan ke '+vendor+' bahwa harga ini masih berlaku?\n\n'+rinci+
+    if(!confirm('Sudah dipastikan ke '+vendor+' bahwa harga ini masih berlaku DAN bahannya masih ada untuk qty ini?\n\n'+rinci+
+      '\n\nSekali menghubungi, tanyakan keduanya — harga masih berlaku tapi bahan habis sama saja tak bisa dipakai.'+
       '\n\nKalau vendor memberi harga lain, ubah dulu harganya di panel Pricing, baru konfirmasi.'))return;
     grup.baris.forEach(function(x){
       x.l.konf={tgl:hariIni(),oleh:(ST.userName||ST.user||''),hpp:(+x.l.hpp||0)};});
@@ -8736,17 +8770,33 @@ function rfqPesanGabung(o,l){
   P.push('Order: '+chName(o)+' · client '+o.customer);
   var S=rfqSpekBaris(o,l).filter(function(x){return !/^• Qty/.test(x);});
   if(S.length)P.push('','**Spesifikasi**',S.join('\n'));
-  if(kulit&&!k.pilih){
-    P.push('','**Ketersediaan kulit**');
-    var siap=[];                                   // nama kulit unik, jangan dobel karena beda warna
-    kulitVendor(vendor).forEach(function(x){if(x.stok==='Ready'&&siap.indexOf(x.nama)<0)siap.push(x.nama);});
-    if(k.saran&&k.saran.length)P.push('Kita ada rencana pakai: '+k.saran.join(', '));
-    else if(siap.length)P.push('Kita ada rencana pakai: '+siap.slice(0,3).join(', '));
-    P.push('Mohon info kulit apa saja yang **ready** untuk qty di atas, beserta warna & minimum ordernya.');}
+  if(kulit){
+    /* Kulit yang KITA inginkan disebut lebih dulu — vendor menjawab jauh
+       lebih cepat kalau ada titik berangkatnya daripada disuruh menebak. */
+    P.push('','**Kulit yang kami inginkan**');
+    var bq=briefGet(o),maunya=[];
+    if(k.pilih)maunya=[k.pilih];
+    else if(k.saran&&k.saran.length)maunya=k.saran.slice();
+    else if(l.bahan||bq.mainMat)maunya=[l.bahan||bq.mainMat];
+    if(!maunya.length){                            // belum menunjuk apa pun — pakai yang ready di master
+      kulitVendor(vendor).forEach(function(x){if(x.stok==='Ready'&&maunya.indexOf(x.nama)<0)maunya.push(x.nama);});
+      maunya=maunya.slice(0,3);}
+    P.push(maunya.length
+      ? (maunya.join(', ')+(bq.mainMatWarna?(' · warna '+bq.mainMatWarna):''))
+      : '_Belum menunjuk artikel tertentu — mohon disarankan yang cocok untuk produk ini._');}
   var gbr=lineImgs(l).map(driveLink).filter(Boolean);
   if(gbr.length)P.push('','**Gambar acuan**',gbr.join('\n'));
   else if(lineImgs(l).length)P.push('','_Gambar acuan ada di HUB (file unggahan) — dikirim manual._');
-  P.push('','Mohon dibantu **harga per pcs** untuk qty di atas. Terima kasih 🙏');
+  /* Satu pertanyaan, tiga jawaban. Dulu yang diminta cuma harga, lalu
+     ketersediaan kulit ditanya lagi terpisah, lalu tanggal PO paling lambat
+     ditanya lagi di fase berikutnya — tiga kali menunggu balasan untuk satu
+     percakapan yang sama. */
+  P.push('','**Mohon dijawab tiga hal ini**',
+    '1. **Harga per pcs** untuk qty di atas.',
+    kulit?'2. **Kulit apa saja yang ready** untuk qty ini — nama, warna, dan minimum ordernya.'
+         :'2. **Ketersediaan bahannya** untuk qty ini, beserta minimum ordernya.',
+    '3. **Paling lambat kapan PO harus turun** supaya barangnya sampai sebelum '+rfqPatokan(o)+'.',
+    '','Terima kasih 🙏');
   return P.join('\n');}
 function rfqKirim(id,i){
   var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
@@ -8785,6 +8835,12 @@ function rfqJawab(id,i){
     hint:'Kosongkan kalau vendor baru menjawab soal kulit, harganya menyusul.'});
   F.push({k:'tgl',label:'Tanggal jawaban diterima',type:'date',val:hariIni(),req:true});
   F.push({k:'note',label:'Catatan vendor',type:'text',val:(l.rfq&&l.rfq.note)||'',ph:'mis. berlaku 30 hari, MOQ 100 pcs'});
+  /* Jawabannya datang bersamaan dengan harga, jadi dicatat di sini juga —
+     item "tanggal paling lambat PO" di fase Penentuan harga jual membaca
+     kolom yang sama dan tercentang sendiri. */
+  if(kulit)F.push({k:'tglPOMax',label:'Paling lambat PO boleh turun — jawaban vendor',type:'date',
+    val:(o.po||{}).tglPOMax||'',
+    hint:'Lewat tanggal ini vendor tak lagi menjamin barangnya sampai sebelum acara. Boleh kosong kalau belum dijawab.'});
   if(kulit)F.push({k:'keMaster',label:'Simpan kulit ke Master Kulit?',type:'checkbox',val:true,
     cbLabel:'Ya — order berikutnya tinggal pilih, tak perlu tanya lagi'});
   askForm({judul:'Catat jawaban '+(l.sumber||'vendor'),sub:(l.produk||'item')+' · '+(l.qty||0)+' pcs',fields:F,
@@ -8801,6 +8857,8 @@ function rfqJawab(id,i){
         if(k.pilih&&!baru.some(function(d){return d.nama===k.pilih;}))k.pilih='';
         if(v.keMaster)baru.forEach(function(d){kulitKeMaster(d,l.sumber);});}
       if(v.hpp>0){l.hpp=v.hpp;l._hppManual=true;}
+      if(v.tglPOMax){o.po=o.po||{};o.po.tglPOMax=v.tglPOMax;
+        logHist(o,'Radja: PO paling lambat turun '+tglID(v.tglPOMax));}
       logHist(o,'Jawaban '+(l.sumber||'-')+' dicatat'+(v.hpp>0?(' — HPP '+fmt0(v.hpp)):'')+
         (kulit&&k.jawab.length?(' · '+k.jawab.length+' pilihan kulit'):''));
       if(v.hpp>0)notifyOrder(o,'💵 **Harga vendor masuk** — '+o.customer+'\n'+(l.produk||'-')+' = '+fmt0(v.hpp)+'/pcs ('+(l.sumber||'-')+')');
@@ -8824,8 +8882,21 @@ function rfqSpekBaris(o,l){
   tambah('Personalization',l.perso||b.perso);
   tambah('Tali',l.tali);tambah('Ukuran',l.ukuran);
   tambah('Fungsi / fitur diminta',b.fiturLain);
-  tambah('Deadline',(o.po&&o.po.deadline)||o.eventDate);
+  /* Vendor tak bisa menjawab "paling lambat PO kapan" tanpa tahu kapan
+     barangnya dibutuhkan. Dulu yang dikirim cuma satu baris "Deadline" yang
+     isinya deadline produksi — padahal deadline produksi justru lahir dari
+     jawaban ini. Yang dikirim sekarang tanggal milik client. */
+  tambah('Tanggal acara client',tglID(o.eventDate||b.tglAcara));
+  tambah('Tanggal kirim diminta client',tglID(b.tglKirim));
+  if(o.po&&o.po.deadline)tambah('Deadline produksi yang sudah disepakati',tglID(o.po.deadline));
   return S;}
+/* Tanggal yang dipakai vendor menghitung mundur. */
+function rfqPatokan(o){
+  var b=briefGet(o);
+  if(b.tglKirim)return 'tanggal kirim '+tglID(b.tglKirim);
+  var a=o.eventDate||b.tglAcara;
+  if(a)return 'acara tanggal '+tglID(a);
+  return 'tanggal yang diminta client';}
 function rfqPesan(o,l){
   var P=['📨 **PERMINTAAN HARGA — '+(l.sumber||'vendor')+'**',
          '',
