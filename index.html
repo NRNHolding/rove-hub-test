@@ -759,6 +759,10 @@ const EN={
 'bukan jabatanmu':'not your role',
 'Hanya Direktur Utama yang bisa menyetujui profitability.':'Only the Managing Director can approve profitability.',
 'Hanya Direktur Utama yang bisa menolak order.':'Only the Managing Director can reject an order.',
+'☆ Ajukan VIP':'☆ Propose VIP','⧗ Menunggu Direktur':'⧗ Awaiting the Director',
+'★ Setujui':'★ Approve','✕ Tolak':'✕ Reject','Client ini sudah VIP.':'This client is already VIP.',
+'Ajukan client VIP':'Propose a VIP client','Kenapa perlu didahulukan':'Why they should come first',
+'Hanya Direktur Utama yang bisa memutuskan pengajuan VIP.':'Only the Managing Director can decide a VIP request.',
 'Font / tipografi':'Font / typography','✓ jumlah cocok':'✓ count matches','⧉ Salin untuk PO':'⧉ Copy for the PO',
 '📋 Tempel daftar nama':'📋 Paste the name list','📋 Ubah / tempel ulang':'📋 Edit / paste again','Catatan':'Notes',
 '📁 Impor Excel / CSV':'📁 Import Excel / CSV',
@@ -2119,6 +2123,7 @@ function kirimKeInquiry(id){
   o.pricing={margin:MARGIN_BAWAAN,lines:lines};
   o.brief=Object.assign({fitur:['','','']},o.brief||{});
   o.vip=isVip(l);                       // status VIP ikut, tak perlu ditetapkan ulang
+  if(vipMinta(l))o.vipMinta=JSON.parse(JSON.stringify(l.vipMinta));  // pengajuan ikut juga
   o.dariSales={dari:l.nama,channel:l.channel,pic:l.pic,catatan:l.catatan||'',
     jenis:l.jenis||'',spec:JSON.parse(JSON.stringify(l.spec||{})),
     items:JSON.parse(JSON.stringify(l.items||[])),tgl:hariIni()};
@@ -2155,15 +2160,90 @@ function vipLencana(kecil){
   return '<span title="Client VIP — boleh minta sketsa lebih dulu" style="background:var(--gold);color:#2b1d0e;'+
     'border-radius:5px;padding:'+(kecil?'0 5px':'1px 7px')+';font-size:'+(kecil?'8.5px':'9px')+
     ';font-weight:800;letter-spacing:.04em;white-space:nowrap">★ VIP</span>';}
+/* Tombol kecil di kartu papan — satu bentuk untuk tiga keadaan:
+   sudah VIP, sedang diajukan, dan belum apa-apa. */
+function vipTombolKartu(jenis,x){
+  var on=isVip(x),m=vipMinta(x);
+  var warna=on?'var(--gold)':(m?'var(--warn)':'var(--muted)');
+  var tanda=on?'★':(m?'⧗':'☆');
+  var judul=on?(bolehAturVip()?'cabut status VIP':'client VIP')
+    :(m?('diajukan '+m.oleh+' — menunggu Direktur')
+       :(bolehAturVip()?'jadikan order VIP':'ajukan jadi client VIP ke Direktur'));
+  var aksi=bolehAturVip()
+    ? (m?('vipPutus(\''+jenis+'\',\''+x.id+'\',true)'):('vipToggle(\''+jenis+'\',\''+x.id+'\')'))
+    : (on?'':('vipAjukan(\''+jenis+'\',\''+x.id+'\')'));
+  if(!aksi)return '';
+  return '<span style="margin-left:auto" onclick="event.stopPropagation()">'+
+    '<button class="xrow" style="color:'+warna+';font-size:13px;line-height:1" title="'+esc(judul)+
+    '" onclick="event.stopPropagation();'+aksi+'">'+tanda+'</button></span>';}
 function vipTombol(x,jenis){
-  /* Ditampilkan ke semua orang supaya statusnya terlihat, tapi hanya
-     Direktur yang tombolnya hidup. */
-  var on=isVip(x);
-  if(!bolehAturVip())return on?vipLencana():'';
+  /* Ditampilkan ke semua orang supaya statusnya terlihat. Direktur
+     menetapkan; jabatan lain boleh mengajukan. */
+  var on=isVip(x),m=vipMinta(x);
+  if(!bolehAturVip()){
+    if(on)return vipLencana();
+    if(m)return '<button class="btn ghost sm" style="font-size:9.5px;color:var(--warn);border-color:var(--warn)" '+
+      'title="diajukan '+esc(m.oleh)+' — menunggu Direktur" '+
+      'onclick="vipAjukan(\''+jenis+'\',\''+x.id+'\')">⧗ Menunggu Direktur</button>';
+    return '<button class="btn ghost sm" style="font-size:9.5px" '+
+      'onclick="vipAjukan(\''+jenis+'\',\''+x.id+'\')">☆ Ajukan VIP</button>';}
+  if(m)return '<span style="display:inline-flex;gap:5px;align-items:center">'+
+    '<span style="font-size:9.5px;color:var(--warn);font-weight:700" title="'+esc(m.alasan)+'">⧗ diajukan '+esc(m.oleh)+'</span>'+
+    '<button class="btn sm" style="font-size:9.5px;background:var(--gold);border-color:var(--gold);color:#2b1d0e" '+
+      'onclick="vipPutus(\''+jenis+'\',\''+x.id+'\',true)">★ Setujui</button>'+
+    '<button class="btn ghost sm" style="font-size:9.5px;color:#d9534f" '+
+      'onclick="vipPutus(\''+jenis+'\',\''+x.id+'\',false)">✕ Tolak</button></span>';
   return '<button class="btn '+(on?'':'ghost ')+'sm" style="font-size:9.5px'+
     (on?';background:var(--gold);border-color:var(--gold);color:#2b1d0e':'')+
     '" onclick="vipToggle(\''+jenis+'\',\''+x.id+'\')" title="hanya Direktur yang bisa mengubah ini">'+
     (on?'★ Client VIP':'☆ Jadikan VIP')+'</button>';}
+/* Pengajuan disimpan di barangnya sendiri, jadi ikut ke mana pun ia pindah:
+   prospek yang diajukan lalu dikirim ke Inquiry membawa pengajuannya. */
+function vipCari(jenis,id){
+  return (jenis==='lead')?leadsAll().find(function(y){return y.id===id;})
+                         :ST.orders.find(function(y){return y.id===id;});}
+function vipMinta(x){return (x&&x.vipMinta)||null;}
+function vipAjukan(jenis,id){
+  var x=vipCari(jenis,id);if(!x)return;
+  if(isVip(x)){alert('Client ini sudah VIP.');return;}
+  if(vipMinta(x)){
+    if(!confirm('Batalkan pengajuan VIP untuk "'+(x.nama||x.customer)+'"?'))return;
+    delete x.vipMinta;vipSimpan(jenis,x,'↺ Pengajuan VIP dibatalkan');return;}
+  askForm({judul:'Ajukan client VIP',sub:(x.nama||x.customer)+' — yang memutuskan Direktur Utama',
+    fields:[{k:'alasan',label:'Kenapa perlu didahulukan',type:'textarea',req:true,
+      ph:'mis. client lama, tiap tahun order besar, dan minta sketsa lebih awal.',
+      hint:'Ditulis apa adanya — Direktur memutuskan dari alasan ini.'}],
+    ok:function(v){
+      x.vipMinta={oleh:(ST.userName||ST.user||''),tgl:hariIni(),alasan:v.alasan};
+      vipSimpan(jenis,x,'★ Diajukan jadi client VIP oleh '+(ST.userName||ST.user||'')+' — '+v.alasan);
+      notifPengajuanVip(jenis,x);}});}
+function vipSimpan(jenis,x,pesan){
+  x._m=Date.now();
+  if(jenis==='lead'){(x.log=x.log||[]).push({t:nowStr(),by:(ST.userName||ST.user),txt:pesan});saveLeads();}
+  else{logHist(x,pesan);save();}
+  render();}
+function notifPengajuanVip(jenis,x){
+  try{
+    var nama=x.nama||x.customer||'';
+    var t='★ **Pengajuan client VIP** — '+nama+'\n'+
+      picMention('Direktur')+' — diajukan '+((x.vipMinta||{}).oleh||'')+
+      '\nAlasannya: '+((x.vipMinta||{}).alasan||'');
+    /* prospek belum punya channel Discord sendiri — yang dikabari cuma order */
+    if(jenis!=='lead')notifyOrder(x,t);
+  }catch(e){}}
+function vipPutus(jenis,id,setuju){
+  if(!bolehAturVip()){alert('Hanya Direktur Utama yang bisa memutuskan pengajuan VIP.');return;}
+  var x=vipCari(jenis,id);if(!x||!vipMinta(x))return;
+  var m=x.vipMinta;
+  if(setuju){
+    if(!confirm('Setujui "'+(x.nama||x.customer)+'" jadi client VIP?\n\nDiajukan '+m.oleh+': '+m.alasan))return;
+    x.vip=true;delete x.vipMinta;
+    vipSimpan(jenis,x,'★ Pengajuan VIP DISETUJUI oleh '+(ST.userName||ST.user||'')+' (diajukan '+m.oleh+')');
+  } else {
+    if(!confirm('Tolak pengajuan VIP untuk "'+(x.nama||x.customer)+'"?'))return;
+    delete x.vipMinta;
+    vipSimpan(jenis,x,'✕ Pengajuan VIP ditolak oleh '+(ST.userName||ST.user||'')+' (diajukan '+m.oleh+')');
+  }}
 function vipToggle(jenis,id){
   if(!bolehAturVip()){alert('Hanya Direktur Utama yang bisa menetapkan client VIP.');return;}
   var x=(jenis==='lead')?leadsAll().find(function(y){return y.id===id;})
@@ -5479,6 +5559,7 @@ function dirPutusanSebab(o){
   if(f===FASE_PROFIT&&!dirAppr(o))out.push('Approve atau tolak profitability');
   if(f===faseSpecPO()&&!(((o.pricing||{}).marginAppr||{}).tgl))out.push('Setujui kelengkapan sebelum PO turun');
   if((o.poRev||0)>0&&!((o.poRevOk||{}).direktur))out.push('Setujui biaya PO revisi R'+o.poRev);
+  if(vipMinta(o))out.push('Putuskan pengajuan VIP dari '+(vipMinta(o).oleh||'Sales'));
   try{var P=poClientGet(o);
     if(poClientAda(o)&&String(P.no||'').trim()&&!poClientSah(o))out.push('Sahkan surat PO resmi client');}catch(e){}
   try{var s=returSisa(o);
@@ -6587,14 +6668,9 @@ function kartuProspek(l){
       ';border-style:dashed;opacity:.93" onclick="bukaProspek(\''+l.id+'\')">'+
     '<div class="on"><span class="pf" style="background:'+pfColor(p)+'">'+p.toUpperCase()+'</span>'+
       esc(l.nama||'(tanpa nama)')+(isVip(l)?(' '+vipLencana(true)):'')+
-      /* stopPropagation: kartunya sendiri sudah bisa diklik untuk dibuka */
-      (bolehAturVip()
-        ?('<span style="margin-left:auto" onclick="event.stopPropagation()">'+
-          '<button class="xrow" style="color:'+(isVip(l)?'var(--gold)':'var(--muted)')+
-          ';font-size:13px;line-height:1" title="'+(isVip(l)?'cabut status VIP':'jadikan order VIP')+
-          '" onclick="event.stopPropagation();vipToggle(\'lead\',\''+l.id+'\')">'+
-          (isVip(l)?'★':'☆')+'</button></span>')
-        :'')+
+      /* stopPropagation: kartunya sendiri sudah bisa diklik untuk dibuka.
+         Direktur menetapkan langsung; jabatan lain mengajukan. */
+      vipTombolKartu('lead',l)+
     '</div>'+
     '<div class="om"><span>'+esc(leadJudul(l))+(q?(' · '+q+'pcs'):'')+'</span>'+
       '<span>'+esc(l.channel||'')+'</span></div>'+
@@ -10473,12 +10549,13 @@ function salesRingkasBlok(o){
       '<b style="flex:0 0 108px;color:var(--ink-soft)">'+esc(it.nama)+'</b><span>'+
       (it.qty?('<b>'+it.qty+' pcs</b> · '):'')+esc(it.note||'—')+
       (c?('<div style="color:var(--ink-soft)">collateral: '+esc(c)+'</div>'):'')+'</span></div>');});
-  LEAD_SEK.forEach(function(x){var k=x[0],s=(d.spec||{})[k];if(!s)return;
-    var isi=salesNote(o,k);
-    if(!s.ada&&!isi)return;
+  LEAD_SEK.forEach(function(x){var k=x[0],s=(d.spec||{})[k];
+    var isi=salesNote(o,k), pakai=salesMau(o,k);
+    if(!s&&!pakai)return;
+    if(!pakai&&!isi)return;
     baris.push('<div style="display:flex;gap:8px;padding:3px 0;font-size:10.5px;line-height:1.55">'+
       '<b style="flex:0 0 108px;color:var(--ink-soft)">'+esc(x[1])+'</b>'+
-      '<span>'+(s.ada?'':'<span style="color:#8f2a1e;font-weight:700">tidak dipakai</span> ')+esc(isi||'—')+'</span></div>');});
+      '<span>'+(pakai?'':'<span style="color:#8f2a1e;font-weight:700">tidak dipakai</span> ')+esc(isi||'—')+'</span></div>');});
   if(d.catatan)baris.push('<div style="display:flex;gap:8px;padding:3px 0;font-size:10.5px;line-height:1.55">'+
     '<b style="flex:0 0 108px;color:var(--ink-soft)">Catatan lain</b><span>'+esc(d.catatan)+'</span></div>');
   if(!baris.length)return '';
