@@ -690,7 +690,8 @@ const EN={
 '＋ Lampirkan berkas PO dari client':'＋ Attach the client PO file','✎ Olah jadi data':'✎ Turn it into data','✎ Ubah data PO':'✎ Edit the PO data',
 'DIBACA DARI PDF':'READ FROM THE PDF','⌕ Baca isinya':'⌕ Read its contents','✎ Pakai hasilnya':'✎ Use these values','Pakai hasil bacaan PDF?':'Use what was read from the PDF?','Periksa dulu — mesin menebak, kamu yang memastikan':'Check first — the machine guesses, you decide',
 'Surat PO resmi client':'Client\u2019s official PO','JALUR KEDUA — PENGGANTI UANG MUKA':'SECOND ROUTE — INSTEAD OF A DOWN PAYMENT','Menunggu DP / PO resmi':'Waiting for down payment or official PO','Izin berjalan tanpa uang muka — Direktur':'Permission to proceed without a down payment — Director','✓ Setujui jalan tanpa DP':'✓ Approve proceeding without a down payment','＋ Catat surat PO':'＋ Record the PO','Nomor PO client':'Client PO number','Nilai yang tertulis di PO':'Value stated on the PO','Termin':'Payment terms',
-'Bisa kamu isi lebih awal':'You can fill this in early','✎ Isi sekarang':'✎ Fill it now','✎ Isi':'✎ Fill','— kalau datanya sudah ada, tak perlu menunggu fasenya':'\u2014 if you already have it, no need to wait for its phase',
+'Bisa kamu isi lebih awal':'You can fill this in early','📨 Tanyakan ke vendor':'📨 Ask the vendor','📨 Tanya lagi':'📨 Ask again',
+'✎ Isi sekarang':'✎ Fill it now','✎ Isi':'✎ Fill','— kalau datanya sudah ada, tak perlu menunggu fasenya':'\u2014 if you already have it, no need to wait for its phase',
 'Retur barang client':'Client returns','BELUM ADA RETUR UNTUK ORDER INI':'NO RETURN ON THIS ORDER YET','↩ Catat retur dari client':'↩ Record a client return','GILIRAN SEKARANG':'YOUR TURN NOW','Kata client:':'The client says:','Keputusan retur':'Return decision','Tindak lanjutnya':'What happens next','Dasar keputusannya':'Basis for the decision','Penyebab sebenarnya':'The actual cause','Biaya yang timbul':'Cost incurred','＋ Foto barang retur':'＋ Photo of the returned goods','Jenis masalahnya':'Type of problem','Kata client apa adanya':'The client\u2019s own words',
 'Bukti transfer dari client':'Client\u2019s transfer proof','SALES MENERUSKAN · FINANCE MEMERIKSA REKENING':'SALES FORWARDS IT · FINANCE CHECKS THE BANK','Kabar dari client':'What the client says','＋ Lampirkan screenshot / PDF':'＋ Attach a screenshot / PDF','✎ Catat revisi &amp; kembalikan':'✎ Record a revision &amp; send back','PANTAUAN — DIISI TANGAN':'TRACKING — FILLED IN BY HAND','Janji selesai':'Promised completion','Belum pernah diperbarui':'Never updated yet',
 'barang sudah jadi — tak bisa direvisi lagi':'goods already made — no longer revisable',
@@ -2232,7 +2233,11 @@ function kirimKeInquiry(id){
     lines.push({produk:it.nama,bahan:(K&&K.material)||'',sumber:'Radja Leather',qty:q,
       hpp:hpp,jual:Math.round(hpp*(1+MARGIN_BAWAAN/100)),
       img:it.img||(K&&K.img)||'',imgs:[],detail:it.note||'',tiers:(K&&K.t)||null,
-      perso:'-',fixed:true});});
+      /* fixed berarti "harganya sudah pasti dari katalog, tak perlu ditanyakan".
+         Kalau produknya tak ketemu di master, harganya 0 dan janji itu bohong:
+         barisnya lolos dari antrean minta harga sekaligus muncul di daftar
+         konfirmasi dengan Rp 0. Yang tak berharga ikut antre seperti yang lain. */
+      perso:'-',fixed:!!(K&&hpp>0)});});
   /* custom belum punya produk bernama — satu baris kosong supaya PM tak mulai dari nol */
   if(!lines.length)lines.push({produk:l.produk||'(belum dirinci)',bahan:'',
     sumber:vendorNames()[0]||'Radja Leather',qty:+l.qty||0,hpp:0,jual:0,
@@ -8634,10 +8639,14 @@ function konfSet(id,vendor){
   var semua=grup.baris.every(function(x){return konfSah(x.l);});
   if(semua){
     if(!confirm('Batalkan konfirmasi harga '+vendor+'?'))return;
-    grup.baris.forEach(function(x){delete x.l.konf;});
+    grup.baris.forEach(function(x){delete x.l.konf;delete x.l.konfTanya;});
     logHist(o,'↺ Konfirmasi harga '+vendor+' dibatalkan');
   } else {
     var rinci=grup.baris.map(function(x){return (x.l.produk||'item')+' '+fmt0(x.l.hpp||0)+'/pcs';}).join(', ');
+    if(!grup.baris.every(function(x){return !!(x.l.konfTanya&&x.l.konfTanya.tgl);})&&
+       !confirm('Belum ada pesan konfirmasi yang dikirim ke '+vendor+' dari HUB.\n\n'+
+         'Kalau kamu menghubunginya lewat jalan lain, lanjutkan. Kalau belum, pakai tombol '+
+         '"📨 Tanyakan ke vendor" dulu.\n\nLanjutkan?'))return;
     if(!confirm('Sudah dipastikan ke '+vendor+' bahwa harga ini masih berlaku DAN bahannya masih ada untuk qty ini?\n\n'+rinci+
       '\n\nSekali menghubungi, tanyakan keduanya — harga masih berlaku tapi bahan habis sama saja tak bisa dipakai.'+
       '\n\nKalau vendor memberi harga lain, ubah dulu harganya di panel Pricing, baru konfirmasi.'))return;
@@ -8646,6 +8655,53 @@ function konfSet(id,vendor){
     logHist(o,'✓ Harga '+vendor+' dikonfirmasi masih berlaku — '+rinci);
   }
   o._m=Date.now();save();render();}
+/* Sudah ditanyakan ke vendor ini? Ditandai per baris, sama seperti rfq. */
+/* Harga yang berlaku untuk baris ini, entah sudah tersalin ke barisnya atau
+   masih harus dihitung dari tabel master. Urutannya sama dengan hargaOtomatis. */
+function konfHargaBaris(l){
+  var h=+l.hpp||0;if(h>0)return h;
+  var r=kombUntukLine(l);
+  if(r){var pk=packPriceT(r.t,l.qty||0);if(pk>0)return pk;}
+  var p=prodInfo(l.produk,l);
+  if(p&&p.t&&p.t.length){var c=catPriceT(p.t,l.qty||0);if(c>0)return c;}
+  return 0;}
+function konfDitanya(g){return g.baris.every(function(x){return !!(x.l.konfTanya&&x.l.konfTanya.tgl);});}
+function konfPesan(o,vendor,baris){
+  var P=['📨 **PASTIKAN HARGA — '+vendor+'**','',
+         'Order: '+chName(o)+' · client '+o.customer];
+  var b=briefGet(o);
+  var pat=b.tglKirim||o.eventDate||b.tglAcara;
+  if(pat)P.push('Dibutuhkan sebelum '+tglID(pat));
+  P.push('','**Harga yang kami pegang**');
+  baris.forEach(function(x){
+    P.push('• '+(x.l.produk||'item')+' · '+(x.l.qty||0)+' pcs — '+fmt0(konfHargaBaris(x.l))+'/pcs'+
+      (x.l.bahan?(' · '+x.l.bahan):''));});
+  P.push('','**Mohon dikonfirmasi dua hal**',
+    '1. Harga di atas **masih berlaku** untuk qty ini?',
+    '2. **Bahannya masih ada** untuk qty ini?',
+    '','Kalau ada yang berubah, mohon diberi tahu angka barunya. Terima kasih 🙏');
+  return P.join(String.fromCharCode(10));}
+function konfTanya(id,vendor){
+  var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
+  var grup=konfVendor(o).find(function(g){return g.vendor===vendor;});if(!grup)return;
+  var live=!!((ST.cfg||{}).live&&(ST.cfg||{}).url);
+  askForm({judul:'Pastikan harga ke '+vendor,
+    sub:grup.baris.length+' baris · harganya dari master, tinggal dipastikan masih berlaku',
+    fields:[{k:'pesan',label:'Isi pesan — boleh diedit sebelum dikirim',type:'textarea',tinggi:240,
+      val:konfPesan(o,vendor,grup.baris),req:true,
+      hint:live?'Terkirim ke channel Discord order ini, dan tersalin supaya bisa ditempel ke server vendor.'
+               :'Mode live belum menyala — pesan hanya disalin ke clipboard, tinggal tempel ke Discord vendor.'}],
+    ok:function(v){
+      grup.baris.forEach(function(x){
+        x.l.konfTanya={tgl:hariIni(),oleh:(ST.userName||ST.user||'')};});
+      notifyOrder(o,v.pesan);
+      var keRadja=/radja/i.test(vendor);
+      o.disc.push({cat:keRadja?['radja','PRICING → PRICING DONE']:['rove','PRE-DEAL'],who:'Sales',
+        txt:'Konfirmasi harga dikirim ke <b>'+esc(vendor)+'</b> — '+grup.baris.length+' baris dari master.'});
+      logHist(o,'📨 Konfirmasi harga dikirim ke '+vendor+' — '+grup.baris.length+' baris');
+      o._m=Date.now();save();render();
+      evSalin(v.pesan,live?'✓ Terkirim ke Discord — teksnya juga tersalin untuk ditempel ke server vendor.'
+                          :'✓ Teks tersalin — tinggal tempel di Discord '+vendor+'.');}});}
 function konfBlok(o){
   var G=konfVendor(o);
   if(!G.length)return '';
@@ -8669,14 +8725,20 @@ function konfBlok(o){
           '<span style="font-size:10px;color:var(--muted)">'+g.baris.length+' baris</span>'+
           (beres?('<span style="font-size:10px;color:var(--ok);font-weight:700">✓ dikonfirmasi '+tglID(k1.tgl)+
             (k1.oleh?(' · '+esc(k1.oleh)):'')+'</span>'):'')+
-          '<span style="margin-left:auto">'+
-            '<button class="btn '+(beres?'ghost ':'')+'sm" onclick="konfSet(\'' + o.id + '\',\'' + String(g.vendor).replace(/'/g, "\\'") + '\')">'+
+          (!beres&&konfDitanya(g)?('<span style="font-size:10px;color:var(--warn);font-weight:700">⧗ sudah ditanya '+
+            tglID(g.baris[0].l.konfTanya.tgl)+' — menunggu jawaban</span>'):'')+
+          '<span style="margin-left:auto;display:flex;gap:6px">'+
+            /* menanyakan dulu, mencatat kemudian — tombol mencatat saja
+               membuat orang menekannya tanpa pernah menghubungi vendor */
+            (beres?'':('<button class="btn ghost sm" onclick="konfTanya(\'' + o.id + '\',\'' + String(g.vendor).replace(/'/g, "\\'") + '\')">'+
+              (konfDitanya(g)?'📨 Tanya lagi':'📨 Tanyakan ke vendor')+'</button>'))+
+            '<button class="btn '+(beres||!konfDitanya(g)?'ghost ':'')+'sm" onclick="konfSet(\'' + o.id + '\',\'' + String(g.vendor).replace(/'/g, "\\'") + '\')">'+
             (beres?'↺ Batalkan':'✓ Harga masih berlaku')+'</button></span>'+
         '</div>'+
         g.baris.map(function(x){
           var basi=x.l.konf&&!konfSah(x.l);
           return '<div style="font-size:10.5px;color:var(--muted);padding:2px 0">• <b>'+esc(x.l.produk||'item')+
-            '</b> — '+fmt0(x.l.hpp||0)+'/pcs'+
+            '</b> — '+fmt0(konfHargaBaris(x.l))+'/pcs'+
             (basi?(' <span style="color:var(--warn);font-weight:700">⚠ harga berubah sejak dikonfirmasi ('+fmt0(x.l.konf.hpp||0)+')</span>'):'')+
             '</div>';}).join('')+
         '</div>';}).join('')+
