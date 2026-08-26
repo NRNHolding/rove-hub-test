@@ -4487,7 +4487,7 @@ function venTab(v){ST._venTab=v;render();}
 function shipTab(v){ST._shipTab=v;render();}
 function opTab(v){ST._opTab=v;render();}
 const MSEC=[['users','Users / Akun','akun login staff'],['access','Hak akses','siapa boleh buka apa'],['opts','Opsi form','isi dropdown order'],['customers','Customers','database client'],['vendors','Vendors','daftar vendor & bank'],['produk','Master Product','produk, collateral, jasa'],['operator','Operator','tim live service'],['shipping','Pengiriman','ongkir, kardus, kurs']];
-const MSEC_OWNER={customers:['Sales'],vendors:['Purchasing'],produk:['Purchasing','Project Manager'],operator:['Event Management'],shipping:['Packing & Shipping']};
+const MSEC_OWNER={customers:['Sales','Direktur Utama'],vendors:['Purchasing'],produk:['Purchasing','Project Manager'],operator:['Event Management'],shipping:['Packing & Shipping']};
 /* ---- kardus & kurs (dari Cost Estimator / Shipping Calculator) ---- */
 function defKardus(){return [
   {size:'XS',L:20,W:20,H:16,wg:200},{size:'S',L:35,W:32,H:20,wg:350},
@@ -5018,6 +5018,10 @@ function loadMaster(){try{ST.master=JSON.parse(localStorage.getItem('rovehub_mas
     ST.master._migOrderDariProspek=1;saveMaster();}
 
    if(!ST.master.msec){ST.master.msec=defMsec();saveMaster();} var dm=defMsec();ROLES.forEach(function(r){if(!ST.master.msec[r]){ST.master.msec[r]=dm[r];saveMaster();}});
+   /* Direktur perlu daftar customer — di situ status VIP ditetapkan. Data
+      yang tersimpan sebelum aturan ini dibuat tak punya izinnya. */
+   if(ST.master.msec['Direktur Utama']&&ST.master.msec['Direktur Utama'].customers!==true){
+     ST.master.msec['Direktur Utama'].customers=true;saveMaster();}
    ST.master.catalog.forEach(function(r){if(!r.jenis)r.jenis='Katalog';});}
 function mEdit(sec,i,f,v){var r=ST.master[sec][i];r[f]=v;
   if(sec==='customers'&&(f==='bride'||f==='groom')&&r.tipe==='Wedding'){
