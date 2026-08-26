@@ -746,6 +746,8 @@ const EN={
 'Nomor resi':'Tracking number','Tanggal kirim':'Ship date','Tanggal diterima client':'Client delivery date',
 '✓ Barang sudah diterima hari ini':'✓ Delivered today','Foto bukti serah terima':'Handover proof photo',
 'Tiap pcs beda nama':'Each piece has a different name','daftar nama wajib lengkap sebelum plate dipesan':'the name list must be complete before plates are ordered',
+'Hanya Direktur Utama yang bisa menyetujui profitability.':'Only the Managing Director can approve profitability.',
+'Hanya Direktur Utama yang bisa menolak order.':'Only the Managing Director can reject an order.',
 'Font / tipografi':'Font / typography','✓ jumlah cocok':'✓ count matches','⧉ Salin untuk PO':'⧉ Copy for the PO',
 '📋 Tempel daftar nama':'📋 Paste the name list','📋 Ubah / tempel ulang':'📋 Edit / paste again','Catatan':'Notes',
 '📁 Impor Excel / CSV':'📁 Import Excel / CSV',
@@ -6486,7 +6488,10 @@ function ovKartu(o){
     '<div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:11px">'+
       '<button class="btn sm" onclick="ovSalin(\''+o.id+'\')">⧉ Salin ringkasan untuk client</button>'+
       '<button class="btn ghost sm" onclick="openOrder(\''+o.id+'\')">✎ Client mau ubah — buka order</button>'+
-      (kurang.length?'':('<button class="btn sm" onclick="trigger(\''+o.id+'\')">✓ Client lock — lanjut</button>'))+
+      (kurang.length?'':(faseMilikku(o)
+        ?('<button class="btn sm" onclick="trigger(\''+o.id+'\')">✓ Client lock — lanjut</button>')
+        :('<button class="btn sm" disabled>✓ Client lock — lanjut</button>'+
+          '<span style="font-size:9.5px;color:var(--muted);margin-left:7px">dipegang '+esc(fasePemilik(o))+'</span>')))+
     '</div></div></div>';}
 function renderOverview(){
   var A=ovList();
@@ -6594,7 +6599,10 @@ function renderDetail(){
      <div class="desc" style="flex:1;min-width:220px"><b>Langkah sekarang — ${ph.n}</b> <span style="color:var(--muted)">(PIC ${ph.pic})</span><br>${ph.desc} ${ph.gate?`<span class="gatechip">🔒 tunggu: ${ph.gate}</span>`:''}
        ${(function(){var td=todoTeks(o);return td?`<div style="margin-top:7px;font-size:10.5px;background:var(--bg);border-left:3px solid var(--brand);padding:7px 9px;border-radius:0 6px 6px 0;line-height:1.6">📋 <b>Yang kamu kerjakan:</b> ${td}</div>`:'';})()}
        <div style="margin-top:6px;font-size:10px;color:var(--muted)">Selesai? Klik tombol kanan → lanjut ke <b>${nx?nx.n:'Selesai'}</b>.</div></div>
-     <button class="btn" onclick="trigger('${o.id}')" ${playing?'disabled':''}>✓ Selesai — lanjut fase</button></div>`;}
+     ${faseMilikku(o)
+       ? `<button class="btn" onclick="trigger('${o.id}')" ${playing?'disabled':''}>✓ Selesai — lanjut fase</button>`
+       : `<div style="text-align:right"><button class="btn" disabled title="dipegang ${esc(fasePemilik(o))}">✓ Selesai — lanjut fase</button>
+          <div style="font-size:9.5px;color:var(--muted);margin-top:4px">dipegang ${esc(fasePemilik(o))}</div></div>`}</div>`;}
 
   $('#main').innerHTML=`
    <div style="display:flex;justify-content:space-between;align-items:center"><div class="back" onclick="closeOrder()">‹ Kembali ke pipeline</div>${isVip(o)?vipLencana():''}${bolehAturVip()?vipTombol(o,'order'):''}${revisiAll(o).length?`<span style="background:var(--accent);color:#2b1d0e;border-radius:5px;padding:1px 7px;font-size:9px;font-weight:800">✎ R${revisiAll(o).length}</span>`:''}${(o.phase===0&&o.status!=='Deal')?`<button class="btn ghost sm" style="color:#d9534f" onclick="delOrder('${o.id}')">🗑 Hapus order</button>`:''}</div>
@@ -7541,8 +7549,13 @@ function refTiles(o,ringkas){var t=[];
 
 /* ---- tanda-tangan langkah yang tak punya berkas, cuma perlu dicatat SIAPA & KAPAN.
    Bukan centang bebas: sekali dicatat, tercatat pelakunya dan masuk histori. ---- */
+/* jalur yang tanda tangannya milik jabatan tertentu; sisanya bebas */
+const TANDA_MILIK={margin:'Direktur Utama'};
 function tandaSet(id,jalur,f,label){
   var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
+  var punya=TANDA_MILIK[jalur]||((jalur==='poRev'&&f==='direktur')?'Direktur Utama':'');
+  if(punya&&!rolePunya(punya)){
+    alert('"'+label+'" hanya bisa dicatat '+punya+'.');return;}
   var wadah=(jalur==='prod')?(o.prod=o.prod||{}):((o.pricing=o.pricing||{lines:[],margin:30}));
   if(jalur==='margin'){if(!o.pricing.marginAppr)o.pricing.marginAppr={};wadah=o.pricing.marginAppr;}
   if(jalur==='jual'){if(!o.pricing.jualAppr)o.pricing.jualAppr={};wadah=o.pricing.jualAppr;}
@@ -7600,7 +7613,26 @@ function tabNote(txt){return '<div style="font-size:10.5px;color:var(--muted);ba
 
 // ---- actions ----
 let playing=false;
+/* ================= KUNCI RINGAN =================
+   Dua hal yang tak boleh dikerjakan orang lain: menutup fase, dan
+   tanda tangan Direktur. Sisanya sengaja dibiarkan terbuka — tim kecil
+   saling menutupi pekerjaan, dan itu memang cara kerjanya sehari-hari.
+
+   Yang dijaga di sini cuma dua hal yang paling mahal kalau salah:
+   fase yang tertutup terlalu cepat menggeser semua tanggal di belakangnya,
+   dan persetujuan Direktur adalah dasar keputusan uang. */
+function rolePunya(nama){
+  var R=myRoles();
+  return R.indexOf('Holding')>=0||R.indexOf(PIC2ROLE[nama]||nama)>=0||R.indexOf(nama)>=0;}
+function fasePemilik(o){var ph=PH[o.phase||0]||{};return PIC2ROLE[ph.pic]||ph.pic||'';}
+function faseMilikku(o){var ph=PH[o.phase||0];return !ph||rolePunya(ph.pic);}
+function tolakBukanMilikku(o,apa){
+  alert(apa+' dipegang '+fasePemilik(o)+', bukan jabatanmu.\n\n'+
+    'Kalau memang sudah beres, minta '+fasePemilik(o)+' yang menekannya — '+
+    'yang tercatat di histori adalah nama penekannya.');}
 function trigger(id){if(playing)return;const o=ST.orders.find(x=>x.id===id);const pre=o.phase,gate=PH[pre].gate;
+  /* cuma pemilik fase yang boleh menutupnya — lihat catatan di KUNCI RINGAN */
+  if(!faseMilikku(o)){tolakBukanMilikku(o,'Fase '+PH[pre].n);return;}
   /* penjaga fase: yang wajib benar-benar menahan, bukan sekadar diingatkan */
   const w=wajibFase(o,pre);
   if(w.length){
@@ -8735,12 +8767,14 @@ const DIR_TOLAK=[
   ['lain','Di luar harga — pesanan, spesifikasi, atau tanggalnya keliru',0,'Inquiry']];
 function dirSetuju(id){
   var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
+  if(!rolePunya('Direktur Utama')){alert('Hanya Direktur Utama yang bisa menyetujui profitability.');return;}
   if(!o.pricing)o.pricing={lines:[],margin:30};
   o.pricing.dirAppr={tgl:hariIni(),tglBy:(ST.userName||ST.user||''),tolak:false,alasan:'',catatan:''};
   logHist(o,'✓ Profitability disetujui Direktur ('+(ST.userName||ST.user||'')+')');
   o._m=Date.now();save();render();}
 function dirTolak(id){
   var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
+  if(!rolePunya('Direktur Utama')){alert('Hanya Direktur Utama yang bisa menolak order.');return;}
   askForm({judul:'Tolak order ini',sub:'Order '+o.customer+' — pilih alasannya, HUB mengembalikan ke fase yang tepat',
     fields:[
       {k:'sebab',label:'Alasan penolakan',type:'select',req:true,val:'harga',
@@ -8928,7 +8962,10 @@ function rfqPanel(o){
       '<div style="font-size:12px;font-weight:800;color:var(--ok);margin-bottom:5px">✓ Tidak ada yang perlu ditanyakan ke vendor</div>'+
       '<div style="font-size:10.5px;color:var(--muted);line-height:1.7">Semua item sudah punya harga dari master — '+
         'produk katalog dan collateral standar harganya sudah tetap. Fase ini boleh dilewati, langsung ke <b>Quotation</b>.</div>'+
-      '<button class="btn sm" style="margin-top:10px" onclick="trigger(\''+o.id+'\')">→ Lewati, lanjut ke Quotation</button></div>';
+      (faseMilikku(o)
+        ?('<button class="btn sm" style="margin-top:10px" onclick="trigger(\''+o.id+'\')">→ Lewati, lanjut ke Quotation</button>')
+        :('<button class="btn sm" style="margin-top:10px" disabled>→ Lewati, lanjut ke Quotation</button>'+
+          '<div style="font-size:9.5px;color:var(--muted);margin-top:4px">dipegang '+esc(fasePemilik(o))+'</div>'))+'</div>';
   } else {
     isi='<div style="font-size:10.5px;color:var(--muted);margin-bottom:10px">Baris di bawah tak punya harga tetap di master, jadi harus ditanyakan ke vendor. '+
         'Kalau barangnya pernah dibeli sebelumnya, harga terakhirnya ditampilkan — tinggal konfirmasi ke vendor bahwa harga itu masih berlaku, lalu klik <b>Pakai harga ini</b>. '+
