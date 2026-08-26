@@ -704,6 +704,9 @@ const EN={
 'Pertanyaan menunggu jawabanmu':'Questions waiting on you','✍ Jawab':'✍ Answer','✎ Ubah jawaban':'✎ Edit answer','Jawabanmu':'Your answer','Menunggu jawaban':'Waiting on',
 'Penentuan harga jual':'Setting the selling price','INFO DARI RADJA':'FROM RADJA','Deadline produksi':'Production deadline','Paling lambat PO turun':'Latest date the PO can be issued','Persetujuan harga jual — Sales':'Selling price approval — Sales','Harga jual disetujui Sales':'Selling price approved by Sales',
 'kelengkapan fase ini sudah lengkap':'this phase’s checklist is complete',
+'✋ Ingatkan Sales — lengkapi keterangan client':'✋ Remind Sales — fill in what the client said',
+'Ingatkan Sales lewat Discord':'Remind Sales on Discord',
+'Yang perlu ditanyakan ke client':'What needs asking the client',
 '💬 Tanya Sales':'💬 Ask Sales','Yang belum jelas':'What is unclear','Ini tugas jabatanmu sendiri — tak ada yang perlu diingatkan.':'This is your own role\u2019s task \u2014 there is nobody to remind.',
 '🔍 Cari produk atau bahan…':'🔍 Search product or material…',
 '◇ Prospek':'◇ Leads',
@@ -7478,6 +7481,18 @@ function chkSumber(fase,k){return CHK_SUMBER[fase+'.'+k]||'';}
 
 /* Item checklist -> panel tempat mengisinya. Dipakai supaya PIC bisa menekan
    barisnya sendiri dan langsung mendarat di panel yang benar, tanpa menebak. */
+/* Kolom yang dituju tiap item checklist. Tanpa daftar ini, "Isi kota dan
+   venue acara" mendarat di Alamat kirim — kolom kosong pertama yang kebetulan
+   ada di panel yang sama. Yang tak terdaftar di sini tetap memakai tebakan
+   itu; menambah barisnya di sini yang membuatnya tepat. */
+const CHK_FIELD={
+  kontak:'picNama', acara:'tglAcara', kota:'venue', hpWo:'woHp',
+  ref:'refFiles', terjemah:'mainMat',
+  logoCl:'logoFiles', logoLetak:'logoLetak',
+  logoPch:'logoPouchFiles', logoBox:'logoBoxFiles', logoCard:'logoCardFiles',
+  preview:'previewFiles', qc:'qcFiles', pack:'packFiles',
+  alamat:'addr', alamatKantor:'addrKantor', email:'email',
+};
 const CHK_PANEL={logoLetak:'brief',
   brief:'brief', kontak:'brief', acara:'brief', kota:'brief', hpWo:'brief', ref:'brief',
   rfq:'rfq', kulit:'rfq', harga:'rfq', moq:'rfq', konfKatalog:'rfq',
@@ -7521,7 +7536,7 @@ function chkLompat(id,fase,k){
   /* gulirkan ke panelnya supaya tak perlu dicari lagi — lewat id panelnya,
      bukan lewat mencocokkan judul kartu, supaya sama dengan tombol Isi sekarang */
   setTimeout(function(){
-    if(sorotPanel(pk))return;
+    if(sorotPanel(pk,k))return;
     var kartu=[].filter.call(document.querySelectorAll('#main .card'),function(c){
       var t=c.querySelector('.ch .t');return t&&t.textContent.trim()===namaPanelDari(pk);});
     if(kartu[0]&&kartu[0].scrollIntoView)kartu[0].scrollIntoView({behavior:'smooth',block:'start'});
@@ -7553,14 +7568,9 @@ function chkPanel(o){
           (src?('<span> · </span><span>diisi di '+esc(src)+'</span>'):'')+'</div>'+
       '</div>'+
       (ok?'':(chkTugasku(it)
-        ? ((chkLawanTanya(o)
-            ? ('<button class="btn ghost sm" style="flex:0 0 auto" title="tanyakan yang belum jelas ke Sales" '+
-               'onclick="tanyaKirim(\'' + o.id + '\',' + f + ',\'' + it.k + '\')">💬 Tanya Sales</button>')
-            : '')+
-           (CHK_PANEL[it.k]
-            ? ('<button class="btn ghost sm" style="flex:0 0 auto" title="kirim link ke orang yang punya jawabannya" '+
-               'onclick="mintaIsi(\'' + o.id + '\',' + f + ',\'' + it.k + '\')">✎ Minta isikan</button>')
-            : ''))
+        /* Tak ada tombol per baris untuk Sales: Sales tak mengisi di HUB.
+           Pengingatnya satu, di kaki panel, sekaligus untuk semua yang kurang. */
+        ? ('')
         : ('<button class="btn ghost sm" style="flex:0 0 auto" title="ingatkan '+esc(it.pic)+'" '+
            'onclick="chkIngat(\'' + o.id + '\',' + f + ',\'' + it.k + '\')">⏰ Ingatkan</button>')))+
     '</div>'+
@@ -7595,6 +7605,11 @@ function chkPanel(o){
     '<span style="margin-left:auto;font-size:12px;font-weight:800;color:'+(sisaWajib?'var(--warn)':'var(--ok)')+'">'+
       sudah+'/'+items.length+'</span></div><div class="body">'+rows+
     '<div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:11px;border-top:1px solid var(--line);padding-top:11px">'+
+      (mintaDaftar(o,f).length
+        ? ('<button class="btn sm" style="background:#6a6f8a;border-color:#6a6f8a" '+
+           'title="satu pesan ke Discord berisi semua yang perlu ditanyakan ke client" '+
+           'onclick="mintaSales(\'' + o.id + '\',' + f + ')">✋ Ingatkan Sales — lengkapi keterangan client</button>')
+        : '')+
       (lain.filter(function(it){return !chkAuto(o,f,it.k)&&!chkTugasku(it);}).length
         ? '<button class="btn sm" onclick="chkIngatSemua(\'' + o.id + '\',' + f + ')">⏰ Ingatkan semua PIC yang belum</button>'
         : '<span style="font-size:10px;color:var(--muted)">Tak ada jabatan lain yang perlu ditagih di fase ini.</span>')+
@@ -7789,6 +7804,55 @@ function mintaTautan(o,fase,k){
 function mintaSemua(o){if(!o.mintaIsi)o.mintaIsi={};return o.mintaIsi;}
 function mintaCatatan(o,fase,k){return mintaSemua(o)[fase+'.'+k]||null;}
 
+/* Urutan Sales menanyakannya ke client, bukan urutan checklist. */
+const MINTA_URUT=[
+  ['Spesifikasi produk',['terjemah','brief','ref','kontak','acara','kota','hpWo','kulit','harga','moq']],
+  ['Logo',['logoCl','logoLetak','logoPch','logoBox','logoCard']],
+  ['Packaging',['coll','spec']],
+  ['Live service',['live','operator']],
+  ['Add-on',['perso','daftarNama','svc']]];
+function mintaKelompok(k){
+  for(var i=0;i<MINTA_URUT.length;i++)
+    if(MINTA_URUT[i][1].indexOf(k)>=0)return MINTA_URUT[i][0];
+  return 'Lain-lain';}
+/* Semua yang masih kurang di fase ini, dikelompokkan & diurutkan. */
+function mintaDaftar(o,fase){
+  var kurang=[];
+  try{kurang=chkKurang(o,fase,false);}catch(e){}
+  var G={};
+  kurang.forEach(function(it){var g=mintaKelompok(it.k);(G[g]=G[g]||[]).push(it);});
+  var rapi=[];
+  MINTA_URUT.forEach(function(x){if(G[x[0]])rapi.push([x[0],G[x[0]]]);});
+  if(G['Lain-lain'])rapi.push(['Lain-lain',G['Lain-lain']]);
+  return rapi;}
+function mintaSales(id,fase){
+  var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
+  var grup=mintaDaftar(o,fase);
+  if(!grup.length){alert('Tak ada lagi yang kurang di fase ini — tak ada yang perlu diingatkan.');return;}
+  var ringkas=grup.map(function(g){
+    return g[0]+':'+String.fromCharCode(10)+
+      g[1].map(function(it){return '  • '+chkT(it);}).join(String.fromCharCode(10));
+  }).join(String.fromCharCode(10));
+  askForm({judul:'Ingatkan Sales lewat Discord',
+    sub:'Order '+o.customer+' · '+PH[fase].n,
+    fields:[
+      {k:'daftar',label:'Yang perlu ditanyakan ke client',type:'textarea',tinggi:150,val:ringkas,
+       hint:'Boleh disunting sebelum dikirim. Sales menjawabnya lewat Discord — yang mengetik di HUB tetap PM.'},
+      {k:'catatan',label:'Pesan tambahan',type:'text',val:'',
+       ph:'mis. client-nya lebih enak ditelepon sore'}],
+    ok:function(v){
+      var teks=String(v.daftar||'').trim();
+      if(!teks){alert('Daftarnya kosong — tak ada yang dikirim.');return;}
+      var n=grup.reduce(function(a,g){return a+g[1].length;},0);
+      logHist(o,'✋ Sales diingatkan lewat Discord — '+n+' hal ('+
+        grup.map(function(g){return g[0];}).join(', ')+')'+(v.catatan?(' — '+v.catatan):''));
+      var tautan='';try{tautan=orderTautan(o);}catch(e){}
+      notifyOrder(o,'✋ '+picMention('Sales')+' — **tolong tanyakan ke client**'+String.fromCharCode(10)+
+        'Order **'+o.customer+'** · '+PH[fase].n+String.fromCharCode(10)+String.fromCharCode(10)+teks+
+        (v.catatan?(String.fromCharCode(10)+String.fromCharCode(10)+v.catatan):'')+
+        (tautan?(String.fromCharCode(10)+tautan):''));
+      o._m=Date.now();save();render();
+      alert('✓ Pengingat dikirim ke channel Discord order ini.');}});}
 function mintaIsi(id,fase,k){
   var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
   var it=(PH_CHECK[fase]||[]).find(function(x){return x.k===k;});if(!it)return;
@@ -7906,7 +7970,7 @@ function bukaAwal(id,fase,k){
   var L=bukaAwalSet(o);
   if(L.indexOf(pk)<0)L.push(pk);
   ST.cur=o.id;render();
-  setTimeout(function(){sorotPanel(pk);},60);}
+  setTimeout(function(){sorotPanel(pk,k);},60);}
 /* dipakai bersama oleh "Isi sekarang" dan lompatan dari checklist.
    Membuka panelnya saja tak cukup — panel bisa berisi belasan kolom. Yang
    dicari kolom pertama yang masih kosong di dalamnya: itu yang diberi fokus
@@ -7927,14 +7991,21 @@ function kolomKosongPertama(wadah){
     if(el.tagName==='SELECT')return !el.value||el.value==='-'||el.value==='';
     return !String(el.value||'').trim();});
   return kosong[0]||isian.filter(function(el){return el.offsetParent!==null;})[0]||null;}
-function sorotPanel(pk){
+function sorotPanel(pk,kunci){
   var e=document.getElementById('pnl_'+pk);
   if(!e)return false;
   try{e.scrollIntoView({block:'start',behavior:'smooth'});}catch(err){e.scrollIntoView();}
   var kartu=e.querySelector('.card')||e;
   kedip(kartu);
   setTimeout(function(){
-    var kol=kolomKosongPertama(e);
+    /* kolom yang memang dituju item ini; kalau tak terdaftar, baru menebak */
+    var f=kunci&&CHK_FIELD[kunci];
+    var kol=null;
+    if(f){
+      var t=e.querySelector('[data-f="'+f+'"]');
+      if(t)kol=(t.tagName==='INPUT'||t.tagName==='SELECT'||t.tagName==='TEXTAREA')
+        ?t:(t.querySelector('input,select,textarea,button')||t);}
+    if(!kol)kol=kolomKosongPertama(e);
     if(!kol)return;
     try{kol.scrollIntoView({block:'center',behavior:'smooth'});}catch(err){}
     kedip(kol,'var(--gold)');
@@ -10993,7 +11064,7 @@ function lampiranBuka(id,slot,i){
   else alert('Popup diblokir browser. Izinkan popup untuk membuka PDF.');}
 function lampiranBlok(o,slot,judul){
   var a=(briefGet(o)[slot])||[];
-  return '<div style="margin-bottom:9px">'+
+  return '<div data-f="'+esc(slot)+'" style="margin-bottom:9px">'+
     '<div style="display:flex;align-items:center;gap:8px;margin-bottom:5px">'+
       '<span class="nlbl" style="margin:0">'+esc(judul)+'</span>'+
       '<button class="btn ghost sm" onclick="lampiranAdd(\''+o.id+'\',\''+slot+'\')">＋ Lampirkan jpg / png / pdf</button></div>'+
@@ -11261,12 +11332,12 @@ function briefPanel(o){
   var b=briefGet(o),W=(orderKategori(o)==='Wedding');   // kategori client yang menentukan
   var cm=custMaster(o);
   var sel=function(f,label,list){var opts=['-'].concat(list);
-    return '<label class="nlbl">'+label+'<select class="pin" style="width:100%;margin-top:3px" onchange="briefSet(\''+o.id+'\',\''+f+'\',this.value)">'+
+    return '<label class="nlbl">'+label+'<select class="pin" data-f="'+esc(f)+'" style="width:100%;margin-top:3px" onchange="briefSet(\''+o.id+'\',\''+f+'\',this.value)">'+
       opts.map(function(x){return '<option '+((b[f]||'-')===x?'selected':'')+'>'+esc(x)+'</option>';}).join('')+'</select></label>';};
   var txt=function(f,label,ph,lebar){return '<label class="nlbl" style="'+(lebar||'')+'">'+label+
     '<input class="pin" data-f="'+esc(f)+'" style="width:100%;margin-top:3px" value="'+esc(b[f])+'" onchange="briefSet(\''+o.id+'\',\''+f+'\',this.value)" placeholder="'+esc(ph||'')+'"></label>';};
   var ord=function(f,label,ph,lebar){return '<label class="nlbl" style="'+(lebar||'')+'">'+label+
-    '<input class="pin" style="width:100%;margin-top:3px" value="'+esc(o[f]||'')+'" onchange="clientEdit(\''+o.id+'\',\''+f+'\',this.value)" placeholder="'+esc(ph||'')+'"></label>';};
+    '<input class="pin" data-f="'+esc(f)+'" style="width:100%;margin-top:3px" value="'+esc(o[f]||'')+'" onchange="clientEdit(\''+o.id+'\',\''+f+'\',this.value)" placeholder="'+esc(ph||'')+'"></label>';};
   var tgl=function(f,label){
     /* order lama menyimpan tanggal acara di o.eventDate saja */
     var nilai=b[f]||((f==='tglAcara')?(o.eventDate||''):'');
@@ -11279,18 +11350,28 @@ function briefPanel(o){
   var selMat=function(){
     var radja=kulitNama(),umum=listArr('mainmat').filter(function(x){return radja.indexOf(x)<0;});
     var kini=b.mainMat||'-';
-    var opsi=['-'].concat(radja);
-    if(kini!=='-'&&opsi.indexOf(kini)<0)opsi.push(kini);      // isian lama tetap terpilih
+    var lain=(kini!=='-'&&radja.indexOf(kini)<0&&umum.indexOf(kini)<0)?[kini]:[];  // isian lama tetap terpilih
     var info=kulitInfo(kini);
+    var pilihan=function(x){return '<option value="'+esc(x)+'" '+(kini===x?'selected':'')+'>'+esc(x)+'</option>';};
+    /* Dua kelompok, dua-duanya diberi nama. Yang membedakan bukan
+       kulit/non-kulit — daftar umum pun berisi "Leather" — melainkan artikel
+       yang benar-benar ada di Radja vs nama bahan umum yang masih kabur. */
     return '<label class="nlbl">Main material'+
-      '<select class="pin" style="width:100%;margin-top:3px" onchange="briefMatSet(\''+o.id+'\',this.value)">'+
-        opsi.map(function(x){return '<option value="'+esc(x)+'" '+(kini===x?'selected':'')+'>'+esc(x)+'</option>';}).join('')+
-        (umum.length?('<optgroup label="Bukan kulit">'+umum.map(function(x){
-          return '<option value="'+esc(x)+'" '+(kini===x?'selected':'')+'>'+esc(x)+'</option>';}).join('')+'</optgroup>'):'')+
-        '<option value="'+MAT_BARU+'">＋ Artikel baru dari Radja…</option>'+
+      '<select class="pin" data-f="mainMat" style="width:100%;margin-top:3px" onchange="briefMatSet(\''+o.id+'\',this.value)">'+
+        '<option value="-" '+(kini==='-'?'selected':'')+'>— belum dipilih —</option>'+
+        (radja.length?('<optgroup label="Artikel kulit Radja — sudah pasti ada">'+
+          radja.map(pilihan).join('')+'</optgroup>'):'')+
+        (umum.length?('<optgroup label="Bahan umum — belum menunjuk artikel tertentu">'+
+          umum.map(pilihan).join('')+'</optgroup>'):'')+
+        (lain.length?('<optgroup label="Tertulis di order ini">'+lain.map(pilihan).join('')+'</optgroup>'):'')+
+        '<optgroup label="Kalau belum ada di daftar">'+
+          '<option value="'+MAT_BARU+'">＋ Daftarkan artikel baru dari Radja…</option>'+
+        '</optgroup>'+
       '</select>'+
       '<div style="font-size:9px;color:var(--muted);margin-top:3px;line-height:1.4">'+
-        (info?esc(info):(kini==='-'?'daftar artikel dari Master data → Kulit':'belum terdaftar di master'))+'</div>'+
+        (info?esc(info)
+          :(kini==='-'?'Artikel Radja = sudah pasti ada stoknya. Bahan umum = masih perlu ditanyakan artikel mana.'
+                      :'Belum terdaftar di Master data → Kulit — Purchasing masih harus menanyakan artikel persisnya ke Radja.'))+'</div>'+
     '</label>';};
   var dye=/dye|celup/i.test(b.finishing||'');
   return '<div class="card actcard" style="margin-top:14px"><div class="ch"><span class="ico" style="background:#5a7d9a">📝</span>'+
