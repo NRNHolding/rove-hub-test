@@ -543,6 +543,10 @@ const BULAN_EN={Januari:'January',Februari:'February',Maret:'March',April:'April
 
 /* Aturan untuk kalimat yang mengandung angka — dicoba setelah kamus persis gagal. */
 const EN_RULES=[
+  [/^… dan (\d+) lagi$/,function(m,n){return '… and '+n+' more';}],
+  [/^Impor (\d+) nama$/,function(m,n){return 'Import '+n+' names';}],
+  [/^⚠ kelebihan (\d+)$/,function(m,n){return '⚠ '+n+' too many';}],
+  [/^⚠ kurang (\d+)$/,function(m,n){return '⚠ '+n+' short';}],
   [/^⚠ nama dobel: (.+)$/,function(m,x){return '⚠ duplicate names: '+x;}],
   [/^MENUNGGU KAMU \((\d+)\)$/,function(m,n){return 'WAITING ON YOU ('+n+')';}],
   [/^utama: (.+)$/,function(m,x){return 'primary: '+x;}],
@@ -744,12 +748,16 @@ const EN={
 'Tiap pcs beda nama':'Each piece has a different name','daftar nama wajib lengkap sebelum plate dipesan':'the name list must be complete before plates are ordered',
 'Font / tipografi':'Font / typography','✓ jumlah cocok':'✓ count matches','⧉ Salin untuk PO':'⧉ Copy for the PO',
 '📋 Tempel daftar nama':'📋 Paste the name list','📋 Ubah / tempel ulang':'📋 Edit / paste again','Catatan':'Notes',
-'📁 Impor CSV':'📁 Import CSV','⬇ Unduh untuk Radja':'⬇ Download for Radja','⚠ dobel':'⚠ duplicate',
+'📁 Impor Excel / CSV':'📁 Import Excel / CSV',
+'Impor daftar nama':'Import the name list','Lembar':'Sheet','Kolom nama':'Name column',
+'Kolom catatan':'Notes column','— tak ada —':'— none —',
+'Kolom itu kosong — coba kolom lain.':'That column is empty — try another.',
+'⬇ Unduh untuk Radja':'⬇ Download for Radja','⚠ dobel':'⚠ duplicate',
 'Simpan daftar':'Save the list','Daftar nama — satu baris satu nama':'Name list — one name per line',
 'Boleh copy langsung dua kolom dari Excel (nama + catatan). Pemisah | atau ; juga bisa. Nomor urut otomatis dibuang.':
   'You can copy two columns straight from Excel (name + notes). | or ; separators also work. Row numbers are removed automatically.',
-'Daftar nama belum ada. Minta ke client (biasanya spreadsheet), lalu tempel isinya atau impor file .csv — jumlahnya langsung dicocokkan dengan qty pesanan.':
-  'No name list yet. Ask the client (usually a spreadsheet), then paste it in or import the .csv — the count is checked against the ordered qty right away.',
+'Daftar nama belum ada. Minta ke client (biasanya spreadsheet), lalu impor berkas .xlsx / .csv-nya, atau tempel isinya — jumlahnya langsung dicocokkan dengan qty pesanan.':
+  'No name list yet. Ask the client (usually a spreadsheet), then import the .xlsx / .csv or paste it in — the count is checked against the ordered qty right away.',
 'Overview order':'Order overview','Kelengkapan fase':'Phase checklist','checklist + PIC':'checklist + owner',
 'Kelengkapan yang menunggumu':'Items waiting on you','tiap item punya PIC; yang WAJIB menahan lanjut fase':'each item has an owner; MANDATORY ones block the next phase',
 'ISI INQUIRY':'INQUIRY DETAILS','HASIL PRICING':'PRICING RESULT','Belum bisa dikunci':'Cannot be locked yet',
@@ -4564,20 +4572,28 @@ function persoTempel(id){
     ov.remove();});}
 function persoImpor(id){
   var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
-  var N=persoGet(o);
   var inp=document.createElement('input');inp.type='file';
-  inp.accept='.csv,.txt,.xls,.xlsx,text/csv,text/plain';
+  inp.accept='.xlsx,.csv,.txt,text/csv,text/plain,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
   inp.onchange=function(){
     var f=(inp.files||[])[0];if(!f)return;
-    if(/\.xlsx?$/i.test(f.name)){
-      alert('File Excel tak bisa dibaca langsung.\n\nBuka filenya \u2192 blok kolom nama (+ catatan) \u2192 copy \u2192 pakai tombol "Tempel daftar nama". Atau Save As \u2192 CSV lalu impor lagi.');return;}
+    /* .xls lama itu format biner Excel 97, bukan zip — tak bisa dibaca di sini */
+    if(/\.xls$/i.test(f.name)){
+      alert('Berkas .xls (Excel lama) belum bisa dibaca.\n\nBuka di Excel → Save As → pilih "Excel Workbook (*.xlsx)" atau CSV, lalu impor lagi.');return;}
     var fr=new FileReader();
+    if(/\.xlsx$/i.test(f.name)){
+      fr.onload=function(){
+        xlsxBaca(fr.result).then(function(lembar){
+          var isi=lembar.filter(function(s){return s.baris.length;});
+          if(!isi.length){alert('Semua lembar di '+f.name+' kosong.');return;}
+          persoKotakImpor(o,isi,f.name);
+        }).catch(function(e){alert('Berkas .xlsx tak terbaca.\n\n'+e.message);});};
+      fr.readAsArrayBuffer(f);
+      return;}
     fr.onload=function(){
-      var rows=persoBuangJudul(persoParse(String(fr.result).split(/\r?\n/)
-        .map(function(l){return persoCsvBaris(l).join('\t');}).join('\n')));
-      if(!rows.length){alert('Tak ada nama yang terbaca dari '+f.name+'.');return;}
-      if(N.daftar.length&&!confirm('Ganti '+N.daftar.length+' nama yang ada dengan '+rows.length+' nama dari '+f.name+'?'))return;
-      persoSimpanDaftar(o,rows,f.name);};
+      var baris=String(fr.result).split(/\r?\n/).filter(function(l){return l.trim();})
+        .map(function(l){return persoCsvBaris(l).map(function(x){return String(x).trim();});});
+      if(!baris.length){alert('Tak ada isi yang terbaca dari '+f.name+'.');return;}
+      persoKotakImpor(o,[{nama:f.name,baris:baris}],f.name);};
     fr.readAsText(f);};
   inp.click();}
 /* CSV yang diunduh = yang diteruskan ke Radja: identitas order + teknik + font
@@ -4618,6 +4634,194 @@ function persoSalin(id){
 function persoFont(id,v){
   var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
   persoGet(o).font=v;o._m=Date.now();save();}
+/* ================= MEMBACA .XLSX LANGSUNG =================
+   .xlsx itu berkas ZIP berisi XML. Dibuka tanpa pustaka luar:
+   ZIP-nya dibongkar sendiri, isinya di-inflate pakai DecompressionStream
+   bawaan browser, XML-nya dipindai dengan pola — bukan DOMParser, supaya
+   kode yang sama juga bisa diuji di luar browser. */
+function zipBaca(buf){
+  var b=new Uint8Array(buf), dv=new DataView(b.buffer,b.byteOffset,b.byteLength);
+  var eocd=-1, batas=Math.max(0,b.length-66000);
+  for(var i=b.length-22;i>=batas;i--){ if(dv.getUint32(i,true)===0x06054b50){eocd=i;break;} }
+  if(eocd<0)throw new Error('Ini bukan berkas .xlsx yang utuh.');
+  var jml=dv.getUint16(eocd+10,true), pos=dv.getUint32(eocd+16,true);
+  if(pos===0xffffffff)throw new Error('Berkasnya terlalu besar (format ZIP64).');
+  var isi=[];
+  for(var k=0;k<jml;k++){
+    if(dv.getUint32(pos,true)!==0x02014b50)break;
+    var cara=dv.getUint16(pos+10,true), nBesar=dv.getUint32(pos+24,true);
+    var lN=dv.getUint16(pos+28,true), lE=dv.getUint16(pos+30,true), lK=dv.getUint16(pos+32,true);
+    var awal=dv.getUint32(pos+42,true);
+    var nama=new TextDecoder().decode(b.subarray(pos+46,pos+46+lN));
+    var lN2=dv.getUint16(awal+26,true), lE2=dv.getUint16(awal+28,true);
+    var mulai=awal+30+lN2+lE2;
+    isi.push({nama:nama,cara:cara,data:b.subarray(mulai,mulai+dv.getUint32(pos+20,true)),besar:nBesar});
+    pos+=46+lN+lE+lK;}
+  return isi;}
+function zipInflate(u8){
+  if(typeof DecompressionStream!=='function')
+    return Promise.reject(new Error('Browser ini belum bisa membuka .xlsx sendiri. Simpan sebagai CSV dulu.'));
+  var ds=new DecompressionStream('deflate-raw'), w=ds.writable.getWriter();
+  w.write(u8); w.close();
+  var r=ds.readable.getReader(), kepingan=[], n=0;
+  return (function lagi(){
+    return r.read().then(function(x){
+      if(x.done){var out=new Uint8Array(n),p=0;
+        kepingan.forEach(function(c){out.set(c,p);p+=c.length;});return out;}
+      kepingan.push(x.value);n+=x.value.length;return lagi();});})();}
+function zipAmbil(isi,nama){
+  var e=isi.find(function(x){return x.nama===nama;});
+  if(!e)return Promise.resolve(null);
+  if(e.cara===0)return Promise.resolve(new TextDecoder().decode(e.data));
+  return zipInflate(e.data).then(function(u){return new TextDecoder().decode(u);});}
+function xmlTeks(s){
+  return String(s).replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"')
+    .replace(/&apos;/g,"'").replace(/&#(\d+);/g,function(m,n){return String.fromCharCode(+n);})
+    .replace(/&#x([0-9a-f]+);/gi,function(m,n){return String.fromCharCode(parseInt(n,16));})
+    .replace(/&amp;/g,'&');}
+function kolomNo(r){                                    // "AB12" -> 27
+  var h=String(r).match(/^([A-Z]+)/); if(!h)return 0;
+  var n=0; for(var i=0;i<h[1].length;i++)n=n*26+(h[1].charCodeAt(i)-64);
+  return n-1;}
+/* satu sheet -> larik baris, tiap baris larik teks. Sel kosong tetap jadi
+   kolom kosong supaya kolom di kanannya tak bergeser. */
+function xlsxSheetBaris(xml,kamus){
+  var baris=[], mBaris=xml.match(/<row[\s>][\s\S]*?<\/row>|<row[^>]*\/>/g)||[];
+  mBaris.forEach(function(br){
+    var sel=br.match(/<c[\s>][\s\S]*?<\/c>|<c[^>]*\/>/g)||[], keluar=[];
+    sel.forEach(function(c){
+      var r=(c.match(/\sr="([A-Z]+\d+)"/)||[])[1];
+      var t=(c.match(/\st="([^"]*)"/)||[])[1]||'n';
+      var v='';
+      if(t==='inlineStr'){ v=(c.match(/<t[^>]*>([\s\S]*?)<\/t>/g)||[])
+          .map(function(x){return xmlTeks(x.replace(/<[^>]*>/g,''));}).join(''); }
+      else { var m=c.match(/<v[^>]*>([\s\S]*?)<\/v>/);
+        v=m?xmlTeks(m[1]):'';
+        if(t==='s')v=kamus[+v]||''; }
+      var i=r?kolomNo(r):keluar.length;
+      while(keluar.length<i)keluar.push('');
+      keluar[i]=String(v).trim();});
+    baris.push(keluar);});
+  return baris;}
+/* seluruh berkas -> [{nama sheet, baris}] mengikuti urutan di workbook */
+function xlsxBaca(buf){
+  var isi;
+  try{ isi=zipBaca(buf); }catch(e){ return Promise.reject(e); }
+  var kamus=[];
+  return zipAmbil(isi,'xl/sharedStrings.xml').then(function(ss){
+    if(ss)(ss.match(/<si>[\s\S]*?<\/si>/g)||[]).forEach(function(si){
+      kamus.push((si.match(/<t[^>]*>([\s\S]*?)<\/t>/g)||[])
+        .map(function(x){return xmlTeks(x.replace(/<[^>]*>/g,''));}).join(''));});
+    return zipAmbil(isi,'xl/workbook.xml');
+  }).then(function(wb){
+    return zipAmbil(isi,'xl/_rels/workbook.xml.rels').then(function(rel){
+      var peta={};
+      (rel?rel.match(/<Relationship[^>]*>/g)||[]:[]).forEach(function(r){
+        var id=(r.match(/Id="([^"]*)"/)||[])[1], tj=(r.match(/Target="([^"]*)"/)||[])[1];
+        if(id&&tj)peta[id]=('xl/'+tj).replace('xl//','').replace(/^xl\/\.\.\//,'');});
+      var daftar=[];
+      (wb?wb.match(/<sheet[^>]*\/?>/g)||[]:[]).forEach(function(sh){
+        var nm=(sh.match(/name="([^"]*)"/)||[])[1];
+        var id=(sh.match(/r:id="([^"]*)"/)||[])[1];
+        if(nm&&peta[id])daftar.push({nama:xmlTeks(nm),berkas:peta[id]});});
+      if(!daftar.length)                                  // workbook tak terbaca — pakai apa adanya
+        isi.filter(function(f){return /^xl\/worksheets\/sheet\d+\.xml$/.test(f.nama);})
+          .sort(function(a,b){return a.nama.localeCompare(b.nama);})
+          .forEach(function(f,i){daftar.push({nama:'Sheet'+(i+1),berkas:f.nama});});
+      if(!daftar.length)throw new Error('Tak ada lembar kerja di dalam berkasnya.');
+      var hasil=[];
+      return daftar.reduce(function(rantai,d){
+        return rantai.then(function(){
+          return zipAmbil(isi,d.berkas).then(function(xml){
+            if(xml)hasil.push({nama:d.nama,baris:xlsxSheetBaris(xml,kamus)});});});
+      },Promise.resolve()).then(function(){return hasil;});});});}
+
+/* ---------- memilih lembar & kolom ---------- */
+const PKOL_NAMA=/^(nama|name|guest|tamu|nama tamu|guest name|penerima)/i;
+const PKOL_CAT=/^(inisial|initial|catatan|note|notes|keterangan|ket|remark)/i;
+function persoAdaJudul(baris){
+  var b=baris[0]||[];
+  return b.some(function(x){return PKOL_NAMA.test(x)||PKOL_CAT.test(x)||/^no\.?$/i.test(x);});}
+function persoLabelKolom(baris){
+  var lebar=baris.reduce(function(m,r){return Math.max(m,r.length);},0);
+  var judul=persoAdaJudul(baris)?(baris[0]||[]):[];
+  var out=[];
+  for(var i=0;i<lebar;i++)
+    out.push((judul[i]||'').trim()||('Kolom '+String.fromCharCode(65+(i%26))));
+  return out;}
+function persoTebakKolom(label){
+  var n=label.findIndex(function(x){return PKOL_NAMA.test(x);});
+  var c=label.findIndex(function(x){return PKOL_CAT.test(x);});
+  if(n<0)n=label.findIndex(function(x){return !/^no\.?$/i.test(x);});
+  if(n<0)n=0;
+  if(c===n)c=-1;
+  return {nama:n,cat:c};}
+function persoBarisIsi(baris){ return persoAdaJudul(baris)?baris.slice(1):baris; }
+function persoDariKolom(baris,kn,kc){
+  return persoBarisIsi(baris).map(function(r){
+    return {nama:String(r[kn]||'').trim(),catatan:kc>=0?String(r[kc]||'').trim():''};
+  }).filter(function(d){return d.nama;});}
+
+/* Satu kotak untuk semua impor: pilih lembar, pilih kolom, lihat contohnya,
+   baru masuk. Tanpa ini, berkas tamu yang kolomnya banyak gampang salah ambil. */
+function persoKotakImpor(o,lembar,berkas){
+  var pilih={l:0,n:0,c:-1};
+  var ov=document.createElement('div');
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:70;display:flex;align-items:center;justify-content:center;padding:18px';
+  document.body.appendChild(ov);
+  function gambar(){
+    var L=lembar[pilih.l], label=persoLabelKolom(L.baris);
+    var contoh=persoDariKolom(L.baris,pilih.n,pilih.c);
+    var q=persoQty(o), beda=contoh.length-q;
+    var opsi=function(sel,sekarang,tambah){
+      return (tambah||[]).concat(label.map(function(t,i){return [i,t];}))
+        .map(function(p){return '<option value="'+p[0]+'"'+(+p[0]===sekarang?' selected':'')+'>'+esc(p[1])+'</option>';}).join('');};
+    ov.innerHTML='<div style="background:var(--card,#fff);border-radius:14px;padding:18px 18px 14px;width:min(560px,100%);max-height:90vh;overflow:auto;box-shadow:0 18px 50px rgba(0,0,0,.3)">'+
+      '<div style="font-weight:800;font-size:13px">Impor daftar nama</div>'+
+      '<div style="font-size:10.5px;color:var(--muted);margin:2px 0 13px">'+esc(berkas)+'</div>'+
+      '<div style="display:flex;gap:9px;flex-wrap:wrap;margin-bottom:12px">'+
+        (lembar.length>1?('<label style="font-size:10px;font-weight:700;color:var(--muted)">Lembar<br>'+
+          '<select class="pin" data-p="l" style="margin-top:3px;min-width:150px">'+
+          lembar.map(function(s,i){return '<option value="'+i+'"'+(i===pilih.l?' selected':'')+'>'+esc(s.nama)+' ('+s.baris.length+' baris)</option>';}).join('')+
+          '</select></label>'):'')+
+        '<label style="font-size:10px;font-weight:700;color:var(--muted)">Kolom nama<br>'+
+          '<select class="pin" data-p="n" style="margin-top:3px;min-width:150px">'+opsi('n',pilih.n)+'</select></label>'+
+        '<label style="font-size:10px;font-weight:700;color:var(--muted)">Kolom catatan<br>'+
+          '<select class="pin" data-p="c" style="margin-top:3px;min-width:150px">'+opsi('c',pilih.c,[[-1,'— tak ada —']])+'</select></label>'+
+      '</div>'+
+      '<div style="display:flex;gap:9px;align-items:center;margin-bottom:9px">'+
+        '<span style="font-size:12px;font-weight:800;color:'+(contoh.length&&beda===0?'var(--ok)':'var(--warn)')+'">'+contoh.length+' nama</span>'+
+        '<span style="font-size:10.5px;color:var(--muted)">vs '+q+' pcs dipesan</span>'+
+        (contoh.length&&beda!==0?('<span style="font-size:10.5px;font-weight:800;color:var(--warn)">'+
+          (beda>0?('⚠ kelebihan '+beda):('⚠ kurang '+(-beda)))+'</span>'):'')+'</div>'+
+      (contoh.length?('<table class="rtable"><thead><tr><th style="width:34px">#</th><th>Nama</th><th>Catatan</th></tr></thead><tbody>'+
+        contoh.slice(0,5).map(function(d,i){return '<tr><td class="num" style="color:var(--muted)">'+(i+1)+'</td><td><b>'+esc(d.nama)+'</b></td><td style="color:var(--muted)">'+esc(d.catatan)+'</td></tr>';}).join('')+
+        '</tbody></table>'+(contoh.length>5?('<div style="font-size:10px;color:var(--muted);margin-top:5px">… dan '+(contoh.length-5)+' lagi</div>'):''))
+        :'<div style="border:1px dashed var(--warn);border-radius:9px;padding:11px 13px;font-size:10.5px;color:var(--warn)">Kolom itu kosong — coba kolom lain.</div>')+
+      '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px">'+
+        '<button class="btn ghost sm" data-a="x">Batal</button>'+
+        '<button class="btn sm" data-a="ok"'+(contoh.length?'':' disabled')+'>Impor '+contoh.length+' nama</button></div></div>';
+    try{trDOM(ov);}catch(e){}}
+  var L0=lembar[0], t0=persoTebakKolom(persoLabelKolom(L0.baris));
+  pilih.n=t0.nama; pilih.c=t0.cat;
+  gambar();
+  ov.addEventListener('change',function(ev){
+    var p=(ev.target.dataset||{}).p; if(!p)return;
+    if(p==='l'){ pilih.l=+ev.target.value;
+      var t=persoTebakKolom(persoLabelKolom(lembar[pilih.l].baris)); pilih.n=t.nama; pilih.c=t.cat; }
+    else pilih[p]=+ev.target.value;
+    gambar();});
+  ov.addEventListener('click',function(ev){
+    var a=(ev.target.dataset||{}).a;
+    if(ev.target===ov||a==='x'){ov.remove();return;}
+    if(a!=='ok')return;
+    var L=lembar[pilih.l], baru=persoDariKolom(L.baris,pilih.n,pilih.c);
+    if(!baru.length)return;
+    var N=persoGet(o);
+    if(N.daftar.length&&!confirm('Ganti '+N.daftar.length+' nama yang ada dengan '+baru.length+' nama dari '+berkas+'?'))return;
+    persoSimpanDaftar(o,baru,berkas+(lembar.length>1?(' — lembar '+L.nama):''));
+    ov.remove();});}
+
 function persoBlok(o){
   var N=persoGet(o),q=persoQty(o),n=N.daftar.length;
   var beda=n-q, warna=(!n?'var(--muted)':beda===0?'var(--ok)':'var(--warn)');
@@ -4647,7 +4851,7 @@ function persoBlok(o){
         esc(dobel.slice(0,3).join(', '))+(dobel.length>3?(' +'+(dobel.length-3)):'')+'</span>'):'')+
       '<span style="margin-left:auto;display:flex;gap:6px;flex-wrap:wrap">'+
         '<button class="btn sm" onclick="persoTempel(\'' + o.id + '\')">\ud83d\udccb '+(n?'Ubah / tempel ulang':'Tempel daftar nama')+'</button>'+
-        '<button class="btn ghost sm" onclick="persoImpor(\'' + o.id + '\')">\ud83d\udcc1 Impor CSV</button>'+
+        '<button class="btn ghost sm" onclick="persoImpor(\'' + o.id + '\')">\ud83d\udcc1 Impor Excel / CSV</button>'+
         (n?('<button class="btn ghost sm" onclick="persoUnduh(\'' + o.id + '\')">\u2b07 Unduh untuk Radja</button>'+
             '<button class="btn ghost sm" onclick="persoSalin(\'' + o.id + '\')">\u29c9 Salin untuk PO</button>'+
             '<button class="xrow" title="kosongkan daftar" onclick="persoHapusSemua(\'' + o.id + '\')">\u2715</button>'):'')+
@@ -4658,7 +4862,7 @@ function persoBlok(o){
     (n?('<div class="xscroll"><table class="rtable"><thead><tr><th style="width:34px">#</th><th>Nama</th><th>Catatan</th></tr></thead>'+
         '<tbody>'+isi+'</tbody></table></div>'+batasBtn('perso'+o.id,n,6,20))
       :'<div style="border:1px dashed var(--warn);border-radius:9px;padding:11px 13px;font-size:10.5px;color:var(--warn)">'+
-       'Daftar nama belum ada. Minta ke client (biasanya spreadsheet), lalu tempel isinya atau impor file .csv \u2014 jumlahnya langsung dicocokkan dengan qty pesanan.</div>')+
+       'Daftar nama belum ada. Minta ke client (biasanya spreadsheet), lalu impor berkas .xlsx / .csv-nya, atau tempel isinya \u2014 jumlahnya langsung dicocokkan dengan qty pesanan.</div>')+
     '<div style="height:11px"></div>';}
 
 function persoVals(){return listArr('perso');}
