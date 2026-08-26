@@ -1216,7 +1216,7 @@ const EN={
 'Nilai':'Value','Material':'Material','Jenis':'Kind','Katalog':'Catalogue','Custom':'Custom','Harga':'Price',
 'Nama jasa':'Service name','Teknik':'Technique','Harga/pcs':'Price/pc','Kontak':'Contact','Alamat':'Address',
 'Alamat kirim':'Delivery address','Alamat client / kantor':'Client / office address','Kota':'City','Catatan':'Notes',
-'Lokasi':'Location','Bank':'Bank','No. rekening':'Account number','No. Hp':'Phone','Email':'Email',
+'Lokasi':'Location','Bank':'Bank','Channel Discord':'Discord channel','No. rekening':'Account number','No. Hp':'Phone','Email':'Email',
 'Bride':'Bride','Groom':'Groom','Wedding':'Wedding','Corporate':'Corporate','Lainnya':'Others','Other':'Others',
 '＋ Tambah akun':'＋ Add account','＋ Tambah barang':'＋ Add item','＋ Tambah karyawan':'＋ Add employee',
 '＋ Tambah penawaran':'＋ Add quote','＋ Tambah opsi':'＋ Add option','＋ Tambah jasa':'＋ Add service',
@@ -1352,6 +1352,7 @@ const EN={
 '📋 teks':'📋 text',
 /* --- pengaturan / holding --- */
 'Integrasi backend (Discord / Trello)':'Backend integration (Discord / Trello)','Apps Script Web App URL':'Apps Script Web App URL',
+'HUB sudah dipakai order sungguhan':'HUB is handling real orders now',
 'Mode live (kirim ke backend)':'Live mode (send to backend)','mode live':'live mode','○ Simulasi (belum live)':'○ Simulation (not live)',
 '☁︎ Simpan ke cloud':'☁︎ Save to cloud','⭳ Muat dari cloud':'⭳ Load from cloud','🧹 Mulai bersih (siap produksi)':'🧹 Start clean (production ready)',
 '▤ Buka Laporan':'▤ Open Reports','▦ Lihat Pipeline':'▦ View Pipeline','↺ Aktifkan lagi':'↺ Re-enable',
@@ -1828,7 +1829,8 @@ function cfgSerap(){
   var lv=document.getElementById('cfglive');if(lv)C.live=!!lv.checked;
   try{localStorage.setItem('rovehub_cfg',JSON.stringify(C));}catch(e){}
   return C;}
-function saveCfg(){ST.cfg.url=(document.getElementById('cfgurl').value||'').trim();ST.cfg.live=document.getElementById('cfglive').checked;ST.cfg.catalogUrl=(document.getElementById('cfgcatalog').value||'').trim();var db=document.getElementById('cfgdb');ST.cfg.dbUrl=db?(db.value||'').trim():(ST.cfg.dbUrl||'');var kl=document.getElementById('cfgklien');ST.cfg.klienUrl=kl?(kl.value||'').trim():(ST.cfg.klienUrl||'');localStorage.setItem('rovehub_cfg',JSON.stringify(ST.cfg));fetchCatalog();render();}
+function saveCfg(){ST.cfg.url=(document.getElementById('cfgurl').value||'').trim();ST.cfg.live=document.getElementById('cfglive').checked;
+  var dp=document.getElementById('cfgdipakai');if(dp)ST.cfg.dipakai=dp.checked;ST.cfg.catalogUrl=(document.getElementById('cfgcatalog').value||'').trim();var db=document.getElementById('cfgdb');ST.cfg.dbUrl=db?(db.value||'').trim():(ST.cfg.dbUrl||'');var kl=document.getElementById('cfgklien');ST.cfg.klienUrl=kl?(kl.value||'').trim():(ST.cfg.klienUrl||'');localStorage.setItem('rovehub_cfg',JSON.stringify(ST.cfg));fetchCatalog();render();}
 function pushBackend(action,payload){
   const c=ST.cfg||{};if(!c.live||!c.url)return; // mode simulasi kalau belum dikonfigurasi
   try{fetch(c.url,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action:action,payload:payload})});}
@@ -5485,7 +5487,7 @@ function renderMaster(){
      <div style="font-size:10.5px;color:var(--muted);margin-bottom:10px"><b>COGS Type</b> mengikuti AIS — menentukan biaya masuk ke Main Product, Packaging, atau Service. Tim live service didaftarkan di sini juga (tipe <b>Live Service</b>, COGS <b>Service</b>). Pilihan <b>Tipe</b> &amp; <b>Bank</b> bisa ditambah sendiri di <b>Opsi form</b>.</div>
      <div style="display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px">${chip('ALL',V.length)}${kat.map(function(k){
        return chip(k,V.filter(function(v){return jenis(v)===k;}).length);}).join('')}</div>
-     ${idx.length?`<div class="xscroll">${tbl('vendors',[['nama','Nama'],['tipe','Tipe',listArr('vtipe')],['cogs','COGS Type',listArr('cogs')],['kontak','Contact person'],['hp','No. HP'],['bank','Bank',listArr('bank')],['rek','No. rekening'],['alamat','Alamat']],idx.map(function(i){return V[i];}),idx)}</div>`
+     ${idx.length?`<div class="xscroll">${tbl('vendors',[['nama','Nama'],['tipe','Tipe',listArr('vtipe')],['cogs','COGS Type',listArr('cogs')],['kontak','Contact person'],['hp','No. HP'],['disc','Channel Discord'],['bank','Bank',listArr('bank')],['rek','No. rekening'],['alamat','Alamat']],idx.map(function(i){return V[i];}),idx)}</div>`
        :'<div style="color:var(--muted);font-size:11px;padding:6px 0">Belum ada vendor pada kategori ini.</div>'}
      <button class="btn ghost sm" style="margin-top:9px" onclick="mAdd('vendors')">＋ Tambah vendor</button>
      ${f!=='ALL'?'<span style="font-size:9.5px;color:var(--muted);margin-left:8px">Vendor baru masuk tanpa tipe — pilih tipenya di kolom <b>Tipe</b> supaya muncul di kategori ini.</span>':''}</div>`;})(),
@@ -5932,6 +5934,7 @@ function renderTasks(){
        <label class="nlbl">Apps Script Web App URL</label>
        <input class="pin" id="cfgurl" value="${esc(ST.cfg&&ST.cfg.url)}" placeholder="https://script.google.com/macros/s/.../exec" style="margin:4px 0 11px">
        <label style="font-size:12px;display:flex;align-items:center;gap:8px;margin-bottom:11px"><input type="checkbox" id="cfglive" ${(ST.cfg&&ST.cfg.live)?'checked':''} style="width:auto;accent-color:var(--brand)"> Mode live (kirim ke backend)</label>
+       <label style="font-size:12px;display:flex;align-items:flex-start;gap:8px;margin-bottom:4px"><input type="checkbox" id="cfgdipakai" ${(ST.cfg&&ST.cfg.dipakai)?'checked':''} style="width:auto;accent-color:var(--brand);margin-top:2px"> <span>HUB sudah dipakai order sungguhan<div style="font-size:10px;color:var(--muted);font-weight:400;line-height:1.55">Nyalakan sekali waktu HUB mulai mengurus order betulan. Sejak itu alat coba-coba — seperti tombol <b>mundur ke fase sebelumnya</b> — hilang, supaya order yang berjalan tak bisa dimundurkan sampai channel dan dokumennya tak cocok lagi.</div></span></label>
        <label class="nlbl">Katalog Cost Estimator (Worker /estimator URL)</label>
        <input class="pin" id="cfgcatalog" value="${esc(ST.cfg&&ST.cfg.catalogUrl)}" placeholder="https://rove-discord.xxx.workers.dev/estimator" style="margin:4px 0 4px">
        <div style="font-size:10px;color:${(CATALOG_LIVE&&CATALOG_LIVE.length)?'var(--ok)':'var(--warn)'};word-break:break-word">${(CATALOG_LIVE&&CATALOG_LIVE.length)?'● katalog live: '+CATALOG_LIVE.length+' produk':(ST.catStatus?('… '+esc(ST.catStatus)):'○ pakai katalog mock (belum tersambung)')}</div>
@@ -8377,17 +8380,23 @@ function tolakBukanMilikku(o,apa){
   alert(apa+' dipegang '+fasePemilik(o)+', bukan jabatanmu.\n\n'+
     'Kalau memang sudah beres, minta '+fasePemilik(o)+' yang menekannya — '+
     'yang tercatat di histori adalah nama penekannya.');}
-/* Mundur satu fase — alat coba-coba, bukan bagian alur kerja. Sengaja
-   dibatasi: cuma muncul selama relay Discord mati (berarti HUB belum dipakai
-   sungguhan). Pada order yang benar-benar berjalan, mundur membuat channel,
-   nomor dokumen, dan tanggal jadi tak cocok dengan fasenya. */
+/* Mundur satu fase — alat coba-coba, bukan bagian alur kerja. Pada order yang
+   benar-benar berjalan, mundur membuat channel, nomor dokumen, dan tanggal jadi
+   tak cocok dengan fasenya.
+
+   Dulu syaratnya "relay Discord mati". Keliru: relay dinyalakan jauh sebelum
+   HUB dipakai mengurus order sungguhan, jadi tombolnya hilang justru waktu
+   masih dipakai mencoba. Sekarang saklarnya sendiri, di Pengaturan. */
+function hubDipakai(){return !!((ST.cfg||{}).dipakai);}
 function bolehMundur(o){
   if(!o||o.status==='Cancel')return false;
-  if((ST.cfg||{}).live)return false;          // sudah dipakai sungguhan
+  if(hubDipakai())return false;
   return (o.phase||0)>0;}
 function mundurFase(id){
   var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
-  if(!bolehMundur(o)){alert('Tombol mundur cuma ada selama HUB belum tersambung ke Discord.');return;}
+  if(!bolehMundur(o)){alert('HUB sudah ditandai dipakai sungguhan — alat coba-coba dimatikan.'+
+    String.fromCharCode(10)+String.fromCharCode(10)+
+    'Kalau ini memang masih masa percobaan, matikan dulu penandanya di Pengaturan → Integrasi backend.');return;}
   var dari=o.phase,ke=dari-1;
   if(!confirm('Mundurkan order ini dari "'+PH[dari].n+'" ke "'+PH[ke].n+'"?'+
     String.fromCharCode(10)+String.fromCharCode(10)+
@@ -8676,31 +8685,36 @@ function konfPesan(o,vendor,baris){
   baris.forEach(function(x){
     P.push('• '+(x.l.produk||'item')+' · '+(x.l.qty||0)+' pcs — '+fmt0(konfHargaBaris(x.l))+'/pcs'+
       (x.l.bahan?(' · '+x.l.bahan):''));});
-  P.push('','**Mohon dikonfirmasi dua hal**',
+  P.push('','**Mohon dikonfirmasi tiga hal**',
     '1. Harga di atas **masih berlaku** untuk qty ini?',
-    '2. **Bahannya masih ada** untuk qty ini?',
+    /* "masih ada?" dijawab ya/tidak dan tak menolong. Jenis kulit bukan
+       artikel, dan artikel bukan warna — yang perlu diketahui daftarnya. */
+    '2. **Jenis material dan warna apa saja yang ready** untuk project ini?',
+    '3. **Paling lambat kapan PO harus turun** supaya barangnya sampai sebelum '+rfqPatokan(o)+'?',
     '','Kalau ada yang berubah, mohon diberi tahu angka barunya. Terima kasih 🙏');
   return P.join(String.fromCharCode(10));}
 function konfTanya(id,vendor){
   var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
   var grup=konfVendor(o).find(function(g){return g.vendor===vendor;});if(!grup)return;
   var live=!!((ST.cfg||{}).live&&(ST.cfg||{}).url);
+  var tuj=vendorTujuan(o,vendor);
   askForm({judul:'Pastikan harga ke '+vendor,
     sub:grup.baris.length+' baris · harganya dari master, tinggal dipastikan masih berlaku',
     fields:[{k:'pesan',label:'Isi pesan — boleh diedit sebelum dikirim',type:'textarea',tinggi:240,
-      val:konfPesan(o,vendor,grup.baris),req:true,
-      hint:live?'Terkirim ke channel Discord order ini, dan tersalin supaya bisa ditempel ke server vendor.'
-               :'Mode live belum menyala — pesan hanya disalin ke clipboard, tinggal tempel ke Discord vendor.'}],
+      val:konfPesan(o,vendor,grup.baris),req:true,hint:tujuanTeks(tuj,live)}],
     ok:function(v){
       grup.baris.forEach(function(x){
         x.l.konfTanya={tgl:hariIni(),oleh:(ST.userName||ST.user||'')};});
-      notifyOrder(o,v.pesan);
+      if(tuj.keVendor){
+        notifyChannel(tuj.ch,v.pesan);
+        notifyOrder(o,'📨 Konfirmasi harga dikirim ke #'+tuj.ch+' — '+grup.baris.length+' baris');
+      } else notifyOrder(o,v.pesan);
       var keRadja=/radja/i.test(vendor);
       o.disc.push({cat:keRadja?['radja','PRICING → PRICING DONE']:['rove','PRE-DEAL'],who:'Sales',
         txt:'Konfirmasi harga dikirim ke <b>'+esc(vendor)+'</b> — '+grup.baris.length+' baris dari master.'});
       logHist(o,'📨 Konfirmasi harga dikirim ke '+vendor+' — '+grup.baris.length+' baris');
       o._m=Date.now();save();render();
-      evSalin(v.pesan,live?'✓ Terkirim ke Discord — teksnya juga tersalin untuk ditempel ke server vendor.'
+      evSalin(v.pesan,live?('✓ Terkirim ke #'+tuj.ch+' — teksnya juga tersalin kalau perlu ditempel lagi.')
                           :'✓ Teks tersalin — tinggal tempel di Discord '+vendor+'.');}});}
 function konfBlok(o){
   var G=konfVendor(o);
@@ -8847,17 +8861,30 @@ function rfqPesanGabung(o,l){
     P.push(maunya.length
       ? (maunya.join(', ')+(bq.mainMatWarna?(' · warna '+bq.mainMatWarna):''))
       : '_Belum menunjuk artikel tertentu — mohon disarankan yang cocok untuk produk ini._');}
+  /* Vendor collateral menghargai dari gambar, bukan dari nama barang. Yang
+     dipegang biasanya referensi client, bukan foto produk kita. */
   var gbr=lineImgs(l).map(driveLink).filter(Boolean);
   if(gbr.length)P.push('','**Gambar acuan**',gbr.join('\n'));
   else if(lineImgs(l).length)P.push('','_Gambar acuan ada di HUB (file unggahan) — dikirim manual._');
+  var ref=(briefGet(o).refFiles||[]);
+  if(ref.length)P.push('','**Referensi dari client**',
+    ref.map(function(f){return '• '+(f.nama||f.n||'lampiran');}).join('\n'),
+    '_Filenya ada di HUB — dikirim manual dari lampiran Referensi client._');
+  if(l.coll){
+    var spekPack='';try{spekPack=packRingkas(l.coll,packSpec(o,l.coll));}catch(e){}
+    if(spekPack)P.push('','**Spesifikasi '+(l.produk||'kemasan')+'**',spekPack);
+    var catatan='';try{catatan=salesNote(o,l.coll);}catch(e){}
+    if(catatan)P.push('','**Catatan client**',catatan);}
   /* Satu pertanyaan, tiga jawaban. Dulu yang diminta cuma harga, lalu
      ketersediaan kulit ditanya lagi terpisah, lalu tanggal PO paling lambat
      ditanya lagi di fase berikutnya — tiga kali menunggu balasan untuk satu
      percakapan yang sama. */
   P.push('','**Mohon dijawab tiga hal ini**',
     '1. **Harga per pcs** untuk qty di atas.',
-    kulit?'2. **Kulit apa saja yang ready** untuk qty ini — nama, warna, dan minimum ordernya.'
-         :'2. **Ketersediaan bahannya** untuk qty ini, beserta minimum ordernya.',
+    /* Jenis bahan bukan artikel, dan artikel bukan warna. Vendor kemasan pun
+       punya pilihan bahan & warna — pertanyaannya sama bentuknya. */
+    kulit?'2. **Jenis kulit dan warna apa saja yang ready** untuk project ini — beserta minimum ordernya.'
+         :'2. **Jenis material dan warna apa saja yang ready** untuk project ini — beserta minimum ordernya.',
     '3. **Paling lambat kapan PO harus turun** supaya barangnya sampai sebelum '+rfqPatokan(o)+'.',
     '','Terima kasih 🙏');
   return P.join('\n');}
@@ -8866,23 +8893,25 @@ function rfqKirim(id,i){
   var l=o.pricing.lines[i];if(!l)return;
   if(!l.sumber){alert('Pilih vendor dulu untuk baris ini.');return;}
   var live=!!((ST.cfg||{}).live&&(ST.cfg||{}).url);
+  var tuj=vendorTujuan(o,l.sumber);
   askForm({judul:'Kirim permintaan ke '+l.sumber,
     sub:(l.produk||'item')+' · '+(l.qty||0)+' pcs'+(lineKulit(l)?' · sekalian tanya ketersediaan kulit':''),
     fields:[{k:'pesan',label:'Isi pesan — boleh diedit sebelum dikirim',type:'textarea',tinggi:260,
-      val:rfqPesanGabung(o,l),req:true,
-      hint:live?'Terkirim ke channel Discord order ini, dan otomatis tersalin supaya bisa ditempel ke server vendor.'
-               :'Mode live belum menyala — pesan hanya disalin ke clipboard, tinggal tempel ke Discord vendor.'}],
+      val:rfqPesanGabung(o,l),req:true,hint:tujuanTeks(tuj,live)}],
     ok:function(v){
       if(!l.rfq)l.rfq={};
       l.rfq.minta=hariIni();l.rfq.pesan=v.pesan;
       if(lineKulit(l)){var k=rfqKulit(l);if(!k.tanya)k.tanya=hariIni();}
-      notifyOrder(o,v.pesan);
+      if(tuj.keVendor){
+        notifyChannel(tuj.ch,v.pesan);
+        notifyOrder(o,'📨 Permintaan harga **'+(l.produk||'-')+'** dikirim ke #'+tuj.ch);
+      } else notifyOrder(o,v.pesan);
       var keRadja=/radja/i.test(l.sumber||'');
       o.disc.push({cat:keRadja?['radja','PRICING → PRICING DONE']:['rove','PRE-DEAL'],who:'Sales',
         txt:'Permintaan dikirim ke <b>'+esc(l.sumber)+'</b> — '+esc(l.produk||'-')+' ×'+(l.qty||0)+' pcs.'});
       logHist(o,'Permintaan dikirim ke '+l.sumber+' — '+(l.produk||'-'));
       o._m=Date.now();save();render();
-      evSalin(v.pesan,live?'✓ Terkirim ke Discord — teksnya juga tersalin untuk ditempel ke server vendor.'
+      evSalin(v.pesan,live?('✓ Terkirim ke #'+tuj.ch+' — teksnya juga tersalin kalau perlu ditempel lagi.')
                           :'✓ Teks tersalin — tinggal tempel di Discord '+l.sumber+'.');}});}
 /* Satu form untuk semua jawaban vendor: kulit + harga sekaligus. */
 function rfqJawab(id,i){
@@ -9905,6 +9934,10 @@ function pakaiHargaLama(id,i){
   o._m=Date.now();save();render();}
 
 function rfqPanel(o){
+  /* Baris kemasan & jasa dulu cuma dibuat waktu order lahir, jadi order yang
+     sudah ada sebelum itu selamanya kehilangan vendornya. Dilengkapi di sini
+     juga; pembuatnya tak menggandakan, jadi yang sudah lengkap tak berubah. */
+  try{if(barisVendorLengkapi(o).length){o._m=Date.now();save();}}catch(e){}
   var R=rfqLines(o),L=((o.pricing||{}).lines)||[];
   var otomatis=L.filter(function(l){return (l.qty>0)&&hargaOtomatis(l);});
   var belum=R.filter(function(x){return (x.l.hpp||0)<=0;}).length;
@@ -10464,6 +10497,25 @@ function catPrice(item,qty){let i=catTier(qty);if(item.t[i]!=null)return item.t[
   for(let d=1;d<7;d++){if(item.t[i+d]!=null)return item.t[i+d];if(i-d>=0&&item.t[i-d]!=null)return item.t[i-d];}return 0;}
 let CATALOG_LIVE=null,COLLAT_IMG=null,COLLAT_DATA=null;
 function catPriceT(t,qty){var i=catTier(qty);if(t[i]!=null)return t[i];for(var d=1;d<7;d++){if(t[i+d]!=null)return t[i+d];if(i-d>=0&&t[i-d]!=null)return t[i-d];}return 0;}
+/* Channel Discord milik vendor ini, kalau didaftar di master. Tanda # boleh
+   ikut diketik — dibuang, karena relay memakai nama polosnya. */
+function vendorChannel(nama){
+  var v=((ST.master&&ST.master.vendors)||[]).find(function(x){return x.nama===nama;});
+  return (v&&String(v.disc||'').trim().replace(/^#/,''))||'';}
+/* Ke mana pesan untuk vendor ini dikirim. */
+function vendorTujuan(o,vendor){
+  var ch=vendorChannel(vendor);
+  return ch?{ch:ch,keVendor:true}:{ch:chName(o),keVendor:false};}
+function tujuanTeks(t,live){
+  if(!live)return 'Mode live belum menyala — pesan hanya disalin ke clipboard, tinggal tempel sendiri.';
+  return t.keVendor
+    ? ('Terkirim ke channel <b>#'+esc(t.ch)+'</b>, dan tersalin ke clipboard kalau perlu ditempel lagi.')
+    : ('Terkirim ke channel order ini (<b>#'+esc(t.ch)+'</b>) — vendor ini belum punya channel sendiri di '+
+       'Master → Vendors, jadi teksnya tersalin untuk ditempel manual ke servernya.');}
+/* Kirim ke channel mana pun, bukan cuma channel order. */
+function notifyChannel(nama,text){
+  var c=ST.cfg||{};if(!c.live||!c.url||!nama)return false;
+  pushBackend('notify',{name:nama,content:text});return true;}
 function vendorTipe(name){var v=((ST.master&&ST.master.vendors)||[]).find(function(x){return x.nama===name;});return v?v.tipe:'';}
 function vendorProducts(name){var tipe=vendorTipe(name);
   if(tipe==='Kulit')return catalog().map(function(c){return {name:c.name,img:c.img,tiers:c.t,material:c.material};});
