@@ -690,7 +690,9 @@ const EN={
 '＋ Lampirkan berkas PO dari client':'＋ Attach the client PO file','✎ Olah jadi data':'✎ Turn it into data','✎ Ubah data PO':'✎ Edit the PO data',
 'DIBACA DARI PDF':'READ FROM THE PDF','⌕ Baca isinya':'⌕ Read its contents','✎ Pakai hasilnya':'✎ Use these values','Pakai hasil bacaan PDF?':'Use what was read from the PDF?','Periksa dulu — mesin menebak, kamu yang memastikan':'Check first — the machine guesses, you decide',
 'Surat PO resmi client':'Client\u2019s official PO','JALUR KEDUA — PENGGANTI UANG MUKA':'SECOND ROUTE — INSTEAD OF A DOWN PAYMENT','Menunggu DP / PO resmi':'Waiting for down payment or official PO','Izin berjalan tanpa uang muka — Direktur':'Permission to proceed without a down payment — Director','✓ Setujui jalan tanpa DP':'✓ Approve proceeding without a down payment','＋ Catat surat PO':'＋ Record the PO','Nomor PO client':'Client PO number','Nilai yang tertulis di PO':'Value stated on the PO','Termin':'Payment terms',
-'Bisa kamu isi lebih awal':'You can fill this in early','📨 Tanyakan ke vendor':'📨 Ask the vendor','📨 Tanya lagi':'📨 Ask again',
+'Bisa kamu isi lebih awal':'You can fill this in early','💬 Buka WhatsApp':'💬 Open WhatsApp','kontak person belum diisi':'contact person not filled in',
+'Nomornya belum ada':'No phone number yet','isi di Master → Vendors → No. HP':'add it in Master → Vendors → Phone',
+'📨 Tanyakan ke vendor':'📨 Ask the vendor','📨 Tanya lagi':'📨 Ask again',
 '✎ Isi sekarang':'✎ Fill it now','✎ Isi':'✎ Fill','— kalau datanya sudah ada, tak perlu menunggu fasenya':'\u2014 if you already have it, no need to wait for its phase',
 'Retur barang client':'Client returns','BELUM ADA RETUR UNTUK ORDER INI':'NO RETURN ON THIS ORDER YET','↩ Catat retur dari client':'↩ Record a client return','GILIRAN SEKARANG':'YOUR TURN NOW','Kata client:':'The client says:','Keputusan retur':'Return decision','Tindak lanjutnya':'What happens next','Dasar keputusannya':'Basis for the decision','Penyebab sebenarnya':'The actual cause','Biaya yang timbul':'Cost incurred','＋ Foto barang retur':'＋ Photo of the returned goods','Jenis masalahnya':'Type of problem','Kata client apa adanya':'The client\u2019s own words',
 'Bukti transfer dari client':'Client\u2019s transfer proof','SALES MENERUSKAN · FINANCE MEMERIKSA REKENING':'SALES FORWARDS IT · FINANCE CHECKS THE BANK','Kabar dari client':'What the client says','＋ Lampirkan screenshot / PDF':'＋ Attach a screenshot / PDF','✎ Catat revisi &amp; kembalikan':'✎ Record a revision &amp; send back','PANTAUAN — DIISI TANGAN':'TRACKING — FILLED IN BY HAND','Janji selesai':'Promised completion','Belum pernah diperbarui':'Never updated yet',
@@ -4430,7 +4432,8 @@ function askForm(o){
   /* draf dari percobaan sebelumnya — kecuali memang diminta mulai bersih */
   var draf=o._tanpaDraf?null:drafAda(o);
   delete o._tanpaDraf;
-  b.innerHTML=(o.fields||[]).map(function(f,i){
+  /* keterangan yang perlu dibaca sebelum mengisi — mis. nomor kontak vendor */
+  b.innerHTML=(o.info||'')+(o.fields||[]).map(function(f,i){
     var id='fmf'+i,v=(f.val===undefined||f.val===null)?'':f.val;
     if(draf&&Object.prototype.hasOwnProperty.call(draf.nilai,f.k))v=draf.nilai[f.k];
     var inp;
@@ -8700,6 +8703,7 @@ function konfTanya(id,vendor){
   var tuj=vendorTujuan(o,vendor);
   askForm({judul:'Pastikan harga ke '+vendor,
     sub:grup.baris.length+' baris · harganya dari master, tinggal dipastikan masih berlaku',
+    info:vendorKontakBlok(vendor),
     fields:[{k:'pesan',label:'Isi pesan — boleh diedit sebelum dikirim',type:'textarea',tinggi:240,
       val:konfPesan(o,vendor,grup.baris),req:true,hint:tujuanTeks(tuj,live)}],
     ok:function(v){
@@ -8896,6 +8900,7 @@ function rfqKirim(id,i){
   var tuj=vendorTujuan(o,l.sumber);
   askForm({judul:'Kirim permintaan ke '+l.sumber,
     sub:(l.produk||'item')+' · '+(l.qty||0)+' pcs'+(lineKulit(l)?' · sekalian tanya ketersediaan kulit':''),
+    info:vendorKontakBlok(l.sumber),
     fields:[{k:'pesan',label:'Isi pesan — boleh diedit sebelum dikirim',type:'textarea',tinggi:260,
       val:rfqPesanGabung(o,l),req:true,hint:tujuanTeks(tuj,live)}],
     ok:function(v){
@@ -10499,6 +10504,35 @@ let CATALOG_LIVE=null,COLLAT_IMG=null,COLLAT_DATA=null;
 function catPriceT(t,qty){var i=catTier(qty);if(t[i]!=null)return t[i];for(var d=1;d<7;d++){if(t[i+d]!=null)return t[i+d];if(i-d>=0&&t[i-d]!=null)return t[i-d];}return 0;}
 /* Channel Discord milik vendor ini, kalau didaftar di master. Tanda # boleh
    ikut diketik — dibuang, karena relay memakai nama polosnya. */
+/* Nomor Indonesia ditulis bermacam-macam: 0811…, +62 811…, 811…. wa.me cuma
+   menerima angka dengan kode negara, jadi dirapikan di sini. */
+function waNomor(hp){
+  var d=String(hp||'').replace(/[^0-9]/g,'');
+  if(!d)return '';
+  if(d.charAt(0)==='0')return '62'+d.slice(1);
+  if(d.slice(0,2)==='62')return d;
+  if(d.charAt(0)==='8')return '62'+d;          // ditulis tanpa 0 dan tanpa 62
+  return d;}                                    // nomor luar negeri — biarkan
+function vendorData(nama){
+  return ((ST.master&&ST.master.vendors)||[]).find(function(x){return x.nama===nama;})||null;}
+/* Kepada siapa pesan ini sebenarnya dikirim — ditaruh di atas kotak pesan,
+   supaya nomornya tak perlu dicari di halaman lain. */
+function vendorKontakBlok(nama){
+  var v=vendorData(nama);
+  var hp=(v&&v.hp)||'',pic=(v&&String(v.kontak||'').trim())||'';
+  if(pic==='-')pic='';
+  var wa=waNomor(hp);
+  var kiri='<div style="min-width:0"><div style="font-size:11.5px;font-weight:800">'+esc(nama)+'</div>'+
+    '<div style="font-size:10.5px;color:var(--ink-soft);line-height:1.55">'+
+      (pic?esc(pic):'<span style="color:var(--muted)">kontak person belum diisi</span>')+
+      (hp?(' · <b>'+esc(hp)+'</b>'):'')+'</div></div>';
+  var kanan=wa
+    ? ('<a href="https://wa.me/'+wa+'" target="_blank" rel="noopener" class="btn sm" '+
+       'style="margin-left:auto;flex:0 0 auto;text-decoration:none;background:#25543c;border-color:#25543c">💬 Buka WhatsApp</a>')
+    : ('<span style="margin-left:auto;flex:0 0 auto;font-size:9.5px;color:var(--warn);font-weight:700;text-align:right;line-height:1.5">'+
+       'Nomornya belum ada<br><span style="font-weight:400;color:var(--muted)">isi di Master → Vendors → No. HP</span></span>');
+  return '<div style="border:1px solid var(--line);border-radius:9px;padding:9px 11px;margin-bottom:12px;'+
+    'background:var(--bg);display:flex;gap:11px;align-items:center;flex-wrap:wrap">'+kiri+kanan+'</div>';}
 function vendorChannel(nama){
   var v=((ST.master&&ST.master.vendors)||[]).find(function(x){return x.nama===nama;});
   return (v&&String(v.disc||'').trim().replace(/^#/,''))||'';}
