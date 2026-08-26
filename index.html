@@ -4088,7 +4088,7 @@ function defAccess(){var a={};ROLES.forEach(function(r){a[r]={board:true,tasks:t
   /* Order lahir dari prospek, bukan dari form. Holding & Direktur Utama tetap
      bisa membuat manual sebagai jalan darurat (order tak lewat prospek,
      pembetulan data). Ubah di Master data → Hak akses kalau perlu. */
-  ['Holding','Direktur Utama'].forEach(function(r){a[r].neworder=true;});['Holding','Direktur Utama','Finance'].forEach(function(r){a[r].report=true;});['Sales','Holding','Direktur Utama'].forEach(function(r){a[r].leads=true;});a['Holding'].master=true;a['Holding'].tax=true;['Marketing','Creative','Holding','Direktur Utama'].forEach(function(r){a[r].konten=true;});['Direktur Utama','Holding','Finance'].forEach(function(r){a[r].hr=true;});['Finance','Direktur Utama','Holding'].forEach(function(r){a[r].fin=true;a[r].aset=true;});['Warehouse','Packing & Shipping','Purchasing','Project Manager','Holding','Direktur Utama'].forEach(function(r){a[r].inv=true;});return a;}
+  ['Holding','Direktur Utama'].forEach(function(r){a[r].neworder=true;});['Holding','Direktur Utama','Finance'].forEach(function(r){a[r].report=true;});['Sales','Holding','Direktur Utama'].forEach(function(r){a[r].leads=true;});a['Holding'].master=true;a['Direktur Utama'].master=true;a['Holding'].tax=true;['Marketing','Creative','Holding','Direktur Utama'].forEach(function(r){a[r].konten=true;});['Direktur Utama','Holding','Finance'].forEach(function(r){a[r].hr=true;});['Finance','Direktur Utama','Holding'].forEach(function(r){a[r].fin=true;a[r].aset=true;});['Warehouse','Packing & Shipping','Purchasing','Project Manager','Holding','Direktur Utama'].forEach(function(r){a[r].inv=true;});return a;}
 /* Kalau fitur belum tercatat di matriks (mis. menu baru pada data lama),
    ikuti bawaan jabatan — JANGAN otomatis "boleh", nanti menu bocor ke semua orang. */
 var _defAcc=null;
@@ -5019,9 +5019,14 @@ function loadMaster(){try{ST.master=JSON.parse(localStorage.getItem('rovehub_mas
 
    if(!ST.master.msec){ST.master.msec=defMsec();saveMaster();} var dm=defMsec();ROLES.forEach(function(r){if(!ST.master.msec[r]){ST.master.msec[r]=dm[r];saveMaster();}});
    /* Direktur perlu daftar customer — di situ status VIP ditetapkan. Data
-      yang tersimpan sebelum aturan ini dibuat tak punya izinnya. */
+      yang tersimpan sebelum aturan ini dibuat tak punya izinnya. Tab Master
+      ikut dibuka; isinya tetap dibatasi msec, jadi yang terlihat cuma
+      Customers — bukan Users apalagi Hak akses. */
    if(ST.master.msec['Direktur Utama']&&ST.master.msec['Direktur Utama'].customers!==true){
      ST.master.msec['Direktur Utama'].customers=true;saveMaster();}
+   if(ST.master.access&&ST.master.access['Direktur Utama']&&
+      ST.master.access['Direktur Utama'].master!==true){
+     ST.master.access['Direktur Utama'].master=true;saveMaster();}
    ST.master.catalog.forEach(function(r){if(!r.jenis)r.jenis='Katalog';});}
 function mEdit(sec,i,f,v){var r=ST.master[sec][i];r[f]=v;
   if(sec==='customers'&&(f==='bride'||f==='groom')&&r.tipe==='Wedding'){
