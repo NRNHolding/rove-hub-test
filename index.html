@@ -690,7 +690,9 @@ const EN={
 '＋ Lampirkan berkas PO dari client':'＋ Attach the client PO file','✎ Olah jadi data':'✎ Turn it into data','✎ Ubah data PO':'✎ Edit the PO data',
 'DIBACA DARI PDF':'READ FROM THE PDF','⌕ Baca isinya':'⌕ Read its contents','✎ Pakai hasilnya':'✎ Use these values','Pakai hasil bacaan PDF?':'Use what was read from the PDF?','Periksa dulu — mesin menebak, kamu yang memastikan':'Check first — the machine guesses, you decide',
 'Surat PO resmi client':'Client\u2019s official PO','JALUR KEDUA — PENGGANTI UANG MUKA':'SECOND ROUTE — INSTEAD OF A DOWN PAYMENT','Menunggu DP / PO resmi':'Waiting for down payment or official PO','Izin berjalan tanpa uang muka — Direktur':'Permission to proceed without a down payment — Director','✓ Setujui jalan tanpa DP':'✓ Approve proceeding without a down payment','＋ Catat surat PO':'＋ Record the PO','Nomor PO client':'Client PO number','Nilai yang tertulis di PO':'Value stated on the PO','Termin':'Payment terms',
-'Bisa kamu isi lebih awal':'You can fill this in early','💬 Buka WhatsApp':'💬 Open WhatsApp','kontak person belum diisi':'contact person not filled in',
+'Bisa kamu isi lebih awal':'You can fill this in early','tanpa teknik':'no technique set','gabungan seluruh order':'combined across the whole order',
+'Gambar yang perlu ikut':'Images to send along','⬇ Unduh semua':'⬇ Download all',
+'💬 Buka WhatsApp':'💬 Open WhatsApp','kontak person belum diisi':'contact person not filled in',
 'Nomornya belum ada':'No phone number yet','isi di Master → Vendors → No. HP':'add it in Master → Vendors → Phone',
 '📨 Tanyakan ke vendor':'📨 Ask the vendor','📨 Tanya lagi':'📨 Ask again',
 '✎ Isi sekarang':'✎ Fill it now','✎ Isi':'✎ Fill','— kalau datanya sudah ada, tak perlu menunggu fasenya':'\u2014 if you already have it, no need to wait for its phase',
@@ -1218,7 +1220,7 @@ const EN={
 'Nilai':'Value','Material':'Material','Jenis':'Kind','Katalog':'Catalogue','Custom':'Custom','Harga':'Price',
 'Nama jasa':'Service name','Teknik':'Technique','Harga/pcs':'Price/pc','Kontak':'Contact','Alamat':'Address',
 'Alamat kirim':'Delivery address','Alamat client / kantor':'Client / office address','Kota':'City','Catatan':'Notes',
-'Lokasi':'Location','Bank':'Bank','Channel Discord':'Discord channel','No. rekening':'Account number','No. Hp':'Phone','Email':'Email',
+'Lokasi':'Location','Bank':'Bank','Channel Discord':'Discord channel','— pilih vendor —':'— choose a vendor —','dipilihkan otomatis — pastikan benar':'auto-filled — check it is right','Kota':'City','No. rekening':'Account number','No. Hp':'Phone','Email':'Email',
 'Bride':'Bride','Groom':'Groom','Wedding':'Wedding','Corporate':'Corporate','Lainnya':'Others','Other':'Others',
 '＋ Tambah akun':'＋ Add account','＋ Tambah barang':'＋ Add item','＋ Tambah karyawan':'＋ Add employee',
 '＋ Tambah penawaran':'＋ Add quote','＋ Tambah opsi':'＋ Add option','＋ Tambah jasa':'＋ Add service',
@@ -4790,14 +4792,16 @@ function defKurs(){return [{kode:'USD',nilai:16400},{kode:'AUD',nilai:10800}];}
 function kursAll(){return (ST.master&&ST.master.kurs)||[];}
 function kursNilai(k){var x=kursAll().find(function(v){return v.kode===k;});return x?(+x.nilai||0):0;}
 /* ---- jasa (live service + add-on) + pembatasan teknik ---- */
+/* vendor: kosong berarti "tergantung kota acara" (tim deboss ada di tiga kota).
+   Yang cuma dikerjakan satu orang disebutkan namanya di sini. */
 function defJasa(){return [
-  {nama:'Live deboss blind',jenis:'Live service',teknik:'Deboss Blind',harga:0},
-  {nama:'Live deboss with foil',jenis:'Live service',teknik:'Deboss with Foil',harga:0},
-  {nama:'Live calligraphy',jenis:'Live service',teknik:'Calligraphy',harga:0},
-  {nama:'Pre-deboss initial',jenis:'Live service',teknik:'Deboss Blind',harga:0},
-  {nama:'Add-on Initial',jenis:'Service',teknik:'Deboss Blind',harga:0},
-  {nama:'Add-on Full Name',jenis:'Service',teknik:'Deboss Blind',harga:0},
-  {nama:'Add-on Logo',jenis:'Service',teknik:'Deboss with Foil',harga:0}];}
+  {nama:'Live deboss blind',jenis:'Live service',teknik:'Deboss Blind',harga:0,vendor:''},
+  {nama:'Live deboss with foil',jenis:'Live service',teknik:'Deboss with Foil',harga:0,vendor:''},
+  {nama:'Live calligraphy',jenis:'Live service',teknik:'Calligraphy',harga:0,vendor:'Mercia Calligraphy'},
+  {nama:'Pre-deboss initial',jenis:'Live service',teknik:'Deboss Blind',harga:0,vendor:''},
+  {nama:'Add-on Initial',jenis:'Service',teknik:'Deboss Blind',harga:0,vendor:''},
+  {nama:'Add-on Full Name',jenis:'Service',teknik:'Deboss Blind',harga:0,vendor:''},
+  {nama:'Add-on Logo',jenis:'Service',teknik:'Deboss with Foil',harga:0,vendor:''}];}
 function jasaAll(){return (ST.master&&ST.master.jasa)||[];}
 function jasaTeknik(nama){var j=jasaAll().find(function(x){return x.nama===nama;});return j?j.teknik:'';}
 function jasaByJenis(j){return jasaAll().filter(function(x){return x.jenis===j;}).map(function(x){return x.nama;});}
@@ -5251,12 +5255,31 @@ function vendorNames(){return ((ST.master&&ST.master.vendors)||[]).map(function(
 /* Baris pricing untuk tiap kemasan yang diminta + tiap jasa yang dipilih.
    Dipanggil waktu order lahir DAN tiap kali kemasan/jasa berubah — barisnya
    dibuat kalau belum ada, tak pernah menimpa harga yang sudah diisi. */
+/* Live service dihitung per event — tim datang sekali, berapa pun barangnya.
+   Add-on dikerjakan per barang di workshop, jadi per pcs. Vendor boleh
+   menjawab lain; satuannya ikut dicatat waktu jawabannya masuk. */
+const JASA_SATUAN=[['event','per event'],['pcs','per pcs']];
+function jasaSatuan(l){
+  if(!l)return 'pcs';
+  if(l.satuan)return l.satuan;
+  return (l.jasa==='Live service')?'event':'pcs';}
+function satuanTeks(k){var x=JASA_SATUAN.find(function(a){return a[0]===k;});return x?x[1]:'per pcs';}
+/* Berapa kali harga vendor dikalikan. Per event: sekali, berapa pun qty-nya. */
+function jasaKali(l){return jasaSatuan(l)==='pcs'?lineQtyPO(l):1;}
 function barisVendorLengkapi(o){
   if(!o.pricing)o.pricing={lines:[],margin:MARGIN_BAWAAN};
   var L=o.pricing.lines=o.pricing.lines||[];
   var ada=function(nama){return L.some(function(l){return l.produk===nama;});};
   var qty=(function(){var q=0;L.forEach(function(l){if(!l.coll&&(l.qty||0)>q)q=l.qty||0;});return q||o.qty||0;})();
   var baru=[];
+  /* Baris jasa yang dulu terlanjur diberi vendor tebakan dihitung ulang —
+     tapi hanya yang belum dipakai untuk apa pun. Yang sudah ditanyakan atau
+     sudah berharga bisa saja sudah sengaja dibetulkan orang; jangan ditimpa. */
+  L.forEach(function(l){
+    if(!l.jasa||l.rfq||(l.hpp||0)>0)return;
+    var n=String(l.produk||'').replace(/^(Live service|Add-on) — /,'');
+    var benar=jasaVendor(n)||((l.jasa==='Live service')?vendorJasaKota(o):vendorProdukOrder(o));
+    if((l.sumber||'')!==benar){l.sumber=benar;l._vendorTebakan=(!jasaVendor(n)&&!!benar);}});
   /* kemasan: satu baris per jenis, vendornya dari master menurut tipenya */
   PACK_TIPE.forEach(function(pt){
     if(!((o.coll||{})[pt[0]]))return;
@@ -5270,17 +5293,41 @@ function barisVendorLengkapi(o){
     liveList(o[x[0]]).forEach(function(n){
       var nama=x[1]+' — '+n;
       if(ada(nama))return;
-      L.push({produk:nama,bahan:'Service',sumber:jasaVendor(n)||vendorForTipe('Live Service'),
+      /* Kalau tak ada yang tahu vendornya, dikosongkan — bukan diisi vendor
+         pertama yang kebetulan bertipe sama. Add-on tak ikut tebakan kota:
+         itu pekerjaan workshop, kota acara tak ada hubungannya. */
+      var vJasa=jasaVendor(n)||((x[1]==='Live service')?vendorJasaKota(o):vendorProdukOrder(o));
+      L.push({produk:nama,bahan:'Service',sumber:vJasa,_vendorTebakan:(!jasaVendor(n)&&!!vJasa),
         qty:qty,hpp:0,jual:0,img:'',imgs:[],detail:'harganya ditanyakan ke vendor jasanya',
-        perso:'-',fixed:false,jasa:x[1]});
+        perso:'-',fixed:false,jasa:x[1],satuan:(x[1]==='Live service')?'event':'pcs'});
       baru.push(nama);});});
   return baru;}
 /* vendor untuk satu jasa, kalau didaftar di master */
 function jasaVendor(nama){
   var j=((ST.master&&ST.master.jasa)||[]).find(function(x){return x.nama===nama;});
   return (j&&j.vendor)||'';}
+/* Tim live service dipilih menurut kota acaranya, bukan menurut urutan daftar.
+   Dicocokkan dua arah seperti opSuggest: venue ditulis bebas ("Nusa Dua"),
+   kota vendor ditulis pendek ("Bali") — tak ada yang selalu memuat yang lain. */
+/* Deboss & personalisasi di workshop hampir selalu dikerjakan yang membuat
+   produknya — Radja. Jadi add-on mengikuti vendor produk order ini, bukan
+   dibiarkan kosong. Tetap ditandai otomatis supaya gampang diganti. */
+function vendorProdukOrder(o){
+  var L=((o.pricing||{}).lines)||[];
+  var l=L.filter(function(x){return (x.qty||0)>0&&lineKulit(x);})[0]
+      ||L.filter(function(x){return (x.qty||0)>0&&!x.coll&&!x.jasa&&x.sumber;})[0];
+  if(l&&l.sumber)return l.sumber;
+  var v=vendorForTipe('Kulit');
+  return (v&&v!=='Kulit')?v:'';}
+function vendorJasaKota(o){
+  var kota='';try{kota=String(opCity(o)||o.shipKota||'').toLowerCase();}catch(e){}
+  if(!kota)return '';
+  var m=svcVendors().filter(function(v){
+    var k=String(v.kota||'').toLowerCase();
+    return k&&(kota.indexOf(k)>=0||k.indexOf(kota)>=0);})[0];
+  return m?m.nama:'';}
 function vendorForTipe(t){var v=((ST.master&&ST.master.vendors)||[]).find(function(x){return x.tipe===t;});return v?v.nama:t;}
-function seedMaster(){ST.master={access:defAccess(),msec:defMsec(),users:defUsers(),shipping:defShipping(),jenis:defJenis(),perso:defPerso(),coll:defColl(),catalog:[],operator:defOperators(),tools:defTools(),evTpl:defEvTpl(),kardus:defKardus(),kurs:defKurs(),jasa:defJasa(),volDiv:5000,packFactor:1.05,bank:[{v:'BCA'},{v:'Mandiri'},{v:'BNI'},{v:'BRI'}],vtipe:[{v:'Kulit'},{v:'Box'},{v:'Soft Pouch'},{v:'Thank You Card'},{v:'Live Service'},{v:'Others'}],cogs:[{v:'Main Product'},{v:'Packaging'},{v:'Service'}],customers:[{nama:'United Tractors',pic:'Ida Rahmawati (Purchasing)',kontak:'+62 811-2244-3010',email:'ida.rahmawati@unitedtractors.com',alamat:'Jl. Raya Bekasi KM 22, Cakung, Jakarta Timur 13910',alamatKantor:'Gedung UT Tower, Jl. Raya Bekasi KM 22, Jakarta Timur',kota:'Jakarta',tipe:'Corporate',lokasi:'HQ'},{nama:'Innaz Communique',kontak:'',alamat:'Surabaya',kota:'Surabaya',tipe:'Corporate',lokasi:'HQ'},{nama:'Bank Jatim',kontak:'',alamat:'Surabaya',kota:'Surabaya',tipe:'Corporate',lokasi:'HQ'}],vendors:[{nama:'Radja Leather',tipe:'Kulit',cogs:'Main Product',kontak:'Cici Andarwati',hp:'+62 811 3252 305'},{nama:'CraftByHanifah',tipe:'Soft Pouch',cogs:'Packaging',kontak:'-'},{nama:'BoxMaker',tipe:'Box',cogs:'Packaging',kontak:'-'},{nama:'CardPrint',tipe:'Thank You Card',cogs:'Packaging',kontak:'-'},{nama:'Tim Deboss Bali',tipe:'Live Service',cogs:'Service',kontak:'-'},{nama:'Tim Deboss SBY',tipe:'Live Service',cogs:'Service',kontak:'-'},{nama:'Tim Deboss JKT',tipe:'Live Service',cogs:'Service',kontak:'-'},{nama:'Mercia Calligraphy',tipe:'Live Service',cogs:'Service',kontak:'Mercia Anggara'}]};saveMaster();}
+function seedMaster(){ST.master={access:defAccess(),msec:defMsec(),users:defUsers(),shipping:defShipping(),jenis:defJenis(),perso:defPerso(),coll:defColl(),catalog:[],operator:defOperators(),tools:defTools(),evTpl:defEvTpl(),kardus:defKardus(),kurs:defKurs(),jasa:defJasa(),volDiv:5000,packFactor:1.05,bank:[{v:'BCA'},{v:'Mandiri'},{v:'BNI'},{v:'BRI'}],vtipe:[{v:'Kulit'},{v:'Box'},{v:'Soft Pouch'},{v:'Thank You Card'},{v:'Live Service'},{v:'Others'}],cogs:[{v:'Main Product'},{v:'Packaging'},{v:'Service'}],customers:[{nama:'United Tractors',pic:'Ida Rahmawati (Purchasing)',kontak:'+62 811-2244-3010',email:'ida.rahmawati@unitedtractors.com',alamat:'Jl. Raya Bekasi KM 22, Cakung, Jakarta Timur 13910',alamatKantor:'Gedung UT Tower, Jl. Raya Bekasi KM 22, Jakarta Timur',kota:'Jakarta',tipe:'Corporate',lokasi:'HQ'},{nama:'Innaz Communique',kontak:'',alamat:'Surabaya',kota:'Surabaya',tipe:'Corporate',lokasi:'HQ'},{nama:'Bank Jatim',kontak:'',alamat:'Surabaya',kota:'Surabaya',tipe:'Corporate',lokasi:'HQ'}],vendors:[{nama:'Radja Leather',tipe:'Kulit',cogs:'Main Product',kontak:'Cici Andarwati',hp:'+62 811 3252 305'},{nama:'CraftByHanifah',tipe:'Soft Pouch',cogs:'Packaging',kontak:'-'},{nama:'BoxMaker',tipe:'Box',cogs:'Packaging',kontak:'-'},{nama:'CardPrint',tipe:'Thank You Card',cogs:'Packaging',kontak:'-'},{nama:'Tim Deboss Bali',tipe:'Live Service',cogs:'Service',kontak:'-',kota:'Bali'},{nama:'Tim Deboss SBY',tipe:'Live Service',cogs:'Service',kontak:'-',kota:'Surabaya'},{nama:'Tim Deboss JKT',tipe:'Live Service',cogs:'Service',kontak:'-',kota:'Jakarta'},{nama:'Mercia Calligraphy',tipe:'Live Service',cogs:'Service',kontak:'Mercia Anggara'}]};saveMaster();}
 function loadMaster(){try{ST.master=JSON.parse(localStorage.getItem('rovehub_master')||'null');}catch(e){ST.master=null;} if(!ST.master||!ST.master.customers)seedMaster(); if(!ST.master.users||!ST.master.users[0]||!('username' in ST.master.users[0])){ST.master.users=defUsers();saveMaster();} if(!ST.master.shipping){ST.master.shipping=defShipping();saveMaster();} ST.master.shipping.forEach(function(s){if(s.zona&&!s.kota){s.kota=s.zona;delete s.zona;}}); if(!ST.master.jenis){ST.master.jenis=defJenis();saveMaster();} if(!ST.master.perso){ST.master.perso=defPerso();saveMaster();}
    if(!ST.master.coll){ if(ST.master.collmat){ST.master.coll=[];ST.master.collmat.forEach(function(r){var ts=(r.tipe==='Box')?['Hardbox','Softbox']:[r.tipe];ts.forEach(function(t){ST.master.coll.push({type:t,kind:'Material',value:r.v});});});delete ST.master.collmat;} else ST.master.coll=defColl(); saveMaster(); }
    /* satu orang bisa banyak jabatan — data lama yang masih string dinaikkan ke daftar */
@@ -5355,7 +5402,7 @@ function mEdit(sec,i,f,v){var r=ST.master[sec][i];r[f]=v;
 function mSet(f,v){ST.master[f]=v;saveMaster();render();}
 function mEditM(sec,i,f,v){ST.master[sec][i][f]=moneyVal(v);stampRow(ST.master[sec][i]);saveMaster();}
 function mAdd(sec){var r=(sec==='users'?{username:'',password:'',jabatan:'Sales',jabatans:['Sales'],aktif:true}:sec==='shipping'?{ekspedisi:'JNE',kota:'',tarif:0}:sec==='jenis'?{label:'',code:''}:(sec==='perso'||sec==='bank'||sec==='vtipe'||sec==='cogs'||sec==='mainmat'||sec==='filler'||sec==='lining'||sec==='finreq'||sec==='stitch'||sec==='warna')?{v:''}:sec==='customers'?{nama:'',termin:'DP',bride:'',groom:'',kontak:'',email:'',alamat:'',alamatKantor:'',kota:'',npwp:'',pic:'',
-    tipe:((ST._custTab&&ST._custTab!=='ALL')?ST._custTab:'Corporate'),lokasi:'HQ',catatan:''}:sec==='coll'?{type:'Hardbox',kind:'Material',value:''}:sec==='catalog'?{name:'',material:'',jenis:'Katalog',t:[0,0,0,0,0,0,0]}:sec==='operator'?{nama:'',lokasi:'',hp:'',stamper:true,assist:true,aktif:true}:sec==='tools'?{nama:'',qty:1}:sec==='kardus'?{size:'',L:0,W:0,H:0,wg:0}:sec==='kurs'?{kode:'',nilai:0}:sec==='kulit'?{nama:'',warna:'',stok:'Ready',minOrder:'',vendor:'Radja Leather',catatan:''}:sec==='jasa'?{nama:'',jenis:'Service',teknik:'-',fix:0,harga:0}:{nama:'',tipe:'',cogs:'Main Product',kontak:'',hp:'',bank:'',rek:'',alamat:''});
+    tipe:((ST._custTab&&ST._custTab!=='ALL')?ST._custTab:'Corporate'),lokasi:'HQ',catatan:''}:sec==='coll'?{type:'Hardbox',kind:'Material',value:''}:sec==='catalog'?{name:'',material:'',jenis:'Katalog',t:[0,0,0,0,0,0,0]}:sec==='operator'?{nama:'',lokasi:'',hp:'',stamper:true,assist:true,aktif:true}:sec==='tools'?{nama:'',qty:1}:sec==='kardus'?{size:'',L:0,W:0,H:0,wg:0}:sec==='kurs'?{kode:'',nilai:0}:sec==='kulit'?{nama:'',warna:'',stok:'Ready',minOrder:'',vendor:'Radja Leather',catatan:''}:sec==='jasa'?{nama:'',jenis:'Service',teknik:'-',fix:0,harga:0,vendor:''}:{nama:'',tipe:'',cogs:'Main Product',kontak:'',hp:'',bank:'',rek:'',alamat:''});
   ST.master[sec].push(stampRow(r));if(sec==='coll')buildCollatData();saveMaster();render();}
 function mDel(sec,i){delRow(sec,i);}
 function setMasterTab(t){ST.masterTab=t;render();}
@@ -5490,7 +5537,7 @@ function renderMaster(){
      <div style="font-size:10.5px;color:var(--muted);margin-bottom:10px"><b>COGS Type</b> mengikuti AIS — menentukan biaya masuk ke Main Product, Packaging, atau Service. Tim live service didaftarkan di sini juga (tipe <b>Live Service</b>, COGS <b>Service</b>). Pilihan <b>Tipe</b> &amp; <b>Bank</b> bisa ditambah sendiri di <b>Opsi form</b>.</div>
      <div style="display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px">${chip('ALL',V.length)}${kat.map(function(k){
        return chip(k,V.filter(function(v){return jenis(v)===k;}).length);}).join('')}</div>
-     ${idx.length?`<div class="xscroll">${tbl('vendors',[['nama','Nama'],['tipe','Tipe',listArr('vtipe')],['cogs','COGS Type',listArr('cogs')],['kontak','Contact person'],['hp','No. HP'],['disc','Channel Discord'],['bank','Bank',listArr('bank')],['rek','No. rekening'],['alamat','Alamat']],idx.map(function(i){return V[i];}),idx)}</div>`
+     ${idx.length?`<div class="xscroll">${tbl('vendors',[['nama','Nama'],['tipe','Tipe',listArr('vtipe')],['cogs','COGS Type',listArr('cogs')],['kontak','Contact person'],['hp','No. HP'],['kota','Kota'],['disc','Channel Discord'],['bank','Bank',listArr('bank')],['rek','No. rekening'],['alamat','Alamat']],idx.map(function(i){return V[i];}),idx)}</div>`
        :'<div style="color:var(--muted);font-size:11px;padding:6px 0">Belum ada vendor pada kategori ini.</div>'}
      <button class="btn ghost sm" style="margin-top:9px" onclick="mAdd('vendors')">＋ Tambah vendor</button>
      ${f!=='ALL'?'<span style="font-size:9.5px;color:var(--muted);margin-left:8px">Vendor baru masuk tanpa tipe — pilih tipenya di kolom <b>Tipe</b> supaya muncul di kategori ini.</span>':''}</div>`;})(),
@@ -5535,7 +5582,7 @@ function renderMaster(){
          '<button class="btn ghost sm" style="margin-top:9px" onclick="mAdd(\u0027kulit\u0027)">＋ Tambah kulit</button>';
      } else {
        isi='<div style="font-size:10.5px;color:var(--muted);margin-bottom:9px"><b>Live service</b> = dikerjakan di lokasi acara. <b>Service</b> = add-on yang dikerjakan di workshop. <b>Teknik</b> menentukan pilihan Personalization yang muncul di baris pricing — jadi tak bisa salah pilih. <b>Biaya tetap</b> = sekali per order (mis. bikin plat deboss); <b>Harga/pcs</b> = dikali jumlah barang.</div>'+
-         '<div class="xscroll">'+tbl('jasa',[['nama','Nama jasa'],['jenis','Jenis',['Live service','Service']],['teknik','Teknik',persoVals()],['fix','Biaya tetap','money'],['harga','Harga/pcs','money']],M.jasa||[])+'</div>'+
+         '<div class="xscroll">'+tbl('jasa',[['nama','Nama jasa'],['jenis','Jenis',['Live service','Service']],['teknik','Teknik',persoVals()],['vendor','Vendor',[''].concat(vendorGrup('jasa'))],['fix','Biaya tetap','money'],['harga','Harga/pcs','money']],M.jasa||[])+'</div>'+
          '<button class="btn ghost sm" style="margin-top:9px" onclick="mAdd(\'jasa\')">＋ Tambah jasa</button>'+
          (function(){var bt=(M.jasa||[]).filter(function(j){return j.perPcTiers&&j.perPcTiers.length;});
            return bt.length?('<div style="margin-top:11px;font-size:10.5px;color:var(--muted)"><b>Harga bertingkat</b> (dari Estimator): '+
@@ -8641,7 +8688,7 @@ function konfBelum(o){return konfLines(o).filter(function(x){return !konfSah(x.l
 function konfVendor(o){
   var G={},urut=[];
   konfLines(o).forEach(function(x){
-    var v=x.l.sumber||'(vendor belum dipilih)';
+    var v=x.l.sumber;if(!v)return;   // tanpa vendor tak ada yang bisa dihubungi
     if(!G[v]){G[v]=[];urut.push(v);}
     G[v].push(x);});
   return urut.map(function(v){return {vendor:v,baris:G[v]};});}
@@ -8703,7 +8750,7 @@ function konfTanya(id,vendor){
   var tuj=vendorTujuan(o,vendor);
   askForm({judul:'Pastikan harga ke '+vendor,
     sub:grup.baris.length+' baris · harganya dari master, tinggal dipastikan masih berlaku',
-    info:vendorKontakBlok(vendor),
+    info:vendorKontakBlok(vendor)+vendorGambarBlok(o,grup.baris[0]&&grup.baris[0].l,'konf'+o.id+'-'+vendor),
     fields:[{k:'pesan',label:'Isi pesan — boleh diedit sebelum dikirim',type:'textarea',tinggi:240,
       val:konfPesan(o,vendor,grup.baris),req:true,hint:tujuanTeks(tuj,live)}],
     ok:function(v){
@@ -8765,6 +8812,26 @@ function rfqLines(o){
   var L=((o.pricing||{}).lines)||[],out=[];
   L.forEach(function(l,i){if(perluHargaVendor(l))out.push({l:l,i:i});});
   return out;}
+/* Vendor dipilih langsung di barisnya. Dulu cuma tulisan: yang salah harus
+   dibetulkan di panel Pricing, satu panel lain, dan yang kosong tak punya
+   jalan keluar sama sekali — padahal rfqKirim menolak baris tanpa vendor. */
+function rfqVendorSet(id,i,v){
+  var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
+  var l=((o.pricing||{}).lines||[])[i];if(!l)return;
+  if((l.sumber||'')===v)return;
+  l.sumber=v;delete l._vendorTebakan;
+  logHist(o,'Vendor '+(l.produk||'baris')+' → '+(v||'dikosongkan'));
+  o._m=Date.now();save();render();}
+function rfqVendorSel(o,l,i){
+  var opts=vendorGrup(vendorGrupBaris(l)).slice();
+  if(l.sumber&&opts.indexOf(l.sumber)<0)opts.unshift(l.sumber);
+  return '<select class="pin" style="width:100%;font-size:10.5px;padding:3px 5px'+
+      (l.sumber?'':';border-color:var(--warn)')+'" '+
+      'onchange="rfqVendorSet(\''+o.id+'\','+i+',this.value)">'+
+    '<option value="" '+(l.sumber?'':'selected')+'>— pilih vendor —</option>'+
+    opts.map(function(v){return '<option '+(v===l.sumber?'selected':'')+'>'+esc(v)+'</option>';}).join('')+
+    '</select>'+
+    (l._vendorTebakan?'<div style="font-size:9px;color:var(--warn);font-weight:700;margin-top:2px">dipilihkan otomatis — pastikan benar</div>':'');}
 function rfqStatus(l){
   if((l.hpp||0)>0)return 'Harga diterima';
   if(l.rfq&&l.rfq.minta)return 'Menunggu jawaban';
@@ -8844,53 +8911,140 @@ function kulitBlok(o,l,i){
    Dulu ada 5 tombol (Spek, Minta harga, Tanya kulit, Catat jawaban, Isi harga).
    Sekarang cukup dua keadaan: kirim permintaan → catat jawaban.
    Isi pesannya bisa diedit sebelum dikirim. */
+/* Pekerjaan vendor menentukan isi pesannya. */
+function rfqJenisBaris(l){
+  if(!l)return 'produk';
+  if(l.coll)return 'kemasan';
+  if(l.jasa==='Live service')return 'live';
+  if(l.jasa)return 'addon';
+  return 'produk';}
+/* Berapa hari kemasan & add-on harus sudah selesai SEBELUM barangnya dikirim
+   ke client. Kemasan datang belakangan berarti packing tertunda, dan packing
+   tertunda berarti kirim tertunda — jadi tanggalnya sengaja dimundurkan. */
+const VENDOR_JEDA=7;
+function tglGeser(tgl,n){
+  if(!tgl)return '';
+  var d=new Date(tgl+'T00:00:00');if(isNaN(d))return '';
+  d.setDate(d.getDate()+n);
+  return ymd(d.getFullYear(),d.getMonth()+1,d.getDate());}
+/* Tanggal yang diminta ke vendor ini, beserta alasannya. */
+function rfqTanggal(o,l){
+  var b=briefGet(o),jenis=rfqJenisBaris(l);
+  var acara=o.eventDate||b.tglAcara||'',kirim=b.tglKirim||'';
+  if(jenis==='live')return acara?{tgl:acara,ket:'tanggal acara'}:null;
+  /* Deadline produksi sering terisi otomatis sama dengan tanggal kirim, jadi
+     ia bukan tanggal yang aman dipakai apa adanya — kemasan yang datang di
+     hari kirim berarti tak ada waktu memacking. Mundurnya dihitung dari acuan
+     apa pun yang ada. */
+  var prod=(o.po||{}).deadline||'',dasar=prod||kirim||acara;
+  if(!dasar)return null;
+  var namaAcuan=prod?'deadline produksi ':(kirim?'tanggal kirim ':'acara ');
+  return {tgl:tglGeser(dasar,-VENDOR_JEDA),
+    ket:'dimundurkan '+VENDOR_JEDA+' hari dari '+namaAcuan+tglID(dasar)+
+        ', supaya sempat dipacking'};}
+/* Ukuran barang yang harus masuk ke kemasannya — pertanyaan pertama tiap
+   vendor kemasan, dan satu-satunya yang tak bisa mereka tebak sendiri. */
+function rfqUkuranProduk(o){
+  var out=[],L=((o.pricing||{}).lines)||[];
+  L.forEach(function(l){
+    if(rfqJenisBaris(l)!=='produk'||!(l.qty>0))return;
+    var p=null;try{p=prodInfo(l.produk,l);}catch(e){}
+    var d=(p&&p.pjg&&p.lbr)?(fmtCm(p.pjg)+' × '+fmtCm(p.lbr)+(p.tgi?(' × '+fmtCm(p.tgi)):'')+' cm'):'';
+    if(!d&&l.ukuran)d=String(l.ukuran);
+    out.push({nama:l.produk||'produk',ukuran:d,qty:l.qty||0});});
+  return out;}
+function fmtCm(n){var x=Math.round((+n||0)*10)/10;return String(x).replace('.',',');}
+
 function rfqPesanGabung(o,l){
-  var P=[],vendor=l.sumber||'vendor',kulit=lineKulit(l),k=rfqKulit(l);
+  var P=[],vendor=l.sumber||'vendor',jenis=rfqJenisBaris(l);
+  var b=briefGet(o),k=rfqKulit(l);
   P.push('📨 **PERMINTAAN — '+vendor+'**','');
-  P.push('**'+(l.produk||'(tanpa nama)')+'** · '+(l.qty||0)+' pcs');
+  P.push('**'+(l.produk||'(tanpa nama)')+'** · '+(l.qty||0)+(jenis==='live'?' pcs dikerjakan di lokasi':' pcs'));
   P.push('Order: '+chName(o)+' · client '+o.customer);
-  var S=rfqSpekBaris(o,l).filter(function(x){return !/^• Qty/.test(x);});
-  if(S.length)P.push('','**Spesifikasi**',S.join('\n'));
-  if(kulit){
-    /* Kulit yang KITA inginkan disebut lebih dulu — vendor menjawab jauh
-       lebih cepat kalau ada titik berangkatnya daripada disuruh menebak. */
+
+  /* ---- ukuran & spesifikasi, hanya yang jadi urusan vendor ini ---- */
+  if(jenis==='kemasan'){
+    var U=rfqUkuranProduk(o);
+    P.push('','**Ukuran barang yang harus masuk**');
+    if(!U.length)P.push('_Belum ada produk berukuran di order ini — mohon tunggu, akan kami susulkan._');
+    else U.forEach(function(u){
+      P.push('• '+u.nama+' — '+(u.ukuran||'**ukuran belum ada di data kami, akan kami susulkan**'));});
+    var spek='';try{spek=packRingkas(l.coll,packSpec(o,l.coll));}catch(e){}
+    P.push('','**Spesifikasi '+(l.produk||'kemasan')+' yang diminta**',
+      spek||'_Belum ditentukan — mohon disarankan yang cocok untuk ukuran di atas._');
+    var cat='';try{cat=salesNote(o,l.coll);}catch(e){}
+    if(cat)P.push('','**Tambahan dari client**',cat);
+  } else if(jenis==='live'){
+    var acara=o.eventDate||b.tglAcara||'';
+    P.push('','**Acara**',
+      '• Tanggal: '+(acara?tglID(acara):'**belum pasti — akan kami kabari**'),
+      '• Tempat: '+[b.venue,o.shipKota].filter(Boolean).join(', ')||'belum diisi');
+    var tkL=jasaTeknik(String(l.produk||'').replace(/^Live service — /,''));
+    if(tkL&&tkL!=='-')P.push('• Teknik: '+tkL);
+    P.push('• Jumlah barang yang dikerjakan di lokasi: '+(l.qty||0)+' pcs');
+  } else if(jenis==='addon'){
+    var tkA=jasaTeknik(String(l.produk||'').replace(/^Add-on — /,''));
+    P.push('','**Yang dikerjakan**',
+      '• Teknik: '+((tkA&&tkA!=='-')?tkA:'**belum ditentukan**'),
+      '• Jumlah: '+(l.qty||0)+' pcs',
+      '• Dikerjakan di workshop, sebelum barangnya dipacking.');
+    if(b.perso&&b.perso!=='-')P.push('• Personalization: '+b.perso);
+    if(b.persoTiap)P.push('• Tiap pcs beda nama — daftarnya menyusul dari client.');
+  } else {
+    var S=rfqSpekBaris(o,l).filter(function(x){return !/^• Qty/.test(x);});
+    if(S.length)P.push('','**Spesifikasi**',S.join('\n'));
+  }
+
+  /* ---- kulit: yang kita inginkan, hanya untuk vendor kulit ---- */
+  if(lineKulit(l)&&jenis==='produk'){
     P.push('','**Kulit yang kami inginkan**');
-    var bq=briefGet(o),maunya=[];
+    var maunya=[];
     if(k.pilih)maunya=[k.pilih];
     else if(k.saran&&k.saran.length)maunya=k.saran.slice();
-    else if(l.bahan||bq.mainMat)maunya=[l.bahan||bq.mainMat];
-    if(!maunya.length){                            // belum menunjuk apa pun — pakai yang ready di master
+    else if(l.bahan||b.mainMat)maunya=[l.bahan||b.mainMat];
+    if(!maunya.length){
       kulitVendor(vendor).forEach(function(x){if(x.stok==='Ready'&&maunya.indexOf(x.nama)<0)maunya.push(x.nama);});
       maunya=maunya.slice(0,3);}
     P.push(maunya.length
-      ? (maunya.join(', ')+(bq.mainMatWarna?(' · warna '+bq.mainMatWarna):''))
+      ? (maunya.join(', ')+(b.mainMatWarna?(' · warna '+b.mainMatWarna):''))
       : '_Belum menunjuk artikel tertentu — mohon disarankan yang cocok untuk produk ini._');}
-  /* Vendor collateral menghargai dari gambar, bukan dari nama barang. Yang
-     dipegang biasanya referensi client, bukan foto produk kita. */
+
+  /* ---- tanggal ---- */
+  var T=rfqTanggal(o,l);
+  if(T&&T.tgl)P.push('','**Tanggal**',
+    (jenis==='live'?'Acara ':'Kami butuh barangnya paling lambat ')+tglID(T.tgl)+
+    ' _('+T.ket+')_');
+
+  /* ---- gambar ---- */
   var gbr=lineImgs(l).map(driveLink).filter(Boolean);
   if(gbr.length)P.push('','**Gambar acuan**',gbr.join('\n'));
-  else if(lineImgs(l).length)P.push('','_Gambar acuan ada di HUB (file unggahan) — dikirim manual._');
-  var ref=(briefGet(o).refFiles||[]);
+  var ref=(b.refFiles||[]);
   if(ref.length)P.push('','**Referensi dari client**',
     ref.map(function(f){return '• '+(f.nama||f.n||'lampiran');}).join('\n'),
-    '_Filenya ada di HUB — dikirim manual dari lampiran Referensi client._');
-  if(l.coll){
-    var spekPack='';try{spekPack=packRingkas(l.coll,packSpec(o,l.coll));}catch(e){}
-    if(spekPack)P.push('','**Spesifikasi '+(l.produk||'kemasan')+'**',spekPack);
-    var catatan='';try{catatan=salesNote(o,l.coll);}catch(e){}
-    if(catatan)P.push('','**Catatan client**',catatan);}
-  /* Satu pertanyaan, tiga jawaban. Dulu yang diminta cuma harga, lalu
-     ketersediaan kulit ditanya lagi terpisah, lalu tanggal PO paling lambat
-     ditanya lagi di fase berikutnya — tiga kali menunggu balasan untuk satu
-     percakapan yang sama. */
-  P.push('','**Mohon dijawab tiga hal ini**',
-    '1. **Harga per pcs** untuk qty di atas.',
-    /* Jenis bahan bukan artikel, dan artikel bukan warna. Vendor kemasan pun
-       punya pilihan bahan & warna — pertanyaannya sama bentuknya. */
-    kulit?'2. **Jenis kulit dan warna apa saja yang ready** untuk project ini — beserta minimum ordernya.'
-         :'2. **Jenis material dan warna apa saja yang ready** untuk project ini — beserta minimum ordernya.',
-    '3. **Paling lambat kapan PO harus turun** supaya barangnya sampai sebelum '+rfqPatokan(o)+'.',
-    '','Terima kasih 🙏');
+    '_Gambarnya menyusul di pesan ini._');
+
+  /* ---- yang diminta dijawab, beda per pekerjaan ---- */
+  if(jenis==='live'){
+    P.push('','**Mohon dijawab**',
+      '1. **Tim kosong di tanggal itu?** Ini yang pertama — kalau tak kosong, sisanya tak perlu.',
+      '2. **Harga per event** (sekali datang), sudah termasuk berapa orang.',
+      '3. **Apa yang perlu kami siapkan di lokasi** (meja, listrik, waktu setup).',
+      '','Terima kasih 🙏');
+  } else if(jenis==='addon'){
+    P.push('','**Mohon dijawab**',
+      '1. **Harga per pcs** untuk qty di atas.',
+      '2. **Berapa lama pengerjaannya** untuk jumlah segitu.',
+      '3. **Paling lambat kapan data (daftar nama / file) harus kami kirim.**',
+      '','Terima kasih 🙏');
+  } else {
+    P.push('','**Mohon dijawab tiga hal ini**',
+      '1. **Harga per pcs** untuk qty di atas.',
+      lineKulit(l)?'2. **Jenis kulit dan warna apa saja yang ready** untuk project ini — beserta minimum ordernya.'
+                  :'2. **Jenis material dan warna apa saja yang ready** untuk project ini — beserta minimum ordernya.',
+      '3. **Paling lambat kapan PO harus turun** supaya barangnya sampai sebelum '+
+        ((T&&T.tgl&&jenis==='kemasan')?tglID(T.tgl):rfqPatokan(o))+'.',
+      '','Terima kasih 🙏');
+  }
   return P.join('\n');}
 function rfqKirim(id,i){
   var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
@@ -8900,7 +9054,7 @@ function rfqKirim(id,i){
   var tuj=vendorTujuan(o,l.sumber);
   askForm({judul:'Kirim permintaan ke '+l.sumber,
     sub:(l.produk||'item')+' · '+(l.qty||0)+' pcs'+(lineKulit(l)?' · sekalian tanya ketersediaan kulit':''),
-    info:vendorKontakBlok(l.sumber),
+    info:vendorKontakBlok(l.sumber)+vendorGambarBlok(o,l,'rfq'+o.id+'-'+i),
     fields:[{k:'pesan',label:'Isi pesan — boleh diedit sebelum dikirim',type:'textarea',tinggi:260,
       val:rfqPesanGabung(o,l),req:true,hint:tujuanTeks(tuj,live)}],
     ok:function(v){
@@ -8928,8 +9082,13 @@ function rfqJawab(id,i){
     val:(k.jawab||[]).map(function(d){return [d.nama,d.warna,d.stok,d.catatan].filter(Boolean).join(' | ');}).join('\n'),
     ph:'Pull Up | Coklat tua | Ready | stok banyak\nButtero | Cognac | Terbatas | sisa 2 lembar',
     hint:'Format: <b>nama | warna | Ready/Terbatas/Indent/Habis | catatan</b>. Warna &amp; catatan boleh kosong.'});
-  F.push({k:'hpp',label:'Harga vendor per pcs (HPP)',type:'money',val:l.hpp||0,
-    hint:'Kosongkan kalau vendor baru menjawab soal kulit, harganya menyusul.'});
+  var jasaBrs=(lineJenis(l)==='jasa');
+  if(jasaBrs)F.push({k:'satuan',label:'Vendor menghitungnya per apa?',type:'select',
+    opts:JASA_SATUAN.map(function(x){return {v:x[0],l:x[1]};}),val:jasaSatuan(l),
+    hint:'Salah satuan membuat harga satu event dikali jumlah barang — itu selisih puluhan juta.'});
+  F.push({k:'hpp',label:jasaBrs?'Harga vendor (HPP)':'Harga vendor per pcs (HPP)',type:'money',val:l.hpp||0,
+    hint:jasaBrs?'Angka apa adanya dari vendor, sesuai satuan di atas.'
+                :'Kosongkan kalau vendor baru menjawab soal kulit, harganya menyusul.'});
   F.push({k:'tgl',label:'Tanggal jawaban diterima',type:'date',val:hariIni(),req:true});
   F.push({k:'note',label:'Catatan vendor',type:'text',val:(l.rfq&&l.rfq.note)||'',ph:'mis. berlaku 30 hari, MOQ 100 pcs'});
   /* Jawabannya datang bersamaan dengan harga, jadi dicatat di sini juga —
@@ -8953,6 +9112,7 @@ function rfqJawab(id,i){
         k.jawab=baru;k.terima=v.tgl;
         if(k.pilih&&!baru.some(function(d){return d.nama===k.pilih;}))k.pilih='';
         if(v.keMaster)baru.forEach(function(d){kulitKeMaster(d,l.sumber);});}
+      if(jasaBrs&&v.satuan)l.satuan=v.satuan;
       if(v.hpp>0){l.hpp=v.hpp;l._hppManual=true;}
       if(v.tglPOMax){o.po=o.po||{};o.po.tglPOMax=v.tglPOMax;
         logHist(o,'Radja: PO paling lambat turun '+tglID(v.tglPOMax));}
@@ -9014,6 +9174,15 @@ function lineProfit(l,m){
   var jual=lineNet(l,m),q=+l.qty||0,qpo=lineQtyPO(l);
   var hpp=lineHppVendor(l);
   var omset=jual*q,biaya=hpp*qpo;                 // spare ikut jadi biaya
+  /* Baris jasa ada untuk menampung harga VENDOR-nya. Yang ditagih ke client
+     datang dari jasaTotal() memakai harga master — kalau baris ini ikut jadi
+     omset, satu jasa tertagih dua kali. Dan biayanya dikali menurut satuannya:
+     tim live datang sekali, tak peduli barangnya 50 atau 500. */
+  if(lineJenis(l)==='jasa'){
+    omset=0;
+    biaya=hpp*jasaKali(l);
+    return {jual:0,hpp:hpp,qty:q,qtyPO:qpo,spare:0,perPcs:0,
+      omset:0,biaya:biaya,total:-biaya,pct:0,adaHpp:hpp>0,jasa:true};}
   return {jual:jual,hpp:hpp,qty:q,qtyPO:qpo,spare:Math.max(0,qpo-q),
     perPcs:jual-hpp,omset:omset,biaya:biaya,total:omset-biaya,
     pct:omset>0?Math.round((omset-biaya)/omset*100):0,adaHpp:hpp>0};}
@@ -9050,7 +9219,11 @@ function pajakSet(id,f,v){
 /* Satu sumber angka untuk quotation, invoice, pembayaran, dan laporan. */
 function orderTotals(o){
   var P=o.pricing||{},m=(P.margin||0)/100,sub=0;
-  ((P.lines)||[]).forEach(function(l){sub+=lineNet(l,m)*(l.qty||0);});
+  /* Baris jasa dilewati: nilainya ke client sudah dihitung jasaTotal() dari
+     harga master. Baris pricing-nya cuma menampung harga vendor. */
+  ((P.lines)||[]).forEach(function(l){
+    if(lineJenis(l)==='jasa')return;
+    sub+=lineNet(l,m)*(l.qty||0);});
   var jasa=jasaTotal(o);sub+=jasa;          // add-on & live service ikut ditagih
   var disc=(P.discType==='pct')?Math.round(sub*(P.disc||0)/100):+(P.disc||0);
   var ship=+(P.ship||0);
@@ -9146,7 +9319,9 @@ function profitTotals(o){
     if(!d.adaHpp)P.kurang++;});
   /* profit yang dilaporkan sudah bersih dari biaya di luar HPP — kalau tidak,
      order live service selalu terlihat lebih untung dari kenyataannya */
-  P.jasa=jasaTotal(o);P.jual+=P.jasa;      // omset jasa: tanpa HPP vendor
+  /* omset jasa dari master; biayanya sudah ikut terhitung dari baris jasa
+     di atas, jadi profit jasa = harga master − harga vendor */
+  P.jasa=jasaTotal(o);P.jual+=P.jasa;
   P.kotor=P.profit+P.jasa;
   P.biayaLain=biayaTotal(o);
   P.profit=P.kotor-P.biayaLain;
@@ -9975,7 +10150,7 @@ function rfqPanel(o){
       R.map(function(x){var l=x.l,st=rfqStatus(l);
         return '<tr><td><b>'+esc(l.produk||'(tanpa nama)')+'</b>'+
             (l.bahan?('<div style="font-size:9px;color:var(--muted)">'+esc(l.bahan)+'</div>'):'')+'</td>'+
-          '<td>'+(l.sumber?esc(l.sumber):'<span style="color:var(--warn);font-weight:700;font-size:10px">belum dipilih</span>')+'</td>'+
+          '<td>'+rfqVendorSel(o,l,x.i)+'</td>'+
           '<td class="num">'+(l.qty||0)+'</td>'+
           '<td><span style="font-size:10px;font-weight:800;color:'+rfqWarna(st)+'">● '+st+'</span>'+
             ((l.rfq&&l.rfq.minta)?('<div style="font-size:9px;color:var(--muted)">diminta '+tglID(l.rfq.minta)+'</div>'):'')+
@@ -10517,6 +10692,102 @@ function vendorData(nama){
   return ((ST.master&&ST.master.vendors)||[]).find(function(x){return x.nama===nama;})||null;}
 /* Kepada siapa pesan ini sebenarnya dikirim — ditaruh di atas kotak pesan,
    supaya nomornya tak perlu dicari di halaman lain. */
+/* ================= GAMBAR YANG IKUT KE VENDOR =================
+   Berkas lampiran disimpan sebagai data URI di dalam order, jadi isinya
+   memang ada di tangan — yang tak ada selama ini cuma jalan keluarnya. */
+function fileGambar(f){return !!(f&&f.data&&String(f.tipe||'').indexOf('image')===0);}
+/* Semua gambar yang masuk akal dikirim ke vendor untuk baris ini: referensi
+   dari client, ditambah gambar milik barisnya sendiri kalau ada. */
+function vendorGambar(o,l){
+  var b=briefGet(o),out=[];
+  var tambah=function(slot,f,i){if(fileGambar(f))out.push({slot:slot,i:i,f:f});};
+  (b.refFiles||[]).forEach(function(f,i){tambah('refFiles',f,i);});
+  /* gambar milik barisnya sendiri — kemasan punya gambarnya di master, dari
+     Cost Estimator. Yang berupa data URI bisa disalin & diunduh seperti yang
+     lain; yang berupa id Drive sudah ikut sebagai tautan di dalam pesannya. */
+  try{lineImgs(l).forEach(function(src,i){
+    if(String(src||'').slice(0,11)==='data:image/')
+      out.push({slot:'_line',i:i,f:{nama:(l.produk||'gambar')+'-'+(i+1)+'.png',tipe:'image/png',data:src}});});}catch(e){}
+  if(l&&l.coll){
+    var slot={box:'logoBoxFiles',pouch:'logoPouchFiles',card:'logoCardFiles'}[l.coll];
+    if(slot)(b[slot]||[]).forEach(function(f,i){tambah(slot,f,i);});}
+  if(l&&(l.jasa||(l.perso&&l.perso!=='-')))(b.persoFiles||[]).forEach(function(f,i){tambah('persoFiles',f,i);});
+  return out;}
+/* Simpan satu berkas ke komputer — dari data URI, tanpa perlu server. */
+function gambarUnduhSatu(f){
+  try{
+    var a=document.createElement('a');
+    a.href=f.data;a.download=f.nama||'gambar';
+    document.body.appendChild(a);a.click();a.remove();
+    return true;}catch(e){return false;}}
+function gambarCari(id,slot,i,kunci){
+  var o=ST.orders.find(function(x){return x.id===id;});if(!o)return null;
+  if(slot==='_line'){
+    var G=(ST._gmb||{})[kunci||'']||[];
+    var x=G.filter(function(y){return y.slot==='_line'&&y.i===i;})[0];
+    if(x)return x.f;
+    /* kunci tak diberikan — cari di semua daftar yang sedang terbuka */
+    var semua=[];Object.keys(ST._gmb||{}).forEach(function(k2){semua=semua.concat(ST._gmb[k2]);});
+    var y2=semua.filter(function(y){return y.slot==='_line'&&y.i===i;})[0];
+    return y2?y2.f:null;}
+  return ((briefGet(o)[slot])||[])[i]||null;}
+function gambarUnduh(id,slot,i){
+  var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
+  var f=gambarCari(id,slot,i);if(!f)return;
+  if(!gambarUnduhSatu(f))alert('Browser menolak mengunduh berkas ini.');}
+function gambarUnduhSemua(id,kunci){
+  var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
+  var G=(ST._gmb||{})[kunci]||[];
+  if(!G.length){alert('Tak ada gambar untuk diunduh.');return;}
+  /* diberi jeda: browser membatalkan unduhan beruntun yang terlalu rapat */
+  G.forEach(function(x,n){setTimeout(function(){gambarUnduhSatu(x.f);},n*350);});
+  alert('⬇ '+G.length+' gambar diunduh — tinggal diseret ke chat vendor.');}
+/* Salin satu gambar ke clipboard supaya bisa langsung ditempel di WhatsApp.
+   Clipboard browser hanya menerima PNG, jadi JPEG digambar ulang dulu. */
+function gambarSalin(id,slot,i){
+  var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
+  var f=gambarCari(id,slot,i);if(!f)return;
+  if(!(window.ClipboardItem&&navigator.clipboard&&navigator.clipboard.write)){
+    alert('Browser ini tak bisa menyalin gambar. Pakai tombol unduh, lalu seret berkasnya ke chat vendor.');return;}
+  var img=new Image();
+  img.onload=function(){
+    try{
+      var c=document.createElement('canvas');c.width=img.naturalWidth;c.height=img.naturalHeight;
+      c.getContext('2d').drawImage(img,0,0);
+      c.toBlob(function(bl){
+        if(!bl){alert('Gambarnya gagal disiapkan. Pakai tombol unduh saja.');return;}
+        navigator.clipboard.write([new ClipboardItem({'image/png':bl})]).then(function(){
+          alert('📋 Gambar tersalin — tinggal tempel di WhatsApp vendor.');
+        },function(){alert('Browser menolak menyalin gambar. Pakai tombol unduh saja.');});
+      },'image/png');
+    }catch(e){alert('Gambarnya gagal disiapkan. Pakai tombol unduh saja.');}};
+  img.onerror=function(){alert('Gambarnya tak terbaca.');};
+  img.src=f.data;}
+/* Blok gambar di kotak pesan: terlihat dulu, baru bisa dikirim. */
+function vendorGambarBlok(o,l,kunci){
+  var G=vendorGambar(o,l);
+  ST._gmb=ST._gmb||{};ST._gmb[kunci]=G;
+  if(!G.length)return '<div style="border:1px dashed var(--line);border-radius:9px;padding:9px 11px;margin-bottom:12px;'+
+    'font-size:10px;color:var(--muted);line-height:1.55">Belum ada gambar referensi di order ini. '+
+    'Vendor kemasan menghargai dari gambar — lampirkan dulu di <b>Brief → Referensi client</b> kalau ada.</div>';
+  return '<div style="border:1px solid var(--line);border-radius:9px;padding:9px 11px;margin-bottom:12px;background:var(--bg)">'+
+    '<div style="display:flex;gap:9px;align-items:center;flex-wrap:wrap;margin-bottom:7px">'+
+      '<b style="font-size:10.5px">Gambar yang perlu ikut</b>'+
+      '<span style="font-size:9.5px;color:var(--muted)">'+G.length+' berkas — teks pesan tak membawa gambar, jadi kirimkan ini bersamanya</span>'+
+      '<button class="btn ghost sm" style="margin-left:auto" onclick="gambarUnduhSemua(\''+o.id+'\',\''+esc(kunci)+'\')">⬇ Unduh semua</button>'+
+    '</div>'+
+    '<div style="display:flex;gap:9px;flex-wrap:wrap">'+
+      G.map(function(x){
+        return '<div style="width:96px">'+
+          '<img src="'+x.f.data+'" style="width:96px;height:72px;object-fit:cover;border-radius:7px;border:1px solid var(--line);cursor:zoom-in" onclick="openLB(this.src)">'+
+          '<div style="font-size:8.5px;color:var(--muted);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+esc(x.f.nama||'')+'">'+esc(x.f.nama||'')+'</div>'+
+          '<div style="display:flex;gap:3px;margin-top:2px">'+
+            '<button class="btn ghost sm" style="flex:1;font-size:8.5px;padding:2px 0" title="salin gambar untuk ditempel di WhatsApp" '+
+              'onclick="gambarSalin(\''+o.id+'\',\''+x.slot+'\','+x.i+')">📋</button>'+
+            '<button class="btn ghost sm" style="flex:1;font-size:8.5px;padding:2px 0" title="unduh gambar ini" '+
+              'onclick="gambarUnduh(\''+o.id+'\',\''+x.slot+'\','+x.i+')">⬇</button>'+
+          '</div></div>';}).join('')+
+    '</div></div>';}
 function vendorKontakBlok(nama){
   var v=vendorData(nama);
   var hp=(v&&v.hp)||'',pic=(v&&String(v.kontak||'').trim())||'';
@@ -11811,6 +12082,24 @@ function ordSvcSet(id,jenis,i,v){
   /* jasanya sudah bernama — vendornya masuk antrean harga */
   try{barisVendorLengkapi(o);}catch(e){}
   save();render();}
+/* Teknik diatur sekali di master, berlaku ke semua order. Yang dibutuhkan
+   di sini bukan kolom isian, tapi jalan ke tempatnya. */
+function bukaMasterJasa(){
+  if(!can('master')||!canSec('produk')){
+    alert('Teknik diatur di Master Product → Jasa, dan jabatanmu tak bisa membukanya dari sini.'+
+      String.fromCharCode(10)+String.fromCharCode(10)+
+      'Minta yang memegang Master data mengubahnya di sana. Sekali diubah, berlaku untuk '+
+      'semua order yang memakai jasa itu — memang begitu maunya, supaya teknik yang sama '+
+      'tak berbeda-beda antar order.');return;}
+  ST.view='master';ST.masterTab='produk';ST._prodTab='jasa';ST.cur=null;render();}
+function teknikLabel(n){
+  var tk=jasaTeknik(n),ada=(tk&&tk!=='-');
+  var judul=ada?('Teknik "'+tk+'" melekat pada jasa ini di Master Product → Jasa — berlaku sama di semua order. Klik untuk membukanya.')
+               :('Jasa ini belum punya teknik di Master Product → Jasa, jadi ia tak membatasi pilihan Personalization. Klik untuk mengisinya.');
+  return '<span style="font-size:9.5px;white-space:nowrap;cursor:pointer;text-decoration:underline dotted;'+
+    'text-underline-offset:3px;color:'+(ada?'var(--muted)':'var(--warn)')+'" title="'+esc(judul)+'" '+
+    'onclick="bukaMasterJasa()">'+
+    (ada?('teknik: <b>'+esc(tk)+'</b>'):'<b>tanpa teknik</b>')+' ✎</span>';}
 function ordSvcEditor(o,hanya){
   var jenisDipakai=hanya?[hanya]:['Live service','Service'];
   var baris=jenisDipakai.map(function(jenis){
@@ -11823,9 +12112,18 @@ function ordSvcEditor(o,hanya){
         '<span class="pill" style="font-size:9.5px;white-space:nowrap">'+esc(jenis)+'</span>'+
         '<select class="pin" style="flex:1;min-width:0" onchange="ordSvcSet(\''+o.id+'\',\''+jenis+'\','+i+',this.value)">'+
           pil.map(function(x){return '<option '+(x===n?'selected':'')+'>'+esc(x)+'</option>';}).join('')+'</select>'+
-        '<span style="font-size:9.5px;color:var(--muted);white-space:nowrap">'+(tk&&tk!=='-'?('teknik: <b>'+esc(tk)+'</b>'):'tanpa teknik')+'</span>'+
+        teknikLabel(n)+
         '<button class="btn ghost sm" onclick="ordSvcDel(\''+o.id+'\',\''+jenis+'\','+i+')" title="Hapus">✕</button></div>';}).join('');}).join('');
+  /* Pembatasan berlaku untuk SELURUH order, bukan untuk blok ini saja —
+     persoOpts() membacanya dari orderTeknik(o). Jadi katakan begitu, dan
+     sebutkan datangnya dari mana; jangan sampai blok Add-on yang masih kosong
+     terlihat seperti penyebab pembatasan yang sebenarnya milik Live service. */
   var tk=orderTeknik(o);
+  var tkDari=function(k){
+    var out=[];liveList(o[k]).forEach(function(n){var t=jasaTeknik(n);
+      if(t&&t!=='-'&&out.indexOf(t)<0)out.push(t);});return out;};
+  var dLive=tkDari('liveSvc'),dAdd=tkDari('svc');
+  var adaBaris=!!baris;
   return '<div style="margin-bottom:8px">'+baris+
     '<div style="display:flex;gap:7px;margin-top:'+(baris?'2px':'0')+'">'+
       (jenisDipakai.indexOf('Live service')>=0
@@ -11834,8 +12132,15 @@ function ordSvcEditor(o,hanya){
         ?'<button class="btn ghost sm" onclick="ordSvcAdd(\''+o.id+'\',\'Service\')">＋ Add-on</button>':'')+
       '</div>'+
     '<div style="font-size:9.5px;color:var(--muted);margin-top:5px">'+
-      (tk.length?('Teknik personalization di baris pricing dibatasi ke: <b>'+tk.map(esc).join(', ')+'</b>.')
-               :'Belum ada jasa dipilih — teknik personalization masih bebas dari master.')+'</div></div>';}
+      (tk.length
+        ? ('Teknik personalization di baris pricing dibatasi ke <b>'+tk.map(esc).join(', ')+'</b> — '+
+           'gabungan seluruh order'+
+           [dLive.length?('Live service: '+dLive.map(esc).join(', ')):'',
+            dAdd.length?('Add-on: '+dAdd.map(esc).join(', ')):'']
+             .filter(Boolean).map(function(x){return ' · '+x;}).join('')+'.'+
+           (adaBaris?'':' Bagian ini sendiri belum berisi apa-apa.'))
+        : (adaBaris?'Jasa yang dipilih belum punya teknik di master, jadi pilihan Personalization masih bebas.'
+                  :'Belum ada jasa dipilih — teknik personalization masih bebas dari master.'))+'</div></div>';}
 function kardusPakai(id){ // pakai hasil hitungan sebagai berat kirim
   var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
   var k=hitungKardus(o);if(!k.paket.length){alert('Belum bisa dihitung — lengkapi ukuran & berat produk di Master Product.');return;}
