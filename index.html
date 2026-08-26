@@ -1111,6 +1111,7 @@ const EN={
 'PIC sketch':'Sketch owner','Diminta selesai':'Wanted by','Yang perlu digambar':'What needs drawing',
 '✓ Sketch selesai':'✓ Sketch done','↺ Belum selesai':'↺ Not done yet','Diminta':'Requested',
 'Harga jual per pcs':'Selling price per piece',
+'Order VIP — sketsa boleh diminta sebelum fasenya.':'VIP order — a sketch may be requested ahead of its phase.',
 'Client minta dilihat sketsanya dulu? Tak perlu tunggu fase Sketch.':
   'Client wants to see a sketch first? No need to wait for the Sketch phase.',
 '＋ Item katalog':'＋ Catalogue item','＋ Item custom':'＋ Custom item',
@@ -9750,8 +9751,18 @@ function profitPanel(o){
 function sketchPIC(){
   var U=((ST.master&&ST.master.users)||[]).filter(function(u){return u.jabatan==='Creative'&&u.aktif!==false;});
   return U.map(function(u){return u.username;});}
+/* Sketsa lebih awal = kerja desain sebelum client terikat apa pun. Yang
+   memutuskan sebuah order pantas didahulukan itu Direktur, lewat VIP. */
+function sketchBoleh(o){return isVip(o);}
 function sketchMinta(id){
   var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
+  /* permintaan yang sudah terlanjur ada tetap boleh diurus — yang ditutup
+     cuma membuat permintaan baru pada order yang bukan VIP */
+  if(!o.sketchReq&&!sketchBoleh(o)){
+    alert('Sketsa lebih awal cuma untuk order VIP.'+String.fromCharCode(10)+String.fromCharCode(10)+
+      'Sebelum penawaran disetujui, gambarnya belum tentu dibayar. Kalau order ini memang perlu '+
+      'didahulukan, ajukan jadi VIP dulu — yang memutuskan Direktur Utama.');
+    return;}
   var pic=sketchPIC();
   askForm({judul:'Minta sketch lebih awal',sub:o.customer+' · '+(o.product||''),
     fields:[
@@ -9777,9 +9788,13 @@ function sketchSelesai(id){
   logHist(o,'Sketch '+(o.sketchReq.status==='Selesai'?'selesai':'dibuka lagi'));
   o._m=Date.now();save();render();}
 function sketchBar(o){
-  var r=o.sketchReq;
-  if(!r)return '<div style="border-top:1px dashed var(--line);margin-top:11px;padding-top:10px;display:flex;flex-wrap:wrap;gap:9px;align-items:center">'+
-    '<span style="font-size:10.5px;color:var(--muted)">Client minta dilihat sketsanya dulu? Tak perlu tunggu fase Sketch.</span>'+
+  var r=o.sketchReq,bar='border-top:1px dashed var(--line);margin-top:11px;padding-top:10px;display:flex;flex-wrap:wrap;gap:9px;align-items:center';
+  if(!r&&!sketchBoleh(o))return '<div style="'+bar+'">'+
+    '<span style="font-size:10.5px;color:var(--muted)">Client minta dilihat sketsanya dulu? '+
+      '<b>Sketsa sebelum fasenya cuma untuk order VIP</b> — selama penawaran belum disetujui, gambarnya belum tentu dibayar.</span>'+
+    '<span style="margin-left:auto">'+vipTombol(o,'order')+'</span></div>';
+  if(!r)return '<div style="'+bar+'">'+vipLencana(true)+
+    '<span style="font-size:10.5px;color:var(--muted)">Order VIP — sketsa boleh diminta sebelum fasenya.</span>'+
     '<button class="btn ghost sm" style="margin-left:auto" onclick="sketchMinta(\''+o.id+'\')">✏️ Minta sketch sekarang</button></div>';
   var sel=(r.status==='Selesai');
   return '<div style="border-top:1px dashed var(--line);margin-top:11px;padding-top:10px">'+
