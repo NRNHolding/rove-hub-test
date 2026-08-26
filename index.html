@@ -7741,7 +7741,11 @@ function bayarCatat(id,jenis,dariBukti){
   if(G<=0){alert('Grand total masih 0 — isi baris pricing dulu sebelum mencatat pembayaran.');return;}
   var dp=(jenis==='dp');
   if(dp&&(+pay.dp||0)>0){alert('DP sudah tercatat '+fmt0(pay.dp)+' pada '+(pay.dpDate||'-')+'.\n\nPakai "Ubah" kalau nominalnya keliru.');return;}
-  if(!dp&&(+pay.dp||0)<=0){alert('Catat DP dulu sebelum pelunasan.');return;}
+  /* tanpa DP boleh, ASAL lewat surat PO resmi yang sudah disetujui Direktur —
+     aturan yang sama dipakai gerbang fase Menunggu DP, jadi tak bisa berbeda */
+  if(!dp&&!dpTerpenuhi(o)){
+    alert('Catat DP dulu sebelum pelunasan.\n\nKalau order ini memang berjalan tanpa DP, '+
+      'lampirkan surat PO client dan minta Direktur menyetujuinya dulu di fase Menunggu DP / PO resmi.');return;}
   if(!dp&&sisa<=0){alert('Sudah lunas — tak ada sisa tagihan.');return;}
   var saran=dp?Math.round(G*((+o.dpPct||50)/100)):sisa;
   var bk=buktiGet(o),dariTeks=dariBukti?angkaDariTeks(bk.teks):0;
