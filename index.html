@@ -4762,6 +4762,15 @@ function persoDariKolom(baris,kn,kc){
     return {nama:String(r[kn]||'').trim(),catatan:kc>=0?String(r[kc]||'').trim():''};
   }).filter(function(d){return d.nama;});}
 
+/* Lembar yang dibuka duluan: yang punya judul kolom nama. Kalau tak ada
+   yang berjudul, yang barisnya paling banyak — "Rekap" 2 baris tak akan menang. */
+function persoLembarTerbaik(lembar){
+  var berjudul=lembar.findIndex(function(s){
+    return (s.baris[0]||[]).some(function(x){return PKOL_NAMA.test(x);});});
+  if(berjudul>=0)return berjudul;
+  var besar=0;
+  lembar.forEach(function(s,i){if(s.baris.length>lembar[besar].baris.length)besar=i;});
+  return besar;}
 /* Satu kotak untuk semua impor: pilih lembar, pilih kolom, lihat contohnya,
    baru masuk. Tanpa ini, berkas tamu yang kolomnya banyak gampang salah ambil. */
 function persoKotakImpor(o,lembar,berkas){
@@ -4802,7 +4811,8 @@ function persoKotakImpor(o,lembar,berkas){
         '<button class="btn ghost sm" data-a="x">Batal</button>'+
         '<button class="btn sm" data-a="ok"'+(contoh.length?'':' disabled')+'>Impor '+contoh.length+' nama</button></div></div>';
     try{trDOM(ov);}catch(e){}}
-  var L0=lembar[0], t0=persoTebakKolom(persoLabelKolom(L0.baris));
+  pilih.l=persoLembarTerbaik(lembar);
+  var t0=persoTebakKolom(persoLabelKolom(lembar[pilih.l].baris));
   pilih.n=t0.nama; pilih.c=t0.cat;
   gambar();
   ov.addEventListener('change',function(ev){
