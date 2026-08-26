@@ -2028,7 +2028,7 @@ function loadLeads(){try{ST.leads=JSON.parse(localStorage.getItem(LEAD_KEY)||'nu
   if(!ST.leads){ST.leads=defLeads();localStorage.setItem(LEAD_KEY,JSON.stringify(ST.leads));}}
 function defLeads(){var d=function(n){var x=new Date();x.setDate(x.getDate()+n);return x.toISOString().slice(0,10);};
   return [
-   {id:'L001',nama:'Wedding Sinta & Bagas',kontak:'+62 813-2200-1101',channel:'Instagram',produk:'Pouch + Card',qty:250,estimasi:32000000,status:'Follow-up',masuk:d(-12),fuNext:d(-2),pic:'Jessica B',catatan:'',touch:d(-6),log:[{t:'',by:'Jessica B',txt:'Sudah kirim katalog, minta waktu diskusi pasangan'}],_m:Date.now()},
+   {id:'L001',nama:'Wedding Sinta & Bagas',kontak:'+62 813-2200-1101',channel:'Instagram',produk:'Pouch + Card',qty:250,vip:true,estimasi:32000000,status:'Follow-up',masuk:d(-12),fuNext:d(-2),pic:'Jessica B',catatan:'',touch:d(-6),log:[{t:'',by:'Jessica B',txt:'Sudah kirim katalog, minta waktu diskusi pasangan'}],_m:Date.now()},
    {id:'L002',nama:'PT Astra Finance',kontak:'+62 811-9000-2202',channel:'Email',produk:'Gift set akhir tahun',qty:500,estimasi:145000000,status:'Ditanggapi',masuk:d(-4),fuNext:d(3),pic:'David Edward',catatan:'',touch:d(-1),log:[{t:'',by:'David Edward',txt:'Minta proposal + sample'}],_m:Date.now()},
    {id:'L003',nama:'Hotel Padma Bali',kontak:'+62 812-7788-3303',channel:'WhatsApp',produk:'Menu book kulit',qty:80,estimasi:24000000,status:'Baru',masuk:d(-1),fuNext:d(2),pic:'Rani P',catatan:'',touch:d(-1),log:[],_m:Date.now()},
    {id:'L004',nama:'Wedding Vina & Reno',kontak:'+62 815-4400-5505',channel:'Referral',produk:'Keychain 150pcs',qty:150,estimasi:11000000,status:'Batal',masuk:d(-30),fuNext:'',pic:'Jessica B',catatan:'',touch:d(-20),log:[{t:'',by:'Jessica B',txt:'Pilih vendor lain, harga lebih murah'}],_m:Date.now()},
@@ -2143,36 +2143,14 @@ function kirimKeInquiry(id){
 
 
 /* ---- client VIP ---- */
-/* VIP menempel pada CLIENT-nya, bukan pada satu ordernya. Ditandai sekali di
-   Master → Customers, lalu semua order dan prospek client itu ikut VIP —
-   tanpa perlu ditandai satu per satu tiap ada order baru. Penanda per order
-   tetap dihormati untuk pengecualian. */
-function custCari(nama){
-  var n=String(nama||'').trim().toLowerCase();if(!n)return null;
-  var C=((ST.master||{}).customers)||[];
-  return C.find(function(x){return String(x.nama||'').trim().toLowerCase()===n;})||null;}
-function custVip(nama){var c=custCari(nama);return !!(c&&c.vip);}
-function isVip(x){
-  if(!x)return false;
-  if(x.vip)return true;
-  return custVip(x.customer||x.nama);}
+/* VIP ditetapkan per ORDER, dari kartu prospeknya. Sengaja bukan per
+   customer: client yang sama bisa punya order biasa dan order yang memang
+   perlu didahulukan — yang VIP itu pekerjaannya, bukan orangnya. Status ini
+   ikut sendiri waktu prospek dikirim ke Inquiry. */
+function isVip(x){return !!(x&&x.vip);}
 function bolehAturVip(){var R=myRoles();
   return R.indexOf('Direktur Utama')>=0||R.indexOf('Holding')>=0;}
-/* ditandai di master, berlaku untuk semua order client itu */
-function custVipToggle(i){
-  var C=((ST.master||{}).customers)||[],c=C[i];if(!c)return;
-  var jadi=!c.vip;
-  if(jadi&&!confirm('Jadikan "'+(c.nama||'client ini')+'" client VIP?\n\n'+
-    'Berlaku untuk SEMUA ordernya: boleh minta sketsa lebih dulu, dan ordernya '+
-    'naik ke paling atas di daftar tugas tiap jabatan.'))return;
-  if(!jadi&&!confirm('Cabut status VIP dari "'+(c.nama||'client ini')+'"?'))return;
-  c.vip=jadi;stampRow(c);saveMaster();render();}
-function custVipTombol(i,c){
-  var on=!!c.vip;
-  if(!bolehAturVip())return on?vipLencana():'<span style="font-size:9.5px;color:var(--muted)">—</span>';
-  return '<button class="btn '+(on?'':'ghost ')+'sm" style="font-size:9.5px'+
-    (on?';background:var(--gold);border-color:var(--gold);color:#2b1d0e':'')+
-    '" onclick="vipToggle(\'cust\','+i+')">'+(on?'★ Client VIP':'☆ Jadikan VIP')+'</button>';}
+
 function vipLencana(kecil){
   return '<span title="Client VIP — boleh minta sketsa lebih dulu" style="background:var(--gold);color:#2b1d0e;'+
     'border-radius:5px;padding:'+(kecil?'0 5px':'1px 7px')+';font-size:'+(kecil?'8.5px':'9px')+
@@ -2188,7 +2166,6 @@ function vipTombol(x,jenis){
     (on?'★ Client VIP':'☆ Jadikan VIP')+'</button>';}
 function vipToggle(jenis,id){
   if(!bolehAturVip()){alert('Hanya Direktur Utama yang bisa menetapkan client VIP.');return;}
-  if(jenis==='cust'){custVipToggle(id);return;}
   var x=(jenis==='lead')?leadsAll().find(function(y){return y.id===id;})
                         :ST.orders.find(function(y){return y.id===id;});
   if(!x)return;
@@ -2216,7 +2193,8 @@ function leadPanel(){
     if(ST._lhide&&!leadAktif(l))return false;
     if(q&&[l.nama,l.kontak,l.produk,l.pic,l.catatan].concat(leadSpecRingkas(l)).join(' ').toLowerCase().indexOf(q)<0)return false;
     return true;});
-  tampil.sort(function(a,b){return leadDiam(b)-leadDiam(a);});
+  /* VIP di paling atas, sesudah itu yang paling lama didiamkan */
+  tampil.sort(function(a,b){return (isVip(b)?1:0)-(isVip(a)?1:0)||leadDiam(b)-leadDiam(a);});
   var aktif=L.filter(leadAktif).length,telat=L.filter(leadTelat).length;
   var nilai=L.filter(leadAktif).reduce(function(s,l){return s+(+l.estimasi||0);},0);
   var baris=tampil.map(function(l){
@@ -3762,7 +3740,7 @@ function seed(){
       {produk:'Nagano Passport Wallet',bahan:'Chromium-Tanned Leather',perso:'Deboss Blind',sumber:'Radja Leather',hpp:79000,img:'wallet',fixed:true},
       {produk:'Dundee Luggage Tag',bahan:'Chromium-Tanned Leather',perso:'Deboss Blind',sumber:'Radja Leather',hpp:75000,img:'tag',fixed:true},
       {produk:'Brief Card',bahan:'Uncoated',finishing:'Debossed',ukuran:'6 x 9',perso:'Deboss Blind',sumber:'CardPrint',hpp:1450,img:'card',fixed:false}]},
-   {tipe:'Custom',nama:'Carrie & Aaron',prefix:'w',sales:'Jessica B',
+   {tipe:'Custom',nama:'Carrie & Aaron',prefix:'w',sales:'Jessica B',vip:true,
     bride:'Carrie Wijaya',groom:'Aaron Tanuwijaya',
     pic:'Nadia (WO Bhumi)',jab:'Wedding Organizer',hp:'+62 812-3388-7712',mail:'carrie.aaron@gmail.com',
     kota:'Denpasar',eksp:'Travel',tarif:20000,venue:'The Ritz-Carlton Bali, Sawangan',
@@ -3799,6 +3777,7 @@ function seed(){
       var lines=K.lines.map(function(l){
         var c=Object.assign({},l);c.qty=K.qty;c.img=IMG[l.img];c.hppAsli=l.hpp;return c;});
       var o=mk({id:'demo'+ki+'p'+ph,_m:STEMPEL,prefix:K.prefix,type:K.tipe,customer:K.nama,
+        vip:!!K.vip,                       // contoh client VIP di data uji
         product:lines[0].produk+(lines.length>1?(' (+'+(lines.length-1)+' item)'):''),
         qty:lines.reduce(function(s,l){return s+l.qty;},0),
         mat:lines[0].bahan,date:ddmmyy(mulai),eventDate:iso(acara),phase:ph,
@@ -4088,7 +4067,7 @@ function defAccess(){var a={};ROLES.forEach(function(r){a[r]={board:true,tasks:t
   /* Order lahir dari prospek, bukan dari form. Holding & Direktur Utama tetap
      bisa membuat manual sebagai jalan darurat (order tak lewat prospek,
      pembetulan data). Ubah di Master data → Hak akses kalau perlu. */
-  ['Holding','Direktur Utama'].forEach(function(r){a[r].neworder=true;});['Holding','Direktur Utama','Finance'].forEach(function(r){a[r].report=true;});['Sales','Holding','Direktur Utama'].forEach(function(r){a[r].leads=true;});a['Holding'].master=true;a['Direktur Utama'].master=true;a['Holding'].tax=true;['Marketing','Creative','Holding','Direktur Utama'].forEach(function(r){a[r].konten=true;});['Direktur Utama','Holding','Finance'].forEach(function(r){a[r].hr=true;});['Finance','Direktur Utama','Holding'].forEach(function(r){a[r].fin=true;a[r].aset=true;});['Warehouse','Packing & Shipping','Purchasing','Project Manager','Holding','Direktur Utama'].forEach(function(r){a[r].inv=true;});return a;}
+  ['Holding','Direktur Utama'].forEach(function(r){a[r].neworder=true;});['Holding','Direktur Utama','Finance'].forEach(function(r){a[r].report=true;});['Sales','Holding','Direktur Utama'].forEach(function(r){a[r].leads=true;});a['Holding'].master=true;a['Holding'].tax=true;['Marketing','Creative','Holding','Direktur Utama'].forEach(function(r){a[r].konten=true;});['Direktur Utama','Holding','Finance'].forEach(function(r){a[r].hr=true;});['Finance','Direktur Utama','Holding'].forEach(function(r){a[r].fin=true;a[r].aset=true;});['Warehouse','Packing & Shipping','Purchasing','Project Manager','Holding','Direktur Utama'].forEach(function(r){a[r].inv=true;});return a;}
 /* Kalau fitur belum tercatat di matriks (mis. menu baru pada data lama),
    ikuti bawaan jabatan — JANGAN otomatis "boleh", nanti menu bocor ke semua orang. */
 var _defAcc=null;
@@ -4487,7 +4466,7 @@ function venTab(v){ST._venTab=v;render();}
 function shipTab(v){ST._shipTab=v;render();}
 function opTab(v){ST._opTab=v;render();}
 const MSEC=[['users','Users / Akun','akun login staff'],['access','Hak akses','siapa boleh buka apa'],['opts','Opsi form','isi dropdown order'],['customers','Customers','database client'],['vendors','Vendors','daftar vendor & bank'],['produk','Master Product','produk, collateral, jasa'],['operator','Operator','tim live service'],['shipping','Pengiriman','ongkir, kardus, kurs']];
-const MSEC_OWNER={customers:['Sales','Direktur Utama'],vendors:['Purchasing'],produk:['Purchasing','Project Manager'],operator:['Event Management'],shipping:['Packing & Shipping']};
+const MSEC_OWNER={customers:['Sales'],vendors:['Purchasing'],produk:['Purchasing','Project Manager'],operator:['Event Management'],shipping:['Packing & Shipping']};
 /* ---- kardus & kurs (dari Cost Estimator / Shipping Calculator) ---- */
 function defKardus(){return [
   {size:'XS',L:20,W:20,H:16,wg:200},{size:'S',L:35,W:32,H:20,wg:350},
@@ -5018,15 +4997,7 @@ function loadMaster(){try{ST.master=JSON.parse(localStorage.getItem('rovehub_mas
     ST.master._migOrderDariProspek=1;saveMaster();}
 
    if(!ST.master.msec){ST.master.msec=defMsec();saveMaster();} var dm=defMsec();ROLES.forEach(function(r){if(!ST.master.msec[r]){ST.master.msec[r]=dm[r];saveMaster();}});
-   /* Direktur perlu daftar customer — di situ status VIP ditetapkan. Data
-      yang tersimpan sebelum aturan ini dibuat tak punya izinnya. Tab Master
-      ikut dibuka; isinya tetap dibatasi msec, jadi yang terlihat cuma
-      Customers — bukan Users apalagi Hak akses. */
-   if(ST.master.msec['Direktur Utama']&&ST.master.msec['Direktur Utama'].customers!==true){
-     ST.master.msec['Direktur Utama'].customers=true;saveMaster();}
-   if(ST.master.access&&ST.master.access['Direktur Utama']&&
-      ST.master.access['Direktur Utama'].master!==true){
-     ST.master.access['Direktur Utama'].master=true;saveMaster();}
+
    ST.master.catalog.forEach(function(r){if(!r.jenis)r.jenis='Katalog';});}
 function mEdit(sec,i,f,v){var r=ST.master[sec][i];r[f]=v;
   if(sec==='customers'&&(f==='bride'||f==='groom')&&r.tipe==='Wedding'){
@@ -5147,9 +5118,6 @@ function renderMaster(){
          '<td style="font-size:9px;color:var(--muted)">'+fmtStamp(r)+'</td>'+actCell('customers',i,r)+'</tr>';
        var bawah='<tr'+redup+'><td colspan="'+(colsAtas.length+3)+'" style="padding-top:0;border-bottom:2px solid var(--line)">'+
          '<div style="display:flex;flex-wrap:wrap;gap:7px 10px">'+
-         '<div style="flex:0 0 auto;min-width:0">'+
-           '<div style="font-size:8.5px;color:var(--muted);font-weight:700;letter-spacing:.02em;margin-bottom:2px">Status VIP</div>'+
-           custVipTombol(i,r)+'</div>'+
          colsBawah.map(function(c){
            return '<div style="flex:'+(lebarBawah[c[0]]||'1 1 130px')+';min-width:0">'+
              '<div style="font-size:8.5px;color:var(--muted);font-weight:700;letter-spacing:.02em;margin-bottom:2px">'+esc(c[1])+'</div>'+
@@ -6618,7 +6586,16 @@ function kartuProspek(l){
   return '<div class="oc" style="border-left-color:'+(u==='merah'?'#d9534f':(u==='kuning'?'#c78a24':pfColor(p)))+
       ';border-style:dashed;opacity:.93" onclick="bukaProspek(\''+l.id+'\')">'+
     '<div class="on"><span class="pf" style="background:'+pfColor(p)+'">'+p.toUpperCase()+'</span>'+
-      esc(l.nama||'(tanpa nama)')+(isVip(l)?(' '+vipLencana(true)):'')+'</div>'+
+      esc(l.nama||'(tanpa nama)')+(isVip(l)?(' '+vipLencana(true)):'')+
+      /* stopPropagation: kartunya sendiri sudah bisa diklik untuk dibuka */
+      (bolehAturVip()
+        ?('<span style="margin-left:auto" onclick="event.stopPropagation()">'+
+          '<button class="xrow" style="color:'+(isVip(l)?'var(--gold)':'var(--muted)')+
+          ';font-size:13px;line-height:1" title="'+(isVip(l)?'cabut status VIP':'jadikan order VIP')+
+          '" onclick="event.stopPropagation();vipToggle(\'lead\',\''+l.id+'\')">'+
+          (isVip(l)?'★':'☆')+'</button></span>')
+        :'')+
+    '</div>'+
     '<div class="om"><span>'+esc(leadJudul(l))+(q?(' · '+q+'pcs'):'')+'</span>'+
       '<span>'+esc(l.channel||'')+'</span></div>'+
     '<div class="om" style="margin-top:5px">'+
@@ -6628,8 +6605,11 @@ function kartuProspek(l){
 function renderBoard(){
   const ALL=ST.orders.filter(o=>!o.deleted);
   const A=ALL.filter(boardMatch);
-  const cols=PH.map((p,i)=>({i,p,items:A.filter(o=>o.phase===i)}));
-  cols.push({i:PH.length,p:{n:'Selesai',cat:['rove','ARCHIVED']},items:A.filter(o=>o.phase>=PH.length||o.done)});
+  /* VIP naik ke atas di kolomnya masing-masing — sama seperti di daftar
+     tugas. Order istimewa yang terkubur di tengah kolom sama saja tak ada. */
+  const vipDulu=(a,b)=>(isVip(b)?1:0)-(isVip(a)?1:0);
+  const cols=PH.map((p,i)=>({i,p,items:A.filter(o=>o.phase===i).sort(vipDulu)}));
+  cols.push({i:PH.length,p:{n:'Selesai',cat:['rove','ARCHIVED']},items:A.filter(o=>o.phase>=PH.length||o.done).sort(vipDulu)});
   const aktif=(ST._bq||ST._bpf||ST._bst||ST._bhide);
   const jalan=pipeList('FILTER').length;   // yang bisa diringkas: berjalan saja, tanpa selesai/cancel
   const filterBar=`<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px">
@@ -6715,6 +6695,7 @@ function renderDetail(){
    </div>
    <div class="card actcard" style="margin-top:14px"><div class="ch"><span class="ico" style="background:var(--hub)">▶</span><div><div class="t">Langkah saat ini</div><div class="s">FASE ${selesai?'—':(o.phase+1)}/${PH.length}</div></div></div><div class="body">${actHTML}</div></div>
    ${peringatanBlok(o)}
+   ${ringkasSebelumBlok(o)}
    ${panelStack(o)}
    ${histPanel(o)}`;
 }
@@ -7252,8 +7233,10 @@ function chkLompat(id,fase,k){
   ST.cur=o.id;
   if(pk){ST._stepFor=null;render();ST._stepOpen=ST._stepOpen||{};ST._stepOpen[pk]=true;}
   render();
-  /* gulirkan ke panelnya supaya tak perlu dicari lagi */
+  /* gulirkan ke panelnya supaya tak perlu dicari lagi — lewat id panelnya,
+     bukan lewat mencocokkan judul kartu, supaya sama dengan tombol Isi sekarang */
   setTimeout(function(){
+    if(sorotPanel(pk))return;
     var kartu=[].filter.call(document.querySelectorAll('#main .card'),function(c){
       var t=c.querySelector('.ch .t');return t&&t.textContent.trim()===namaPanelDari(pk);});
     if(kartu[0]&&kartu[0].scrollIntoView)kartu[0].scrollIntoView({behavior:'smooth',block:'start'});
@@ -7331,6 +7314,158 @@ function chkPanel(o){
         ? '<button class="btn sm" onclick="chkIngatSemua(\'' + o.id + '\',' + f + ')">⏰ Ingatkan semua PIC yang belum</button>'
         : '<span style="font-size:10px;color:var(--muted)">Tak ada jabatan lain yang perlu ditagih di fase ini.</span>')+
     '</div></div></div>';}
+
+/* ================= RINGKASAN LANGKAH SEBELUMNYA =================
+   Tiap fase menerima sesuatu dari fase sebelumnya. Selama ini yang diterima
+   itu harus dicari sendiri di panel-panel di bawah — padahal yang pertama
+   ingin diketahui begitu kartu dibuka justru "aku dikasih apa".
+
+   Isinya dibaca dari ordernya, bukan diketik: kalau kolomnya belum diisi,
+   yang tampil "—" dan itu memang keadaannya. Untuk fase Inquiry yang
+   sebelumnya bukan fase melainkan prospek, jadi yang diringkas kartu
+   prospeknya. */
+const FASE_HASIL=[
+  /* 0 Inquiry */[
+    ['PIC client', function(o){var b=briefGet(o);
+      return [b.picNama,o.phone].filter(Boolean).join(' · ');}],
+    ['Tanggal acara → kirim', function(o){var b=briefGet(o);
+      return [tglID(o.eventDate),tglID(b.tglKirim)].filter(Boolean).join(' → ');}],
+    ['Kota & venue', function(o){return briefGet(o).venue;}],
+    ['Material utama', function(o){var b=briefGet(o);
+      return [b.mainMat,b.mainMatWarna].filter(Boolean).join(' · ');}],
+    ['Teknik personalisasi', function(o){return briefGet(o).perso;}],
+    ['Referensi gambar', function(o){var n=((briefGet(o).refFiles)||[]).length;
+      return n?(n+' lampiran'):'';}]],
+  /* 1 Pricing Vendor */[
+    ['Harga modal (HPP)', function(o){return fmt0(profitTotals(o).hpp);}],
+    ['Baris yang di-RFQ', function(o){var n=rfqLines(o).length;return n?(n+' baris ditanyakan ke vendor'):'';}],
+    ['Harga master dipastikan', function(o){
+      return konfVendor(o).filter(function(g){
+        return g.baris.every(function(x){return konfSah(x.l);});}).map(function(g){return g.vendor;}).join(', ');}],
+    ['Ketersediaan kulit', function(o){var K=rfqLines(o).filter(function(x){return lineKulit(x.l);});
+      if(!K.length)return '';
+      return K.filter(function(x){return (rfqKulit(x.l).jawab||[]).length>0;}).length+' dari '+K.length+' baris sudah dijawab Radja';}]],
+  /* 2 Penentuan harga jual */[
+    ['Deadline produksi Radja', function(o){return tglID((o.po||{}).deadline);}],
+    ['Batas PO harus turun', function(o){return tglID((o.po||{}).tglPOMax);}],
+    ['Margin', function(o){var m=(o.pricing||{}).margin;return m?(m+'%'):'';}],
+    ['Harga jual', function(o){return fmt0(profitTotals(o).jual);}],
+    ['Disetujui Sales', function(o){return ((o.pricing||{}).jualAppr||{}).tglBy;}]],
+  /* 3 Profitability */[
+    ['Untung bersih', function(o){var p=profitTotals(o);return fmt0(p.profit)+' · '+p.pct+'%';}],
+    ['Nilai tagihan', function(o){return fmt0(orderTotals(o).grand);}],
+    ['Keputusan Direktur', function(o){var d=dirAppr(o);
+      return d?((d.tolak?'DITOLAK — ':'Disetujui ')+(d.tglBy||'')+(d.alasan?(' · '+d.alasan):'')):'';}]],
+  /* 4 Quotation */[
+    ['File penawaran', function(o){return (o.docs||{}).quotation?docNo(o,'quotation'):'';}],
+    ['Status PPN', function(o){return ((o.pricing||{}).pajak||{}).status;}],
+    ['Ongkir', function(o){return [o.shipEksp,o.shipKota,(o.shipKg?(o.shipKg+' kg'):'')].filter(Boolean).join(' · ');}],
+    ['Total yang ditawarkan', function(o){return fmt0(orderTotals(o).grand);}]],
+  /* 5 Menunggu approval quotation */[
+    ['Jawaban client', function(o){return (o.quo||{}).status;}],
+    ['Dicatat', function(o){return tglID((o.quo||{}).tgl);}]],
+  /* 6 Sketch */[
+    ['Preview desain', function(o){var n=((briefGet(o).previewFiles)||[]).length;return n?(n+' lampiran'):'';}],
+    ['Logo per kemasan', function(o){var b=briefGet(o);
+      var p=[['pouch',(b.logoPouchFiles||[]).length],['box',(b.logoBoxFiles||[]).length],['card',(b.logoCardFiles||[]).length]]
+        .filter(function(x){return (o.coll||{})[x[0]];});
+      return p.length?p.map(function(x){return x[0]+' '+x[1];}).join(' · '):'';}],
+    ['Daftar nama tamu', function(o){if(!persoPerPcs(o))return '';
+      var N=persoGet(o);return N.daftar.length+' nama · qty '+persoQty(o);}]],
+  /* 7 Menunggu approval sketsa */[
+    ['Sketsa disetujui', function(o){return tglID((o.sketch||{}).tgl);}],
+    ['Dicatat oleh', function(o){return (o.sketch||{}).by;}]],
+  /* 8 Invoice */[
+    ['File invoice', function(o){return (o.docs||{}).invoice?docNo(o,'invoice'):'';}],
+    ['DP yang diminta', function(o){var g=orderTotals(o).grand;
+      return g?fmt0(Math.round(g*((o.dpPct==null?50:o.dpPct))/100)):'';}],
+    ['No. faktur pajak', function(o){return ((o.pricing||{}).pajak||{}).noFaktur;}]],
+  /* 9 Menunggu DP / PO resmi */[
+    ['Uang muka', function(o){var dp=(o.pay||{}).dp||0;
+      if(dp>0)return fmt0(dp)+' masuk '+tglID((o.pay||{}).dpDate);
+      return poClientSah(o)?('tanpa DP — surat PO '+(poClientGet(o).no||'')):'';}],
+    ['Sisa tagihan', function(o){return fmt0(orderTotals(o).grand-((o.pay||{}).dp||0));}]],
+  /* 10 Spec & PO */[
+    ['Nomor PO Radja', function(o){return (o.po||{}).poNo;}],
+    ['Bahan di PO', function(o){return (o.po||{}).mainMaterial;}],
+    ['Qty spare', function(o){var s=(o.pricing||{}).spare;return (s==null||s==='')?'':(s+' pcs');}],
+    ['Kelengkapan di-OK Direktur', function(o){return ((o.pricing||{}).marginAppr||{}).tglBy;}]],
+  /* 11 Produksi */[
+    ['Tahap produksi', function(o){return (o.prod||{}).stage;}],
+    ['Catatan terakhir', function(o){return (o.prod||{}).note;}],
+    ['Diperbarui', function(o){return (o.prod||{}).updated;}]],
+  /* 12 QC & Packing */[
+    ['Foto QC', function(o){var n=((briefGet(o).qcFiles)||[]).length;return n?(n+' foto'):'';}],
+    ['Foto packing', function(o){var n=((briefGet(o).packFiles)||[]).length;return n?(n+' foto'):'';}],
+    ['Kemasan lengkap', function(o){return tglID((o.prod||{}).collTgl);}],
+    ['Retur berjalan', function(o){if(!returAktif(o))return '';
+      var R=o.retur||{};return (R.putusan||'belum diputuskan')+' · '+
+        (returTuntas(o)?'8 tahap tuntas':(returSisa(o).length+' tahap lagi'));}]],
+  /* 13 Pelunasan & Shipping */[
+    ['Pelunasan', function(o){var p=(o.pay||{}).pel||0;return p?(fmt0(p)+' masuk '+tglID((o.pay||{}).pelDate)):'';}],
+    ['Total dibayar', function(o){return fmt0(((o.pay||{}).dp||0)+((o.pay||{}).pel||0));}],
+    ['Penerima', function(o){return (o.kirim||{}).nama;}],
+    ['No. resi', function(o){return (o.kirim||{}).resi;}]],
+  /* 14 Konfirmasi & Selesai */[
+    ['Barang diterima', function(o){return tglID((o.kirim||{}).tglTerima);}],
+    ['Foto serah terima', function(o){var n=((o.kirim||{}).bukti||[]).length;return n?(n+' lampiran'):'';}]]];
+
+/* Prospek bukan fase, jadi ringkasannya dibaca dari jejak yang ikut waktu
+   dikirim ke Inquiry — bukan dari kartu prospeknya, yang bisa saja sudah
+   disunting sesudah ordernya lahir. */
+function ringkasProspek(o){
+  var d=salesGet(o);
+  if(!d)return null;
+  var item=(d.items||[]).map(function(it){
+    return it.nama+((+it.qty)?(' · '+it.qty+' pcs'):'');}).filter(Boolean);
+  return {judul:'Dari prospek — '+esc(d.dari||'(tanpa nama)'),
+    baris:[['Masuk lewat',d.channel||''],
+           ['Dipegang Sales',d.pic||''],
+           ['Tanggal dikirim ke Inquiry',tglID(d.tgl)||''],
+           ['Jenis order',d.jenis||''],
+           ['Yang diminta client',item.join(' · ')],
+           ['Catatan Sales apa adanya',d.catatan||''],
+           ['Catatan per bagian',(leadSpecRingkasDari(d)||[]).join(' | ')]]};}
+/* ringkasan per bagian (box/pouch/card/…) dari jejak yang terbawa */
+function leadSpecRingkasDari(d){
+  var out=[];
+  Object.keys((d&&d.spec)||{}).forEach(function(k){
+    var s=d.spec[k];if(!s)return;
+    var t=[(s.nada||[]).join(', '),s.note].filter(Boolean).join(' — ');
+    if(s.ada&&t)out.push(k+': '+t);});
+  return out;}
+
+function ringkasSebelumBlok(o){
+  var f=o.phase||0;
+  if(o.status==='Cancel'||f>=PH.length)return '';
+  var R;
+  if(f===0){
+    R=ringkasProspek(o);
+    if(!R)R={judul:'Dibuat manual — bukan dari prospek',
+      baris:[['Catatan','Order ini tidak lahir dari kartu prospek, jadi tak ada ringkasan yang bisa dibawa.']]};
+  } else {
+    var H=FASE_HASIL[f-1]||[];
+    R={judul:'Hasil dari '+PH[f-1].n+' — PIC '+PH[f-1].pic,
+       baris:H.map(function(p){
+         var v='';try{v=p[1](o);}catch(e){v='';}
+         return [p[0],String(v==null?'':v).trim()];})};
+  }
+  var isi=R.baris.filter(function(b){return b[1];});
+  var kosong=R.baris.length-isi.length;
+  return '<div class="card actcard" style="margin-top:14px"><div class="ch">'+
+    '<span class="ico" style="background:#6a6f8a">↩</span>'+
+    '<div><div class="t">Ringkasan langkah sebelumnya</div>'+
+      '<div class="s">'+esc(R.judul)+'</div></div>'+
+    (kosong?('<span style="margin-left:auto;font-size:9.5px;color:var(--muted)">'+kosong+' belum terisi</span>'):'')+
+    '</div><div class="body">'+
+    (isi.length
+      ? '<div class="xscroll"><table class="rtable"><tbody>'+
+        isi.map(function(b){
+          return '<tr><td style="width:210px;color:var(--muted);font-size:10.5px">'+esc(b[0])+'</td>'+
+            '<td style="font-weight:600">'+esc(b[1])+'</td></tr>';}).join('')+
+        '</tbody></table></div>'
+      : '<div style="font-size:10.5px;color:var(--muted)">Langkah sebelumnya belum meninggalkan isian apa pun.</div>')+
+    '</div></div>';}
 
 /* Yang tak boleh terlewat: permintaan mengisikan dari orang lain, dan revisi
    yang sedang berjalan. Ditaruh tepat di bawah "Langkah saat ini". */
@@ -7486,8 +7621,18 @@ function bukaAwal(id,fase,k){
   var L=bukaAwalSet(o);
   if(L.indexOf(pk)<0)L.push(pk);
   ST.cur=o.id;render();
-  setTimeout(function(){var e=document.getElementById('pnl_'+pk);
-    if(e&&e.scrollIntoView)e.scrollIntoView({block:'start'});},60);}
+  setTimeout(function(){sorotPanel(pk);},60);}
+/* dipakai bersama oleh "Isi sekarang" dan lompatan dari checklist */
+function sorotPanel(pk){
+  var e=document.getElementById('pnl_'+pk);
+  if(!e)return false;
+  try{e.scrollIntoView({block:'start',behavior:'smooth'});}catch(err){e.scrollIntoView();}
+  var kartu=e.querySelector('.card')||e;
+  var lama=kartu.style.boxShadow;
+  kartu.style.transition='box-shadow .25s';
+  kartu.style.boxShadow='0 0 0 3px var(--brand)';
+  setTimeout(function(){kartu.style.boxShadow=lama||'';},1400);
+  return true;}
 
 /* Tugas milikku di fase-fase BERIKUTNYA yang sudah bisa dijawab sekarang. */
 function tugasMasaDepan(o){
@@ -7579,7 +7724,9 @@ function panelStack(o){
   panelDef(o).forEach(function(p){
     if(bawaan.indexOf(p.k)<0)return;
     var html=p.h();if(!html)return;
-    out.push(html);});
+    /* id-nya dipakai tombol "Isi sekarang" untuk menggulir ke panelnya —
+       tanpa ini tombolnya membuka panel yang tak terlihat di layar */
+    out.push('<div id="pnl_'+p.k+'">'+html+'</div>');});
   return out.join('');}
 
 function groupDisc(disc){
