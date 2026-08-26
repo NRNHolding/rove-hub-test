@@ -1955,6 +1955,13 @@ function leadKatalogList(id){
     return [c.name,c.material].join(' ').toLowerCase().indexOf(q)>=0;});}
 
 /* Kategori client — menentukan kolom nama yang muncul nanti di Brief. */
+/* Nama client sebenarnya, kalau sudah diisi — ditampilkan di kartunya. */
+function leadNamaAsli(l){
+  var kat=leadKategori(l);
+  if(kat==='Wedding'){
+    var w=[l.brideNama,l.groomNama].filter(Boolean).join(' & ');
+    return w?('Bride & groom: '+w):'';}
+  return l.clientUtama?((kat==='Corporate'?'Perusahaan: ':'Client utama: ')+l.clientUtama):'';}
 function leadPilihKategori(l){
   var kini=leadKategori(l);
   return '<div style="font-size:10px;font-weight:800;color:var(--muted);margin:11px 0 5px;letter-spacing:.03em">KATEGORI CLIENT</div>'+
@@ -1965,10 +1972,10 @@ function leadPilihKategori(l){
         ';color:'+(on?'#fff':'var(--muted)')+';border-radius:9px;padding:7px 10px;font-size:11px;font-weight:800;cursor:pointer">'+
         esc(k)+'</button>';}).join('')+'</div>'+
     '<div style="font-size:10px;color:var(--muted);margin-top:6px;line-height:1.55">'+
-      (kini==='Wedding'?'Nanti di Brief muncul kolom <b>bride</b> &amp; <b>groom</b>.'
-       :kini==='Corporate'?'Nanti di Brief muncul kolom <b>nama perusahaan</b>.'
-       :'Nanti di Brief muncul kolom <b>nama client utama</b>.')+
-      ' Boleh dikosongkan kalau ordernya lewat WO/EO dan namanya belum diberikan — tak menahan fase.</div>';}
+      (function(){var n=leadNamaAsli(l);
+        return n?('<b>'+esc(n)+'</b> — ikut terbawa ke Brief, PM tak mengetiknya lagi.')
+          :'Nama client sebenarnya belum diisi. Boleh dikosongkan kalau ordernya lewat WO/EO dan namanya belum diberikan — tak menahan fase.';})()+
+      '</div>';}
 function leadPilihJenis(l){
   return leadPilihKategori(l)+
     '<div style="font-size:10px;font-weight:800;color:var(--muted);margin:11px 0 5px;letter-spacing:.03em">JENIS ORDER — cara menghargainya</div>'+
@@ -2108,7 +2115,19 @@ function leadAdd(){
         hint:'Kalau client sudah menyebutkannya. Ikut terbawa ke Brief, jadi PM tak menanyakannya lagi.'},
       {k:'tglKirim',label:'Tanggal kirim diminta',type:'date'},
       {k:'kategori',label:'Kategori client',type:'select',val:'Corporate',opts:LEAD_KAT,
-        hint:'Menentukan kolom nama yang muncul di Brief: Wedding → bride & groom, Corporate → nama perusahaan, Custom → nama client utama. Order lewat WO/EO tetap pilih kategori client aslinya.'},
+        hint:'Order lewat WO/EO tetap pilih kategori client aslinya — nama penyelenggaranya sudah tercatat di kolom paling atas.'},
+      /* muncul mengikuti kategori — Sales yang sedang bicara dengan clientnya
+         yang tahu namanya, jadi ditanyakan sekarang, bukan nanti di Brief */
+      {k:'brideNama',label:'Nama bride',type:'text',ph:'mis. Sinta',
+        jika:function(v){return v.kategori==='Wedding';},
+        hint:'Boleh dikosongkan kalau ordernya lewat WO/EO dan namanya belum diberikan — tak menahan apa pun.'},
+      {k:'groomNama',label:'Nama groom',type:'text',ph:'mis. Bagas',
+        jika:function(v){return v.kategori==='Wedding';}},
+      {k:'clientUtama',label:'Nama perusahaan',type:'text',ph:'mis. PT Astra Finance',
+        jika:function(v){return v.kategori==='Corporate';},
+        hint:'Kalau ordernya lewat EO, tulis nama perusahaan yang punya acaranya.'},
+      {k:'clientUtama2',label:'Nama client utama',type:'text',ph:'mis. Ibu Ratna',
+        jika:function(v){return v.kategori==='Custom';}},
       {k:'jenis',label:'Jenis order',type:'select',val:'',opts:['','Katalog','Custom','Mix'],
         hint:'Cara menghargainya — beda dari kategori di atas. Boleh dikosongkan dulu kalau belum jelas.'}],
     ok:function(v){
@@ -2116,6 +2135,8 @@ function leadAdd(){
         channel:v.channel,produk:v.produk,qty:0,estimasi:+v.estimasi||0,status:'Baru',
         masuk:new Date().toISOString().slice(0,10),jenis:v.jenis||'',kategori:v.kategori||'Corporate',
         tglAcara:v.tglAcara||'',tglKirim:v.tglKirim||'',
+        brideNama:v.brideNama||'',groomNama:v.groomNama||'',
+        clientUtama:v.clientUtama||v.clientUtama2||'',
         items:[],pic:(ST.userName||ST.user||''),
         catatan:'',touch:new Date().toISOString().slice(0,10),log:[],_m:Date.now()});
       saveLeads();render();}});}
@@ -2170,9 +2191,12 @@ function kirimKeInquiry(id){
     status:'Inquiry',coll:coll});
   o.pricing={margin:MARGIN_BAWAAN,lines:lines};
   o.brief=Object.assign({fitur:['','','']},o.brief||{});
-  /* tanggal yang sudah disebut client waktu prospek — jangan ditanya dua kali */
+  /* yang sudah disebut client waktu prospek — jangan ditanya dua kali */
   if(l.tglAcara)o.eventDate=l.tglAcara;
   if(l.tglKirim)o.brief.tglKirim=l.tglKirim;
+  if(l.brideNama)o.brief.brideNama=l.brideNama;
+  if(l.groomNama)o.brief.groomNama=l.groomNama;
+  if(l.clientUtama)o.brief.clientUtama=l.clientUtama;
   o.vip=isVip(l);                       // status VIP ikut, tak perlu ditetapkan ulang
   if(vipMinta(l))o.vipMinta=JSON.parse(JSON.stringify(l.vipMinta));  // pengajuan ikut juga
   o.dariSales={dari:l.nama,channel:l.channel,pic:l.pic,catatan:l.catatan||'',
@@ -4299,14 +4323,37 @@ function askForm(o){
     else if(f.type==='checkbox')inp='<label style="display:flex;align-items:center;gap:8px;margin-top:4px;cursor:pointer;font-size:12.5px"><input type="checkbox" id="'+id+'" '+(v?'checked':'')+' style="width:auto;accent-color:var(--brand)"> '+esc(f.cbLabel||'Ya')+'</label>';
     else if(f.type==='money')inp='<input class="pin n money" inputmode="numeric" id="'+id+'" style="width:100%;margin-top:3px" value="'+moneyInp(v)+'" placeholder="Rp 0">';
     else inp='<input class="pin'+(f.type==='number'?' n':'')+'" id="'+id+'" type="'+(f.type||'text')+'" style="width:100%;margin-top:3px" value="'+esc(String(v))+'" placeholder="'+esc(f.ph||'')+'">';
-    return '<div style="margin-bottom:11px"><label class="nlbl">'+esc(f.label)+(f.req?' <span style="color:#d9534f">*</span>':'')+'</label>'+inp+
+    return '<div id="fmw'+i+'" style="margin-bottom:11px"><label class="nlbl">'+esc(f.label)+(f.req?' <span style="color:#d9534f">*</span>':'')+'</label>'+inp+
       (f.hint?'<div style="font-size:9.5px;color:var(--muted);margin-top:3px">'+f.hint+'</div>':'')+'</div>';}).join('');
+  /* kolom bersyarat: disaring sekarang, lalu tiap kali ada yang diubah */
+  b.addEventListener('change',askSaring);
+  b.addEventListener('input',askSaring);
+  askSaring();
   document.getElementById('fmov').style.display='flex';trDOM(document.getElementById('fmov'));
   setTimeout(function(){var e=document.getElementById('fmf0');if(e)e.focus();},30);}
+/* Nilai yang sedang tertulis di form — dipakai menghitung syarat tiap kolom. */
+function askNilaiKini(){
+  var v={};
+  ((_ask&&_ask.fields)||[]).forEach(function(f,i){
+    var e=document.getElementById('fmf'+i);if(!e)return;
+    v[f.k]=(f.type==='checkbox')?!!e.checked:e.value;});
+  return v;}
+function askTampil(f,v){
+  if(typeof f.jika!=='function')return true;
+  try{return !!f.jika(v);}catch(e){return true;}}
+function askSaring(){
+  if(!_ask)return;
+  var v=askNilaiKini();
+  (_ask.fields||[]).forEach(function(f,i){
+    var w=document.getElementById('fmw'+i);if(!w)return;
+    w.hidden=!askTampil(f,v);});}
 function askClose(){var e=document.getElementById('fmov');if(e)e.style.display='none';_ask=null;}
 function askOk(){
   if(!_ask)return;var v={},err='';
+  var kini=askNilaiKini();
   (_ask.fields||[]).forEach(function(f,i){var e=document.getElementById('fmf'+i);if(!e)return;
+    /* kolom yang syaratnya tak terpenuhi: tak disimpan, tak diwajibkan */
+    if(!askTampil(f,kini))return;
     var x;
     if(f.type==='checkbox')x=!!e.checked;
     else{x=e.value;
