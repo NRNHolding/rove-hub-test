@@ -506,7 +506,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20260827-154158';
+const VERSI='20260827-154732';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -4172,13 +4172,34 @@ function pushCloudAman(){
     pushCloud();
     if(ubah&&ST.user)render();
   }).catch(function(){pushCloud();});}
-function pushCloud(){var c=ST.cfg||{};var ts=Date.now();localStorage.setItem('rovehub_ts',String(ts));ST.cloudStatus='tersimpan cloud '+new Date().toLocaleTimeString('id-ID');
+/* Sesudah mendorong, benar-benar diperiksa: order yang ada di sini ada juga di
+   sana? Dorongannya memakai mode no-cors — jawabannya tak bisa dibaca browser,
+   jadi tanpa pemeriksaan ini status "tersimpan cloud" cuma pengakuan sepihak,
+   dan itulah yang selama ini membuat orang menyangka datanya sudah sampai. */
+function pushPeriksa(){
+  var c=ST.cfg||{};if(!c.dbUrl)return;
+  var punya=(ST.orders||[]).map(function(o){return o.id;});
+  setTimeout(function(){
+    fetch(c.dbUrl,{cache:'no-store'}).then(function(r){return r.json();}).then(function(d){
+      var ada={};((d&&d.orders)||[]).forEach(function(o){if(o&&o.id)ada[o.id]=1;});
+      var hilang=punya.filter(function(id){return !ada[id];});
+      var jam=new Date().toLocaleTimeString('id-ID');
+      ST.cloudStatus=hilang.length
+        ? ('⚠ '+hilang.length+' order belum sampai cloud — tekan "Kirim semua"')
+        : ('tersimpan cloud '+jam+(punya.length?(' · '+punya.length+' order'):''));
+      try{sinkronBadge();}catch(e){}
+    }).catch(function(){
+      ST.cloudStatus='gagal memeriksa cloud — cek koneksi';
+      try{sinkronBadge();}catch(e){}});
+  },2500);}
+function pushCloud(){var c=ST.cfg||{};var ts=Date.now();localStorage.setItem('rovehub_ts',String(ts));ST.cloudStatus='mengirim ke cloud…';
   /* try/catch tak menangkap penolakan promise — tanpa .catch, backend yang mati
      memuntahkan "Uncaught (in promise)" ke konsol tiap kali menyimpan. */
   try{fetch(c.url,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'db.save',payload:{data:cloudBlob(ts)}})})
     .catch(function(e){ST.cloudStatus='gagal simpan cloud — cek URL backend';console.warn('pushCloud gagal',e);});}catch(e){}
   var b=document.getElementById('cloudstat');if(b)b.textContent=ST.cloudStatus;
-  try{sinkronBadge();}catch(e){}}
+  try{sinkronBadge();}catch(e){}
+  try{pushPeriksa();}catch(e){}}
 function cloudSave(){var c=ST.cfg||{};if(!c.live||!c.url)return;clearTimeout(_cloudT);
   _cloudT=setTimeout(function(){
     pushCloudAman();
