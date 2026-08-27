@@ -506,7 +506,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20260827-155446';
+const VERSI='20260827-160135';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -4251,10 +4251,36 @@ function sinkronBadge(){
     e.innerHTML='<span style="color:#7b809c">⊘ sinkron mati — data cuma di browser ini</span>';
     return;}
   var st=String(ST.cloudStatus||'menunggu…');
-  var buruk=/gagal|GAGAL/.test(st);
+  var buruk=/gagal|GAGAL|belum sampai/.test(st);
+  /* Ke mana datanya sebenarnya pergi. Perangkat yang pernah diisi URL sendiri
+     tetap memakai URL itu — cfgBawaan cuma mengisi yang kosong — jadi dua orang
+     bisa sama-sama "tersinkron" ke dua tempat yang berbeda dan tak pernah
+     bertemu. Tanpa disebut, itu mustahil ditebak dari layar. */
+  var beda=!!(BACKEND_BAWAAN&&c.url&&c.url!==BACKEND_BAWAAN);
+  var host='';try{host=(String(c.url||'').match(/\/s\/([A-Za-z0-9_-]{6,12})/)||[])[1]||'';}catch(err){}
   e.innerHTML='<span style="color:'+(buruk?'#d9534f':'#7bbf7b')+'">'+(buruk?'⚠ ':'⇅ ')+esc(st)+'</span>'+
+    (beda?('<div style="color:#e0912f;line-height:1.5;margin-top:5px">⚠ Perangkat ini memakai backend sendiri'+
+      (host?(' (…'+esc(host)+'…)'):'')+', bukan yang bawaan — jadi datanya tak bertemu dengan yang lain.'+
+      '<button onclick="pakaiBackendBawaan()" title="kosongkan URL sendiri, ikut yang bawaan">↺ Ikut backend bawaan</button></div>')
+     :(host?('<div style="color:#7b809c;margin-top:3px">backend …'+esc(host)+'…</div>'):''))+
     '<button onclick="sinkronPaksa()" title="tarik dari cloud sekarang, lalu dorong punya perangkat ini">⟲ Sinkron sekarang</button>'+
     '<button onclick="sinkronDorong()" title="dorong SELURUH order di perangkat ini ke cloud, termasuk yang lebih tua dari pembersihan terakhir">⇧ Kirim semua</button>';}
+/* Melepas URL backend yang diisi sendiri, lalu kembali ke bawaan. Dipakai
+   perangkat yang dulu pernah disetel manual dan sejak itu menyimpan datanya ke
+   tempat lain tanpa ada yang tahu. */
+function pakaiBackendBawaan(){
+  if(!BACKEND_BAWAAN){alert('Salinan ini tak punya backend bawaan.');return;}
+  var c=ST.cfg||{};
+  if(!confirm('Perangkat ini sekarang memakai backend sendiri.'+String.fromCharCode(10)+String.fromCharCode(10)+
+    'Ikut backend bawaan supaya datanya bertemu dengan perangkat lain?'+String.fromCharCode(10)+
+    'Data di perangkat ini tak dihapus — ia justru akan dikirim ke sana.'))return;
+  c.url=BACKEND_BAWAAN;c.dbUrl=BACKEND_BAWAAN+'?db=1';c.live=true;c._bawaan=true;
+  ST.cfg=c;localStorage.setItem('rovehub_cfg',JSON.stringify(c));
+  ST.cloudStatus='pindah ke backend bawaan…';
+  try{sinkronBadge();}catch(e){}
+  try{pushCloudAman();}catch(e){}
+  alert('✓ Sekarang ikut backend bawaan. Tekan "⇧ Kirim semua" supaya data perangkat ini menyusul ke sana.');
+  render();}
 /* Menarik lalu mendorong — dipakai kalau ada yang merasa datanya tak sama. */
 function sinkronPaksa(){
   var c=ST.cfg||{};
