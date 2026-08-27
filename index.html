@@ -506,7 +506,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20260827-153308';
+const VERSI='20260827-154158';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -4143,6 +4143,35 @@ function mergeOrders(cloud,skipCur){
     if(!lo){ST.orders.push(co);byId[co.id]=co;changed=true;}                 // order baru orang lain
     else if((co._m||0)>(lo._m||0)){Object.assign(lo,co);changed=true;}       // versi cloud lebih baru
   });return changed;}
+/* Prospek digabung PER BARIS menurut _m — sama seperti order. Dulu diganti
+   sekaligus menurut ts blob, jadi perangkat yang daftarnya lebih tua tapi
+   menyimpannya belakangan menghapus prospek perangkat lain. */
+function mergeLeads(cloud){
+  if(!cloud||!Array.isArray(cloud.leads))return false;
+  var lokal=leadsAll(),byId={},ubah=false;
+  lokal.forEach(function(l){if(l&&l.id)byId[l.id]=l;});
+  var pt=purgeTs();
+  cloud.leads.forEach(function(cl){
+    if(!cl||!cl.id)return;
+    if(pt&&(cl._m||0)<pt)return;              // dari sebelum pembersihan
+    var lo=byId[cl.id];
+    if(!lo){lokal.push(cl);byId[cl.id]=cl;ubah=true;}
+    else if((cl._m||0)>(lo._m||0)){Object.assign(lo,cl);ubah=true;}});
+  if(ubah)localStorage.setItem(LEAD_KEY,JSON.stringify(ST.leads));
+  return ubah;}
+/* Mendamaikan lebih dulu, baru mendorong. Tanpa ini, potret lokal menimpa apa
+   pun yang masuk ke cloud sesudah tarikan terakhir — termasuk order dan
+   prospek yang belum pernah dilihat perangkat ini. */
+function pushCloudAman(){
+  var c=ST.cfg||{};if(!c.live||!c.url)return;
+  if(!c.dbUrl){pushCloud();return;}
+  fetch(c.dbUrl,{cache:'no-store'}).then(function(r){return r.json();}).then(function(cloud){
+    var ubah=false;
+    try{if(mergeOrders(cloud,false)){localStorage.setItem(KEY,JSON.stringify(ST.orders));ubah=true;}}catch(e){}
+    try{if(mergeLeads(cloud))ubah=true;}catch(e){}
+    pushCloud();
+    if(ubah&&ST.user)render();
+  }).catch(function(){pushCloud();});}
 function pushCloud(){var c=ST.cfg||{};var ts=Date.now();localStorage.setItem('rovehub_ts',String(ts));ST.cloudStatus='tersimpan cloud '+new Date().toLocaleTimeString('id-ID');
   /* try/catch tak menangkap penolakan promise — tanpa .catch, backend yang mati
      memuntahkan "Uncaught (in promise)" ke konsol tiap kali menyimpan. */
@@ -4152,8 +4181,7 @@ function pushCloud(){var c=ST.cfg||{};var ts=Date.now();localStorage.setItem('ro
   try{sinkronBadge();}catch(e){}}
 function cloudSave(){var c=ST.cfg||{};if(!c.live||!c.url)return;clearTimeout(_cloudT);
   _cloudT=setTimeout(function(){
-    if(c.dbUrl){fetch(c.dbUrl).then(function(r){return r.json();}).then(function(cloud){if(mergeOrders(cloud,false))localStorage.setItem(KEY,JSON.stringify(ST.orders));pushCloud();}).catch(function(){pushCloud();});}
-    else pushCloud();
+    pushCloudAman();
   },1500);}
 function cloudAutoLoad(){var c=ST.cfg||{};if(!c.dbUrl)return;
   fetch(c.dbUrl).then(function(r){return r.json();}).then(function(d){
@@ -4167,7 +4195,9 @@ function cloudAutoLoad(){var c=ST.cfg||{};if(!c.dbUrl)return;
     var changed=mergeOrders(d,true); // merge per-order, jangan ganggu order yg lagi dibuka
     var localTs=+localStorage.getItem('rovehub_ts')||0;
     if(d.master&&(d.ts||0)>localTs){ST.master=d.master;saveMaster();buildCollatData();changed=true;}
-    if(d.leads&&(d.ts||0)>localTs){ST.leads=d.leads;localStorage.setItem(LEAD_KEY,JSON.stringify(ST.leads));changed=true;}
+    /* digabung per baris — dulu diganti sekaligus, dan prospek yang dibuat di
+       perangkat lain hilang begitu perangkat ini menyimpan sesuatu */
+    if(mergeLeads(d))changed=true;
     if(d.tax&&(d.ts||0)>localTs){ST.tax=d.tax;localStorage.setItem(TAX_KEY,JSON.stringify(ST.tax));changed=true;}
     if(d.konten&&(d.ts||0)>localTs){ST.konten=d.konten;localStorage.setItem(KON_KEY,JSON.stringify(ST.konten));changed=true;}
     if(d.hr&&(d.ts||0)>localTs){ST.hr=d.hr;localStorage.setItem(HR_KEY,JSON.stringify(ST.hr));changed=true;}
@@ -4197,7 +4227,7 @@ function sinkronPaksa(){
   if(!c.live||!c.url){alert('Sinkron cloud belum menyala di perangkat ini.');return;}
   ST.cloudStatus='menarik dari cloud…';sinkronBadge();
   try{cloudAutoLoad();}catch(e){}
-  try{pushCloud();}catch(e){}}
+  try{pushCloudAman();}catch(e){}}
 /* Mendorong SEMUA order perangkat ini. Penanda waktunya disegarkan supaya
    perangkat lain tak membuangnya karena lebih tua dari pembersihan terakhir —
    itulah sebabnya order lama bisa "terkirim tapi tak muncul di sana". */
@@ -4213,7 +4243,7 @@ function sinkronDorong(){
   var t=Date.now();
   (ST.orders||[]).forEach(function(o,i){o._m=t+i;});
   localStorage.setItem(KEY,JSON.stringify(ST.orders));
-  try{pushCloud();}catch(e){}
+  try{pushCloudAman();}catch(e){}
   ST.cloudStatus='mengirim '+n+' order…';sinkronBadge();
   alert('✓ '+n+' order dikirim. Minta yang lain menekan "⟲ Sinkron sekarang", atau tunggu 25 detik.');}
 var _pollT=null;
