@@ -741,6 +741,11 @@ const EN={
 'kelengkapan fase ini sudah lengkap':'this phase’s checklist is complete',
 '✋ Ingatkan Sales — lengkapi keterangan client':'✋ Remind Sales — fill in what the client said',
 '✍ Lengkapi keterangan client':'✍ Fill in what the client said',
+'— pilih teknik —':'— pick a technique —',
+'belum dipilih':'not picked yet',
+'teknik menentukan harga ke vendor':'the technique sets the vendor price',
+'Teknik yang boleh (pisah koma)':'Techniques allowed (comma separated)',
+'Biaya tetap teknik':'Technique fixed cost',
 'buka kolom pertama yang belum terisi':'open the first field still empty',
 'hal)':'items)',
 'Ingatkan Sales lewat Discord':'Remind Sales on Discord',
@@ -1890,6 +1895,7 @@ if(r){ST.orders=JSON.parse(r);}else{ST.orders=[];} ST.user=sesiGet('rovehub_user
   try{ST.cfg=JSON.parse(localStorage.getItem('rovehub_cfg')||'{"url":"","live":false,"catalogUrl":""}');}catch(e){ST.cfg={url:'',live:false,catalogUrl:''};}
   pastikanBentukSemua();
   loadLang();migrasiFaseProfit();migrasiFase12();migrasiFase15();migrasiStatus();
+  try{migrasiTeknikJasa();}catch(e){}
   finData();asetAll();loadCatalogCache();loadMaster();loadLeads();loadTax();loadKonten();loadHR();loadBuy();loadInv();
   /* Link permintaan dari Discord dibaca paling akhir, sesudah semua data
      termuat — ordernya harus sudah ada sebelum linknya dicari. */
@@ -5017,15 +5023,46 @@ function kursNilai(k){var x=kursAll().find(function(v){return v.kode===k;});retu
 /* fix = biaya sekali datang, harga = per pcs. Angka bawaan sengaja diisi:
    harga 0 berarti client tak tertagih sementara vendornya tetap dibayar, dan
    itu tak terlihat salah di layar mana pun. Sesuaikan di Master Product. */
+/* Peta bawaan: teknik mana milik jasa mana. Yang mengikat mereka nama, bukan
+   nomor — jadi peta ini tetap benar walau urutan master berubah. */
+const TEK_BAWAAN={
+  'Add-on Initial':'Pre Stamp Initial, Foil Pre Stamp Initial',
+  'Add-on Full Name':'Calligraphy, Engrave, Print, Bordir, Heat Press Printing',
+  'Add-on Logo':'Logo Deboss, Foil Logo Deboss'};
 function defJasa(){return [
   {nama:'Live deboss blind',jenis:'Live service',teknik:'Deboss Blind',fix:2500000,harga:0,vendor:''},
   {nama:'Live deboss with foil',jenis:'Live service',teknik:'Deboss with Foil',fix:3000000,harga:0,vendor:''},
   {nama:'Live calligraphy',jenis:'Live service',teknik:'Calligraphy',fix:2000000,harga:0,vendor:'Mercia Calligraphy'},
   {nama:'Pre-deboss initial',jenis:'Live service',teknik:'Deboss Blind',fix:0,harga:15000,vendor:''},
-  {nama:'Add-on Initial',jenis:'Service',teknik:'Deboss Blind',fix:0,harga:15000,vendor:''},
-  {nama:'Add-on Full Name',jenis:'Service',teknik:'Deboss Blind',fix:0,harga:20000,vendor:''},
-  {nama:'Add-on Logo',jenis:'Service',teknik:'Deboss with Foil',fix:0,harga:25000,vendor:''}];}
+  {nama:'Add-on Initial',jenis:'Service',teknik:'Deboss Blind',fix:0,harga:15000,vendor:'',
+   tekList:TEK_BAWAAN['Add-on Initial']},
+  {nama:'Add-on Full Name',jenis:'Service',teknik:'Deboss Blind',fix:0,harga:20000,vendor:'',
+   tekList:TEK_BAWAAN['Add-on Full Name']},
+  {nama:'Add-on Logo',jenis:'Service',teknik:'Deboss with Foil',fix:0,harga:25000,vendor:'',
+   tekList:TEK_BAWAAN['Add-on Logo']}];}
 function jasaAll(){return (ST.master&&ST.master.jasa)||[];}
+/* Teknik = cara mengerjakan, berharga sendiri di katalog Radja. Ia bukan jasa
+   yang dipilih client, jadi tak pernah muncul di dropdown Live service/Add-on. */
+function teknikKatalog(){return jasaAll().filter(function(x){return x.jenis==='Teknik';});}
+function teknikNama(){return teknikKatalog().map(function(x){return x.nama;});}
+function teknikData(nama){
+  var n=String(nama||'').trim();
+  return teknikKatalog().filter(function(x){return x.nama===n;})[0]||null;}
+/* Daftar teknik yang boleh dipakai satu jasa. Ditulis dipisah koma di Master. */
+function jasaTekList(nama){
+  var j=jasaAll().filter(function(x){return x.nama===nama;})[0];
+  return String((j&&j.tekList)||'').split(',').map(function(x){return x.trim();}).filter(Boolean);}
+/* Harga teknik menurut jumlahnya — katalog punya tier (mis. Calligraphy 65rb
+   di bawah 50 pcs, 35rb di atasnya). */
+function tekTier(tiers,qty){
+  var q=+qty||0,T=(tiers||[]).slice().sort(function(a,b){return (+a.max||0)-(+b.max||0);});
+  for(var i=0;i<T.length;i++)if(q<=(+T[i].max||0))return +T[i].price||0;
+  return T.length?(+T[T.length-1].price||0):0;}
+function teknikHarga(nama,qty){
+  var t=teknikData(nama);if(!t)return null;
+  var per=+t.harga||0;
+  if(t.perPcTiers&&t.perPcTiers.length){var p=tekTier(t.perPcTiers,qty);if(p)per=p;}
+  return {fix:+t.fix||0,perPc:per};}
 /* dirapikan di sumbernya: '-', '', dan '   ' sama-sama berarti tak ada teknik */
 function jasaTeknik(nama){
   var j=jasaAll().find(function(x){return x.nama===nama;});
@@ -5556,6 +5593,7 @@ function barisVendorLengkapi(o){
     if(l._persoManual)return;
     if(l.perso&&l.perso!=='-')return;
     var nj=namaJasaBaris(l);
+    if(jasaTekList(nj).length>1)return;      // menunggu dipilih, bukan ditebak
     var tj='';try{tj=jasaTeknik(nj);}catch(e){}
     if(tj)l.perso=tj;});
   L.forEach(function(l){
@@ -5590,7 +5628,10 @@ function barisVendorLengkapi(o){
       var vJasa=jasaVendor(n)||((x[1]==='Live service')?vendorJasaKota(o):vendorProdukOrder(o));
       /* Tekniknya dibawa serta: kolom perso itulah yang tercetak di PO ke
          vendor, dan tanpa itu ia menerima pesanan tanpa cara mengerjakannya. */
-      var tk='';try{tk=jasaTeknik(n);}catch(e){}
+      /* jasaTeknikOrder mengembalikan '' kalau tekniknya lebih dari satu dan
+         belum dipilih — jangan diisi teknik tunggal lama dari master, itu
+         tebakan yang ikut tercetak di PO */
+      var tk='';try{tk=(jasaTekList(n).length>1)?jasaTeknikOrder(o,n):(jasaTeknikOrder(o,n)||jasaTeknik(n));}catch(e){}
       L.push({produk:nama,bahan:'Service',sumber:vJasa,_vendorTebakan:(!jasaVendor(n)&&!!vJasa),
         qty:qty,hpp:0,jual:0,img:'',imgs:[],detail:'harganya ditanyakan ke vendor jasanya',
         /* letaknya ikut sejak barisnya lahir — itu yang dibaca vendor di PO */
@@ -5609,6 +5650,10 @@ function barisVendorLengkapi(o){
     if(!lx.jasa||dipakai[lx.produk])continue;
     if((lx.rfq&&lx.rfq.minta)||(lx.hpp||0)>0){lx._jasaLepas=true;lx._jasaDobel=false;}
     else L.splice(lj,1);}
+  /* Harga vendor baris jasa menyusul tekniknya — dijalankan PALING AKHIR,
+     sesudah baris barunya dibuat, kalau tidak baris yang baru lahir menunggu
+     panggilan berikutnya untuk dapat harganya. */
+  try{jasaTerapkanTeknik(o);}catch(e){}
   return baru;}
 /* Nama jasa dari nama barisnya: 'Add-on — Full Name' jadi 'Full Name'. */
 function namaJasaBaris(l){
@@ -5629,6 +5674,46 @@ const LETAK_SARAN=['Depan — tengah','Depan — kanan bawah','Depan — kiri at
   'Belakang — tengah','Bagian dalam (interior)','Flap / tutup','Samping',
   'Di bawah logo Rove','Pada kartu / hangtag'];
 function svcLetak(o,nama){return String((((o||{}).svcLetak)||{})[nama]||'').trim();}
+/* Teknik yang dipakai jasa ini di order ini. Kalau daftar tekniknya cuma satu,
+   tak ada yang perlu dipilih — itu jawabannya. */
+function jasaTeknikOrder(o,nama){
+  var pilih=String((((o||{}).svcTeknik)||{})[nama]||'').trim();
+  if(pilih)return pilih;
+  var L=jasaTekList(nama);
+  if(L.length===1)return L[0];
+  if(L.length>1)return '';                     // memang belum dipilih
+  return jasaTeknik(nama);}                    // jasa lama: teknik tunggal di master
+/* Harga vendor baris jasa datang dari tekniknya. Dipanggil tiap kali teknik
+   atau jumlahnya berubah — tapi tak pernah menimpa harga yang diketik orang. */
+function jasaTerapkanTeknik(o){
+  var L=(((o||{}).pricing||{}).lines)||[],ubah=0;
+  L.forEach(function(l){
+    if(!l.jasa||l.svcFee)return;
+    var nama=namaJasaBaris(l);
+    var tk=jasaTeknikOrder(o,nama);
+    if(tk&&l.perso!==tk&&!l._persoManual){l.perso=tk;ubah++;}
+    if(l._hppManual||(l.rfq&&l.rfq.minta))return;
+    var H=tk?teknikHarga(tk,l.qty||0):null;
+    if(!H)return;
+    if((+l.hpp||0)!==H.perPc){l.hpp=H.perPc;ubah++;}
+    if((+l.hppFix||0)!==H.fix){l.hppFix=H.fix;ubah++;}
+    /* harga dari katalog: dipastikan ulang ke vendor, bukan ditawar dari nol */
+    if(!l.fixed){l.fixed=true;ubah++;}});
+  return ubah;}
+function ordSvcTeknik(id,nama,v){
+  var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
+  if(!o.svcTeknik)o.svcTeknik={};
+  var lama=jasaTeknikOrder(o,nama);
+  if(lama===v)return;
+  o.svcTeknik[nama]=v;
+  /* teknik yang dipilih sendiri mengalahkan isian otomatis di barisnya */
+  (((o.pricing||{}).lines)||[]).forEach(function(l){
+    if(l.jasa&&namaJasaBaris(l)===nama){delete l._persoManual;delete l._hppManual;}});
+  jasaTerapkanTeknik(o);
+  var H=teknikHarga(v,o.qty||0);
+  logHist(o,'Teknik '+nama+': '+(v||'(dikosongkan)')+
+    (H?(' — vendor '+fmt0(H.perPc)+'/pcs'+(H.fix?(' + biaya tetap '+fmt0(H.fix)):'')):''));
+  o._m=Date.now();save();render();}
 function ordSvcLetak(id,nama,v){
   var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
   if(!o.svcLetak)o.svcLetak={};
@@ -5780,7 +5865,7 @@ function tabAktif(nama,bawaan){
   if(!v||v==='ALL'||v==='Tanpa tipe')return bawaan;
   return v;}
 function mAdd(sec){var r=(sec==='users'?{username:'',password:'',jabatan:'Sales',jabatans:['Sales'],aktif:true}:sec==='shipping'?{ekspedisi:'JNE',kota:'',tarif:0}:sec==='jenis'?{label:'',code:''}:(sec==='perso'||sec==='bank'||sec==='vtipe'||sec==='cogs'||sec==='mainmat'||sec==='filler'||sec==='lining'||sec==='finreq'||sec==='stitch'||sec==='warna')?{v:''}:sec==='customers'?{nama:'',termin:'DP',bride:'',groom:'',kontak:'',email:'',alamat:'',alamatKantor:'',kota:'',npwp:'',pic:'',
-    tipe:((ST._custTab&&ST._custTab!=='ALL')?ST._custTab:'Corporate'),lokasi:'HQ',catatan:''}:sec==='coll'?{type:'Hardbox',kind:'Material',value:''}:sec==='catalog'?{name:'',material:'',jenis:'Katalog',t:[0,0,0,0,0,0,0]}:sec==='operator'?{nama:'',lokasi:tabAktif('_opTab',''),hp:'',tarif:0,stamper:true,assist:true,aktif:true}:sec==='tools'?{nama:'',qty:1}:sec==='kardus'?{size:'',L:0,W:0,H:0,wg:0}:sec==='kurs'?{kode:'',nilai:0}:sec==='kulit'?{nama:'',warna:'',stok:'Ready',minOrder:'',vendor:'Radja Leather',catatan:''}:sec==='jasa'?{nama:'',jenis:'Service',teknik:'-',fix:0,harga:0,vendor:''}:{nama:'',tipe:tabAktif('_venTab',''),cogs:'Main Product',kontak:'',hp:'',bank:'',rek:'',alamat:''});
+    tipe:((ST._custTab&&ST._custTab!=='ALL')?ST._custTab:'Corporate'),lokasi:'HQ',catatan:''}:sec==='coll'?{type:'Hardbox',kind:'Material',value:''}:sec==='catalog'?{name:'',material:'',jenis:'Katalog',t:[0,0,0,0,0,0,0]}:sec==='operator'?{nama:'',lokasi:tabAktif('_opTab',''),hp:'',tarif:0,stamper:true,assist:true,aktif:true}:sec==='tools'?{nama:'',qty:1}:sec==='kardus'?{size:'',L:0,W:0,H:0,wg:0}:sec==='kurs'?{kode:'',nilai:0}:sec==='kulit'?{nama:'',warna:'',stok:'Ready',minOrder:'',vendor:'Radja Leather',catatan:''}:sec==='jasa'?{nama:'',jenis:'Service',teknik:'-',tekList:'',fix:0,harga:0,vendor:''}:{nama:'',tipe:tabAktif('_venTab',''),cogs:'Main Product',kontak:'',hp:'',bank:'',rek:'',alamat:''});
   /* COGS mengikuti tipenya — vendor Live Service selalu Service, kemasan
      selalu Packaging. Kalau tipenya sudah diketahui, tak perlu ditanya lagi. */
   if(sec==='vendors'&&r.tipe)
@@ -5967,7 +6052,10 @@ function renderMaster(){
        '<b style="color:var(--warn)">Keduanya harga JUAL ke client</b> — yang masuk quotation &amp; invoice. '+
        'Yang dibayarkan ke tim live service bukan angka ini, melainkan <b>fee tiap operator</b> di tab Live service. '+
        'Angka di sini harga standar; tiap order boleh punya harganya sendiri.</div>'+
-         '<div class="xscroll">'+tbl('jasa',[['nama','Nama jasa'],['jenis','Jenis',['Live service','Service']],['teknik','Teknik',persoVals()],['vendor','Vendor',[''].concat(vendorGrup('jasa'))],['fix','Biaya tetap','money'],['harga','Harga/pcs','money']],M.jasa||[])+'</div>'+
+         '<div class="xscroll">'+tbl('jasa',[['nama','Nama jasa'],['jenis','Jenis',['Live service','Service','Teknik']],
+        ['teknik','Teknik',persoVals()],['tekList','Teknik yang boleh (pisah koma)','datalist:tekpilih'],
+        ['vendor','Vendor',[''].concat(vendorGrup('jasa'))],['fix','Biaya tetap','money'],['harga','Harga/pcs','money']],M.jasa||[])+'</div>'+
+      '<datalist id="tekpilih">'+teknikNama().map(function(x){return '<option value="'+esc(x)+'">';}).join('')+'</datalist>'+
          '<button class="btn ghost sm" style="margin-top:9px" onclick="mAdd(\'jasa\')">＋ Tambah jasa</button>'+
          (function(){var bt=(M.jasa||[]).filter(function(j){return j.perPcTiers&&j.perPcTiers.length;});
            return bt.length?('<div style="margin-top:11px;font-size:10.5px;color:var(--muted)"><b>Harga bertingkat</b> (dari Estimator): '+
@@ -6624,11 +6712,22 @@ const POD_C_COLS=['No. PO'];                                                    
 const POD_COLS=['SO No.','Expense','Item','Color','Service','Qty','Order Price/Unit'];        // kolom H..N
 function pohRows(){return poList().map(function(p){
   return [xlsDate(dmyToISO(p.o.date)),p.vendor,p.o.customer+' — '+p.o.product,xlsDate(p.deadline),p.packing||p.note||'-'];});}
+/* Baris PO yang benar-benar diekspor: tiap baris pricing, lalu biaya tetap
+   tekniknya kalau ada. Dipakai podRows DAN podCRows — kalau jumlahnya beda,
+   nomor PO bergeser untuk semua order sesudahnya. */
+function poBarisEkspor(p){
+  var out=[];
+  (p.lines||[]).forEach(function(l){
+    out.push({l:l});
+    if((+l.hppFix||0)>0)out.push({l:l,tetap:true});});
+  return out;}
 function podCRows(){var seq=+(ST._poSeq||0),out=[];
   poList().forEach(function(p,i){var no=seq?aisPoNo(dmyToISO(p.o.date),seq+i):'(isi No. PO)';
-    p.lines.forEach(function(){out.push([no]);});});return out;}
+    poBarisEkspor(p).forEach(function(){out.push([no]);});});return out;}
 function podRows(){var out=[];
-  poList().forEach(function(p){p.lines.forEach(function(l){
+  poList().forEach(function(p){poBarisEkspor(p).forEach(function(x){
+    var l=x.l;
+    if(x.tetap){out.push([soNo(p.o),'-',(l.produk||'-')+' — biaya tetap',l.bahan||'-',l.perso||'-',1,+l.hppFix||0]);return;}
     out.push([soNo(p.o),'-',l.produk||'-',l.bahan||'-',l.perso||'-',poQty(l),lineHppVendor(l)]);});});return out;}
 function expData(kind){
   if(kind==='soh')return {cols:SOH_COLS,rows:sohRows()};
@@ -7562,6 +7661,27 @@ function migrasiFaseProfit(){
   (ST.orders||[]).forEach(function(o){if((o.phase||0)>=2){o.phase=(o.phase||0)+1;n++;}});
   localStorage.setItem('rovehub_mig_profit','1');
   if(n)save();
+  return n;}
+/* Master yang sudah terlanjur mengimpor katalog sebagai 'Service'. Yang
+   dipindah hanya baris yang jelas teknik: datang dari katalog (berharga),
+   tak punya teknik sendiri, dan bukan salah satu jasa bawaan. */
+function migrasiTeknikJasa(){
+  var M=ST.master;if(!M||!Array.isArray(M.jasa))return 0;
+  var bawaan={};defJasa().forEach(function(j){bawaan[j.nama]=1;});
+  var n=0;
+  M.jasa.forEach(function(j){
+    if(j.jenis!=='Service')return;
+    if(bawaan[j.nama])return;
+    var punyaTeknik=String(j.teknik||'').trim();
+    if(punyaTeknik&&punyaTeknik!=='-')return;
+    if(!((+j.fix||0)>0||(+j.harga||0)>0)&&!j.dariKatalog)return;
+    j.jenis='Teknik';j.dariKatalog=true;n++;});
+  /* peta bawaan diisikan untuk jasa yang belum punya daftar tekniknya */
+  M.jasa.forEach(function(j){
+    if(j.jenis!=='Service')return;
+    if(String(j.tekList||'').trim())return;
+    if(TEK_BAWAAN[j.nama]){j.tekList=TEK_BAWAAN[j.nama];n++;}});
+  if(n)saveMaster();
   return n;}
 function migrasiStatus(){
   var ubah=0;
@@ -9909,9 +10029,12 @@ function lineProfit(l,m){
      tim live datang sekali, tak peduli barangnya 50 atau 500. */
   if(lineJenis(l)==='jasa'){
     omset=0;
-    biaya=hpp*jasaKali(l);
+    /* biaya tetap teknik (mis. plat Logo Deboss) sekali per order — bukan
+       per pcs, jadi ia ditambahkan, bukan dikalikan */
+    var tetap=+l.hppFix||0;
+    biaya=hpp*jasaKali(l)+tetap;
     return {jual:0,hpp:hpp,qty:q,qtyPO:qpo,spare:0,perPcs:0,
-      omset:0,biaya:biaya,total:-biaya,pct:0,adaHpp:hpp>0,jasa:true};}
+      omset:0,biaya:biaya,total:-biaya,pct:0,adaHpp:(hpp>0||tetap>0),jasa:true};}
   return {jual:jual,hpp:hpp,qty:q,qtyPO:qpo,spare:Math.max(0,qpo-q),
     perPcs:jual-hpp,omset:omset,biaya:biaya,total:omset-biaya,
     pct:omset>0?Math.round((omset-biaya)/omset*100):0,adaHpp:hpp>0};}
@@ -11000,7 +11123,10 @@ function rfqPanel(o){
               (otomatis
                 ? ('<span style="font-size:10px;font-weight:800;color:'+(konfSah(l)?'var(--ok)':'var(--warn)')+'">● '+
                    (konfSah(l)?'Dipastikan':'Dari master')+'</span>'+
-                   '<div style="font-size:11px;font-weight:800;margin-top:2px">'+fmt0(konfHargaBaris(l))+'</div>')
+                   '<div style="font-size:11px;font-weight:800;margin-top:2px">'+fmt0(konfHargaBaris(l))+'</div>'+
+                   /* biaya tetap teknik sekali per order — kalau tak disebut,
+                      angka di atas terbaca seolah seluruh biayanya */
+                   ((+l.hppFix||0)>0?('<div style="font-size:9px;color:var(--muted)">+ '+fmt0(l.hppFix)+' biaya tetap</div>'):''))
                 : ('<span style="font-size:10px;font-weight:800;color:'+rfqWarna(st)+'">● '+st+'</span>'+
                    ((l.hpp||0)>0?('<div style="font-size:11px;font-weight:800;margin-top:2px">'+fmt0(l.hpp)+'</div>')
                      :(function(){var hl=hargaTerakhir(o,l);
@@ -11421,7 +11547,15 @@ function priceInput(el){
     /* Sama seperti dropdown di panel Minta harga vendor: yang dipilih orang
        tak boleh ditimpa penghitungan ulang pada render berikutnya. */
     if(f==='sumber'){l._vendorManual=true;delete l._vendorTebakan;}
-    if(f==='perso')l._persoManual=true;
+    if(f==='perso'){
+      l._persoManual=true;
+      /* teknik menentukan harga vendor — mengubahnya di sini harus ikut
+         mengubah harganya, kalau tidak angkanya milik teknik yang lama */
+      if(l.jasa&&teknikData(el.value)){
+        var Hp=teknikHarga(el.value,l.qty||0);
+        if(Hp&&!l._hppManual){l.hpp=Hp.perPc;l.hppFix=Hp.fix;l.fixed=true;}
+        if(!o.svcTeknik)o.svcTeknik={};
+        o.svcTeknik[namaJasaBaris(l)]=el.value;}}
     if(['produk','bahan','tali','ukuran','finishing','qty','sumber'].indexOf(f)>=0)kombIsiHpp(o,l);}
   save();
   if(f==='sumber'||f==='dcT'||f==='dc'){render();}else{updateTotals(o.id);}
@@ -11542,7 +11676,7 @@ function priceTotals(o){const m=(o.pricing.margin||0)/100;let hppT=0,jualT=0;
   o.pricing.lines.forEach(l=>{
     /* lineHppVendor, bukan l.hpp mentah — order berdata lama menyimpan harga
        vendornya di l.hppVendor, dan dulu di sini ia terbaca 0 */
-    if(lineJenis(l)==='jasa'){hppT+=lineHppVendor(l)*poQty(l);return;}
+    if(lineJenis(l)==='jasa'){hppT+=lineHppVendor(l)*poQty(l)+(+l.hppFix||0);return;}
     jualT+=lineNet(l,m)*(l.qty||0);hppT+=lineHppVendor(l)*lineQtyPO(l);});
   try{jualT+=jasaTotal(o);}catch(e){}
   return{hppT,jualT,m};}
@@ -11973,7 +12107,10 @@ function imporEstimator(d,opsi){
     var lamaJ=(ST.master.jasa||[]);
     d.services.forEach(function(s){
       var ada=lamaJ.find(function(x){return x.nama===s.name;});
-      var baris=ada||{nama:s.name,jenis:'Service',teknik:'-'};
+      /* katalog Cost Estimator berisi daftar harga per TEKNIK — dulu semuanya
+         masuk sebagai 'Service' dan menumpuk di dropdown jasa */
+      var baris=ada||{nama:s.name,jenis:'Teknik',teknik:'-'};
+      if(!ada)baris.dariKatalog=true;
       baris.fix=+s.fix||0;baris.perPc=+s.perPc||0;
       baris.harga=baris.perPc||baris.harga||0;
       baris.img=baris.img||driveId(s.photo||'');
@@ -13145,6 +13282,24 @@ function bukaMasterJasa(){
   try{var ov=document.getElementById('ov');if(ov)ov.classList.remove('show');}catch(e){}
   try{tutupForm&&tutupForm();}catch(e){}
   ST.view='master';ST.masterTab='produk';ST._prodTab='jasa';ST.cur=null;render();}
+/* Pilihan teknik untuk satu jasa di satu order, beserta harganya ke vendor.
+   Kalau jasa itu cuma punya satu teknik, tak ada yang perlu dipilih — label
+   lama yang dipakai. */
+function teknikPilih(o,n){
+  var L=jasaTekList(n);
+  if(L.length<2)return teknikLabel(n);
+  var cur=jasaTeknikOrder(o,n);
+  var harga=function(t){
+    var H=teknikHarga(t,o.qty||0);
+    if(!H)return '';
+    return ' — '+(H.perPc?(fmt0(H.perPc)+'/pcs'):'')+(H.fix?((H.perPc?' + ':'')+fmt0(H.fix)+' tetap'):'');};
+  return '<select class="pin" style="width:auto;max-width:230px;font-size:10.5px" '+
+    'title="teknik menentukan harga ke vendor" '+
+    'onchange="ordSvcTeknik('+jsArg(o.id)+','+jsArg(n)+',this.value)">'+
+    (cur?'':'<option value="" selected>— pilih teknik —</option>')+
+    L.map(function(t){return '<option value="'+esc(t)+'" '+(t===cur?'selected':'')+'>'+
+      esc(t)+esc(harga(t))+'</option>';}).join('')+'</select>'+
+    (cur?'':'<span style="font-size:9px;color:var(--warn);font-weight:700;white-space:nowrap">belum dipilih</span>');}
 function teknikLabel(n){
   var tk=jasaTeknik(n),ada=!!tk,terdaftar=jasaAda(n);
   var isi,judul;
@@ -13181,7 +13336,7 @@ function ordSvcEditor(o,hanya){
         '<span class="pill" style="font-size:9.5px;white-space:nowrap">'+esc(jenis)+'</span>'+
         '<select class="pin" style="flex:1;min-width:0" onchange="ordSvcSet(\''+o.id+'\',\''+jenis+'\','+i+',this.value)">'+
           pil.map(function(x){return '<option '+(x===n?'selected':'')+'>'+esc(x)+'</option>';}).join('')+'</select>'+
-        teknikLabel(n)+
+        teknikPilih(o,n)+
         '<button class="btn ghost sm" onclick="ordSvcDel(\''+o.id+'\',\''+jenis+'\','+i+')" title="Hapus">✕</button></div>'+
         /* Di mana dikerjakan pada produknya. Tekniknya sudah sampai ke vendor;
            letaknya satu-satunya hal yang tak bisa ditebak siapa pun. */
@@ -13508,6 +13663,7 @@ function rfqDocSpek(o,l){
   } else if(jenis==='addon'){
     t('Teknik',teknikBaris(l)||'belum ditentukan');
     t('Peletakan',l.letak||svcLetak(o,namaJasaBaris(l))||'belum ditentukan');
+    if((+l.hppFix||0)>0)t('Biaya tetap teknik',fmt0(l.hppFix)+' (sekali per order)');
     t('Jumlah',(l.qty||0)+' pcs');
     t('Dikerjakan','di workshop, sebelum barangnya dipacking');
     if(b.perso&&b.perso!=='-')t('Personalization',b.perso);
