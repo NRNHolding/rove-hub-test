@@ -13279,10 +13279,19 @@ function briefPanel(o){
       var ada=0;try{ada=liveList(o.svc).length;}catch(e){}
       return '<div style="font-size:9.5px;color:var(--muted);margin:-6px 0 10px;line-height:1.6">'+
         (ada?'<span>Jasa personalisasinya sudah dipilih, tekniknya belum — pilih di bagian PERSONALIZATION di bawah.</span>'
-            :'<span>Personalisasi produk (initial, full name, logo) dipilih di bagian PERSONALIZATION di bawah, beserta teknik dan letaknya.</span>')+
+            :'<span>Personalisasi produk (initial, full name, logo) dipilih di bagian PERSONALIZATION tepat di bawah, beserta teknik dan letaknya.</span>')+
         '</div>';})()+
     (dye?'':'<div style="font-size:9.5px;color:var(--muted);margin:-6px 0 10px">Kolom warna dye muncul otomatis kalau Finishing request dipilih <b>Dye</b>.</div>')+
     grid(txt('fiturLain','Fungsi / fitur yang diminta client','mis. muat 6 kartu + slot koin','grid-column:1/-1'),300)+
+
+    /* Personalisasi menempel pada spesifikasi produk — ia memang bagian dari
+       produknya, bukan pekerjaan yang berdiri sendiri. Dulu ia terlempar ke
+       bawah PACKAGING dan LIVE SERVICE, jauh dari kolom yang menerangkannya. */
+    '<a id="sekPerso"></a>'+
+    sub('PERSONALIZATION','dikerjakan di workshop pada produknya — initial, full name, logo')+
+    salesPita(o,'perso')+
+    ordSvcEditor(o,'Service')+
+    persoBlok(o)+
 
     sub('LOGO','file dipakai vendor saat produksi')+
     lampiranBlok(o,'logoFiles','Logo client')+
@@ -13305,11 +13314,6 @@ function briefPanel(o){
     sub('LIVE SERVICE','dikerjakan di lokasi acara')+
     briefSvcImg(o)+
     ordSvcEditor(o,'Live service')+
-    '<a id="sekPerso"></a>'+
-    sub('PERSONALIZATION','dikerjakan di workshop pada produknya — initial, full name, logo')+
-    salesPita(o,'perso')+
-    ordSvcEditor(o,'Service')+
-    persoBlok(o)+
     '</div></div>';}
 /* ---- editor live service / add-on di order yang sudah jadi ---- */
 const SVCKEY={'Live service':'liveSvc','Service':'svc'};
