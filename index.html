@@ -10378,64 +10378,81 @@ function rfqPanel(o){
      sudah ada sebelum itu selamanya kehilangan vendornya. Dilengkapi di sini
      juga; pembuatnya tak menggandakan, jadi yang sudah lengkap tak berubah. */
   try{if(barisVendorLengkapi(o).length){o._m=Date.now();save();}}catch(e){}
-  var R=rfqLines(o),L=((o.pricing||{}).lines)||[];
-  var otomatis=L.filter(function(l){return (l.qty>0)&&hargaOtomatis(l);});
-  var belum=R.filter(function(x){return (x.l.hpp||0)<=0;}).length;
+  var L=((o.pricing||{}).lines)||[];
+  /* SATU daftar: semua baris yang punya urusan dengan vendor — yang harganya
+     belum ada maupun yang harganya dari master dan tinggal dipastikan. Dulu
+     keduanya dipisah, dan yang kedua bisa tak muncul di mana pun. */
+  var R=[];
+  L.forEach(function(l,i){if((l.qty||0)>0||lineJenis(l)==='jasa')R.push({l:l,i:i});});
+  var belum=R.filter(function(x){
+    return hargaOtomatis(x.l)?!konfSah(x.l):((x.l.hpp||0)<=0);}).length;
   var kepala='<div class="card actcard" style="margin-top:14px"><div class="ch"><span class="ico" style="background:#8a6d3b">📨</span>'+
     '<div><div class="t">Minta harga vendor</div><div class="s">HARGA BARU DIMINTA, HARGA KATALOG DIPASTIKAN</div></div>'+
     '<span style="margin-left:auto;font-size:12px;font-weight:800;color:'+(belum?'var(--warn)':'var(--ok)')+'">'+
-      (belum?(belum+' belum ada harga'):'semua harga lengkap')+'</span></div><div class="body">';
+      (belum?(belum+' belum beres'):'semua harga beres')+'</span></div><div class="body">';
   var isi='';
-  if(!L.length){
+  if(!R.length){
     isi='<div style="font-size:11px;color:var(--muted)">Belum ada baris pricing. Buka panel <b>Pricing &amp; Dokumen</b> untuk menambahkan item dulu.</div>';
-  } else if(!R.length){
-    var sisaK=konfBelum(o).length;
-    isi='<div style="border:1px '+(sisaK?'dashed var(--warn)':'dashed var(--ok)')+';border-radius:9px;padding:12px 14px;background:var(--bg)">'+
-      '<div style="font-size:12px;font-weight:800;color:'+(sisaK?'var(--warn)':'var(--ok)')+';margin-bottom:5px">'+
-        (sisaK?'Tak ada harga baru yang perlu diminta — tapi harganya tetap dipastikan':'✓ Semua harga sudah dipastikan ke vendornya')+'</div>'+
-      '<div style="font-size:10.5px;color:var(--muted);line-height:1.7">Semua item sudah punya harga dari master. '+
-        (sisaK?'Harga itu tetap harus dipastikan ke vendornya di bawah ini — vendor bisa menaikkan harga tanpa memberi tahu.'
-              :'Fase ini boleh dilanjutkan ke <b>Quotation</b>.')+'</div>'+
-      (sisaK?'':(faseMilikku(o)
-        ?('<button class="btn sm" style="margin-top:10px" onclick="trigger(\''+o.id+'\')">→ Lanjut ke Quotation</button>')
-        :('<button class="btn sm" style="margin-top:10px" disabled>→ Lanjut ke Quotation</button>'+
-          '<div style="font-size:9.5px;color:var(--muted);margin-top:4px">dipegang '+esc(fasePemilik(o))+'</div>')))+'</div>';
   } else {
-    isi='<div style="font-size:10.5px;color:var(--muted);margin-bottom:10px">Baris di bawah tak punya harga tetap di master, jadi harus ditanyakan ke vendor. '+
-        'Kalau barangnya pernah dibeli sebelumnya, harga terakhirnya ditampilkan — tinggal konfirmasi ke vendor bahwa harga itu masih berlaku, lalu klik <b>Pakai harga ini</b>. '+
-        'Buat <b>Dokumen</b>-nya, lalu <b>Serahkan ke Purchasing</b> — Purchasing yang menyimpan PDF-nya '+
-        'dan meneruskan ke vendor. Begitu vendor menjawab, tekan <b>Catat jawaban</b>.</div>'+
-      '<div class="xscroll"><table class="rtable"><thead><tr><th style="min-width:150px">Item</th><th style="width:130px">Vendor</th>'+
-      '<th style="width:70px" class="num">Qty</th><th style="width:120px">Status</th><th style="width:110px" class="num">Harga/pcs</th>'+
-      '<th style="min-width:150px">Catatan vendor</th><th style="width:150px"></th></tr></thead><tbody>'+
+    isi='<div style="font-size:10.5px;color:var(--ink-soft);line-height:1.7;margin-bottom:9px">'+
+      'Baris yang <b>belum ada harganya</b>: buat <b>Dokumen</b>-nya lalu <b>Serahkan</b> — Purchasing yang '+
+      'menyimpan PDF-nya dan meneruskan ke vendor. Baris yang <b>harganya dari master</b>: harga itu tetap '+
+      'harus dipastikan, karena vendor bisa menaikkannya tanpa memberi tahu.</div>'+
+      tanpaVendorSpanduk(o)+
+      '<table class="rtable" style="table-layout:fixed;width:100%"><thead><tr>'+
+        '<th>Item &amp; vendor</th>'+
+        '<th style="width:52px" class="num">Qty</th>'+
+        '<th style="width:132px">Status &amp; harga</th>'+
+        '<th style="width:176px"></th></tr></thead><tbody>'+
       R.map(function(x){var l=x.l,st=rfqStatus(l);
-        return '<tr><td><b>'+esc(l.produk||'(tanpa nama)')+'</b>'+
-            (l.bahan?('<div style="font-size:9px;color:var(--muted)">'+esc(l.bahan)+'</div>'):'')+'</td>'+
-          '<td>'+rfqVendorSel(o,l,x.i)+'</td>'+
-          '<td class="num">'+(l.qty||0)+'</td>'+
-          '<td><span style="font-size:10px;font-weight:800;color:'+rfqWarna(st)+'">● '+st+'</span>'+
-            ((l.rfq&&l.rfq.minta)?('<div style="font-size:9px;color:var(--muted)">diserahkan '+tglID(l.rfq.minta)+'</div>'):'')+
-            ((l.rfq&&l.rfq.terima)?('<div style="font-size:9px;color:var(--muted)">masuk '+tglID(l.rfq.terima)+'</div>'):'')+
-            (((o.rfqDoc||{})[l.sumber])?('<div style="font-size:9px;color:var(--muted)">📄 dokumen '+esc(o.rfqDoc[l.sumber])+'</div>'):'')+'</td>'+
-          '<td class="num">'+((l.hpp||0)>0?('<b>'+fmt0(l.hpp)+'</b>')
-            :(function(){var hl=hargaTerakhir(o,l);
-               if(!hl)return '<span style="color:var(--muted)">—</span>';
-               return '<div style="font-size:10px;color:var(--muted);line-height:1.5">terakhir <b style="color:var(--ink)">'+fmt0(hl.hpp)+'</b>'+
-                 '<div style="font-size:9px">'+esc(hl.cust)+' · '+hl.qty+' pcs</div></div>'+
-                 '<button class="btn ghost sm" style="margin-top:4px" onclick="pakaiHargaLama('+jsArg(o.id)+','+x.i+')">Pakai harga ini</button>';})())+'</td>'+
-          '<td style="font-size:10px;color:var(--muted)">'+esc((l.rfq&&l.rfq.note)||'')+'</td>'+
-          '<td style="white-space:nowrap">'+
-            ((l.rfq&&l.rfq.minta)
-              ? '<button class="btn sm" onclick="rfqJawab('+jsArg(o.id)+','+x.i+')">✓ Catat jawaban</button> '+
-                '<button class="xrow" style="color:var(--brand)" title="serahkan ulang ke Purchasing" onclick="rfqSerah('+jsArg(o.id)+','+jsArg(l.sumber)+')">↻</button> '+
-                '<button class="xrow" style="color:var(--brand)" title="dokumen permintaan harga (PDF)" onclick="genRfqDoc('+jsArg(o.id)+','+jsArg(l.sumber)+')">📄</button>'
-              : '<button class="btn ghost sm" title="dokumen permintaan harga — tinggal Simpan PDF" onclick="genRfqDoc('+jsArg(o.id)+','+jsArg(l.sumber)+')">📄 Dokumen</button> '+
-                '<button class="btn sm" title="tandai sudah diminta &amp; kabari Purchasing lewat Discord" onclick="rfqSerah('+jsArg(o.id)+','+jsArg(l.sumber)+')">✋ Serahkan ke Purchasing</button>')+
-            '</td></tr>'+
-          (lineKulit(l)?('<tr><td colspan="7" style="padding-top:0">'+kulitBlok(o,l,x.i)+'</td></tr>'):'');}).join('')+
-      '</tbody></table></div>';
+        var otomatis=hargaOtomatis(l),sudahKonf=otomatis&&konfSah(l);
+        var ditanya=!!(l.konfTanya&&l.konfTanya.tgl);
+        return '<tr>'+
+          '<td style="vertical-align:top"><b style="font-size:11.5px">'+esc(l.produk||'(tanpa nama)')+'</b>'+
+            (l.bahan?('<div style="font-size:9px;color:var(--muted)">'+esc(l.bahan)+'</div>'):'')+
+            '<div style="margin-top:4px">'+rfqVendorSel(o,l,x.i)+'</div>'+
+            ((l.rfq&&l.rfq.note)?('<div style="font-size:9px;color:var(--muted);margin-top:3px">catatan vendor: '+esc(l.rfq.note)+'</div>'):'')+'</td>'+
+          '<td class="num" style="vertical-align:top;font-size:10.5px">'+esc(poQtyTeks(l)).replace(' ','<br>')+'</td>'+
+          '<td style="vertical-align:top">'+
+            (otomatis
+              ? ('<span style="font-size:10px;font-weight:800;color:'+(sudahKonf?'var(--ok)':'var(--warn)')+'">● '+
+                 (sudahKonf?'Dipastikan':'Dari master')+'</span>'+
+                 '<div style="font-size:11px;font-weight:800;margin-top:2px">'+fmt0(konfHargaBaris(l))+'</div>'+
+                 (sudahKonf?('<div style="font-size:9px;color:var(--muted)">'+esc((l.konf||{}).oleh||'')+' · '+tglID((l.konf||{}).tgl)+'</div>')
+                          :(ditanya?('<div style="font-size:9px;color:var(--warn)">ditanya '+tglID(l.konfTanya.tgl)+'</div>'):'')))
+              : ('<span style="font-size:10px;font-weight:800;color:'+rfqWarna(st)+'">● '+st+'</span>'+
+                 ((l.rfq&&l.rfq.minta)?('<div style="font-size:9px;color:var(--muted)">diserahkan '+tglID(l.rfq.minta)+'</div>'):'')+
+                 ((l.rfq&&l.rfq.terima)?('<div style="font-size:9px;color:var(--muted)">masuk '+tglID(l.rfq.terima)+'</div>'):'')+
+                 (((o.rfqDoc||{})[l.sumber])?('<div style="font-size:9px;color:var(--muted)">📄 '+esc(o.rfqDoc[l.sumber])+'</div>'):'')+
+                 ((l.hpp||0)>0?('<div style="font-size:11px;font-weight:800;margin-top:2px">'+fmt0(l.hpp)+'</div>')
+                   :(function(){var hl=hargaTerakhir(o,l);
+                      if(!hl)return '';
+                      return '<div style="font-size:9px;color:var(--muted);margin-top:3px;line-height:1.5">terakhir <b style="color:var(--ink)">'+fmt0(hl.hpp)+'</b>'+
+                        '<div>'+esc(hl.cust)+' · '+hl.qty+' pcs</div></div>'+
+                        '<button class="btn ghost sm" style="margin-top:3px;font-size:9px" onclick="pakaiHargaLama('+jsArg(o.id)+','+x.i+')">Pakai harga ini</button>';})())))+'</td>'+
+          '<td style="vertical-align:top">'+
+            (otomatis
+              ? (sudahKonf
+                  ? '<button class="btn ghost sm" onclick="konfSet('+jsArg(o.id)+','+jsArg(l.sumber)+')">↺ Batalkan</button>'
+                  : '<button class="btn ghost sm" style="margin-bottom:4px" onclick="konfTanya('+jsArg(o.id)+','+jsArg(l.sumber)+')">📨 '+(ditanya?'Tanya lagi':'Tanyakan')+'</button> '+
+                    '<button class="btn sm" onclick="konfSet('+jsArg(o.id)+','+jsArg(l.sumber)+')">✓ Harga masih berlaku</button>')
+              : ((l.rfq&&l.rfq.minta)
+                  ? '<button class="btn sm" onclick="rfqJawab('+jsArg(o.id)+','+x.i+')">✓ Catat jawaban</button> '+
+                    '<button class="xrow" style="color:var(--brand)" title="serahkan ulang ke Purchasing" onclick="rfqSerah('+jsArg(o.id)+','+jsArg(l.sumber)+')">↻</button> '+
+                    '<button class="xrow" style="color:var(--brand)" title="dokumen permintaan harga (PDF)" onclick="genRfqDoc('+jsArg(o.id)+','+jsArg(l.sumber)+')">📄</button>'
+                  : '<button class="btn ghost sm" style="margin-bottom:4px" onclick="genRfqDoc('+jsArg(o.id)+','+jsArg(l.sumber)+')">📄 Dokumen</button> '+
+                    '<button class="btn sm" title="tandai sudah diminta &amp; kabari Purchasing lewat Discord" onclick="rfqSerah('+jsArg(o.id)+','+jsArg(l.sumber)+')">✋ Serahkan</button>'))+'</td></tr>'+
+          (lineKulit(l)?('<tr><td colspan="4" style="padding-top:0">'+kulitBlok(o,l,x.i)+'</td></tr>'):'');}).join('')+
+      '</tbody></table>'+
+      /* kalau semuanya sudah beres, jalan lanjutnya di sini — bukan di blok
+         terpisah yang dulu cuma muncul dalam satu keadaan tertentu */
+      (belum?'':('<div style="border:1px dashed var(--ok);border-radius:9px;padding:11px 13px;margin-top:11px;background:var(--bg)">'+
+        '<div style="font-size:12px;font-weight:800;color:var(--ok);margin-bottom:4px">✓ Semua harga sudah beres</div>'+
+        (faseMilikku(o)
+          ?('<button class="btn sm" onclick="trigger('+jsArg(o.id)+')">→ Lanjut ke Quotation</button>')
+          :('<button class="btn sm" disabled>→ Lanjut ke Quotation</button>'+
+            '<div style="font-size:9.5px;color:var(--muted);margin-top:4px">dipegang '+esc(fasePemilik(o))+'</div>'))+'</div>'));
   }
-  isi+=konfBlok(o);
   return kepala+isi+sketchBar(o)+'</div></div>';}
 
 /* ---- blok bergambar untuk Brief Inquiry ----
