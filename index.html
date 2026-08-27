@@ -506,7 +506,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20260827-154732';
+const VERSI='20260827-155446';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -2009,6 +2009,12 @@ const LEAD_ST_ALL=['Baru','Ditanggapi','Follow-up','Jadi order','Batal'];
    prospek lama yang terlanjur bernilai Ditanggapi atau Follow-up. */
 const LEAD_SARING=['Aktif','Jadi order','Batal'];
 function leadsAll(){return ST.leads||(ST.leads=[]);}
+/* Prospek yang dihapus kini disimpan sebagai nisan (deleted:true), bukan
+   dibuang dari daftar. Sejak prospek digabung PER BARIS dengan cloud, baris
+   yang lenyap begitu saja akan hidup lagi dari perangkat lain — nisan inilah
+   yang membuat penghapusan ikut menyeberang. Order sudah memakai cara yang
+   sama sejak dulu (o.deleted). */
+function leadsHidup(){return leadsAll().filter(function(l){return l&&!l.deleted;});}
 /* ---- brief singkat prospek ---- */
 /* Kategori client. Kolom nama yang muncul di Brief mengikuti pilihan ini —
    lihat KAT_KOLOM di bawah. */
@@ -2438,7 +2444,9 @@ function leadNote(id){var l=leadsAll().find(function(x){return x.id===id;});if(!
 function leadDel(id){var i=leadsAll().findIndex(function(x){return x.id===id;});if(i<0)return;
   var l=ST.leads[i];
   if(!confirm('Hapus prospek "'+l.nama+'"?\n\nKalau prospeknya batal, lebih baik ubah status jadi "Batal" supaya tetap tercatat.'))return;
-  ST.leads.splice(i,1);saveLeads();render();}
+  /* nisan, bukan dibuang: kalau barisnya lenyap, perangkat lain mengirimkannya
+     kembali waktu sinkron dan prospeknya hidup lagi */
+  l.deleted=true;l._m=Date.now();saveLeads();render();}
 /* leadToOrder dibuang: order kini lahir lewat kirimKeInquiry, tanpa form. */
 
 
@@ -2640,7 +2648,7 @@ function vipToggle(jenis,id){
 
 function lepasFokusProspek(){ST._lfokus=null;render();}
 function leadPanel(){
-  var L=leadsAll().slice();
+  var L=leadsHidup().slice();
   var q=(ST._lq||'').toLowerCase(),fs=ST._lst||'';
   /* dibuka dari kartu papan: satu client saja, seperti membuka satu order */
   var fokus=ST._lfokus?L.find(function(x){return x.id===ST._lfokus;}):null;
@@ -3991,7 +3999,7 @@ function prodMulaiBersih(){
     sub:'Menghapus data contoh supaya HUB bisa dipakai sungguhan',
     fields:[
       {k:'info',label:'Yang akan DIHAPUS',type:'textarea',
-        val:'• '+n(ST.orders&&ST.orders.length)+' order\n• '+n(leadsAll().length)+' prospek\n• '+n(buyAll().length)+' pembelian\n'+
+        val:'• '+n(ST.orders&&ST.orders.length)+' order\n• '+n(leadsHidup().length)+' prospek\n• '+n(buyAll().length)+' pembelian\n'+
             '• '+n(kontenAll().length)+' konten\n• '+n(taxAll().length)+' catatan pajak\n• '+n(hrData().payroll.length)+' periode payroll & '+n(hrData().kandidat.length)+' kandidat\n'+
             '• '+n(invData().moves.length)+' riwayat pergerakan stok\n• Nomor urut dokumen (quotation/invoice/PO/SO)',
         hint:'Master data <b>tetap aman</b>: vendor, katalog, collateral, operator, alat, tarif ongkir, akun, hak akses, template teks.'},
@@ -4156,7 +4164,12 @@ function mergeLeads(cloud){
     if(pt&&(cl._m||0)<pt)return;              // dari sebelum pembersihan
     var lo=byId[cl.id];
     if(!lo){lokal.push(cl);byId[cl.id]=cl;ubah=true;}
-    else if((cl._m||0)>(lo._m||0)){Object.assign(lo,cl);ubah=true;}});
+    else if((cl._m||0)>(lo._m||0)){
+      /* Object.assign tak menghapus medan yang tak ada di sisi lawan —
+         tanpa baris ini, nisan di sini menahan versi yang di sana sudah
+         dihidupkan lagi, dan prospeknya hilang selamanya */
+      if(!cl.deleted)delete lo.deleted;
+      Object.assign(lo,cl);ubah=true;}});
   if(ubah)localStorage.setItem(LEAD_KEY,JSON.stringify(ST.leads));
   return ubah;}
 /* Mendamaikan lebih dulu, baru mendorong. Tanpa ini, potret lokal menimpa apa
@@ -7104,7 +7117,7 @@ function expPanel(){
 }
 /* rekap CS: konversi prospek + komplain + kepuasan */
 function csReport(){
-  var L=leadsAll(),tot=L.length,deal=L.filter(function(l){return l.status==='Jadi order';}).length;
+  var L=leadsHidup(),tot=L.length,deal=L.filter(function(l){return l.status==='Jadi order';}).length;
   var batal=L.filter(function(l){return l.status==='Batal';}).length,aktif=L.filter(leadAktif).length;
   var konv=(deal+batal)?Math.round(deal/(deal+batal)*100):0;
   var byCh={};L.forEach(function(l){var c=byCh[l.channel]=byCh[l.channel]||{n:0,d:0};c.n++;if(l.status==='Jadi order')c.d++;});
@@ -7656,7 +7669,7 @@ function renderOM(){
     if(x[0]==='board'||x[0]==='ov')return true;            // ikut hak akses Order Management
     if(x[0]==='tasks'&&ST.user==='Holding')return false;   // sudah ada di menu Panel Holding
     return can(x[0]);}).map(function(x){
-    var n=(x[0]==='tasks')?taskOrders(ST.user).length:(x[0]==='leads'?leadsAll().filter(function(l){return l.status!=='Jadi order'&&l.status!=='Batal';}).length:(x[0]==='ov'?ovList().length:0));
+    var n=(x[0]==='tasks')?taskOrders(ST.user).length:(x[0]==='leads'?leadsHidup().filter(function(l){return l.status!=='Jadi order'&&l.status!=='Batal';}).length:(x[0]==='ov'?ovList().length:0));
     return '<button class="btn '+(t===x[0]?'':'ghost')+' sm" onclick="omTab(\u0027'+x[0]+'\u0027)">'+esc(x[1])+(n?(' ('+n+')'):'')+'</button>';}).join('');
   var tb=m.querySelector('.topbar');
   if(tb&&tb.nextSibling)m.insertBefore(bar,tb.nextSibling); else m.insertBefore(bar,m.firstChild);}
@@ -7773,7 +7786,7 @@ function renderOverview(){
 function papanProspek(){
   if(!can('leads'))return [];                 // jabatan yang tak berurusan dengan prospek tak perlu melihatnya
   var q=(ST._bq||'').toLowerCase();
-  return leadsAll().filter(function(l){
+  return leadsHidup().filter(function(l){
     if(!leadAktif(l))return false;            // yang batal & sudah jadi order tak menggantung di papan
     if(q&&[l.nama,l.kontak,l.produk,l.pic].concat(leadSpecRingkas(l)).join(' ').toLowerCase().indexOf(q)<0)return false;
     return true;}).sort(function(a,b){return leadDiam(b)-leadDiam(a);});}
