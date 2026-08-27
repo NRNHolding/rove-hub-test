@@ -10982,8 +10982,15 @@ function vendorGambar(o,l){
      Cost Estimator. Yang berupa data URI bisa disalin & diunduh seperti yang
      lain; yang berupa id Drive sudah ikut sebagai tautan di dalam pesannya. */
   try{lineImgs(l).forEach(function(src,i){
-    if(String(src||'').slice(0,11)==='data:image/')
-      out.push({slot:'_line',i:i,f:{nama:(l.produk||'gambar')+'-'+(i+1)+'.png',tipe:'image/png',data:src}});});}catch(e){}
+    if(String(src||'').slice(0,11)==='data:image/'){
+      out.push({slot:'_line',i:i,f:{nama:(l.produk||'gambar')+'-'+(i+1)+'.png',tipe:'image/png',data:src}});
+      return;}
+    /* gambar dari Cost Estimator: yang tersimpan cuma id Drive-nya. Tetap
+       ditampilkan — dulu ia cuma jadi tautan di dalam teks, tak pernah
+       terlihat oleh yang mengirim pesannya. */
+    var url='';try{url=driveLink(src);}catch(e){}
+    if(url)out.push({slot:'_drive',i:i,drive:true,
+      f:{nama:(l.produk||'gambar')+' (Drive)',tipe:'image/*',data:url}});});}catch(e){}
   if(l&&l.coll){
     var slot={box:'logoBoxFiles',pouch:'logoPouchFiles',card:'logoCardFiles'}[l.coll];
     if(slot)(b[slot]||[]).forEach(function(f,i){tambah(slot,f,i);});}
@@ -11017,8 +11024,12 @@ function gambarUnduhSemua(id,kunci){
   var G=(ST._gmb||{})[kunci]||[];
   if(!G.length){alert('Tak ada gambar untuk diunduh.');return;}
   /* diberi jeda: browser membatalkan unduhan beruntun yang terlalu rapat */
-  G.forEach(function(x,n){setTimeout(function(){gambarUnduhSatu(x.f);},n*350);});
-  alert('⬇ '+G.length+' gambar diunduh — tinggal diseret ke chat vendor.');}
+  var berkas=G.filter(function(x){return !x.drive;}),drive=G.length-berkas.length;
+  if(!berkas.length){alert('Gambar yang ada semuanya tersimpan di Google Drive, jadi tak bisa diunduh dari sini.'+
+    String.fromCharCode(10)+String.fromCharCode(10)+'Pakai tombol ↗ buka di bawah gambarnya, lalu simpan dari tab yang terbuka.');return;}
+  berkas.forEach(function(x,n){setTimeout(function(){gambarUnduhSatu(x.f);},n*350);});
+  alert('⬇ '+berkas.length+' gambar diunduh — tinggal diseret ke chat vendor.'+
+    (drive?(String.fromCharCode(10)+String.fromCharCode(10)+drive+' gambar lain ada di Google Drive — buka satu per satu lewat tombol ↗.'):''));}
 /* Salin satu gambar ke clipboard supaya bisa langsung ditempel di WhatsApp.
    Clipboard browser hanya menerima PNG, jadi JPEG digambar ulang dulu. */
 function gambarSalin(id,slot,i,kunci){
@@ -11065,7 +11076,7 @@ function vendorGambarBlok(o,l,kunci,baris){
   return '<div style="border:1px solid var(--line);border-radius:9px;padding:9px 11px;margin-bottom:12px;background:var(--bg)">'+
     '<div style="display:flex;gap:9px;align-items:center;flex-wrap:wrap;margin-bottom:7px">'+
       '<b style="font-size:10.5px">Gambar yang perlu ikut</b>'+
-      '<span style="font-size:9.5px;color:var(--muted)">'+G.length+' berkas — teks pesan tak membawa gambar, jadi kirimkan ini bersamanya</span>'+
+      '<span style="font-size:9.5px;color:var(--muted)">'+G.length+' gambar — teks pesan tak membawa gambar, jadi kirimkan ini bersamanya</span>'+
       '<button class="btn ghost sm" style="margin-left:auto" onclick="gambarUnduhSemua('+jsArg(o.id)+','+jsArg(kunci)+')">⬇ Unduh semua</button>'+
     '</div>'+
     '<div style="display:flex;gap:9px;flex-wrap:wrap">'+
@@ -11074,10 +11085,15 @@ function vendorGambarBlok(o,l,kunci,baris){
           '<img src="'+x.f.data+'" style="width:96px;height:72px;object-fit:cover;border-radius:7px;border:1px solid var(--line);cursor:zoom-in" onclick="openLB(this.src)">'+
           '<div style="font-size:8.5px;color:var(--muted);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+esc(x.f.nama||'')+'">'+esc(x.f.nama||'')+'</div>'+
           '<div style="display:flex;gap:3px;margin-top:2px">'+
-            '<button class="btn ghost sm" style="flex:1;font-size:8.5px;padding:2px 0" title="salin gambar untuk ditempel di WhatsApp" '+
-              'onclick="gambarSalin('+jsArg(o.id)+','+jsArg(x.slot)+','+x.i+','+jsArg(kunci)+')">📋</button>'+
-            '<button class="btn ghost sm" style="flex:1;font-size:8.5px;padding:2px 0" title="unduh gambar ini" '+
-              'onclick="gambarUnduh('+jsArg(o.id)+','+jsArg(x.slot)+','+x.i+','+jsArg(kunci)+')">⬇</button>'+
+            (x.drive
+              /* beda domain — tak bisa dibaca halaman ini untuk disalin, jadi
+                 dibuka saja; dari tab barunya bisa disalin atau disimpan */
+              ? ('<a class="btn ghost sm" style="flex:1;font-size:8.5px;padding:2px 0;text-align:center;text-decoration:none" '+
+                 'href="'+esc(x.f.data)+'" target="_blank" rel="noopener" title="buka gambarnya di tab baru, lalu salin atau simpan dari sana">↗ buka</a>')
+              : ('<button class="btn ghost sm" style="flex:1;font-size:8.5px;padding:2px 0" title="salin gambar untuk ditempel di WhatsApp" '+
+                 'onclick="gambarSalin('+jsArg(o.id)+','+jsArg(x.slot)+','+x.i+','+jsArg(kunci)+')">📋</button>'+
+                 '<button class="btn ghost sm" style="flex:1;font-size:8.5px;padding:2px 0" title="unduh gambar ini" '+
+                 'onclick="gambarUnduh('+jsArg(o.id)+','+jsArg(x.slot)+','+x.i+','+jsArg(kunci)+')">⬇</button>'))+
           '</div></div>';}).join('')+
     '</div></div>';}
 function vendorKontakBlok(nama){
