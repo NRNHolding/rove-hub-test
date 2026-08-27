@@ -4427,7 +4427,13 @@ function drafSemua(){try{return JSON.parse(localStorage.getItem(DRAF_KEY)||'{}')
 function drafTulis(m){try{localStorage.setItem(DRAF_KEY,JSON.stringify(m));}catch(e){}}
 function drafKunci(o){return String((o&&o.draf)||(o&&o.judul)||'');}
 function drafAda(o){var k=drafKunci(o);if(!k)return null;var d=drafSemua()[k];
-  return (d&&d.nilai&&Object.keys(d.nilai).length)?d:null;}
+  if(!(d&&d.nilai&&Object.keys(d.nilai).length))return null;
+  /* Kotak yang isinya dibuatkan sistem menitipkan teks aslinya lewat o.drafDasar.
+     Kalau teks itu sudah berubah — qty diubah, tanggal diisi, vendor diganti —
+     suntingan lama bukan sekadar basi, isinya sudah salah. */
+  if(o.drafDasar!==undefined&&String(d.dasar||'')!==String(o.drafDasar||'')){
+    var m=drafSemua();delete m[k];drafTulis(m);return null;}
+  return d;}
 function drafSimpan(){
   if(!_ask)return;
   var k=drafKunci(_ask);if(!k)return;
@@ -4436,7 +4442,8 @@ function drafSimpan(){
     var x=v[f];
     if(typeof x==='string'?x.trim():x)isi=true;});
   var m=drafSemua();
-  if(isi)m[k]={nilai:v,tgl:nowStr()}; else delete m[k];
+  if(isi)m[k]={nilai:v,tgl:nowStr(),dasar:(_ask.drafDasar!==undefined?String(_ask.drafDasar||''):undefined)};
+  else delete m[k];
   drafTulis(m);}
 function drafBuang(k){var m=drafSemua();delete m[k];drafTulis(m);
   if(_ask&&drafKunci(_ask)===k){var o=_ask;o._tanpaDraf=true;askForm(o);}}
@@ -4466,7 +4473,8 @@ function askForm(o){
     b.insertAdjacentHTML('afterbegin',
       '<div style="border:1px dashed var(--accent);background:var(--warn-bg);border-radius:9px;'+
       'padding:8px 11px;margin-bottom:12px;font-size:10.5px;line-height:1.6;color:var(--brand-dark)">'+
-      '<b>Isian yang tadi ditinggalkan sudah dikembalikan</b> — terakhir diketik '+esc(draf.tgl)+'. '+
+      '<b>Isian yang tadi ditinggalkan sudah dikembalikan</b> — terakhir diketik '+esc(draf.tgl)+
+      (draf.dasar!==undefined?', dan datanya belum berubah sejak itu':'')+'. '+
       '<span style="cursor:pointer;text-decoration:underline" onclick="drafBuang(\''+
         String(drafKunci(o)).replace(/'/g,"\\'")+'\')">Mulai dari kosong</span></div>');
   /* kolom bersyarat: disaring sekarang, lalu tiap kali ada yang diubah.
@@ -8931,12 +8939,14 @@ function konfTanya(id,vendor){
   var grup=konfVendor(o).find(function(g){return g.vendor===vendor;});if(!grup)return;
   var live=!!((ST.cfg||{}).live&&(ST.cfg||{}).url);
   var tuj=vendorTujuan(o,vendor);
+  var teksKonf=konfPesan(o,vendor,grup.baris);
   askForm({judul:'Pastikan harga ke '+vendor,
+    draf:'konf|'+o.id+'|'+vendor,drafDasar:teksKonf,
     sub:grup.baris.length+' baris · harganya dari master, tinggal dipastikan masih berlaku',
     info:vendorKontakBlok(vendor)+vendorGambarBlok(o,null,'konf'+o.id+'-'+vendor,
       grup.baris.map(function(x){return x.l;})),
     fields:[{k:'pesan',label:'Isi pesan — boleh diedit sebelum dikirim',type:'textarea',tinggi:240,
-      val:konfPesan(o,vendor,grup.baris),req:true,hint:tujuanTeks(tuj,live,vendor)}],
+      val:teksKonf,req:true,hint:tujuanTeks(tuj,live,vendor)}],
     ok:function(v){
       grup.baris.forEach(function(x){
         x.l.konfTanya={tgl:hariIni(),oleh:(ST.userName||ST.user||'')};});
@@ -9280,11 +9290,15 @@ function rfqKirim(id,i){
   if(!l.sumber){alert('Pilih vendor dulu untuk baris ini.');return;}
   var live=!!((ST.cfg||{}).live&&(ST.cfg||{}).url);
   var tuj=vendorTujuan(o,l.sumber);
+  var teksAsli=rfqPesanGabung(o,l);
   askForm({judul:'Kirim permintaan ke '+l.sumber,
+    /* kunci per order & per baris — judulnya sama untuk semua order, jadi
+       tanpa ini draf pesan order lain muncul di sini */
+    draf:'rfq|'+o.id+'|'+i,drafDasar:teksAsli,
     sub:(l.produk||'item')+' · '+(l.qty||0)+' pcs'+(lineKulit(l)?' · sekalian tanya ketersediaan kulit':''),
     info:vendorKontakBlok(l.sumber)+vendorGambarBlok(o,l,'rfq'+o.id+'-'+i),
     fields:[{k:'pesan',label:'Isi pesan — boleh diedit sebelum dikirim',type:'textarea',tinggi:260,
-      val:rfqPesanGabung(o,l),req:true,hint:tujuanTeks(tuj,live,l.sumber)}],
+      val:teksAsli,req:true,hint:tujuanTeks(tuj,live,l.sumber)}],
     ok:function(v){
       if(!l.rfq)l.rfq={};
       l.rfq.minta=hariIni();l.rfq.pesan=v.pesan;
