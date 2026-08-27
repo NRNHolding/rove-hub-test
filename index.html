@@ -9120,6 +9120,10 @@ function kulitBlok(o,l,i){
 /* Pekerjaan vendor menentukan isi pesannya. */
 function rfqJenisBaris(l){
   if(!l)return 'produk';
+  /* Jasa diperiksa lebih dulu. Tipe vendor tak bisa jadi penentu: tim deboss
+     bisa saja terdaftar bertipe kemasan, dan live service lalu ditanyai
+     ukuran box. Yang dikerjakan barisnya, bukan siapa vendornya. */
+  if(l.jasa)return (l.jasa==='Live service')?'live':'addon';
   if(l.coll)return 'kemasan';
   /* Baris kemasan yang dibuat sebelum penanda coll ada tak punya field itu —
      tipenya masih bisa dibaca dari vendornya. Tanpa ini vendor box menerima
@@ -10410,7 +10414,8 @@ function rfqPanel(o){
           '<td class="num">'+(l.qty||0)+'</td>'+
           '<td><span style="font-size:10px;font-weight:800;color:'+rfqWarna(st)+'">● '+st+'</span>'+
             ((l.rfq&&l.rfq.minta)?('<div style="font-size:9px;color:var(--muted)">diminta '+tglID(l.rfq.minta)+'</div>'):'')+
-            ((l.rfq&&l.rfq.terima)?('<div style="font-size:9px;color:var(--muted)">masuk '+tglID(l.rfq.terima)+'</div>'):'')+'</td>'+
+            ((l.rfq&&l.rfq.terima)?('<div style="font-size:9px;color:var(--muted)">masuk '+tglID(l.rfq.terima)+'</div>'):'')+
+            (((o.rfqDoc||{})[l.sumber])?('<div style="font-size:9px;color:var(--muted)">📄 dokumen '+esc(o.rfqDoc[l.sumber])+'</div>'):'')+'</td>'+
           '<td class="num">'+((l.hpp||0)>0?('<b>'+fmt0(l.hpp)+'</b>')
             :(function(){var hl=hargaTerakhir(o,l);
                if(!hl)return '<span style="color:var(--muted)">—</span>';
@@ -10422,9 +10427,9 @@ function rfqPanel(o){
             ((l.rfq&&l.rfq.minta)
               ? '<button class="btn sm" onclick="rfqJawab(\''+o.id+'\','+x.i+')">✓ Catat jawaban</button> '+
                 '<button class="xrow" style="color:var(--brand)" title="kirim ulang permintaan" onclick="rfqKirim(\''+o.id+'\','+x.i+')">↻</button> '+
-                '<button class="xrow" style="color:var(--brand)" title="dokumen permintaan harga (PDF)" onclick="genRfqDoc(\''+o.id+'\','+x.i+')">📄</button>'
+                '<button class="xrow" style="color:var(--brand)" title="dokumen permintaan harga (PDF)" onclick="genRfqDoc('+jsArg(o.id)+','+jsArg(l.sumber)+')" title="dokumen permintaan harga (PDF)">📄</button>'
               : '<button class="btn sm" onclick="rfqKirim(\''+o.id+'\','+x.i+')">📨 Kirim permintaan</button> '+
-                '<button class="btn ghost sm" title="dokumen permintaan harga — tinggal Simpan PDF" onclick="genRfqDoc(\''+o.id+'\','+x.i+')">📄 PDF</button>')+
+                '<button class="btn ghost sm" title="dokumen permintaan harga — tinggal Simpan PDF" onclick="genRfqDoc('+jsArg(o.id)+','+jsArg(l.sumber)+')">📄 PDF</button>')+
             '</td></tr>'+
           (lineKulit(l)?('<tr><td colspan="7" style="padding-top:0">'+kulitBlok(o,l,x.i)+'</td></tr>'):'');}).join('')+
       '</tbody></table></div>';
@@ -12739,14 +12744,22 @@ function genDoc(id,type){
    ditanyakan sekaligus dalam satu lembar, dengan kolom jawaban yang sudah
    disediakan — vendor yang menerima daftar pertanyaan cenderung menjawab
    yang paling mudah saja dan melupakan sisanya. */
-function rfqNo(o,l){
-  if(!l.rfq)l.rfq={};
-  if(l.rfq.no)return l.rfq.no;
+/* Nomor per (order × vendor), bukan per baris — satu vendor satu lembar.
+   Dibuat sekali lalu disimpan; mengintip dokumennya tak menghabiskan nomor
+   baru. Bulannya dipad supaya nomornya bisa diurutkan sebagai teks. */
+function rfqNo(o,vendor){
+  if(!o.rfqNo)o.rfqNo={};
+  if(o.rfqNo[vendor])return o.rfqNo[vendor];
   var n=(+localStorage.getItem('rovehub_seq_rfq')||0)+1;
   try{localStorage.setItem('rovehub_seq_rfq',String(n));}catch(e){}
   var d=new Date();
-  l.rfq.no='ROVE / RFQ / '+d.getFullYear()+' / '+(d.getMonth()+1)+' / '+String(n).padStart(4,'0');
-  return l.rfq.no;}
+  o.rfqNo[vendor]='ROVE / RFQ / '+d.getFullYear()+' / '+String(d.getMonth()+1).padStart(2,'0')+
+    ' / '+String(n).padStart(4,'0');
+  return o.rfqNo[vendor];}
+/* Semua baris yang jadi urusan vendor ini di order ini. */
+function rfqBarisVendor(o,vendor){
+  return (((o.pricing||{}).lines)||[]).filter(function(l){
+    return l.sumber===vendor&&((l.qty||0)>0||lineJenis(l)==='jasa');});}
 /* Baris spesifikasi yang jadi urusan vendor ini — dan HANYA vendor ini. */
 function rfqDocSpek(o,l){
   var jenis=rfqJenisBaris(l),b=briefGet(o),R=[];
@@ -12777,41 +12790,63 @@ function rfqDocSpek(o,l){
       if(p.length>1)R.push([p.shift(),p.join(': ')]);});
   }
   return R;}
-/* Tiga pertanyaan, dengan kolom jawabannya — bukan paragraf yang bisa
-   dijawab sepotong. */
-function rfqDocTanya(o,l){
-  var jenis=rfqJenisBaris(l);
-  if(jenis==='live')return [
+/* Pertanyaan mengikuti pekerjaan yang diminta di lembar ini. Kalau satu
+   vendor memegang beberapa jenis sekaligus, yang dipakai bentuk umumnya. */
+function rfqDocTanya(o,L){
+  var jenis=L.map(rfqJenisBaris);
+  var semua=function(j){return jenis.length&&jenis.every(function(x){return x===j;});};
+  if(semua('live'))return [
     ['Tim kosong di tanggal itu?','ya / tidak'],
     ['Harga per event (sekali datang)','Rp'],
     ['Berapa orang & apa yang perlu kami siapkan di lokasi',''],
   ];
-  if(jenis==='addon')return [
+  if(semua('addon'))return [
     ['Harga per pcs','Rp'],
     ['Lama pengerjaan untuk jumlah di atas',''],
     ['Paling lambat kapan data/desain harus kami kirim',''],
   ];
   return [
-    ['Harga per pcs untuk qty di atas','Rp'],
+    ['Harga per pcs untuk tiap item di atas','Rp'],
     ['Jenis material & warna yang ready — beserta minimum ordernya',''],
     ['Desain di atas bisa dikerjakan apa adanya? Kalau perlu diubah, apa saja',''],
     ['Paling lambat kapan PO harus turun',''],
   ];}
-function rfqDocHTML(o,l){
-  var no=rfqNo(o,l),tgl=new Date().toLocaleDateString('id-ID',{day:'2-digit',month:'long',year:'numeric'});
-  var T=rfqTanggal(o,l),jenis=rfqJenisBaris(l);
-  var v=vendorData(l.sumber)||{};
+function rfqDocHTML(o,vendor){
+  var L=rfqBarisVendor(o,vendor);
+  if(!L.length)return '';
+  var no=rfqNo(o,vendor),tgl=new Date().toLocaleDateString('id-ID',{day:'2-digit',month:'long',year:'numeric'});
+  var v=vendorData(vendor)||{};
   var info=function(k,x){return '<tr><td class="k">'+esc(k)+'</td><td>'+(esc(x)||'-')+'</td></tr>';};
-  var spek=rfqDocSpek(o,l).map(function(r){return info(r[0],r[1]);}).join('');
-  var tanya=rfqDocTanya(o,l).map(function(r,n){
+  /* satu baris tabel per item yang dipegang vendor ini */
+  var rows=L.map(function(l,n){
+    var jenis=rfqJenisBaris(l),T=rfqTanggal(o,l);
+    return '<tr><td class="num">'+(n+1)+'</td>'+
+      '<td>'+imgTag(lineImg(l),'width:34px;height:34px;object-fit:cover;border-radius:4px;vertical-align:middle;margin-right:7px')+
+        '<b>'+esc(l.produk||'(tanpa nama)')+'</b>'+
+        (jenis==='live'?'<div style="font-size:9px;color:#888;margin-top:2px">dikerjakan di lokasi acara</div>':'')+
+        (jenis==='addon'?'<div style="font-size:9px;color:#888;margin-top:2px">dikerjakan di workshop</div>':'')+'</td>'+
+      '<td class="num">'+esc(jenis==='live'?'1 event':((l.qty||0)+' pcs'))+'</td>'+
+      '<td>'+(T&&T.lewat?'<span style="color:#b00">jadwalnya sudah lewat — mohon dikonfirmasi</span>'
+             :(T&&T.tgl?esc(tglID(T.tgl)):'-'))+'</td></tr>';}).join('');
+  /* spesifikasi: kalau lebih dari satu item, tiap blok diberi judulnya */
+  var spek=L.map(function(l){
+    var R=rfqDocSpek(o,l);if(!R.length)return '';
+    return (L.length>1?'<div class="dsec">Spesifikasi — '+esc(l.produk||'')+'</div>':'<div class="dsec">Spesifikasi</div>')+
+      '<table class="dinfotbl">'+R.map(function(r){return info(r[0],r[1]);}).join('')+'</table>';}).join('');
+  var tanya=rfqDocTanya(o,L).map(function(r,n){
     return '<tr><td class="num">'+(n+1)+'</td><td>'+esc(r[0])+'</td>'+
       '<td style="border-bottom:1px solid #bbb;min-width:150px;color:#999">'+esc(r[1])+'</td></tr>';}).join('');
-  /* gambar: yang berupa berkas dicetak apa adanya, yang di Drive ikut lewat
-     tautannya — vendor membukanya sendiri */
-  var G=[];try{G=vendorGambar(o,l);}catch(e){}
+  /* Gambar lewat imgTag seperti dokumen lain — tautan Drive tak bisa dipanggil
+     langsung dari halaman, jadi yang dicetak penampung yang diisi loadImages(). */
+  var G=[],ada={};
+  L.forEach(function(l){
+    (vendorGambar(o,l)||[]).forEach(function(x){
+      var src=x.drive?String(x.f.data||'').replace(/^.*[?&]id=/,'').replace(/&.*$/,''):x.f.data;
+      if(!src||ada[src])return;ada[src]=1;G.push({src:src,cap:x.f.nama||''});});});
   var gbr=G.length?('<div class="dsec">Gambar acuan</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:10px">'+
-    G.map(function(x){return '<div style="text-align:center"><img src="'+esc(x.f.data)+'" style="width:100%;max-height:300px;object-fit:contain;border:1px solid #ddd;border-radius:8px">'+
-      '<div style="font-size:11px;color:#333;margin-top:6px">'+esc(x.f.nama||'')+'</div></div>';}).join('')+'</div>'):'';
+    G.map(function(x){return '<div style="text-align:center">'+
+      imgTag(x.src,'width:100%;max-height:300px;object-fit:contain;border:1px solid #ddd;border-radius:8px')+
+      '<div style="font-size:11px;color:#333;margin-top:6px">'+esc(x.cap)+'</div></div>';}).join('')+'</div>'):'';
   return '<div class="dhrow">'+
      '<div><div class="dbrand">ROVE</div><div class="dbsub">Favors and Gifts</div>'+
        '<div style="font-size:10px;color:#666;margin-top:6px;line-height:1.5">Jl. Tenggilis Barat I No.21, Kel. Kendangsari,<br>Kec. Tenggilis Mejoyo, Surabaya 60292<br>+62 812-9965-1010 · @rovegift · www.rovegift.com</div></div>'+
@@ -12820,36 +12855,31 @@ function rfqDocHTML(o,l){
      '<b>Ini permintaan harga, bukan pesanan.</b> Barangnya belum dipesan dan desainnya belum final. '+
      'PO resmi menyusul sesudah harga dan desainnya kami sepakati.</div>'+
    '<div class="dsec">Ditujukan kepada</div>'+
-   '<table class="dinfotbl">'+info('Vendor',l.sumber)+
+   '<table class="dinfotbl">'+info('Vendor',vendor)+
      (v.kontak&&v.kontak!=='-'?info('Contact person',v.kontak):'')+
      (v.hp&&v.hp!=='-'?info('No. HP',v.hp):'')+'</table>'+
    '<div class="dsec">Yang kami minta</div>'+
-   '<table class="dtable"><thead><tr><th class="num wno">No</th><th>Item</th><th class="num wqty">Qty</th><th class="wmat">Dibutuhkan</th></tr></thead><tbody>'+
-     '<tr><td class="num">1</td><td><b>'+esc(l.produk||'(tanpa nama)')+'</b>'+
-       (jenis==='live'?'<div style="font-size:9px;color:#888;margin-top:2px">dikerjakan di lokasi acara</div>':'')+
-       (jenis==='addon'?'<div style="font-size:9px;color:#888;margin-top:2px">dikerjakan di workshop</div>':'')+'</td>'+
-       '<td class="num">'+esc(jenis==='live'?'1 event':((l.qty||0)+' pcs'))+'</td>'+
-       '<td>'+(T&&T.lewat?('<span style="color:#b00">jadwalnya sudah lewat — mohon dikonfirmasi</span>')
-              :(T&&T.tgl?esc(tglID(T.tgl)):'-'))+'</td></tr>'+
-     '</tbody></table>'+
-   (T&&T.tgl&&!T.lewat?'<div style="font-size:10px;color:#666;margin-top:5px">'+esc(T.ket)+'</div>':'')+
-   (spek?('<div class="dsec">Spesifikasi</div><table class="dinfotbl">'+spek+'</table>'):'')+
-   gbr+
+   '<table class="dtable"><thead><tr><th class="num wno">No</th><th>Item</th><th class="num wqty">Qty</th><th class="wmat">Dibutuhkan</th></tr></thead><tbody>'+rows+'</tbody></table>'+
+   spek+gbr+
    '<div class="dsec">Mohon dijawab</div>'+
    '<table class="dtable"><thead><tr><th class="num wno">No</th><th>Pertanyaan</th><th class="wperso">Jawaban</th></tr></thead><tbody>'+tanya+'</tbody></table>'+
    '<div class="dsign">Hormat kami,<div class="nm">'+esc(ST.userName||ST.user||'ROVE HUB')+'</div></div>'+
-   '<div class="dfoot">Permintaan harga otomatis dari ROVE HUB · '+esc(chName(o))+' · jawaban dicatat kembali ke HUB.</div>';}
-function genRfqDoc(id,i){
+   /* nama channel TIDAK dicetak: isinya nama client, tanggal acara, dan qty */
+   '<div class="dfoot">Permintaan harga otomatis dari ROVE HUB · ref '+esc(o.id)+' · jawaban dicatat kembali ke HUB.</div>';}
+function genRfqDoc(id,vendor){
   var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
-  var l=((o.pricing||{}).lines||[])[i];if(!l)return;
-  if(!l.sumber){alert('Pilih vendor dulu untuk baris ini.');return;}
-  var html=rfqDocHTML(o,l);
+  if(!vendor){alert('Pilih vendor dulu untuk baris ini.');return;}
+  var baru=!((o.rfqNo||{})[vendor]);
+  var html=rfqDocHTML(o,vendor);
+  if(!html){alert('Tak ada baris untuk vendor ini.');return;}
   document.getElementById('docbody').innerHTML=html;
-  l.rfq.doc=new Date().toLocaleDateString('id-ID',{day:'2-digit',month:'long',year:'numeric'});
-  o._m=Date.now();
-  logHist(o,'📄 Dokumen permintaan harga dibuat untuk '+l.sumber+' — '+(l.produk||'-')+' ('+rfqNo(o,l)+')');
-  ST._doc={type:'rfq',no:rfqNo(o,l),grand:0};
-  save();trDOM(document.getElementById('docbody'));
+  /* histori cuma ditulis sekali — mengintip dokumennya berkali-kali tak
+     boleh memenuhi riwayat order */
+  if(baru)logHist(o,'📄 Dokumen permintaan harga dibuat untuk '+vendor+' ('+o.rfqNo[vendor]+')');
+  if(!o.rfqDoc)o.rfqDoc={};
+  o.rfqDoc[vendor]=new Date().toLocaleDateString('id-ID',{day:'2-digit',month:'long',year:'numeric'});
+  ST._doc={type:'rfq',no:o.rfqNo[vendor],grand:0};
+  o._m=Date.now();save();trDOM(document.getElementById('docbody'));
   document.getElementById('docov').classList.add('show');
   try{loadImages();}catch(e){}}
 /* ---- kirim dokumen ke client via WhatsApp (pakai tab WA yang sama) ---- */
@@ -13170,7 +13200,7 @@ function showPODoc(o){
    <table class="dinfotbl">${spec('Deboss',poVal(p,'deboss'))}${(p.logos||[]).map((lg,i)=>`<tr><td class="k">Logo #${i+1}</td><td>${esc(logoVal(lg))}</td></tr>`).join('')}${spec('Groover',poVal(p,'groover'))}${spec('Stitch',poVal(p,'stitch'))}${spec('Type Prong',poVal(p,'prong'))}${spec('Uk. Prong',poVal(p,'ukProng'))}${spec('Jangka',poVal(p,'jangka'))}${spec('Jenis Benang',poVal(p,'benang'))}${spec('Uk. Benang',poVal(p,'ukBenang'))}${spec('Kode/Warna Benang',p.warnaBenang)}${spec('Finishing',poVal(p,'finishing'))}${spec('Chemical',poVal(p,'chemical'))}</table>
    ${(p.packing||p.note)?`<div class="dsec">Packing & Catatan Produksi</div><table class="dinfotbl">${spec('Cara & tambahan packing',p.packing)}${spec('Catatan produksi',p.note)}</table>`:''}
    <div class="dsign">Disetujui,<div class="nm">Purchasing · Rove</div></div>
-   <div class="dfoot">PO valid dari ROVE HUB · board Trello PO ROVE kolom PO ${bulan} · notif terkirim ke Discord Radja. Nilai order ref: ${fmt0(jualT)}.</div>`;
+   <div class="dfoot">PO valid dari ROVE HUB · board Trello PO ROVE kolom PO ${bulan} · notif terkirim ke Discord Radja.</div>`;
   ST._doc={type:'po'};
   trDOM(document.getElementById('docbody'));$('#docov').classList.add('show');loadImages();
 }
