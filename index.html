@@ -352,7 +352,7 @@
     <div class="nav" id="navTax" data-view="tax"><span class="ic">§</span> Pajak<small>tenggat setor &amp; lapor</small></div>
     <div class="nav" data-view="new"><span class="ic">＋</span> Order baru<small>input inquiry dari client</small></div>
     <div id="userbox" style="margin-top:auto;background:var(--hub2);border:1px solid var(--hubline);border-radius:9px;padding:9px 11px;margin-bottom:8px"></div>
-    <div class="foot">Prototype · data lokal (browser).<br>Discord/Trello belum tersambung — hasil muncul setelah trigger.
+    <div class="foot"><div id="sinkronBadge" style="margin-bottom:7px"></div>Prototype · data lokal (browser).<br>Discord/Trello belum tersambung — hasil muncul setelah trigger.
       <button id="reset">↺ Muat data contoh</button>
       <button id="kosong">🗑 Kosongkan order</button></div>
   </aside>
@@ -506,7 +506,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20260827-152508';
+const VERSI='20260827-153308';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -1271,7 +1271,9 @@ const EN={
 'PROTOTYPE · data lokal':'PROTOTYPE · local data','JABATAN':'ROLE','Ganti jabatan':'Switch role','Keluar':'Log out',
 'Bahasa':'Language','Indonesia':'Indonesian','Inggris':'English',
 /* --- papan pipeline --- */
-'Semua jenis':'All types','Semua status':'All statuses','Sembunyikan selesai & cancel':'Hide done & cancelled',
+'Semua jenis':'All types','Semua status':'All statuses','Aktif':'Active',
+'⟲ Sinkron sekarang':'⟲ Sync now','⇧ Kirim semua':'⇧ Send all',
+'⊘ sinkron mati — data cuma di browser ini':'⊘ sync off — data stays in this browser only','Sembunyikan selesai & cancel':'Hide done & cancelled',
 'Sembunyikan yang selesai':'Hide completed','Sembunyikan yang selesai/batal':'Hide completed/cancelled',
 '＋ Order baru':'＋ New order','✕ Reset':'✕ Reset','Semua':'All','Semua bulan':'All months','Semua kanal':'All channels',
 'Klik':'Click','Klik kartu':'Click a card','kanan atas.':'top right.','Inquiry sampai Selesai':'Inquiry through Completed',
@@ -2003,6 +2005,9 @@ const LEAD_KEY='rovehub_leads_v1';
 const LEAD_CH=['WhatsApp','Instagram','Email','Telepon','Referral','Pameran','Lainnya'];
 const LEAD_ST=['Baru','Ditanggapi','Follow-up'];
 const LEAD_ST_ALL=['Baru','Ditanggapi','Follow-up','Jadi order','Batal'];
+/* Yang bisa disaring: tiga keadaan yang benar-benar ada. "Aktif" mencakup
+   prospek lama yang terlanjur bernilai Ditanggapi atau Follow-up. */
+const LEAD_SARING=['Aktif','Jadi order','Batal'];
 function leadsAll(){return ST.leads||(ST.leads=[]);}
 /* ---- brief singkat prospek ---- */
 /* Kategori client. Kolom nama yang muncul di Brief mengikuti pilihan ini —
@@ -2641,7 +2646,8 @@ function leadPanel(){
   var fokus=ST._lfokus?L.find(function(x){return x.id===ST._lfokus;}):null;
   if(ST._lfokus&&!fokus)ST._lfokus=null;
   var tampil=fokus?[fokus]:L.filter(function(l){
-    if(fs&&l.status!==fs)return false;
+    if(fs==='Aktif'){if(!leadAktif(l))return false;}
+    else if(fs&&l.status!==fs)return false;
     if(ST._lhide&&!leadAktif(l))return false;
     if(q&&[l.nama,l.kontak,l.produk,l.pic,l.catatan].concat(leadSpecRingkas(l)).join(' ').toLowerCase().indexOf(q)<0)return false;
     return true;});
@@ -2678,7 +2684,10 @@ function leadPanel(){
             ? 'Produknya lebih dari satu — yang berlaku jumlah tiap produk di bawah, bukan angka ini.'
             : 'Angka ini dan kolom Qty produknya satu hal — mengisi salah satunya mengisi yang lain.')+'"></label>'+
         '<label class="nlbl">Estimasi nilai<input class="pin n money" inputmode="numeric" style="margin-top:3px" value="'+moneyInp(l.estimasi)+'" onchange="leadSet(\''+l.id+'\',\'estimasi\',this.value)"></label>'+
-        (leadAktif(l)?'<label class="nlbl">Status<select class="pin" style="margin-top:3px" onchange="leadSet(\''+l.id+'\',\'status\',this.value)">'+LEAD_ST.map(function(s){return '<option '+(l.status===s?'selected':'')+'>'+s+'</option>';}).join('')+'</select></label>':'')+
+        /* Status tak lagi diisi tangan: tak satu pun dari Baru/Ditanggapi/
+           Follow-up mengubah perilaku apa pun, dan umur prospek sudah terbaca
+           di kepala kartu ("didiamkan 5 hari"). Yang berarti cuma Batal dan
+           Kirim ke Inquiry — keduanya punya tombolnya sendiri di atas. */
       '</div>'+
       leadSpekBlok(l)+
       (l.log&&l.log.length?'<div style="margin-top:9px;font-size:10px;color:var(--muted);border-top:1px dashed var(--line);padding-top:7px">'+
@@ -2701,7 +2710,7 @@ function leadPanel(){
     tabNote('Calon client yang <b>belum jadi order</b> — dari WhatsApp, Instagram, email, dsb. <b>Semua prospek aktif perlu ditindaklanjuti tiap hari</b>; yang paling lama didiamkan naik ke atas dan memerah. Buka <b>Brief singkat untuk PM</b>, pilih jenisnya (Katalog / Custom / Mix), lalu klik <b>→ Kirim ke Inquiry</b> — seluruh isinya ikut terbawa. Prospek gagal jangan dihapus — ubah status jadi <b>Batal</b> supaya jadi bahan evaluasi.')+
     '<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:13px">'+
       '<input class="pin" style="flex:1;min-width:160px;max-width:260px" value="'+esc(ST._lq||'')+'" oninput="ST._lq=this.value;render();var e=document.getElementById(\'lq\');" id="lq" placeholder="🔍 Cari nama, produk, PIC…">'+
-      '<select class="pin" style="width:auto" onchange="ST._lst=this.value;render()"><option value="">Semua status</option>'+LEAD_ST_ALL.map(function(s){return '<option '+(ST._lst===s?'selected':'')+'>'+s+'</option>';}).join('')+'</select>'+
+      '<select class="pin" style="width:auto" onchange="ST._lst=this.value;render()"><option value="">Semua status</option>'+LEAD_SARING.map(function(s){return '<option '+(ST._lst===s?'selected':'')+'>'+s+'</option>';}).join('')+'</select>'+
       '<label style="display:flex;align-items:center;gap:5px;font-size:11px;font-weight:700;color:var(--muted);cursor:pointer"><input type="checkbox" '+(ST._lhide?'checked':'')+' onchange="ST._lhide=this.checked;render()" style="width:auto;accent-color:var(--brand)"> Sembunyikan yang selesai/batal</label>'+
       '<span style="margin-left:auto;font-size:11px;font-weight:800;color:var(--brand)">Nilai prospek aktif: '+fmt0(nilai)+'</span></div>'+
     (baris||'<div style="color:var(--muted);font-size:12px">Belum ada prospek. Klik <b>＋ Prospek baru</b>.</div>');}
@@ -4139,7 +4148,8 @@ function pushCloud(){var c=ST.cfg||{};var ts=Date.now();localStorage.setItem('ro
      memuntahkan "Uncaught (in promise)" ke konsol tiap kali menyimpan. */
   try{fetch(c.url,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'db.save',payload:{data:cloudBlob(ts)}})})
     .catch(function(e){ST.cloudStatus='gagal simpan cloud — cek URL backend';console.warn('pushCloud gagal',e);});}catch(e){}
-  var b=document.getElementById('cloudstat');if(b)b.textContent=ST.cloudStatus;}
+  var b=document.getElementById('cloudstat');if(b)b.textContent=ST.cloudStatus;
+  try{sinkronBadge();}catch(e){}}
 function cloudSave(){var c=ST.cfg||{};if(!c.live||!c.url)return;clearTimeout(_cloudT);
   _cloudT=setTimeout(function(){
     if(c.dbUrl){fetch(c.dbUrl).then(function(r){return r.json();}).then(function(cloud){if(mergeOrders(cloud,false))localStorage.setItem(KEY,JSON.stringify(ST.orders));pushCloud();}).catch(function(){pushCloud();});}
@@ -4165,7 +4175,47 @@ function cloudAutoLoad(){var c=ST.cfg||{};if(!c.dbUrl)return;
     if(d.inv&&(d.ts||0)>localTs){ST.inv=d.inv;localStorage.setItem(INV_KEY,JSON.stringify(ST.inv));changed=true;}
     if(d.seq)seqTarik(d.seq);
     if(changed){localStorage.setItem(KEY,JSON.stringify(ST.orders));ST.cloudStatus='sinkron '+new Date().toLocaleTimeString('id-ID');if(ST.user)render();}
+    else{ST.cloudStatus='sinkron '+new Date().toLocaleTimeString('id-ID')+' · tak ada yang baru';}
+    try{sinkronBadge();}catch(e){}
   }).catch(function(){});}
+/* Keadaan sinkron, di tempat yang terlihat sambil bekerja. Tanpa ini, "kenapa
+   punyaku tak sama dengan punyamu" tak punya jawaban selain menebak. */
+function sinkronBadge(){
+  var e=document.getElementById('sinkronBadge');if(!e)return;
+  var c=ST.cfg||{};
+  if(!c.live||!c.url){
+    e.innerHTML='<span style="color:#7b809c">⊘ sinkron mati — data cuma di browser ini</span>';
+    return;}
+  var st=String(ST.cloudStatus||'menunggu…');
+  var buruk=/gagal|GAGAL/.test(st);
+  e.innerHTML='<span style="color:'+(buruk?'#d9534f':'#7bbf7b')+'">'+(buruk?'⚠ ':'⇅ ')+esc(st)+'</span>'+
+    '<button onclick="sinkronPaksa()" title="tarik dari cloud sekarang, lalu dorong punya perangkat ini">⟲ Sinkron sekarang</button>'+
+    '<button onclick="sinkronDorong()" title="dorong SELURUH order di perangkat ini ke cloud, termasuk yang lebih tua dari pembersihan terakhir">⇧ Kirim semua</button>';}
+/* Menarik lalu mendorong — dipakai kalau ada yang merasa datanya tak sama. */
+function sinkronPaksa(){
+  var c=ST.cfg||{};
+  if(!c.live||!c.url){alert('Sinkron cloud belum menyala di perangkat ini.');return;}
+  ST.cloudStatus='menarik dari cloud…';sinkronBadge();
+  try{cloudAutoLoad();}catch(e){}
+  try{pushCloud();}catch(e){}}
+/* Mendorong SEMUA order perangkat ini. Penanda waktunya disegarkan supaya
+   perangkat lain tak membuangnya karena lebih tua dari pembersihan terakhir —
+   itulah sebabnya order lama bisa "terkirim tapi tak muncul di sana". */
+function sinkronDorong(){
+  var c=ST.cfg||{};
+  if(!c.live||!c.url){alert('Sinkron cloud belum menyala di perangkat ini.');return;}
+  var n=(ST.orders||[]).length;
+  if(!n){alert('Tak ada order di perangkat ini untuk dikirim.');return;}
+  if(!confirm('Kirim '+n+' order dari perangkat ini ke cloud?'+
+    String.fromCharCode(10)+String.fromCharCode(10)+
+    'Order yang dibuat sebelum "Mulai bersih" terakhir biasanya diabaikan perangkat lain — '+
+    'ini menyegarkan penanda waktunya supaya ikut terkirim. Yang di cloud tak dihapus, cuma ditambah.'))return;
+  var t=Date.now();
+  (ST.orders||[]).forEach(function(o,i){o._m=t+i;});
+  localStorage.setItem(KEY,JSON.stringify(ST.orders));
+  try{pushCloud();}catch(e){}
+  ST.cloudStatus='mengirim '+n+' order…';sinkronBadge();
+  alert('✓ '+n+' order dikirim. Minta yang lain menekan "⟲ Sinkron sekarang", atau tunggu 25 detik.');}
 var _pollT=null;
 function startCloudPoll(){if(_pollT)clearInterval(_pollT);_pollT=setInterval(function(){if((ST.cfg||{}).dbUrl&&ST.user)cloudAutoLoad();},25000);}
 function cloudLoad(){var c=cfgSerap();if(!c.dbUrl){alert('Kotak "Cloud DB" di Holding → Integrasi masih kosong.\n\nIsi URL-nya dulu (backend uji: URL /exec ditambah ?db=1).');return;}
@@ -14718,6 +14768,7 @@ $('#reset').onclick=()=>{
 
 document.addEventListener('input',function(e){var t=e.target;if(t&&t.classList&&t.classList.contains('money'))t.value=moneyInp(moneyVal(t.value));});
 load();render();fetchCatalog();cloudAutoLoad();startCloudPoll();
+try{sinkronBadge();}catch(e){}
 setTimeout(checkDeadlines,4000);
 setTimeout(function(){
   var n=0;
