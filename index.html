@@ -1233,7 +1233,8 @@ const EN={
 'Nilai':'Value','Material':'Material','Jenis':'Kind','Katalog':'Catalogue','Custom':'Custom','Harga':'Price',
 'Nama jasa':'Service name','Teknik':'Technique','Harga/pcs':'Price/pc','Kontak':'Contact','Alamat':'Address',
 'Alamat kirim':'Delivery address','Alamat client / kantor':'Client / office address','Kota':'City','Catatan':'Notes',
-'Lokasi':'Location','Bank':'Bank','Channel Discord':'Discord channel','— pilih vendor —':'— choose a vendor —','dipilihkan otomatis — pastikan benar':'auto-filled — check it is right','Kota':'City','No. rekening':'Account number','No. Hp':'Phone','Email':'Email',
+'Lokasi':'Location','Bank':'Bank','Channel Discord (kosongkan kalau lewat WhatsApp)':'Discord channel (leave empty if contacted on WhatsApp)',
+'Channel Discord':'Discord channel','— pilih vendor —':'— choose a vendor —','dipilihkan otomatis — pastikan benar':'auto-filled — check it is right','Kota':'City','No. rekening':'Account number','No. Hp':'Phone','Email':'Email',
 'Bride':'Bride','Groom':'Groom','Wedding':'Wedding','Corporate':'Corporate','Lainnya':'Others','Other':'Others',
 '＋ Tambah akun':'＋ Add account','＋ Tambah barang':'＋ Add item','＋ Tambah karyawan':'＋ Add employee',
 '＋ Tambah penawaran':'＋ Add quote','＋ Tambah opsi':'＋ Add option','＋ Tambah jasa':'＋ Add service',
@@ -5599,7 +5600,7 @@ function renderMaster(){
      <div style="font-size:10.5px;color:var(--muted);margin-bottom:10px"><b>COGS Type</b> mengikuti AIS — menentukan biaya masuk ke Main Product, Packaging, atau Service. Tim live service didaftarkan di sini juga (tipe <b>Live Service</b>, COGS <b>Service</b>). Pilihan <b>Tipe</b> &amp; <b>Bank</b> bisa ditambah sendiri di <b>Opsi form</b>.</div>
      <div style="display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px">${chip('ALL',V.length)}${kat.map(function(k){
        return chip(k,V.filter(function(v){return jenis(v)===k;}).length);}).join('')}</div>
-     ${idx.length?`<div class="xscroll">${tbl('vendors',[['nama','Nama'],['tipe','Tipe',listArr('vtipe')],['cogs','COGS Type',listArr('cogs')],['kontak','Contact person'],['hp','No. HP'],['kota','Kota'],['disc','Channel Discord'],['bank','Bank',listArr('bank')],['rek','No. rekening'],['alamat','Alamat']],idx.map(function(i){return V[i];}),idx)}</div>`
+     ${idx.length?`<div class="xscroll">${tbl('vendors',[['nama','Nama'],['tipe','Tipe',listArr('vtipe')],['cogs','COGS Type',listArr('cogs')],['kontak','Contact person'],['hp','No. HP'],['kota','Kota'],['disc','Channel Discord (kosongkan kalau lewat WhatsApp)'],['bank','Bank',listArr('bank')],['rek','No. rekening'],['alamat','Alamat']],idx.map(function(i){return V[i];}),idx)}</div>`
        :'<div style="color:var(--muted);font-size:11px;padding:6px 0">Belum ada vendor pada kategori ini.</div>'}
      <button class="btn ghost sm" style="margin-top:9px" onclick="mAdd('vendors')">＋ Tambah vendor</button>
      ${f!=='ALL'?'<span style="font-size:9.5px;color:var(--muted);margin-left:8px">Vendor baru masuk tanpa tipe — pilih tipenya di kolom <b>Tipe</b> supaya muncul di kategori ini.</span>':''}</div>`;})(),
@@ -8935,7 +8936,7 @@ function konfTanya(id,vendor){
     info:vendorKontakBlok(vendor)+vendorGambarBlok(o,null,'konf'+o.id+'-'+vendor,
       grup.baris.map(function(x){return x.l;})),
     fields:[{k:'pesan',label:'Isi pesan — boleh diedit sebelum dikirim',type:'textarea',tinggi:240,
-      val:konfPesan(o,vendor,grup.baris),req:true,hint:tujuanTeks(tuj,live)}],
+      val:konfPesan(o,vendor,grup.baris),req:true,hint:tujuanTeks(tuj,live,vendor)}],
     ok:function(v){
       grup.baris.forEach(function(x){
         x.l.konfTanya={tgl:hariIni(),oleh:(ST.userName||ST.user||'')};});
@@ -8948,8 +8949,10 @@ function konfTanya(id,vendor){
         txt:'Konfirmasi harga dikirim ke <b>'+esc(vendor)+'</b> — '+grup.baris.length+' baris dari master.'});
       logHist(o,'📨 Konfirmasi harga dikirim ke '+vendor+' — '+grup.baris.length+' baris');
       o._m=Date.now();save();render();
-      evSalin(v.pesan,live?('✓ Terkirim ke #'+tuj.ch+' — teksnya juga tersalin kalau perlu ditempel lagi.')
-                          :'✓ Teks tersalin — tinggal tempel di Discord '+vendor+'.');}});}
+      evSalin(v.pesan,tuj.keVendor
+        ? (live?('✓ Terkirim ke #'+tuj.ch+' — teksnya juga tersalin kalau perlu ditempel lagi.')
+               :'✓ Teks tersalin — tinggal tempel di #'+tuj.ch+'.')
+        : ('✓ Teks tersalin — tinggal tempel di WhatsApp '+vendor+'.'));}});}
 function konfBlok(o){
   var G=konfVendor(o);
   if(!G.length)return '';
@@ -9281,7 +9284,7 @@ function rfqKirim(id,i){
     sub:(l.produk||'item')+' · '+(l.qty||0)+' pcs'+(lineKulit(l)?' · sekalian tanya ketersediaan kulit':''),
     info:vendorKontakBlok(l.sumber)+vendorGambarBlok(o,l,'rfq'+o.id+'-'+i),
     fields:[{k:'pesan',label:'Isi pesan — boleh diedit sebelum dikirim',type:'textarea',tinggi:260,
-      val:rfqPesanGabung(o,l),req:true,hint:tujuanTeks(tuj,live)}],
+      val:rfqPesanGabung(o,l),req:true,hint:tujuanTeks(tuj,live,l.sumber)}],
     ok:function(v){
       if(!l.rfq)l.rfq={};
       l.rfq.minta=hariIni();l.rfq.pesan=v.pesan;
@@ -9295,8 +9298,10 @@ function rfqKirim(id,i){
         txt:'Permintaan dikirim ke <b>'+esc(l.sumber)+'</b> — '+esc(l.produk||'-')+' ×'+(l.qty||0)+' pcs.'});
       logHist(o,'Permintaan dikirim ke '+l.sumber+' — '+(l.produk||'-'));
       o._m=Date.now();save();render();
-      evSalin(v.pesan,live?('✓ Terkirim ke #'+tuj.ch+' — teksnya juga tersalin kalau perlu ditempel lagi.')
-                          :'✓ Teks tersalin — tinggal tempel di Discord '+l.sumber+'.');}});}
+      evSalin(v.pesan,tuj.keVendor
+        ? (live?('✓ Terkirim ke #'+tuj.ch+' — teksnya juga tersalin kalau perlu ditempel lagi.')
+               :'✓ Teks tersalin — tinggal tempel di #'+tuj.ch+'.')
+        : ('✓ Teks tersalin — tinggal tempel di WhatsApp '+l.sumber+'.'));}});}
 /* Satu form untuk semua jawaban vendor: kulit + harga sekaligus. */
 function rfqJawab(id,i){
   var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
@@ -11098,12 +11103,19 @@ function vendorChannel(nama){
 function vendorTujuan(o,vendor){
   var ch=vendorChannel(vendor);
   return ch?{ch:ch,keVendor:true}:{ch:chName(o),keVendor:false};}
-function tujuanTeks(t,live){
-  if(!live)return 'Mode live belum menyala — pesan hanya disalin ke clipboard, tinggal tempel sendiri.';
-  return t.keVendor
-    ? ('Terkirim ke channel <b>#'+esc(t.ch)+'</b>, dan tersalin ke clipboard kalau perlu ditempel lagi.')
-    : ('Terkirim ke channel order ini (<b>#'+esc(t.ch)+'</b>) — vendor ini belum punya channel sendiri di '+
-       'Master → Vendors, jadi teksnya tersalin untuk ditempel manual ke servernya.');}
+/* Tiap vendor dihubungi dengan caranya sendiri. Yang punya channel Discord
+   dikirimi ke sana; sisanya lewat WhatsApp — dan itu bukan kekurangan yang
+   perlu ditegur, itu memang caranya. */
+function tujuanTeks(t,live,vendor){
+  var hp='';try{var v=vendorData(vendor);hp=(v&&v.hp)||'';if(hp==='-')hp='';}catch(e){}
+  if(t.keVendor)
+    return live?('Terkirim ke channel <b>#'+esc(t.ch)+'</b>, dan tersalin ke clipboard kalau perlu ditempel lagi.')
+               :('Mode live belum menyala — pesannya tak dikirim ke <b>#'+esc(t.ch)+'</b>, cuma disalin ke clipboard.');
+  if(hp)
+    return 'Vendor ini dihubungi lewat <b>WhatsApp</b> — teksnya tersalin, tinggal tempel di chatnya '+
+      'lewat tombol di atas.'+(live?(' Salinannya juga masuk ke channel order (<b>#'+esc(t.ch)+'</b>) sebagai catatan.'):'');
+  return 'Belum ada channel Discord maupun nomor HP untuk vendor ini di <b>Master → Vendors</b> — '+
+    'teksnya tersalin, tapi kamu harus mencari sendiri ke mana mengirimnya.';}
 /* Kirim ke channel mana pun, bukan cuma channel order. */
 function notifyChannel(nama,text){
   var c=ST.cfg||{};if(!c.live||!c.url||!nama)return false;
