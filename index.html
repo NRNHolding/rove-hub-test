@@ -503,6 +503,42 @@
 
 <script>
 const KEY='rovehub_orders_v18';
+/* ================= VERSI YANG SEDANG BERJALAN =================
+   Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
+   dibuka langsung dari berkas, bukan dari alamat terbitannya. */
+const VERSI='20260827-152508';
+/* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
+   ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
+   tersimpan di cache browser. */
+function versiCek(){
+  if(VERSI==='-')return;                       /* dibuka dari berkas lokal */
+  try{
+    fetch('versi.txt?t='+Date.now(),{cache:'no-store'})
+      .then(function(r){return r.ok?r.text():null;})
+      .then(function(t){
+        if(!t)return;
+        t=String(t).trim();
+        if(!t||t===VERSI)return;
+        versiPita(t);})
+      .catch(function(){});
+  }catch(e){}}
+function versiPita(baru){
+  if(document.getElementById('versiBar'))return;
+  var d=document.createElement('div');
+  d.id='versiBar';
+  d.style.cssText='position:fixed;left:50%;transform:translateX(-50%);bottom:16px;z-index:9999;'+
+    'background:var(--brand);color:#fff;border-radius:11px;padding:9px 14px;display:flex;gap:11px;'+
+    'align-items:center;box-shadow:0 6px 22px rgba(0,0,0,.25);font-size:12px;font-weight:700;max-width:92vw';
+  d.innerHTML='<span>Versi baru ROVE HUB sudah terbit — yang kamu lihat sekarang salinan lama.</span>'+
+    '<button id="versiMuat" style="background:#fff;color:var(--brand);border:none;border-radius:8px;'+
+      'padding:6px 12px;font-weight:800;cursor:pointer;font-size:11.5px;white-space:nowrap">Muat ulang</button>';
+  document.body.appendChild(d);
+  var b=document.getElementById('versiMuat');
+  /* muat ulang menembus cache: alamatnya diberi penanda waktu, kalau tidak
+     browser menyajikan salinan yang sama lagi */
+  if(b)b.onclick=function(){
+    try{var u=new URL(location.href);u.searchParams.set('v',String(Date.now()));location.replace(u.toString());}
+    catch(e){location.reload();}};}
 /* ================= BACKEND BAWAAN =================
    URL Apps Script yang dipakai salinan ini kalau orangnya belum menyetel
    sendiri. Diisi = siapa pun yang membuka link langsung ikut sinkron; dikosongi
@@ -1934,6 +1970,13 @@ if(r){ST.orders=JSON.parse(r);}else{ST.orders=[];} ST.user=sesiGet('rovehub_user
   /* Link permintaan dari Discord dibaca paling akhir, sesudah semua data
      termuat — ordernya harus sudah ada sebelum linknya dicari. */
   try{bukaDariTautan();}catch(e){}
+  /* Diperiksa sekarang, lalu tiap 3 menit, lalu tiap kali tabnya dibuka lagi —
+     saat itulah orang biasanya kembali sesudah sesuatu diterbitkan. */
+  try{
+    versiCek();
+    setInterval(versiCek,180000);
+    document.addEventListener('visibilitychange',function(){if(!document.hidden)versiCek();});
+  }catch(e){}
   if(!hasEstColl()){try{var cd=JSON.parse(localStorage.getItem('rovehub_colldata')||'null');if(cd&&Object.keys(cd).length){setEstColl(collRowsFrom(cd));saveMaster();}}catch(e){}}
   buildCollatData();}
 
