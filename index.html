@@ -5444,6 +5444,14 @@ function barisVendorLengkapi(o){
   /* Baris jasa yang dulu terlanjur diberi vendor tebakan dihitung ulang —
      tapi hanya yang belum dipakai untuk apa pun. Yang sudah ditanyakan atau
      sudah berharga bisa saja sudah sengaja dibetulkan orang; jangan ditimpa. */
+  /* Baris jasa yang dibuat sebelum tekniknya ikut — dilengkapi apa pun
+     keadaannya, karena ini keterangan, bukan keputusan yang bisa salah. */
+  L.forEach(function(l){
+    if(!l.jasa)return;
+    if(l.perso&&l.perso!=='-')return;
+    var nj=String(l.produk||'').replace(/^(Live service|Add-on) — /,'');
+    var tj='';try{tj=jasaTeknik(nj);}catch(e){}
+    if(tj)l.perso=tj;});
   L.forEach(function(l){
     if(!l.jasa||l._vendorManual||(l.rfq&&l.rfq.minta)||(l.hpp||0)>0)return;
     var n=String(l.produk||'').replace(/^(Live service|Add-on) — /,'');
@@ -5471,9 +5479,12 @@ function barisVendorLengkapi(o){
          pertama yang kebetulan bertipe sama. Add-on tak ikut tebakan kota:
          itu pekerjaan workshop, kota acara tak ada hubungannya. */
       var vJasa=jasaVendor(n)||((x[1]==='Live service')?vendorJasaKota(o):vendorProdukOrder(o));
+      /* Tekniknya dibawa serta: kolom perso itulah yang tercetak di PO ke
+         vendor, dan tanpa itu ia menerima pesanan tanpa cara mengerjakannya. */
+      var tk='';try{tk=jasaTeknik(n);}catch(e){}
       L.push({produk:nama,bahan:'Service',sumber:vJasa,_vendorTebakan:(!jasaVendor(n)&&!!vJasa),
         qty:qty,hpp:0,jual:0,img:'',imgs:[],detail:'harganya ditanyakan ke vendor jasanya',
-        perso:'-',fixed:false,jasa:x[1],satuan:(x[1]==='Live service')?'event':'pcs'});
+        perso:tk||'-',fixed:false,jasa:x[1],satuan:(x[1]==='Live service')?'event':'pcs'});
       baru.push(nama);});});
   return baru;}
 /* vendor untuk satu jasa, kalau didaftar di master */
@@ -10606,7 +10617,13 @@ function rfqPanel(o){
           var otomatis=hargaOtomatis(l);
           return '<tr>'+
             '<td style="vertical-align:top;border-bottom:none;padding-left:0"><b style="font-size:11.5px">'+esc(l.produk||'(tanpa nama)')+'</b>'+
-              (l.bahan?('<div style="font-size:9px;color:var(--muted)">'+esc(l.bahan)+'</div>'):'')+
+              /* untuk baris jasa, "Service" tak memberi tahu apa pun — yang
+                 perlu terlihat tekniknya */
+              (l.jasa
+                ? ((l.perso&&l.perso!=='-')
+                    ? ('<div style="font-size:9px;color:var(--muted)">teknik: <b>'+esc(l.perso)+'</b></div>')
+                    : ('<div style="font-size:9px;color:var(--warn);font-weight:700">tanpa teknik — isi di Master Product → Jasa</div>'))
+                : (l.bahan?('<div style="font-size:9px;color:var(--muted)">'+esc(l.bahan)+'</div>'):''))+
               '<div style="margin-top:4px;max-width:230px">'+rfqVendorSel(o,l,x.i)+'</div>'+
               ((l.rfq&&l.rfq.note)?('<div style="font-size:9px;color:var(--muted);margin-top:3px">catatan vendor: '+esc(l.rfq.note)+'</div>'):'')+'</td>'+
             '<td class="num" style="width:52px;vertical-align:top;border-bottom:none;font-size:10.5px">'+esc(poQtyTeks(l)).replace(' ','<br>')+'</td>'+
@@ -13024,7 +13041,8 @@ function rfqDocSpek(o,l){
     t('Teknik',jasaTeknik(String(l.produk||'').replace(/^Live service — /,'')));
     t('Jumlah dikerjakan di lokasi',(l.qty||0)+' pcs');
   } else if(jenis==='addon'){
-    t('Teknik',jasaTeknik(String(l.produk||'').replace(/^Add-on — /,''))||'belum ditentukan');
+    t('Teknik',(l.perso&&l.perso!=='-')?l.perso
+      :(jasaTeknik(String(l.produk||'').replace(/^Add-on — /,''))||'belum ditentukan'));
     t('Jumlah',(l.qty||0)+' pcs');
     t('Dikerjakan','di workshop, sebelum barangnya dipacking');
     if(b.perso&&b.perso!=='-')t('Personalization',b.perso);
