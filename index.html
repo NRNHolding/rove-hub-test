@@ -740,6 +740,9 @@ const EN={
 'Penentuan harga jual':'Setting the selling price','INFO DARI RADJA':'FROM RADJA','Deadline produksi':'Production deadline','Paling lambat PO turun':'Latest date the PO can be issued','Persetujuan harga jual — Sales':'Selling price approval — Sales','Harga jual disetujui Sales':'Selling price approved by Sales',
 'kelengkapan fase ini sudah lengkap':'this phase’s checklist is complete',
 '✋ Ingatkan Sales — lengkapi keterangan client':'✋ Remind Sales — fill in what the client said',
+'✍ Lengkapi keterangan client':'✍ Fill in what the client said',
+'buka kolom pertama yang belum terisi':'open the first field still empty',
+'hal)':'items)',
 'Ingatkan Sales lewat Discord':'Remind Sales on Discord',
 'Yang perlu ditanyakan ke client':'What needs asking the client',
 '💬 Tanya Sales':'💬 Ask Sales','Yang belum jelas':'What is unclear','Ini tugas jabatanmu sendiri — tak ada yang perlu diingatkan.':'This is your own role\u2019s task \u2014 there is nobody to remind.',
@@ -8284,9 +8287,16 @@ function chkPanel(o){
       sudah+'/'+items.length+'</span></div><div class="body">'+rows+
     '<div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:11px;border-top:1px solid var(--line);padding-top:11px">'+
       (mintaDaftar(o,f).length
-        ? ('<button class="btn sm" style="background:#6a6f8a;border-color:#6a6f8a" '+
-           'title="satu pesan ke Discord berisi semua yang perlu ditanyakan ke client" '+
-           'onclick="mintaSales(\'' + o.id + '\',' + f + ')">✋ Ingatkan Sales — lengkapi keterangan client</button>')
+        ? (akuSales()
+            /* Sales tak perlu diingatkan jadi dirinya sendiri — yang berguna
+               baginya jalan ke kolom pertama yang kurang */
+            ? ('<button class="btn sm" style="background:#6a6f8a;border-color:#6a6f8a" '+
+               'title="buka kolom pertama yang belum terisi" '+
+               'onclick="mintaBuka('+jsArg(o.id)+','+f+')">✍ Lengkapi keterangan client'+
+               ' ('+mintaDaftar(o,f).reduce(function(a,g){return a+g[1].length;},0)+' hal)</button>')
+            : ('<button class="btn sm" style="background:#6a6f8a;border-color:#6a6f8a" '+
+               'title="satu pesan ke Discord berisi semua yang perlu ditanyakan ke client" '+
+               'onclick="mintaSales('+jsArg(o.id)+','+f+')">✋ Ingatkan Sales — lengkapi keterangan client</button>'))
         : '')+
       (lain.filter(function(it){return !chkAuto(o,f,it.k)&&!chkTugasku(it);}).length
         ? '<button class="btn sm" onclick="chkIngatSemua(\'' + o.id + '\',' + f + ')">⏰ Ingatkan semua PIC yang belum</button>'
@@ -8499,6 +8509,9 @@ function mintaKelompok(k){
     if(MINTA_URUT[i][1].indexOf(k)>=0)return MINTA_URUT[i][0];
   return '';}
 /* Semua yang masih kurang di fase ini, dikelompokkan & diurutkan. */
+/* Jabatan yang memang bertugas menanyakan ke client. Untuk dia, tombolnya
+   bukan pengingat melainkan jalan ke kolomnya. */
+function akuSales(){return punyaRole('Sales');}
 function mintaDaftar(o,fase){
   var kurang=[];
   try{kurang=chkKurang(o,fase,false);}catch(e){}
@@ -8507,8 +8520,19 @@ function mintaDaftar(o,fase){
   var rapi=[];
   MINTA_URUT.forEach(function(x){if(G[x[0]])rapi.push([x[0],G[x[0]]]);});
   return rapi;}
+/* Buka hal pertama yang kurang. Dipakai Sales, yang memang harus mengisinya
+   sendiri, bukan mengingatkan dirinya. */
+function mintaBuka(id,fase){
+  var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
+  var grup=mintaDaftar(o,fase);
+  if(!grup.length){alert('Tak ada lagi yang kurang di fase ini.');return;}
+  var it=(grup[0][1]||[])[0];if(!it)return;
+  chkLompat(id,fase,it.k);}
 function mintaSales(id,fase){
   var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
+  /* penjagaan yang sama dengan tombol ⏰ per item: mengingatkan jabatan sendiri
+     berarti mengirim pesan Discord yang memanggil diri sendiri */
+  if(akuSales()){mintaBuka(id,fase);return;}
   var grup=mintaDaftar(o,fase);
   if(!grup.length){alert('Tak ada lagi yang kurang di fase ini — tak ada yang perlu diingatkan.');return;}
   var ringkas=grup.map(function(g){
