@@ -4748,7 +4748,11 @@ function evFeeAjukan(id){
   alert('✓ Diajukan.\n\nBaris biaya masuk ke Pricing. Purchasing tinggal Generate PO ke "'+vend+'" (fase Spec & PO), lalu Finance ekspor ke AIS seperti biasa.');}
 function evFeePanel(o){
   var e=o.event||{},ops=e.ops||[];
-  if(!ops.length)return '';
+  if(!ops.length)return '<div style="font-size:10.5px;color:var(--ink-soft);line-height:1.7;'+
+    'border:1px dashed var(--line);border-radius:9px;padding:10px 12px">'+
+    '<b>Biaya live service dihitung dari fee operatornya</b>, bukan dari harga vendor — '+
+    'jadi ia tak muncul di panel Minta harga vendor. Pilih dulu operatornya di atas, '+
+    'isi feenya, lalu ajukan pembayarannya.</div>';
   var tot=ops.reduce(function(s,x){return s+(+x.fee||0);},0);
   var vl=svcVendors();
   return '<div style="border-top:1px solid var(--line);margin-top:11px;padding-top:10px">'+
@@ -5329,6 +5333,14 @@ function barisVendorLengkapi(o){
   var ada=function(nama){return L.some(function(l){return l.produk===nama;});};
   var qty=(function(){var q=0;L.forEach(function(l){if(!l.coll&&(l.qty||0)>q)q=l.qty||0;});return q||o.qty||0;})();
   var baru=[];
+  /* Baris live service buatan lama dibuang — biayanya sudah dihitung lewat
+     fee operator, jadi ia biaya hantu. Yang sudah terlanjur dipakai (sudah
+     diserahkan atau sudah berharga) tak dibuang diam-diam: ditandai supaya
+     diputuskan orang, karena mungkin ada uang yang sudah terlanjur jalan. */
+  for(var li=L.length-1;li>=0;li--){
+    var lv=L[li];if(lv.jasa!=='Live service')continue;
+    if((lv.rfq&&lv.rfq.minta)||(lv.hpp||0)>0)lv._jasaLepas=true;
+    else L.splice(li,1);}
   /* Baris jasa yang dulu terlanjur diberi vendor tebakan dihitung ulang —
      tapi hanya yang belum dipakai untuk apa pun. Yang sudah ditanyakan atau
      sudah berharga bisa saja sudah sengaja dibetulkan orang; jangan ditimpa. */
@@ -5348,8 +5360,10 @@ function barisVendorLengkapi(o){
     L.push({produk:nama,bahan:'',sumber:vendorForTipe(pt[1]),qty:qty,hpp:0,jual:0,
       img:'',imgs:[],detail:'dari prospek — harganya belum ditanyakan',perso:'-',fixed:false,coll:pt[0]});
     baru.push(nama+' ('+vendorForTipe(pt[1])+')');});
-  /* live service & add-on: vendornya dari master jasa */
-  [['liveSvc','Live service'],['svc','Add-on']].forEach(function(x){
+  /* Add-on saja. Live service dikerjakan tim sendiri dan biayanya datang dari
+     fee tiap operator (evFeeAjukan) — kalau ia juga dibuatkan baris vendor,
+     satu pekerjaan masuk PO dua kali. */
+  [['svc','Add-on']].forEach(function(x){
     liveList(o[x[0]]).forEach(function(n){
       var nama=x[1]+' — '+n;
       if(ada(nama))return;
@@ -5475,8 +5489,18 @@ function mEdit(sec,i,f,v){var r=ST.master[sec][i];r[f]=v;
   if(sec==='customers'&&(f==='bride'||f==='groom'||f==='tipe'))render();}
 function mSet(f,v){ST.master[f]=v;saveMaster();render();}
 function mEditM(sec,i,f,v){ST.master[sec][i][f]=moneyVal(v);stampRow(ST.master[sec][i]);saveMaster();}
+/* Nilai bawaan yang mengikuti tab penyaring yang sedang terbuka. Tab "semua"
+   dan "tanpa tipe" tak menentukan apa-apa, jadi kembali ke bawaan. */
+function tabAktif(nama,bawaan){
+  var v=ST[nama];
+  if(!v||v==='ALL'||v==='Tanpa tipe')return bawaan;
+  return v;}
 function mAdd(sec){var r=(sec==='users'?{username:'',password:'',jabatan:'Sales',jabatans:['Sales'],aktif:true}:sec==='shipping'?{ekspedisi:'JNE',kota:'',tarif:0}:sec==='jenis'?{label:'',code:''}:(sec==='perso'||sec==='bank'||sec==='vtipe'||sec==='cogs'||sec==='mainmat'||sec==='filler'||sec==='lining'||sec==='finreq'||sec==='stitch'||sec==='warna')?{v:''}:sec==='customers'?{nama:'',termin:'DP',bride:'',groom:'',kontak:'',email:'',alamat:'',alamatKantor:'',kota:'',npwp:'',pic:'',
-    tipe:((ST._custTab&&ST._custTab!=='ALL')?ST._custTab:'Corporate'),lokasi:'HQ',catatan:''}:sec==='coll'?{type:'Hardbox',kind:'Material',value:''}:sec==='catalog'?{name:'',material:'',jenis:'Katalog',t:[0,0,0,0,0,0,0]}:sec==='operator'?{nama:'',lokasi:'',hp:'',stamper:true,assist:true,aktif:true}:sec==='tools'?{nama:'',qty:1}:sec==='kardus'?{size:'',L:0,W:0,H:0,wg:0}:sec==='kurs'?{kode:'',nilai:0}:sec==='kulit'?{nama:'',warna:'',stok:'Ready',minOrder:'',vendor:'Radja Leather',catatan:''}:sec==='jasa'?{nama:'',jenis:'Service',teknik:'-',fix:0,harga:0,vendor:''}:{nama:'',tipe:'',cogs:'Main Product',kontak:'',hp:'',bank:'',rek:'',alamat:''});
+    tipe:((ST._custTab&&ST._custTab!=='ALL')?ST._custTab:'Corporate'),lokasi:'HQ',catatan:''}:sec==='coll'?{type:'Hardbox',kind:'Material',value:''}:sec==='catalog'?{name:'',material:'',jenis:'Katalog',t:[0,0,0,0,0,0,0]}:sec==='operator'?{nama:'',lokasi:'',hp:'',stamper:true,assist:true,aktif:true}:sec==='tools'?{nama:'',qty:1}:sec==='kardus'?{size:'',L:0,W:0,H:0,wg:0}:sec==='kurs'?{kode:'',nilai:0}:sec==='kulit'?{nama:'',warna:'',stok:'Ready',minOrder:'',vendor:'Radja Leather',catatan:''}:sec==='jasa'?{nama:'',jenis:'Service',teknik:'-',fix:0,harga:0,vendor:''}:{nama:'',tipe:tabAktif('_venTab',''),cogs:'Main Product',kontak:'',hp:'',bank:'',rek:'',alamat:''});
+  /* COGS mengikuti tipenya — vendor Live Service selalu Service, kemasan
+     selalu Packaging. Kalau tipenya sudah diketahui, tak perlu ditanya lagi. */
+  if(sec==='vendors'&&r.tipe)
+    r.cogs=(r.tipe==='Kulit')?'Main Product':((r.tipe==='Live Service')?'Service':'Packaging');
   ST.master[sec].push(stampRow(r));if(sec==='coll')buildCollatData();saveMaster();render();}
 function mDel(sec,i){delRow(sec,i);}
 function setMasterTab(t){ST.masterTab=t;render();}
@@ -5613,8 +5637,8 @@ function renderMaster(){
        return chip(k,V.filter(function(v){return jenis(v)===k;}).length);}).join('')}</div>
      ${idx.length?`<div class="xscroll">${tbl('vendors',[['nama','Nama'],['tipe','Tipe',listArr('vtipe')],['cogs','COGS Type',listArr('cogs')],['kontak','Contact person'],['hp','No. HP'],['kota','Kota'],['disc','Channel Discord (kosongkan kalau lewat WhatsApp)'],['bank','Bank',listArr('bank')],['rek','No. rekening'],['alamat','Alamat']],idx.map(function(i){return V[i];}),idx)}</div>`
        :'<div style="color:var(--muted);font-size:11px;padding:6px 0">Belum ada vendor pada kategori ini.</div>'}
-     <button class="btn ghost sm" style="margin-top:9px" onclick="mAdd('vendors')">＋ Tambah vendor</button>
-     ${f!=='ALL'?'<span style="font-size:9.5px;color:var(--muted);margin-left:8px">Vendor baru masuk tanpa tipe — pilih tipenya di kolom <b>Tipe</b> supaya muncul di kategori ini.</span>':''}</div>`;})(),
+     <button class="btn ghost sm" style="margin-top:9px" onclick="mAdd('vendors')">＋ Tambah vendor${(f!=='ALL'&&f!=='Tanpa tipe')?(' '+esc(f)):''}</button>
+     ${f!=='ALL'?'<span style="font-size:9.5px;color:var(--muted);margin-left:8px">Vendor baru langsung masuk kategori ini.</span>':''}</div>`;})(),
    produk:(function(){var sub=ST._prodTab||'produk',CT=M.catalog||[];
      var tab=function(k,n){return '<div style="display:inline-block;padding:6px 13px;margin-right:6px;background:'+(sub===k?'var(--brand)':'var(--bg)')+';color:'+(sub===k?'#fff':'var(--muted)')+';border-radius:8px;cursor:pointer;font-weight:700;font-size:11.5px" onclick="ST._prodTab=\''+k+'\';render()">'+n+'</div>';};
      var isi='';
@@ -8832,7 +8856,10 @@ function hargaOtomatis(l){                       // dari mana harga baris ini da
   var p=prodInfo(l.produk,l);
   if(p&&p.t&&p.t.length&&catPriceT(p.t,l.qty||0)>0)return 'master';
   return '';}
-function perluHargaVendor(l){return (l.qty>0)&&!hargaOtomatis(l);}
+function perluHargaVendor(l){
+  /* live service tak dimintai harga: biayanya fee operator, bukan harga vendor */
+  if(l&&l.jasa==='Live service')return false;
+  return (l.qty>0)&&!hargaOtomatis(l);}
 /* ================= KONFIRMASI HARGA KATALOG =================
    Harga katalog bukan harga mati. Vendor menaikkan harga tanpa memberi tahu,
    dan yang ketahuan belakangan cuma marginnya yang tipis. Jadi baris yang
@@ -10383,7 +10410,11 @@ function rfqPanel(o){
      belum ada maupun yang harganya dari master dan tinggal dipastikan. Dulu
      keduanya dipisah, dan yang kedua bisa tak muncul di mana pun. */
   var R=[];
-  L.forEach(function(l,i){if((l.qty||0)>0||lineJenis(l)==='jasa')R.push({l:l,i:i});});
+  L.forEach(function(l,i){
+    /* live service tak muncul di sini sama sekali — tempatnya di tab Live
+       service, tempat orangnya dipilih dan feenya ditetapkan */
+    if(l.jasa==='Live service'&&!l._jasaLepas)return;
+    if((l.qty||0)>0||lineJenis(l)==='jasa')R.push({l:l,i:i});});
   var belum=R.filter(function(x){
     return hargaOtomatis(x.l)?!konfSah(x.l):((x.l.hpp||0)<=0);}).length;
   var kepala='<div class="card actcard" style="margin-top:14px"><div class="ch"><span class="ico" style="background:#8a6d3b">📨</span>'+
@@ -12433,7 +12464,11 @@ function ordSvcDel(id,jenis,i){
      sudah lepas dari jasaTotal) tapi vendornya tetap masuk PO dan tetap
      dibayar. Yang sudah ditanyakan harganya tak dibuang diam-diam: itu
      percakapan yang sudah terjadi, jadi ditandai supaya diputuskan orang. */
-  var nama=jenis+' — '+hapus,L=((o.pricing||{}).lines)||[],tinggal=0;
+  /* Barisnya dinamai memakai label tampilan ('Add-on'), bukan kunci jenisnya
+     ('Service') — kalau dicocokkan dengan jenisnya, baris add-on tak pernah
+     ikut terbuang dan jadi biaya yang tak tertagih. */
+  var label=(jenis==='Live service')?'Live service':'Add-on';
+  var nama=label+' — '+hapus,L=((o.pricing||{}).lines)||[],tinggal=0;
   for(var n=L.length-1;n>=0;n--){
     var l=L[n];if(!l.jasa||l.produk!==nama)continue;
     if((l.rfq&&l.rfq.minta)||(l.hpp||0)>0){l._jasaLepas=true;tinggal++;}
