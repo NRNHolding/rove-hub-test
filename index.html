@@ -1237,7 +1237,7 @@ const EN={
 'PERMINTAAN HARGA':'REQUEST FOR QUOTE','Ini permintaan harga, bukan pesanan.':'This is a request for a quote, not an order.',
 'Ditujukan kepada':'Addressed to','Yang kami minta':'What we are asking for','Mohon dijawab':'Please answer',
 'Gambar acuan':'Reference images','Pertanyaan':'Question','Jawaban':'Answer','Dibutuhkan':'Needed by',
-'📄 PDF':'📄 PDF','Channel Discord':'Discord channel','— pilih vendor —':'— choose a vendor —','dipilihkan otomatis — pastikan benar':'auto-filled — check it is right','Kota':'City','No. rekening':'Account number','No. Hp':'Phone','Email':'Email',
+'📄 Dokumen':'📄 Document','✋ Serahkan ke Purchasing':'✋ Hand over to Purchasing','📄 PDF':'📄 PDF','Channel Discord':'Discord channel','— pilih vendor —':'— choose a vendor —','dipilihkan otomatis — pastikan benar':'auto-filled — check it is right','Kota':'City','No. rekening':'Account number','No. Hp':'Phone','Email':'Email',
 'Bride':'Bride','Groom':'Groom','Wedding':'Wedding','Corporate':'Corporate','Lainnya':'Others','Other':'Others',
 '＋ Tambah akun':'＋ Add account','＋ Tambah barang':'＋ Add item','＋ Tambah karyawan':'＋ Add employee',
 '＋ Tambah penawaran':'＋ Add quote','＋ Tambah opsi':'＋ Add option','＋ Tambah jasa':'＋ Add service',
@@ -10403,7 +10403,8 @@ function rfqPanel(o){
   } else {
     isi='<div style="font-size:10.5px;color:var(--muted);margin-bottom:10px">Baris di bawah tak punya harga tetap di master, jadi harus ditanyakan ke vendor. '+
         'Kalau barangnya pernah dibeli sebelumnya, harga terakhirnya ditampilkan — tinggal konfirmasi ke vendor bahwa harga itu masih berlaku, lalu klik <b>Pakai harga ini</b>. '+
-        'Klik <b>Minta harga</b> untuk mencatat permintaan, lalu <b>Isi harga</b> begitu vendor menjawab.</div>'+
+        'Buat <b>Dokumen</b>-nya, lalu <b>Serahkan ke Purchasing</b> — Purchasing yang menyimpan PDF-nya '+
+        'dan meneruskan ke vendor. Begitu vendor menjawab, tekan <b>Catat jawaban</b>.</div>'+
       '<div class="xscroll"><table class="rtable"><thead><tr><th style="min-width:150px">Item</th><th style="width:130px">Vendor</th>'+
       '<th style="width:70px" class="num">Qty</th><th style="width:120px">Status</th><th style="width:110px" class="num">Harga/pcs</th>'+
       '<th style="min-width:150px">Catatan vendor</th><th style="width:150px"></th></tr></thead><tbody>'+
@@ -10413,7 +10414,7 @@ function rfqPanel(o){
           '<td>'+rfqVendorSel(o,l,x.i)+'</td>'+
           '<td class="num">'+(l.qty||0)+'</td>'+
           '<td><span style="font-size:10px;font-weight:800;color:'+rfqWarna(st)+'">● '+st+'</span>'+
-            ((l.rfq&&l.rfq.minta)?('<div style="font-size:9px;color:var(--muted)">diminta '+tglID(l.rfq.minta)+'</div>'):'')+
+            ((l.rfq&&l.rfq.minta)?('<div style="font-size:9px;color:var(--muted)">diserahkan '+tglID(l.rfq.minta)+'</div>'):'')+
             ((l.rfq&&l.rfq.terima)?('<div style="font-size:9px;color:var(--muted)">masuk '+tglID(l.rfq.terima)+'</div>'):'')+
             (((o.rfqDoc||{})[l.sumber])?('<div style="font-size:9px;color:var(--muted)">📄 dokumen '+esc(o.rfqDoc[l.sumber])+'</div>'):'')+'</td>'+
           '<td class="num">'+((l.hpp||0)>0?('<b>'+fmt0(l.hpp)+'</b>')
@@ -10421,15 +10422,15 @@ function rfqPanel(o){
                if(!hl)return '<span style="color:var(--muted)">—</span>';
                return '<div style="font-size:10px;color:var(--muted);line-height:1.5">terakhir <b style="color:var(--ink)">'+fmt0(hl.hpp)+'</b>'+
                  '<div style="font-size:9px">'+esc(hl.cust)+' · '+hl.qty+' pcs</div></div>'+
-                 '<button class="btn ghost sm" style="margin-top:4px" onclick="pakaiHargaLama(\'' + o.id + '\',' + x.i + ')">Pakai harga ini</button>';})())+'</td>'+
+                 '<button class="btn ghost sm" style="margin-top:4px" onclick="pakaiHargaLama('+jsArg(o.id)+','+x.i+')">Pakai harga ini</button>';})())+'</td>'+
           '<td style="font-size:10px;color:var(--muted)">'+esc((l.rfq&&l.rfq.note)||'')+'</td>'+
           '<td style="white-space:nowrap">'+
             ((l.rfq&&l.rfq.minta)
-              ? '<button class="btn sm" onclick="rfqJawab(\''+o.id+'\','+x.i+')">✓ Catat jawaban</button> '+
-                '<button class="xrow" style="color:var(--brand)" title="kirim ulang permintaan" onclick="rfqKirim(\''+o.id+'\','+x.i+')">↻</button> '+
-                '<button class="xrow" style="color:var(--brand)" title="dokumen permintaan harga (PDF)" onclick="genRfqDoc('+jsArg(o.id)+','+jsArg(l.sumber)+')" title="dokumen permintaan harga (PDF)">📄</button>'
-              : '<button class="btn sm" onclick="rfqKirim(\''+o.id+'\','+x.i+')">📨 Kirim permintaan</button> '+
-                '<button class="btn ghost sm" title="dokumen permintaan harga — tinggal Simpan PDF" onclick="genRfqDoc('+jsArg(o.id)+','+jsArg(l.sumber)+')">📄 PDF</button>')+
+              ? '<button class="btn sm" onclick="rfqJawab('+jsArg(o.id)+','+x.i+')">✓ Catat jawaban</button> '+
+                '<button class="xrow" style="color:var(--brand)" title="serahkan ulang ke Purchasing" onclick="rfqSerah('+jsArg(o.id)+','+jsArg(l.sumber)+')">↻</button> '+
+                '<button class="xrow" style="color:var(--brand)" title="dokumen permintaan harga (PDF)" onclick="genRfqDoc('+jsArg(o.id)+','+jsArg(l.sumber)+')">📄</button>'
+              : '<button class="btn ghost sm" title="dokumen permintaan harga — tinggal Simpan PDF" onclick="genRfqDoc('+jsArg(o.id)+','+jsArg(l.sumber)+')">📄 Dokumen</button> '+
+                '<button class="btn sm" title="tandai sudah diminta &amp; kabari Purchasing lewat Discord" onclick="rfqSerah('+jsArg(o.id)+','+jsArg(l.sumber)+')">✋ Serahkan ke Purchasing</button>')+
             '</td></tr>'+
           (lineKulit(l)?('<tr><td colspan="7" style="padding-top:0">'+kulitBlok(o,l,x.i)+'</td></tr>'):'');}).join('')+
       '</tbody></table></div>';
@@ -12863,9 +12864,49 @@ function rfqDocHTML(o,vendor){
    spek+gbr+
    '<div class="dsec">Mohon dijawab</div>'+
    '<table class="dtable"><thead><tr><th class="num wno">No</th><th>Pertanyaan</th><th class="wperso">Jawaban</th></tr></thead><tbody>'+tanya+'</tbody></table>'+
-   '<div class="dsign">Hormat kami,<div class="nm">'+esc(ST.userName||ST.user||'ROVE HUB')+'</div></div>'+
+   '<div class="dsign">Hormat kami,<div class="nm">Purchasing · ROVE Favors and Gifts</div></div>'+
    /* nama channel TIDAK dicetak: isinya nama client, tanggal acara, dan qty */
    '<div class="dfoot">Permintaan harga otomatis dari ROVE HUB · ref '+esc(o.id)+' · jawaban dicatat kembali ke HUB.</div>';}
+/* Ringkasan yang dibaca Purchasing di Discord — cukup untuk diteruskan apa
+   adanya ke vendor WhatsApp, sisanya ada di dokumennya. */
+function rfqSerahTeks(o,vendor){
+  var L=rfqBarisVendor(o,vendor),P=[];
+  P.push('📄 **PERMINTAAN HARGA — '+vendor+'**','',rfqNo(o,vendor));
+  L.forEach(function(l){
+    var T=rfqTanggal(o,l),jenis=rfqJenisBaris(l);
+    P.push('• '+(l.produk||'-')+' · '+(jenis==='live'?'1 event':((l.qty||0)+' pcs'))+
+      ((T&&T.tgl&&!T.lewat)?(' · dibutuhkan '+tglID(T.tgl)):''));});
+  var v=vendorData(vendor)||{},cara=vendorChannel(vendor)?('channel #'+vendorChannel(vendor))
+    :((v.hp&&v.hp!=='-')?('WhatsApp '+v.hp):'—');
+  P.push('','Dikirim lewat: '+cara,
+    'Dokumennya ada di HUB — buka ordernya, panel Minta harga vendor, tombol 📄, lalu Simpan PDF.');
+  return P.join(String.fromCharCode(10));}
+function rfqSerah(id,vendor){
+  var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
+  if(!vendor){alert('Baris ini belum punya vendor — pilih dulu di kolom Vendor.');return;}
+  var L=rfqBarisVendor(o,vendor);
+  if(!L.length){alert('Tak ada baris untuk vendor ini.');return;}
+  var ulang=L.every(function(l){return l.rfq&&l.rfq.minta;});
+  if(!confirm((ulang?'Serahkan ULANG ':'Serahkan ')+'permintaan harga '+vendor+' ke Purchasing?'+
+    String.fromCharCode(10)+String.fromCharCode(10)+
+    L.length+' baris ditandai sudah diminta, dan pesannya masuk ke Discord. '+
+    'Purchasing yang menyimpan PDF-nya lalu meneruskan ke vendor.'))return;
+  var teks=rfqSerahTeks(o,vendor);
+  L.forEach(function(l){
+    if(!l.rfq)l.rfq={};
+    l.rfq.minta=hariIni();l.rfq.pesan=teks;
+    if(lineKulit(l)){var k=rfqKulit(l);if(!k.tanya)k.tanya=hariIni();}});
+  /* ke channel vendornya kalau ada; kalau tidak, ke channel order — dan
+     Purchasing disebut supaya tahu bola ada di dia */
+  var tuj=vendorTujuan(o,vendor);
+  var pesan='✋ '+picMention('Purchasing')+' — tolong teruskan ke '+vendor+String.fromCharCode(10)+String.fromCharCode(10)+teks;
+  if(tuj.keVendor){notifyChannel(tuj.ch,teks);notifyOrder(o,'📄 Permintaan harga '+vendor+' dikirim ke #'+tuj.ch);}
+  else notifyOrder(o,pesan);
+  o.disc.push({cat:/radja/i.test(vendor)?['radja','PRICING → PRICING DONE']:['rove','PRE-DEAL'],who:'Purchasing',
+    txt:'Permintaan harga <b>'+esc(vendor)+'</b> diserahkan ke Purchasing — '+L.length+' baris.'});
+  logHist(o,'📄 Permintaan harga '+vendor+' diserahkan ke Purchasing — '+L.length+' baris ('+rfqNo(o,vendor)+')');
+  o._m=Date.now();save();render();
+  evSalin(teks,'✓ Diserahkan ke Purchasing. Teksnya tersalin — dokumennya tinggal dibuka lewat tombol 📄 lalu Simpan PDF.');}
 function genRfqDoc(id,vendor){
   var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
   if(!vendor){alert('Pilih vendor dulu untuk baris ini.');return;}
