@@ -1234,7 +1234,10 @@ const EN={
 'Nama jasa':'Service name','Teknik':'Technique','Harga/pcs':'Price/pc','Kontak':'Contact','Alamat':'Address',
 'Alamat kirim':'Delivery address','Alamat client / kantor':'Client / office address','Kota':'City','Catatan':'Notes',
 'Lokasi':'Location','Bank':'Bank','Channel Discord (kosongkan kalau lewat WhatsApp)':'Discord channel (leave empty if contacted on WhatsApp)',
-'Channel Discord':'Discord channel','— pilih vendor —':'— choose a vendor —','dipilihkan otomatis — pastikan benar':'auto-filled — check it is right','Kota':'City','No. rekening':'Account number','No. Hp':'Phone','Email':'Email',
+'PERMINTAAN HARGA':'REQUEST FOR QUOTE','Ini permintaan harga, bukan pesanan.':'This is a request for a quote, not an order.',
+'Ditujukan kepada':'Addressed to','Yang kami minta':'What we are asking for','Mohon dijawab':'Please answer',
+'Gambar acuan':'Reference images','Pertanyaan':'Question','Jawaban':'Answer','Dibutuhkan':'Needed by',
+'📄 PDF':'📄 PDF','Channel Discord':'Discord channel','— pilih vendor —':'— choose a vendor —','dipilihkan otomatis — pastikan benar':'auto-filled — check it is right','Kota':'City','No. rekening':'Account number','No. Hp':'Phone','Email':'Email',
 'Bride':'Bride','Groom':'Groom','Wedding':'Wedding','Corporate':'Corporate','Lainnya':'Others','Other':'Others',
 '＋ Tambah akun':'＋ Add account','＋ Tambah barang':'＋ Add item','＋ Tambah karyawan':'＋ Add employee',
 '＋ Tambah penawaran':'＋ Add quote','＋ Tambah opsi':'＋ Add option','＋ Tambah jasa':'＋ Add service',
@@ -10418,8 +10421,10 @@ function rfqPanel(o){
           '<td style="white-space:nowrap">'+
             ((l.rfq&&l.rfq.minta)
               ? '<button class="btn sm" onclick="rfqJawab(\''+o.id+'\','+x.i+')">✓ Catat jawaban</button> '+
-                '<button class="xrow" style="color:var(--brand)" title="kirim ulang permintaan" onclick="rfqKirim(\''+o.id+'\','+x.i+')">↻</button>'
-              : '<button class="btn sm" onclick="rfqKirim(\''+o.id+'\','+x.i+')">📨 Kirim permintaan</button>')+
+                '<button class="xrow" style="color:var(--brand)" title="kirim ulang permintaan" onclick="rfqKirim(\''+o.id+'\','+x.i+')">↻</button> '+
+                '<button class="xrow" style="color:var(--brand)" title="dokumen permintaan harga (PDF)" onclick="genRfqDoc(\''+o.id+'\','+x.i+')">📄</button>'
+              : '<button class="btn sm" onclick="rfqKirim(\''+o.id+'\','+x.i+')">📨 Kirim permintaan</button> '+
+                '<button class="btn ghost sm" title="dokumen permintaan harga — tinggal Simpan PDF" onclick="genRfqDoc(\''+o.id+'\','+x.i+')">📄 PDF</button>')+
             '</td></tr>'+
           (lineKulit(l)?('<tr><td colspan="7" style="padding-top:0">'+kulitBlok(o,l,x.i)+'</td></tr>'):'');}).join('')+
       '</tbody></table></div>';
@@ -12728,12 +12733,134 @@ function genDoc(id,type){
     items:barisClient(o).map(function(b){return {n:b.nama,q:b.qty,h:b.harga};})};
   save();trDOM(document.getElementById('docbody'));$('#docov').classList.add('show');loadImages();
 }
+/* ================= DOKUMEN PERMINTAAN KE VENDOR =================
+   Bentuknya seperti PO supaya vendor menanggapinya dengan serius, tapi
+   isinya permintaan: harga belum ada, desain belum pasti. Dua hal itu
+   ditanyakan sekaligus dalam satu lembar, dengan kolom jawaban yang sudah
+   disediakan — vendor yang menerima daftar pertanyaan cenderung menjawab
+   yang paling mudah saja dan melupakan sisanya. */
+function rfqNo(o,l){
+  if(!l.rfq)l.rfq={};
+  if(l.rfq.no)return l.rfq.no;
+  var n=(+localStorage.getItem('rovehub_seq_rfq')||0)+1;
+  try{localStorage.setItem('rovehub_seq_rfq',String(n));}catch(e){}
+  var d=new Date();
+  l.rfq.no='ROVE / RFQ / '+d.getFullYear()+' / '+(d.getMonth()+1)+' / '+String(n).padStart(4,'0');
+  return l.rfq.no;}
+/* Baris spesifikasi yang jadi urusan vendor ini — dan HANYA vendor ini. */
+function rfqDocSpek(o,l){
+  var jenis=rfqJenisBaris(l),b=briefGet(o),R=[];
+  var t=function(k,v){if(v&&String(v).trim()&&String(v)!=='-')R.push([k,String(v)]);};
+  if(jenis==='kemasan'){
+    var ck=l.coll||({'Box':'box','Soft Pouch':'pouch','Thank You Card':'card'}[vendorTipe(l.sumber||'')]||'');
+    rfqUkuranProduk(o).forEach(function(u){
+      t('Ukuran '+u.nama,u.ukuran||'BELUM ADA — mohon kami susulkan sebelum produksi');});
+    var spek='';try{if(ck)spek=packRingkas(ck,packSpec(o,ck));}catch(e){}
+    t('Spesifikasi yang diminta',spek||'belum ditentukan — mohon disarankan');
+    var cat='';try{if(ck)cat=salesNote(o,ck);}catch(e){}
+    t('Catatan client',cat);
+  } else if(jenis==='live'){
+    t('Tanggal acara',tglID(o.eventDate||b.tglAcara));
+    t('Tempat',[(o.event&&o.event.venue),b.venue,o.venue,o.shipKota]
+      .filter(Boolean).filter(function(x,i,a){return a.indexOf(x)===i;}).join(', '));
+    t('Teknik',jasaTeknik(String(l.produk||'').replace(/^Live service — /,'')));
+    t('Jumlah dikerjakan di lokasi',(l.qty||0)+' pcs');
+  } else if(jenis==='addon'){
+    t('Teknik',jasaTeknik(String(l.produk||'').replace(/^Add-on — /,''))||'belum ditentukan');
+    t('Jumlah',(l.qty||0)+' pcs');
+    t('Dikerjakan','di workshop, sebelum barangnya dipacking');
+    if(b.perso&&b.perso!=='-')t('Personalization',b.perso);
+    if(b.persoTiap)t('Tiap pcs beda nama','ya — daftarnya menyusul dari client');
+  } else {
+    rfqSpekBaris(o,l).forEach(function(x){
+      var p=String(x).replace(/^• /,'').split(': ');
+      if(p.length>1)R.push([p.shift(),p.join(': ')]);});
+  }
+  return R;}
+/* Tiga pertanyaan, dengan kolom jawabannya — bukan paragraf yang bisa
+   dijawab sepotong. */
+function rfqDocTanya(o,l){
+  var jenis=rfqJenisBaris(l);
+  if(jenis==='live')return [
+    ['Tim kosong di tanggal itu?','ya / tidak'],
+    ['Harga per event (sekali datang)','Rp'],
+    ['Berapa orang & apa yang perlu kami siapkan di lokasi',''],
+  ];
+  if(jenis==='addon')return [
+    ['Harga per pcs','Rp'],
+    ['Lama pengerjaan untuk jumlah di atas',''],
+    ['Paling lambat kapan data/desain harus kami kirim',''],
+  ];
+  return [
+    ['Harga per pcs untuk qty di atas','Rp'],
+    ['Jenis material & warna yang ready — beserta minimum ordernya',''],
+    ['Desain di atas bisa dikerjakan apa adanya? Kalau perlu diubah, apa saja',''],
+    ['Paling lambat kapan PO harus turun',''],
+  ];}
+function rfqDocHTML(o,l){
+  var no=rfqNo(o,l),tgl=new Date().toLocaleDateString('id-ID',{day:'2-digit',month:'long',year:'numeric'});
+  var T=rfqTanggal(o,l),jenis=rfqJenisBaris(l);
+  var v=vendorData(l.sumber)||{};
+  var info=function(k,x){return '<tr><td class="k">'+esc(k)+'</td><td>'+(esc(x)||'-')+'</td></tr>';};
+  var spek=rfqDocSpek(o,l).map(function(r){return info(r[0],r[1]);}).join('');
+  var tanya=rfqDocTanya(o,l).map(function(r,n){
+    return '<tr><td class="num">'+(n+1)+'</td><td>'+esc(r[0])+'</td>'+
+      '<td style="border-bottom:1px solid #bbb;min-width:150px;color:#999">'+esc(r[1])+'</td></tr>';}).join('');
+  /* gambar: yang berupa berkas dicetak apa adanya, yang di Drive ikut lewat
+     tautannya — vendor membukanya sendiri */
+  var G=[];try{G=vendorGambar(o,l);}catch(e){}
+  var gbr=G.length?('<div class="dsec">Gambar acuan</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:10px">'+
+    G.map(function(x){return '<div style="text-align:center"><img src="'+esc(x.f.data)+'" style="width:100%;max-height:300px;object-fit:contain;border:1px solid #ddd;border-radius:8px">'+
+      '<div style="font-size:11px;color:#333;margin-top:6px">'+esc(x.f.nama||'')+'</div></div>';}).join('')+'</div>'):'';
+  return '<div class="dhrow">'+
+     '<div><div class="dbrand">ROVE</div><div class="dbsub">Favors and Gifts</div>'+
+       '<div style="font-size:10px;color:#666;margin-top:6px;line-height:1.5">Jl. Tenggilis Barat I No.21, Kel. Kendangsari,<br>Kec. Tenggilis Mejoyo, Surabaya 60292<br>+62 812-9965-1010 · @rovegift · www.rovegift.com</div></div>'+
+     '<div class="dtitle">PERMINTAAN HARGA<div class="dno">'+esc(no)+'<br>'+esc(tgl)+'</div></div></div>'+
+   '<div style="border:1px solid #c9a227;background:#fdf8e8;border-radius:6px;padding:9px 12px;margin:12px 0;font-size:11px;line-height:1.6;color:#5a4a10">'+
+     '<b>Ini permintaan harga, bukan pesanan.</b> Barangnya belum dipesan dan desainnya belum final. '+
+     'PO resmi menyusul sesudah harga dan desainnya kami sepakati.</div>'+
+   '<div class="dsec">Ditujukan kepada</div>'+
+   '<table class="dinfotbl">'+info('Vendor',l.sumber)+
+     (v.kontak&&v.kontak!=='-'?info('Contact person',v.kontak):'')+
+     (v.hp&&v.hp!=='-'?info('No. HP',v.hp):'')+'</table>'+
+   '<div class="dsec">Yang kami minta</div>'+
+   '<table class="dtable"><thead><tr><th class="num wno">No</th><th>Item</th><th class="num wqty">Qty</th><th class="wmat">Dibutuhkan</th></tr></thead><tbody>'+
+     '<tr><td class="num">1</td><td><b>'+esc(l.produk||'(tanpa nama)')+'</b>'+
+       (jenis==='live'?'<div style="font-size:9px;color:#888;margin-top:2px">dikerjakan di lokasi acara</div>':'')+
+       (jenis==='addon'?'<div style="font-size:9px;color:#888;margin-top:2px">dikerjakan di workshop</div>':'')+'</td>'+
+       '<td class="num">'+esc(jenis==='live'?'1 event':((l.qty||0)+' pcs'))+'</td>'+
+       '<td>'+(T&&T.lewat?('<span style="color:#b00">jadwalnya sudah lewat — mohon dikonfirmasi</span>')
+              :(T&&T.tgl?esc(tglID(T.tgl)):'-'))+'</td></tr>'+
+     '</tbody></table>'+
+   (T&&T.tgl&&!T.lewat?'<div style="font-size:10px;color:#666;margin-top:5px">'+esc(T.ket)+'</div>':'')+
+   (spek?('<div class="dsec">Spesifikasi</div><table class="dinfotbl">'+spek+'</table>'):'')+
+   gbr+
+   '<div class="dsec">Mohon dijawab</div>'+
+   '<table class="dtable"><thead><tr><th class="num wno">No</th><th>Pertanyaan</th><th class="wperso">Jawaban</th></tr></thead><tbody>'+tanya+'</tbody></table>'+
+   '<div class="dsign">Hormat kami,<div class="nm">'+esc(ST.userName||ST.user||'ROVE HUB')+'</div></div>'+
+   '<div class="dfoot">Permintaan harga otomatis dari ROVE HUB · '+esc(chName(o))+' · jawaban dicatat kembali ke HUB.</div>';}
+function genRfqDoc(id,i){
+  var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
+  var l=((o.pricing||{}).lines||[])[i];if(!l)return;
+  if(!l.sumber){alert('Pilih vendor dulu untuk baris ini.');return;}
+  var html=rfqDocHTML(o,l);
+  document.getElementById('docbody').innerHTML=html;
+  l.rfq.doc=new Date().toLocaleDateString('id-ID',{day:'2-digit',month:'long',year:'numeric'});
+  o._m=Date.now();
+  logHist(o,'📄 Dokumen permintaan harga dibuat untuk '+l.sumber+' — '+(l.produk||'-')+' ('+rfqNo(o,l)+')');
+  ST._doc={type:'rfq',no:rfqNo(o,l),grand:0};
+  save();trDOM(document.getElementById('docbody'));
+  document.getElementById('docov').classList.add('show');
+  try{loadImages();}catch(e){}}
 /* ---- kirim dokumen ke client via WhatsApp (pakai tab WA yang sama) ---- */
 function waPhone(p){var s=String(p||'').replace(/[^\d]/g,'');if(!s)return '';
   if(s.slice(0,2)==='62')return s; if(s[0]==='0')return '62'+s.slice(1); if(s.slice(0,3)==='620')return '62'+s.slice(3); return '62'+s;}
 function waSend(){
   var o=ST.orders.find(function(x){return x.id===ST.cur;});if(!o){alert('Order tidak ditemukan.');return;}
   if((ST._doc||{}).type==='po'){alert('PO ditujukan ke vendor, bukan client. Kirim manual atau lewat Discord/Trello.');return;}
+  if((ST._doc||{}).type==='rfq'){alert('Dokumen ini permintaan harga ke VENDOR, bukan untuk client.'+
+    String.fromCharCode(10)+String.fromCharCode(10)+
+    'Pakai "⭳ Simpan PDF", lalu kirimkan lewat WhatsApp atau Discord vendornya.');return;}
   if((ST._doc||{}).type==='ringkasan'){alert('Ringkasan ini dokumen internal — berisi HPP, margin, dan status yang tidak untuk client.\n\nPakai "⭳ Simpan PDF" kalau mau dibagikan ke tim.');return;}
   var ph=waPhone(o.phone);
   if(!ph){alert('No. HP client kosong. Isi dulu di panel "Detail klien" (Pricing & Dokumen).');return;}
