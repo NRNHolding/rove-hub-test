@@ -5421,6 +5421,8 @@ function poQtyTeks(l){
    berarti client tak ditagih apa pun untuk pekerjaan yang tetap kita bayar. */
 function jasaTanpaHarga(o){
   var out=[];
+  /* jasaBaris sudah memakai harga order kalau ada, jadi order yang punya
+     angkanya sendiri tak lagi tertahan oleh master yang masih 0 */
   try{
     jasaBaris(o).forEach(function(j){if(!(j.amount>0))out.push(j.nama);});
   }catch(e){}
@@ -5811,7 +5813,10 @@ function renderMaster(){
          '<div class="xscroll">'+tbl('kulit',[['nama','Nama / artikel'],['warna','Warna'],['stok','Ketersediaan',KULIT_STOK],['minOrder','Minimum order'],['vendor','Vendor',vendorNames()],['catatan','Catatan']],M.kulit||[])+'</div>'+
          '<button class="btn ghost sm" style="margin-top:9px" onclick="mAdd(\u0027kulit\u0027)">＋ Tambah kulit</button>';
      } else {
-       isi='<div style="font-size:10.5px;color:var(--muted);margin-bottom:9px"><b>Live service</b> = dikerjakan di lokasi acara. <b>Service</b> = add-on yang dikerjakan di workshop. <b>Teknik</b> menentukan pilihan Personalization yang muncul di baris pricing — jadi tak bisa salah pilih. <b>Biaya tetap</b> = sekali per order (mis. bikin plat deboss); <b>Harga/pcs</b> = dikali jumlah barang.</div>'+
+       isi='<div style="font-size:10.5px;color:var(--muted);margin-bottom:9px"><b>Live service</b> = dikerjakan di lokasi acara. <b>Service</b> = add-on yang dikerjakan di workshop. <b>Teknik</b> menentukan pilihan Personalization yang muncul di baris pricing — jadi tak bisa salah pilih. <b>Biaya tetap</b> = sekali per order (mis. bikin plat deboss); <b>Harga/pcs</b> = dikali jumlah barang. '+
+       '<b style="color:var(--warn)">Keduanya harga JUAL ke client</b> — yang masuk quotation &amp; invoice. '+
+       'Yang dibayarkan ke tim live service bukan angka ini, melainkan <b>fee tiap operator</b> di tab Live service. '+
+       'Angka di sini harga standar; tiap order boleh punya harganya sendiri.</div>'+
          '<div class="xscroll">'+tbl('jasa',[['nama','Nama jasa'],['jenis','Jenis',['Live service','Service']],['teknik','Teknik',persoVals()],['vendor','Vendor',[''].concat(vendorGrup('jasa'))],['fix','Biaya tetap','money'],['harga','Harga/pcs','money']],M.jasa||[])+'</div>'+
          '<button class="btn ghost sm" style="margin-top:9px" onclick="mAdd(\'jasa\')">＋ Tambah jasa</button>'+
          (function(){var bt=(M.jasa||[]).filter(function(j){return j.perPcTiers&&j.perPcTiers.length;});
@@ -7914,41 +7919,59 @@ function bukaLiveOrder(o){
 /* Harga jual jasa hidup di master supaya sama di semua order. Diisi dari sini
    supaya yang bertanggung jawab tak perlu menembus menu yang tertutup. */
 function jasaHargaIsi(o){
-  var K=[];try{K=jasaTanpaHarga(o);}catch(e){}
-  var semua=false;
-  if(!K.length){                       // sudah berharga — dibuka untuk diperiksa
-    semua=true;
-    try{K=jasaBaris(o).map(function(j){return j.nama;});}catch(e){K=[];}
-    if(!K.length){alert('Order ini tak memakai jasa apa pun.');return;}}
+  var K=[];try{K=jasaBaris(o).map(function(j){return j.nama;});}catch(e){}
+  if(!K.length){alert('Order ini tak memakai jasa apa pun.');return;}
   var boleh=false;try{boleh=canSec('produk');}catch(e){}
-  if(!boleh){
-    alert('Harga jual jasa diatur di Master Product → Jasa, dan seksi itu milik Purchasing / Project Manager.'+
-      String.fromCharCode(10)+String.fromCharCode(10)+'Yang belum berharga: '+K.join(', ')+
-      String.fromCharCode(10)+'Minta mereka mengisinya — sekali diisi, berlaku untuk semua order.');return;}
+  var kurang=[];try{kurang=jasaTanpaHarga(o);}catch(e){}
+  if(!boleh&&kurang.length){
+    alert('Harga standar jasa diatur di Master Product → Jasa, dan seksi itu milik Purchasing / Project Manager.'+
+      String.fromCharCode(10)+String.fromCharCode(10)+'Yang belum berharga: '+kurang.join(', '));return;}
+  var biaya=jasaBiayaTim(o),qty=0;
+  try{qty=(((o.pricing||{}).lines)||[]).reduce(function(n,l){
+    return (lineJenis(l)==='produk'&&(l.qty||0)>n)?(l.qty||0):n;},0)||o.qty||0;}catch(e){}
   var F=[];
   K.forEach(function(n,i){
-    var j=jasaAll().find(function(x){return x.nama===n;})||{};
+    var H=jasaHargaOrder(o,n);
     F.push({k:'s'+i,label:n+' — dihitung per apa?',type:'select',
-      opts:[{v:'event',l:'sekali datang / per event'},{v:'pcs',l:'per pcs'}],
-      val:((+j.harga||0)>0?'pcs':((+j.fix||0)>0?'event':((j.jenis==='Live service')?'event':'pcs')))});
-    F.push({k:'h'+i,label:n+' — harga jual ke client',type:'money',
-      val:(+j.fix||0)||(+j.harga||0),req:!semua,
-      hint:'Angka ini yang masuk quotation. Tersimpan ke Master Product → Jasa, jadi order berikutnya tak perlu mengisinya lagi.'});});
+      opts:[{v:'event',l:'sekali per order'},{v:'pcs',l:'per pcs'}],
+      val:(H.perPc>0?'pcs':'event')});
+    F.push({k:'h'+i,label:n+' — harga JUAL ke client',type:'money',
+      val:(H.perPc>0?H.perPc:H.fix),req:!!kurang.length,
+      hint:'Ini yang masuk quotation & invoice. Yang dibayarkan ke tim bukan angka ini — '+
+        'itu fee tiap operator di tab Live service.'+
+        (H.sendiri?' <b>Order ini sudah punya harganya sendiri.</b>':'')});});
+  F.push({k:'standar',label:'Jadikan harga standar juga?',type:'checkbox',val:false,
+    cbLabel:'Ya — simpan ke Master Product → Jasa, dipakai order berikutnya',
+    hint:'Kalau tidak dicentang, angkanya cuma berlaku untuk order ini. Harganya memang '+
+      'sering berbeda menurut clientnya.'});
   askForm({judul:'Harga jual jasa',
-    sub:(semua?(K.length+' jasa di order ini'):(K.length+' jasa belum berharga'))+' · tersimpan ke Master Product → Jasa',
+    sub:o.customer+' · '+K.length+' jasa'+(biaya?(' · biaya ke tim '+fmt0(biaya)):' · tim belum dipilih'),
+    info:'<div style="border:1px solid var(--line);border-radius:9px;padding:9px 11px;margin-bottom:12px;'+
+      'background:var(--bg);font-size:10.5px;line-height:1.7">'+
+      '<b>Dua angka yang berbeda</b><br>'+
+      '<b>Harga jual</b> — yang ditagih ke client, masuk quotation & invoice. Diisi di bawah ini.<br>'+
+      '<b>Fee operator</b> — yang dibayarkan ke tim, per orang, di tab Live service. '+
+      'Sekarang '+(biaya?('<b>'+fmt0(biaya)+'</b> untuk '+(((o.event||{}).ops||[]).length)+' orang'):'<b>belum diisi</b>')+'.<br>'+
+      '<span style="color:var(--muted)">Jumlah orang boleh berubah tanpa mengubah harga jualnya — '+
+      'yang berubah biayanya, jadi selisihnya yang bergerak.</span></div>',
     fields:F,
     ok:function(v){
       var ubah=0;
+      if(!o.jasaHarga)o.jasaHarga={};
       K.forEach(function(n,i){
         var harga=+v['h'+i]||0;if(harga<=0)return;
-        var j=(ST.master.jasa||[]).find(function(x){return x.nama===n;});
-        if(!j){j={nama:n,jenis:'Service',teknik:'-',fix:0,harga:0,vendor:''};(ST.master.jasa=ST.master.jasa||[]).push(j);}
-        if(v['s'+i]==='pcs'){j.harga=harga;j.fix=0;}else{j.fix=harga;j.harga=0;}
+        var perPcs=(v['s'+i]==='pcs');
+        o.jasaHarga[n]={fix:perPcs?0:harga,harga:perPcs?harga:0};
+        if(v.standar){
+          var j=(ST.master.jasa||[]).filter(function(x){return x.nama===n;})[0];
+          if(!j){j={nama:n,jenis:'Service',teknik:'-',fix:0,harga:0,vendor:''};(ST.master.jasa=ST.master.jasa||[]).push(j);}
+          if(perPcs){j.harga=harga;j.fix=0;}else{j.fix=harga;j.harga=0;}}
         ubah++;});
       if(!ubah){alert('Tak ada harga yang diisi.');return;}
-      saveMaster();
-      if(o)logHist(o,'Harga jual jasa diisi di master: '+K.join(', '));
-      if(o)o._m=Date.now();save();render();}});}
+      if(v.standar)saveMaster();
+      logHist(o,'Harga jual jasa diisi'+(v.standar?' (sekaligus jadi harga standar di master)':' untuk order ini')+
+        ': '+K.join(', '));
+      o._m=Date.now();save();render();}});}
 const CHK_PANEL={jualJasa:'_master',operator:'_live',opFix:'_live',logoLetak:'brief',
   brief:'brief', kontak:'brief', acara:'brief', kota:'brief', hpWo:'brief', ref:'brief',
   rfq:'rfq', kulit:'rfq', harga:'rfq', moq:'rfq', konfKatalog:'rfq',
@@ -8610,6 +8633,17 @@ function lineJenis(l){
   return 'produk';}
 /* Jasa belum pernah jadi baris pricing — harganya ada di Master Produk → Jasa
    (biaya tetap + harga/pcs). Di sini dijadikan baris supaya ikut ditagih. */
+/* Harga jual jasa untuk order INI. Master jadi harga standar; order boleh
+   punya angkanya sendiri, karena harganya berubah menurut clientnya. */
+function jasaHargaOrder(o,nama){
+  var j=jasaAll().filter(function(x){return x.nama===nama;})[0]||{};
+  var ov=((o||{}).jasaHarga||{})[nama];
+  if(ov&&(( +ov.fix||0)>0||(+ov.harga||0)>0))
+    return {fix:(+ov.fix||0),perPc:(+ov.harga||0),sendiri:true};
+  return {fix:(+j.fix||0),perPc:(+j.harga||0),sendiri:false};}
+/* Biaya ke tim untuk order ini — fee tiap operator, bukan harga vendor. */
+function jasaBiayaTim(o){
+  return (((o||{}).event||{}).ops||[]).reduce(function(n,x){return n+(+x.fee||0);},0);}
 function jasaBaris(o){
   var qty=(((o.pricing||{}).lines)||[]).reduce(function(n,l){
     return (lineJenis(l)==='produk'&&(l.qty||0)>n)?(l.qty||0):n;},0)||o.qty||0;
@@ -8617,9 +8651,9 @@ function jasaBaris(o){
   [['Service',liveList(o.svc)],['Live service',liveList(o.liveSvc)]].forEach(function(pair){
     pair[1].forEach(function(nama){
       var j=jasaAll().find(function(x){return x.nama===nama;})||{};
-      var fix=+j.fix||0,perPc=+j.harga||0;
+      var H=jasaHargaOrder(o,nama),fix=H.fix,perPc=H.perPc;
       out.push({nama:nama,jenis:pair[0],teknik:j.teknik||'-',qty:qty,
-        perPc:perPc,fix:fix,amount:fix+perPc*qty});});});
+        perPc:perPc,fix:fix,amount:fix+perPc*qty,sendiri:H.sendiri});});});
   return out;}
 function jasaTotal(o){return jasaBaris(o).reduce(function(s,x){return s+x.amount;},0);}
 /* Satu produk = satu baris dokumen; collateral menempel padanya.
