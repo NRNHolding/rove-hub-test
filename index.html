@@ -778,6 +778,9 @@ const EN={
 'JENIS ORDER':'ORDER TYPE','DARI KATALOG':'FROM THE CATALOGUE','CUSTOM — TULIS APA ADANYA':'CUSTOM — JUST WRITE IT DOWN','＋ Tambah produk lain':'＋ Add another product','＋ Pilih produk dari katalog':'＋ Pick products from the catalogue','▾ Tutup daftar katalog':'▾ Close the catalogue list','Collateral untuk produk ini':'Collateral for this product',
 'Personalisasi':'Personalization',
 'Perkiraan qty':'Estimated qty',
+'mis. 150':'e.g. 150',
+'Perkiraan saja. Begitu produknya dipilih dari katalog, angka ini mengisi kolom Qty produknya.':
+  'An estimate. Once a product is picked from the catalogue, this fills its Qty column.',
 'kata client apa adanya — mis. inisial nama tamu di depan':
   'the client words as they are — e.g. guest initials on the front','jenis belum dipilih':'type not chosen yet','belum diisi':'nothing filled in yet','→ Kirim ke Inquiry':'→ Send to Inquiry',
 '◇ Prospek':'◇ Leads','Belum ada prospek aktif.':'No active leads yet.','brief kosong':'brief empty','belum disebut':'not stated yet',
@@ -2063,7 +2066,10 @@ function leadItemAdd(id,nama,img){
   var l=leadsAll().find(function(x){return x.id===id;});if(!l)return;
   var I=leadItems(l);
   if(I.some(function(x){return x.nama===nama;})){alert('"'+nama+'" sudah ada di daftar.');return;}
-  I.push({nama:nama,img:img||'',qty:0,note:'',coll:{}});
+  /* Produk PERTAMA mewarisi perkiraan di kepala kartu — itu angka yang sama.
+     Produk berikutnya mulai dari nol: kalau semuanya diisi angka yang sama,
+     jumlahnya jadi kelipatan, dan itu bukan yang dimaksud siapa pun. */
+  I.push({nama:nama,img:img||'',qty:(I.length?0:Math.max(0,+l.qty||0)),note:'',coll:{}});
   /* daftarnya ditutup: yang perlu dilihat sekarang pesanannya, bukan katalognya.
      Kalau mau menambah lagi, tombol ＋ di bawahnya membukanya kembali. */
   if(ST._lkat)delete ST._lkat[id];
@@ -2075,7 +2081,11 @@ function leadItemDel(id,i){
 function leadItemSet(id,i,f,v){
   var l=leadsAll().find(function(x){return x.id===id;});if(!l)return;
   var it=leadItems(l)[i];if(!it)return;
-  it[f]=(f==='qty')?(+v||0):v;l._m=Date.now();saveLeads();
+  it[f]=(f==='qty')?Math.max(0,+v||0):v;
+  /* satu produk = satu angka. Perkiraan di kepala kartu ikut, supaya dua kotak
+     yang menyebut hal yang sama tak pernah berbeda isinya. */
+  if(f==='qty'&&leadItems(l).length===1)l.qty=it.qty;
+  l._m=Date.now();saveLeads();
   if(f!=='note')render();}
 /* Personalisasi yang diminta client untuk produk ini: jasanya, lalu tekniknya.
    Dua hal terpisah — jasa itu APA yang dipersonalisasi, teknik itu CARANYA. */
@@ -2321,7 +2331,11 @@ function leadAdd(){
     fields:[{k:'nama',label:'Nama calon client / acara',type:'text',req:true,ph:'mis. Wedding Sinta & Bagas'},
       {k:'kontak',label:'No. HP / kontak',type:'text',ph:'+62 812-…'},
       {k:'channel',label:'Datang dari mana',type:'select',val:'WhatsApp',opts:LEAD_CH},
-      {k:'produk',label:'Minat produk',type:'text',ph:'mis. Pouch + Card — jumlahnya di kolom sebelah'},
+      {k:'produk',label:'Minat produk',type:'text',ph:'mis. Pouch + Card'},
+      /* jumlah itu hal kedua yang disebut client sesudah produknya — ditanya
+         sekarang, bukan ditinggalkan nol lalu ikut ke order sebagai nol */
+      {k:'qty',label:'Perkiraan qty',type:'number',ph:'mis. 150',
+       hint:'Perkiraan saja. Begitu produknya dipilih dari katalog, angka ini mengisi kolom Qty produknya.'},
       {k:'estimasi',label:'Perkiraan nilai',type:'money'},
       {k:'tglAcara',label:'Tanggal acara',type:'date',
         hint:'Kalau client sudah menyebutkannya. Ikut terbawa ke Brief, jadi PM tak menanyakannya lagi.'},
@@ -2347,7 +2361,7 @@ function leadAdd(){
         hint:'Cara menghargainya — beda dari kategori di atas. Boleh dikosongkan dulu kalau belum jelas.'}],
     ok:function(v){
       leadsAll().unshift({id:'L'+Math.random().toString(36).slice(2,7),nama:v.nama,kontak:v.kontak,
-        channel:v.channel,produk:v.produk,qty:0,estimasi:+v.estimasi||0,status:'Baru',
+        channel:v.channel,produk:v.produk,qty:Math.max(0,+v.qty||0),estimasi:+v.estimasi||0,status:'Baru',
         masuk:new Date().toISOString().slice(0,10),jenis:v.jenis||'',kategori:v.kategori||'Corporate',
         tglAcara:v.tglAcara||'',tglKirim:v.tglKirim||'',
         brideNama:v.brideNama||'',groomNama:v.groomNama||'',
@@ -2361,6 +2375,9 @@ function leadAdd(){
       saveLeads();render();}});}
 function leadSet(id,f,v){var l=leadsAll().find(function(x){return x.id===id;});if(!l)return;
   l[f]=(f==='qty')?Math.max(0,+v||0):(f==='estimasi')?Math.max(0,moneyVal(v)):v;
+  /* arah sebaliknya, dengan syarat yang sama: selama produknya baru satu,
+     mengisi perkiraan di kepala berarti mengisi kolom Qty produknya */
+  if(f==='qty'){var I=leadItems(l);if(I.length===1)I[0].qty=l.qty;}
   l.touch=new Date().toISOString().slice(0,10);l._m=Date.now();
   if(f==='status')l.log.push({t:nowStr(),by:(ST.userName||ST.user),txt:'Status → '+v});
   saveLeads();render();}
@@ -2613,7 +2630,10 @@ function leadPanel(){
         /* Perkiraan, bukan angka pasti — tapi tanpa ini prospek Custom lahir
            jadi order berqty nol, dan angka itu ikut ke mana-mana. */
         '<label class="nlbl">Perkiraan qty<input class="pin n" type="number" min="0" style="margin-top:3px" value="'+
-          (+l.qty||0)+'" onchange="leadSet(\''+l.id+'\',\'qty\',this.value)" placeholder="mis. 150"></label>'+
+          (+l.qty||0)+'" onchange="leadSet(\''+l.id+'\',\'qty\',this.value)" placeholder="mis. 150" title="'+
+          (leadItems(l).length>1
+            ? 'Produknya lebih dari satu — yang berlaku jumlah tiap produk di bawah, bukan angka ini.'
+            : 'Angka ini dan kolom Qty produknya satu hal — mengisi salah satunya mengisi yang lain.')+'"></label>'+
         '<label class="nlbl">Estimasi nilai<input class="pin n money" inputmode="numeric" style="margin-top:3px" value="'+moneyInp(l.estimasi)+'" onchange="leadSet(\''+l.id+'\',\'estimasi\',this.value)"></label>'+
         (leadAktif(l)?'<label class="nlbl">Status<select class="pin" style="margin-top:3px" onchange="leadSet(\''+l.id+'\',\'status\',this.value)">'+LEAD_ST.map(function(s){return '<option '+(l.status===s?'selected':'')+'>'+s+'</option>';}).join('')+'</select></label>':'')+
       '</div>'+
