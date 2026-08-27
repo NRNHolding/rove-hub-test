@@ -703,6 +703,7 @@ const EN={
 'Kulit yang kami inginkan':'The leather we would like','Harga yang kami pegang':'The price we have on file',
 'baris belum punya vendor':'rows have no vendor yet',
 'Personalization di tabel Pricing dibatasi ke':'Personalization in the Pricing table is limited to',
+'Mau teknik lain? Pilih jasanya dulu di bagian LIVE SERVICE / ADD-ON.':'Need another technique? Pick the service first under LIVE SERVICE / ADD-ON.',
 '— berlaku untuk seluruh order.':'— applies to the whole order.',
 'dari Live service:':'from Live service:','dari Add-on:':'from Add-on:',
 'Bagian ini sendiri belum berisi apa-apa.':'This section itself is still empty.',
@@ -12622,8 +12623,20 @@ function briefPanel(o){
       briefWarna(o,'benangWarna','Warna benang')+
       sel('finishing','Finishing request',listArr('finreq'))+
       (dye?briefWarna(o,'finishWarna','Warna dye'):'')+
-      sel('perso','Personalization',persoVals())+
+      /* dibatasi teknik jasa yang dipakai order ini — sama dengan dropdown
+         bernama sama di tabel Pricing, supaya dua layar tak berbeda pendapat */
+      sel('perso','Personalization',persoOpts(o,'',b.perso).filter(function(x){return x!=='-';}))+
       (b.perso==='Others'||b.perso==='Other'?txt('persoLain','Sebutkan teknik',''):''),170)+
+    (function(){
+      var tk=[];try{tk=orderTeknik(o);}catch(e){}
+      if(!tk.length)return '';
+      var luar=(b.perso&&b.perso!=='-'&&tk.indexOf(b.perso)<0);
+      return '<div style="font-size:9.5px;color:'+(luar?'var(--warn)':'var(--muted)')+';margin:-6px 0 10px;line-height:1.6">'+
+        (luar
+          ? ('<b>'+esc(b.perso)+'</b> di luar teknik jasa yang dipakai order ini ('+tk.map(esc).join(', ')+'). '+
+             'Dibiarkan supaya tak hilang — ganti kalau memang keliru, atau tambahkan jasanya di bagian ADD-ON.')
+          : ('Pilihannya dibatasi teknik jasa yang dipakai order ini: <b>'+tk.map(esc).join(', ')+'</b>. '+
+             'Mau teknik lain? Pilih jasanya dulu di bagian LIVE SERVICE / ADD-ON.'))+'</div>';})()+
     (dye?'':'<div style="font-size:9.5px;color:var(--muted);margin:-6px 0 10px">Kolom warna dye muncul otomatis kalau Finishing request dipilih <b>Dye</b>.</div>')+
     grid(txt('fiturLain','Fungsi / fitur yang diminta client','mis. muat 6 kartu + slot koin','grid-column:1/-1'),300)+
 
