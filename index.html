@@ -206,13 +206,17 @@
   .dinfotbl td.k{color:#666;width:150px}
   .dsign{margin-top:24px;font-size:11px}
   .dsign .nm{margin-top:40px;font-weight:800;border-top:1px solid #999;display:inline-block;padding-top:3px;min-width:140px}
-  @page{size:A4;margin:14mm}
+  /* Margin 0 supaya browser tak punya ruang menuliskan kop bawaannya —
+     tanggal, nama berkas, dan alamat file:/// — di lembar yang dikirim ke
+     vendor. Jarak tepinya dipindah ke dokumennya sendiri. */
+  @page{size:A4;margin:0}
   @media print{
     *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
     body{background:#fff}
     .app{display:none!important}
     #docov{display:block!important;position:static!important;background:#fff}
     #docov .docwrap{box-shadow:none;max-height:none;width:auto;border-radius:0;padding:0}
+    #docbody{padding:14mm}
     #docov .toolbar{display:none}
     #docbody .dsec,#docbody h2,#docbody h3{break-after:avoid}
     #docbody tr,#docbody img,#docbody .dtot,#docbody .dsign{break-inside:avoid}
@@ -1236,7 +1240,8 @@ const EN={
 'Lokasi':'Location','Bank':'Bank','Channel Discord (kosongkan kalau lewat WhatsApp)':'Discord channel (leave empty if contacted on WhatsApp)',
 'PERMINTAAN HARGA':'REQUEST FOR QUOTE','Ini permintaan harga, bukan pesanan.':'This is a request for a quote, not an order.',
 'Ditujukan kepada':'Addressed to','Yang kami minta':'What we are asking for','Mohon dijawab':'Please answer',
-'Gambar acuan':'Reference images','Pertanyaan':'Question','Jawaban':'Answer','Dibutuhkan':'Needed by',
+'Gambar acuan':'Reference images','Logo client':'Client logo',
+'Referensi dari client':'Reference from the client','Acuan personalisasi':'Personalization reference','Pertanyaan':'Question','Jawaban':'Answer','Dibutuhkan':'Needed by',
 '📄 Dokumen':'📄 Document','✋ Serahkan ke Purchasing':'✋ Hand over to Purchasing','📄 PDF':'📄 PDF','Channel Discord':'Discord channel','— pilih vendor —':'— choose a vendor —','dipilihkan otomatis — pastikan benar':'auto-filled — check it is right','Kota':'City','No. rekening':'Account number','No. Hp':'Phone','Email':'Email',
 'Bride':'Bride','Groom':'Groom','Wedding':'Wedding','Corporate':'Corporate','Lainnya':'Others','Other':'Others',
 '＋ Tambah akun':'＋ Add account','＋ Tambah barang':'＋ Add item','＋ Tambah karyawan':'＋ Add employee',
@@ -10406,78 +10411,106 @@ function rfqPanel(o){
      juga; pembuatnya tak menggandakan, jadi yang sudah lengkap tak berubah. */
   try{if(barisVendorLengkapi(o).length){o._m=Date.now();save();}}catch(e){}
   var L=((o.pricing||{}).lines)||[];
-  /* SATU daftar: semua baris yang punya urusan dengan vendor — yang harganya
-     belum ada maupun yang harganya dari master dan tinggal dipastikan. Dulu
-     keduanya dipisah, dan yang kedua bisa tak muncul di mana pun. */
   var R=[];
   L.forEach(function(l,i){
-    /* live service tak muncul di sini sama sekali — tempatnya di tab Live
-       service, tempat orangnya dipilih dan feenya ditetapkan */
+    /* live service tak di sini — tempatnya di tab Live service, tempat
+       orangnya dipilih dan feenya ditetapkan */
     if(l.jasa==='Live service'&&!l._jasaLepas)return;
     if((l.qty||0)>0||lineJenis(l)==='jasa')R.push({l:l,i:i});});
   var belum=R.filter(function(x){
     return hargaOtomatis(x.l)?!konfSah(x.l):((x.l.hpp||0)<=0);}).length;
   var kepala='<div class="card actcard" style="margin-top:14px"><div class="ch"><span class="ico" style="background:#8a6d3b">📨</span>'+
-    '<div><div class="t">Minta harga vendor</div><div class="s">HARGA BARU DIMINTA, HARGA KATALOG DIPASTIKAN</div></div>'+
+    '<div><div class="t">Minta harga vendor</div><div class="s">SATU KARTU PER VENDOR</div></div>'+
     '<span style="margin-left:auto;font-size:12px;font-weight:800;color:'+(belum?'var(--warn)':'var(--ok)')+'">'+
       (belum?(belum+' belum beres'):'semua harga beres')+'</span></div><div class="body">';
   var isi='';
   if(!R.length){
     isi='<div style="font-size:11px;color:var(--muted)">Belum ada baris pricing. Buka panel <b>Pricing &amp; Dokumen</b> untuk menambahkan item dulu.</div>';
   } else {
-    isi='<div style="font-size:10.5px;color:var(--ink-soft);line-height:1.7;margin-bottom:9px">'+
-      'Baris yang <b>belum ada harganya</b>: buat <b>Dokumen</b>-nya lalu <b>Serahkan</b> — Purchasing yang '+
-      'menyimpan PDF-nya dan meneruskan ke vendor. Baris yang <b>harganya dari master</b>: harga itu tetap '+
-      'harus dipastikan, karena vendor bisa menaikkannya tanpa memberi tahu.</div>'+
-      tanpaVendorSpanduk(o)+
-      '<table class="rtable" style="table-layout:fixed;width:100%"><thead><tr>'+
-        '<th>Item &amp; vendor</th>'+
-        '<th style="width:52px" class="num">Qty</th>'+
-        '<th style="width:132px">Status &amp; harga</th>'+
-        '<th style="width:176px"></th></tr></thead><tbody>'+
-      R.map(function(x){var l=x.l,st=rfqStatus(l);
-        var otomatis=hargaOtomatis(l),sudahKonf=otomatis&&konfSah(l);
-        var ditanya=!!(l.konfTanya&&l.konfTanya.tgl);
-        return '<tr>'+
-          '<td style="vertical-align:top"><b style="font-size:11.5px">'+esc(l.produk||'(tanpa nama)')+'</b>'+
-            (l.bahan?('<div style="font-size:9px;color:var(--muted)">'+esc(l.bahan)+'</div>'):'')+
-            '<div style="margin-top:4px">'+rfqVendorSel(o,l,x.i)+'</div>'+
-            ((l.rfq&&l.rfq.note)?('<div style="font-size:9px;color:var(--muted);margin-top:3px">catatan vendor: '+esc(l.rfq.note)+'</div>'):'')+'</td>'+
-          '<td class="num" style="vertical-align:top;font-size:10.5px">'+esc(poQtyTeks(l)).replace(' ','<br>')+'</td>'+
-          '<td style="vertical-align:top">'+
-            (otomatis
-              ? ('<span style="font-size:10px;font-weight:800;color:'+(sudahKonf?'var(--ok)':'var(--warn)')+'">● '+
-                 (sudahKonf?'Dipastikan':'Dari master')+'</span>'+
-                 '<div style="font-size:11px;font-weight:800;margin-top:2px">'+fmt0(konfHargaBaris(l))+'</div>'+
-                 (sudahKonf?('<div style="font-size:9px;color:var(--muted)">'+esc((l.konf||{}).oleh||'')+' · '+tglID((l.konf||{}).tgl)+'</div>')
-                          :(ditanya?('<div style="font-size:9px;color:var(--warn)">ditanya '+tglID(l.konfTanya.tgl)+'</div>'):'')))
-              : ('<span style="font-size:10px;font-weight:800;color:'+rfqWarna(st)+'">● '+st+'</span>'+
-                 ((l.rfq&&l.rfq.minta)?('<div style="font-size:9px;color:var(--muted)">diserahkan '+tglID(l.rfq.minta)+'</div>'):'')+
-                 ((l.rfq&&l.rfq.terima)?('<div style="font-size:9px;color:var(--muted)">masuk '+tglID(l.rfq.terima)+'</div>'):'')+
-                 (((o.rfqDoc||{})[l.sumber])?('<div style="font-size:9px;color:var(--muted)">📄 '+esc(o.rfqDoc[l.sumber])+'</div>'):'')+
-                 ((l.hpp||0)>0?('<div style="font-size:11px;font-weight:800;margin-top:2px">'+fmt0(l.hpp)+'</div>')
-                   :(function(){var hl=hargaTerakhir(o,l);
-                      if(!hl)return '';
-                      return '<div style="font-size:9px;color:var(--muted);margin-top:3px;line-height:1.5">terakhir <b style="color:var(--ink)">'+fmt0(hl.hpp)+'</b>'+
-                        '<div>'+esc(hl.cust)+' · '+hl.qty+' pcs</div></div>'+
-                        '<button class="btn ghost sm" style="margin-top:3px;font-size:9px" onclick="pakaiHargaLama('+jsArg(o.id)+','+x.i+')">Pakai harga ini</button>';})())))+'</td>'+
-          '<td style="vertical-align:top">'+
-            (otomatis
-              ? (sudahKonf
-                  ? '<button class="btn ghost sm" onclick="konfSet('+jsArg(o.id)+','+jsArg(l.sumber)+')">↺ Batalkan</button>'
-                  : '<button class="btn ghost sm" style="margin-bottom:4px" onclick="konfTanya('+jsArg(o.id)+','+jsArg(l.sumber)+')">📨 '+(ditanya?'Tanya lagi':'Tanyakan')+'</button> '+
-                    '<button class="btn sm" onclick="konfSet('+jsArg(o.id)+','+jsArg(l.sumber)+')">✓ Harga masih berlaku</button>')
-              : ((l.rfq&&l.rfq.minta)
-                  ? '<button class="btn sm" onclick="rfqJawab('+jsArg(o.id)+','+x.i+')">✓ Catat jawaban</button> '+
-                    '<button class="xrow" style="color:var(--brand)" title="serahkan ulang ke Purchasing" onclick="rfqSerah('+jsArg(o.id)+','+jsArg(l.sumber)+')">↻</button> '+
-                    '<button class="xrow" style="color:var(--brand)" title="dokumen permintaan harga (PDF)" onclick="genRfqDoc('+jsArg(o.id)+','+jsArg(l.sumber)+')">📄</button>'
-                  : '<button class="btn ghost sm" style="margin-bottom:4px" onclick="genRfqDoc('+jsArg(o.id)+','+jsArg(l.sumber)+')">📄 Dokumen</button> '+
-                    '<button class="btn sm" title="tandai sudah diminta &amp; kabari Purchasing lewat Discord" onclick="rfqSerah('+jsArg(o.id)+','+jsArg(l.sumber)+')">✋ Serahkan</button>'))+'</td></tr>'+
-          (lineKulit(l)?('<tr><td colspan="4" style="padding-top:0">'+kulitBlok(o,l,x.i)+'</td></tr>'):'');}).join('')+
-      '</tbody></table>'+
-      /* kalau semuanya sudah beres, jalan lanjutnya di sini — bukan di blok
-         terpisah yang dulu cuma muncul dalam satu keadaan tertentu */
-      (belum?'':('<div style="border:1px dashed var(--ok);border-radius:9px;padding:11px 13px;margin-top:11px;background:var(--bg)">'+
+    /* dikelompokkan per vendor — tindakannya memang per vendor, jadi tombolnya
+       tak perlu diulang di tiap baris */
+    var G={},urut=[];
+    R.forEach(function(x){
+      var v=String(x.l.sumber||'').trim();
+      if(!G[v]){G[v]=[];urut.push(v);}
+      G[v].push(x);});
+    urut.sort(function(a,b){return a?(b?(a<b?-1:1):-1):1;});   // yang tanpa vendor di bawah
+    isi='<div style="font-size:10.5px;color:var(--ink-soft);line-height:1.7;margin-bottom:11px">'+
+      'Tiap vendor satu kartu. Yang <b>belum ada harganya</b>: buat <b>Dokumen</b>-nya lalu '+
+      '<b>Serahkan</b> — Purchasing yang menyimpan PDF-nya dan meneruskan. Yang <b>harganya dari '+
+      'master</b>: tetap dipastikan dulu, karena vendor bisa menaikkannya tanpa memberi tahu.</div>'+
+    urut.map(function(v){
+      var X=G[v];
+      var perlu=X.filter(function(x){return !hargaOtomatis(x.l);});
+      var master=X.filter(function(x){return hargaOtomatis(x.l);});
+      var diserah=perlu.length&&perlu.every(function(x){return x.l.rfq&&x.l.rfq.minta;});
+      var konfBeres=master.length&&master.every(function(x){return konfSah(x.l);});
+      var ditanya=master.length&&master.every(function(x){return x.l.konfTanya&&x.l.konfTanya.tgl;});
+      var beres=(!perlu.length||perlu.every(function(x){return (x.l.hpp||0)>0;}))&&(!master.length||konfBeres);
+      var tuj=v?vendorTujuan(o,v):null;
+      var vd=v?(vendorData(v)||{}):{};
+      var cara=!v?'':(tuj&&tuj.keVendor?('Discord #'+tuj.ch)
+        :((vd.hp&&vd.hp!=='-')?('WhatsApp '+vd.hp):'belum ada channel / nomor'));
+      return '<div style="border:1px solid '+(v?(beres?'var(--ok)':'var(--line)'):'var(--warn)')+
+        ';border-radius:10px;padding:11px 13px;margin-bottom:11px;background:var(--bg)">'+
+        '<div style="display:flex;gap:9px;align-items:baseline;flex-wrap:wrap;margin-bottom:8px">'+
+          '<b style="font-size:12.5px">'+(v?esc(v):'Belum punya vendor')+'</b>'+
+          (v?('<span style="font-size:9.5px;color:var(--muted)">'+esc(vendorTipe(v)||'—')+
+              (vd.kontak&&vd.kontak!=='-'?(' · '+esc(vd.kontak)):'')+'</span>'):'')+
+          '<span style="margin-left:auto;font-size:9.5px;color:'+(v?'var(--muted)':'var(--warn)')+'">'+
+            (v?esc(cara):'baris ini tak masuk PO dan tak ikut terekspor — pilih vendornya')+'</span></div>'+
+        '<table class="rtable" style="table-layout:fixed;width:100%"><tbody>'+
+        X.map(function(x){var l=x.l,st=rfqStatus(l);
+          var otomatis=hargaOtomatis(l);
+          return '<tr>'+
+            '<td style="vertical-align:top;border-bottom:none;padding-left:0"><b style="font-size:11.5px">'+esc(l.produk||'(tanpa nama)')+'</b>'+
+              (l.bahan?('<div style="font-size:9px;color:var(--muted)">'+esc(l.bahan)+'</div>'):'')+
+              '<div style="margin-top:4px;max-width:230px">'+rfqVendorSel(o,l,x.i)+'</div>'+
+              ((l.rfq&&l.rfq.note)?('<div style="font-size:9px;color:var(--muted);margin-top:3px">catatan vendor: '+esc(l.rfq.note)+'</div>'):'')+'</td>'+
+            '<td class="num" style="width:52px;vertical-align:top;border-bottom:none;font-size:10.5px">'+esc(poQtyTeks(l)).replace(' ','<br>')+'</td>'+
+            '<td style="width:150px;vertical-align:top;border-bottom:none">'+
+              (otomatis
+                ? ('<span style="font-size:10px;font-weight:800;color:'+(konfSah(l)?'var(--ok)':'var(--warn)')+'">● '+
+                   (konfSah(l)?'Dipastikan':'Dari master')+'</span>'+
+                   '<div style="font-size:11px;font-weight:800;margin-top:2px">'+fmt0(konfHargaBaris(l))+'</div>')
+                : ('<span style="font-size:10px;font-weight:800;color:'+rfqWarna(st)+'">● '+st+'</span>'+
+                   ((l.hpp||0)>0?('<div style="font-size:11px;font-weight:800;margin-top:2px">'+fmt0(l.hpp)+'</div>')
+                     :(function(){var hl=hargaTerakhir(o,l);
+                        if(!hl)return '';
+                        return '<div style="font-size:9px;color:var(--muted);margin-top:3px;line-height:1.5">terakhir <b style="color:var(--ink)">'+fmt0(hl.hpp)+'</b>'+
+                          '<div>'+esc(hl.cust)+' · '+hl.qty+' pcs</div></div>'+
+                          '<button class="btn ghost sm" style="margin-top:3px;font-size:9px" onclick="pakaiHargaLama('+jsArg(o.id)+','+x.i+')">Pakai harga ini</button>';})())))+'</td>'+
+            '<td style="width:118px;vertical-align:top;border-bottom:none;padding-right:0">'+
+              ((!otomatis&&l.rfq&&l.rfq.minta)
+                ? '<button class="btn sm" style="width:100%" onclick="rfqJawab('+jsArg(o.id)+','+x.i+')">✓ Catat jawaban</button>'
+                : '')+'</td></tr>'+
+            (lineKulit(l)?('<tr><td colspan="4" style="border-bottom:none;padding:0 0 6px">'+kulitBlok(o,l,x.i)+'</td></tr>'):'');}).join('')+
+        '</tbody></table>'+
+        /* tindakan sekali untuk seluruh vendor ini */
+        (v?('<div style="display:flex;gap:7px;flex-wrap:wrap;align-items:center;border-top:1px dashed var(--line);margin-top:8px;padding-top:9px">'+
+          (perlu.length
+            ? ('<button class="btn ghost sm" onclick="genRfqDoc('+jsArg(o.id)+','+jsArg(v)+')">📄 Dokumen'+
+               (perlu.length>1?(' ('+perlu.length+' item)'):'')+'</button>'+
+               '<button class="btn sm" title="tandai sudah diminta &amp; kabari Purchasing lewat Discord" onclick="rfqSerah('+jsArg(o.id)+','+jsArg(v)+')">'+
+               (diserah?'↻ Serahkan ulang':'✋ Serahkan ke Purchasing')+'</button>'+
+               (diserah?('<span style="font-size:9.5px;color:var(--muted)">diserahkan '+tglID(perlu[0].l.rfq.minta)+'</span>'):''))
+            : '')+
+          /* jejak dokumen berdiri sendiri: dibuat lebih dulu, diserahkan
+             menyusul — dua hal yang tak selalu terjadi bersamaan */
+          (((o.rfqDoc||{})[v])?('<span style="font-size:9.5px;color:var(--muted)">📄 dokumen '+esc(o.rfqDoc[v])+'</span>'):'')+
+
+          (master.length
+            ? (konfBeres
+                ? ('<button class="btn ghost sm" onclick="konfSet('+jsArg(o.id)+','+jsArg(v)+')">↺ Batalkan konfirmasi</button>'+
+                   '<span style="font-size:9.5px;color:var(--ok);font-weight:700">✓ harga dipastikan '+tglID((master[0].l.konf||{}).tgl)+'</span>')
+                : ('<button class="btn ghost sm" onclick="konfTanya('+jsArg(o.id)+','+jsArg(v)+')">📨 '+(ditanya?'Tanya lagi':'Tanyakan harga')+'</button>'+
+                   '<button class="btn sm" onclick="konfSet('+jsArg(o.id)+','+jsArg(v)+')">✓ Harga masih berlaku'+
+                   (master.length>1?(' ('+master.length+')'):'')+'</button>'+
+                   (ditanya?('<span style="font-size:9.5px;color:var(--warn)">sudah ditanya '+tglID(master[0].l.konfTanya.tgl)+'</span>'):'')))
+            : '')+
+          '</div>'):'')+
+        '</div>';}).join('')+
+      (belum?'':('<div style="border:1px dashed var(--ok);border-radius:9px;padding:11px 13px;background:var(--bg)">'+
         '<div style="font-size:12px;font-weight:800;color:var(--ok);margin-bottom:4px">✓ Semua harga sudah beres</div>'+
         (faseMilikku(o)
           ?('<button class="btn sm" onclick="trigger('+jsArg(o.id)+')">→ Lanjut ke Quotation</button>')
@@ -11047,9 +11080,17 @@ function fileGambar(f){
     String(f.data).slice(0,11)==='data:image/'));}
 /* Semua gambar yang masuk akal dikirim ke vendor untuk baris ini: referensi
    dari client, ditambah gambar milik barisnya sendiri kalau ada. */
+/* Vendor tak perlu tahu nama berkas kita; yang perlu diketahui gambar itu apa. */
+const GBR_LABEL={refFiles:'Referensi dari client',logoFiles:'Logo client',
+  logoBoxFiles:'Logo client',logoPouchFiles:'Logo client',logoCardFiles:'Logo client',
+  persoFiles:'Acuan personalisasi'};
+function gambarLabel(slot,n,total){
+  var t=GBR_LABEL[slot];if(!t)return '';
+  return total>1?(t+' '+(n+1)):t;}
 function vendorGambar(o,l){
   var b=briefGet(o),out=[];
   var tambah=function(slot,f,i){if(fileGambar(f))out.push({slot:slot,i:i,f:f});};
+  (b.logoFiles||[]).forEach(function(f,i){tambah('logoFiles',f,i);});
   (b.refFiles||[]).forEach(function(f,i){tambah('refFiles',f,i);});
   /* gambar milik barisnya sendiri — kemasan punya gambarnya di master, dari
      Cost Estimator. Yang berupa data URI bisa disalin & diunduh seperti yang
@@ -11068,6 +11109,15 @@ function vendorGambar(o,l){
     var slot={box:'logoBoxFiles',pouch:'logoPouchFiles',card:'logoCardFiles'}[l.coll];
     if(slot)(b[slot]||[]).forEach(function(f,i){tambah(slot,f,i);});}
   if(l&&(l.jasa||(l.perso&&l.perso!=='-')))(b.persoFiles||[]).forEach(function(f,i){tambah('persoFiles',f,i);});
+  /* keterangannya diberi sesudah semuanya terkumpul, supaya yang sejenis
+     bisa dinomori: "Referensi dari client 1", "… 2" */
+  var hitung={};
+  out.forEach(function(x){hitung[x.slot]=(hitung[x.slot]||0)+1;});
+  var urut={};
+  out.forEach(function(x){
+    var n=(urut[x.slot]||0);urut[x.slot]=n+1;
+    var t=gambarLabel(x.slot,n,hitung[x.slot]);
+    if(t)x.cap=t;});
   return out;}
 /* Simpan satu berkas ke komputer — dari data URI, tanpa perlu server. */
 function gambarUnduhSatu(f){
@@ -11156,7 +11206,7 @@ function vendorGambarBlok(o,l,kunci,baris){
       G.map(function(x){
         return '<div style="width:96px">'+
           '<img src="'+x.f.data+'" style="width:96px;height:72px;object-fit:cover;border-radius:7px;border:1px solid var(--line);cursor:zoom-in" onclick="openLB(this.src)">'+
-          '<div style="font-size:8.5px;color:var(--muted);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+esc(x.f.nama||'')+'">'+esc(x.f.nama||'')+'</div>'+
+          '<div style="font-size:8.5px;color:var(--muted);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+esc(x.f.nama||'')+'">'+esc(x.cap||x.f.nama||'')+'</div>'+
           '<div style="display:flex;gap:3px;margin-top:2px">'+
             (x.drive
               /* beda domain — tak bisa dibaca halaman ini untuk disalin, jadi
@@ -12895,7 +12945,7 @@ function rfqDocHTML(o,vendor){
   L.forEach(function(l){
     (vendorGambar(o,l)||[]).forEach(function(x){
       var src=x.drive?String(x.f.data||'').replace(/^.*[?&]id=/,'').replace(/&.*$/,''):x.f.data;
-      if(!src||ada[src])return;ada[src]=1;G.push({src:src,cap:x.f.nama||''});});});
+      if(!src||ada[src])return;ada[src]=1;G.push({src:src,cap:x.cap||x.f.nama||''});});});
   var gbr=G.length?('<div class="dsec">Gambar acuan</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:10px">'+
     G.map(function(x){return '<div style="text-align:center">'+
       imgTag(x.src,'width:100%;max-height:300px;object-fit:contain;border:1px solid #ddd;border-radius:8px')+
@@ -12918,7 +12968,7 @@ function rfqDocHTML(o,vendor){
    '<table class="dtable"><thead><tr><th class="num wno">No</th><th>Pertanyaan</th><th class="wperso">Jawaban</th></tr></thead><tbody>'+tanya+'</tbody></table>'+
    '<div class="dsign">Hormat kami,<div class="nm">Purchasing · ROVE Favors and Gifts</div></div>'+
    /* nama channel TIDAK dicetak: isinya nama client, tanggal acara, dan qty */
-   '<div class="dfoot">Permintaan harga otomatis dari ROVE HUB · ref '+esc(o.id)+' · jawaban dicatat kembali ke HUB.</div>';}
+   '';}
 /* Ringkasan yang dibaca Purchasing di Discord — cukup untuk diteruskan apa
    adanya ke vendor WhatsApp, sisanya ada di dokumennya. */
 function rfqSerahTeks(o,vendor){
