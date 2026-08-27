@@ -777,9 +777,9 @@ const EN={
 'Jenis order':'Order type',
 'JENIS ORDER':'ORDER TYPE','DARI KATALOG':'FROM THE CATALOGUE','CUSTOM — TULIS APA ADANYA':'CUSTOM — JUST WRITE IT DOWN','＋ Tambah produk lain':'＋ Add another product','＋ Pilih produk dari katalog':'＋ Pick products from the catalogue','▾ Tutup daftar katalog':'▾ Close the catalogue list','Collateral untuk produk ini':'Collateral for this product',
 'Personalisasi':'Personalization',
-'— tanpa personalisasi —':'— no personalization —',
-'— tekniknya belum pasti —':'— technique not settled yet —',
-'teknik diatur di Master Product → Jasa':'techniques are set at Master Product → Service','jenis belum dipilih':'type not chosen yet','belum diisi':'nothing filled in yet','→ Kirim ke Inquiry':'→ Send to Inquiry',
+'Perkiraan qty':'Estimated qty',
+'kata client apa adanya — mis. inisial nama tamu di depan':
+  'the client words as they are — e.g. guest initials on the front','jenis belum dipilih':'type not chosen yet','belum diisi':'nothing filled in yet','→ Kirim ke Inquiry':'→ Send to Inquiry',
 '◇ Prospek':'◇ Leads','Belum ada prospek aktif.':'No active leads yet.','brief kosong':'brief empty','belum disebut':'not stated yet',
 'RINGKASAN DARI PROSPEK':'FROM THE LEAD','Belum diterjemahkan jadi spesifikasi:':'Not yet turned into a specification:','Semua yang diminta client sudah punya spesifikasi.':'Everything the client asked for now has a specification.','Catatan lain':'Other notes','tidak dipakai':'not used',
 'Brief singkat untuk PM':'Short brief for the PM','— centang & tulis sekenanya, boleh dikosongkan':'\u2014 tick and jot; leaving it empty is fine','Produk utama':'Main product','Personalisasi':'Personalisation','kata client apa adanya — mis. pokoknya elegant, warna earth tone':'the client\u2019s own words \u2014 e.g. wants it elegant, earth tones',
@@ -2044,7 +2044,11 @@ function leadBaris(l){
   return out;}
 function leadJudul(l){var b=leadBaris(l);
   return b[0].nama+(b.length>1?(' (+'+(b.length-1)+' item)'):'');}
-function leadQty(l){return leadBaris(l).reduce(function(s,x){return s+(x.qty||0);},0);}
+function leadQty(l){
+  var n=leadBaris(l).reduce(function(s,x){return s+(x.qty||0);},0);
+  /* produknya sudah ditunjuk tapi qty tiap barisnya belum diisi — perkiraan
+     Sales yang dipakai, bukan nol */
+  return n||(+l.qty||0);}
 function leadColl(l){var c={others:''};
   ['box','pouch','card'].forEach(function(k){
     c[k]=leadSpec(l,k).ada||leadItems(l).some(function(it){
@@ -2075,19 +2079,29 @@ function leadItemSet(id,i,f,v){
   if(f!=='note')render();}
 /* Personalisasi yang diminta client untuk produk ini: jasanya, lalu tekniknya.
    Dua hal terpisah — jasa itu APA yang dipersonalisasi, teknik itu CARANYA. */
+/* Centang + tulis sendiri, sebentuk dengan bagian prospek yang lain. Dulu dua
+   dropdown (jasa + teknik) — menuntut Sales tahu hal yang belum tentu
+   diketahuinya, dan salah pilih ikut terbawa jadi harga vendor. */
 function leadItemPerso(l,i){
-  var it=leadItems(l)[i];if(!it)return {svc:'',tek:''};
-  if(!it.perso||typeof it.perso!=='object')it.perso={svc:'',tek:''};
-  return it.perso;}
+  var it=leadItems(l)[i];if(!it)return {ada:false,note:''};
+  if(!it.perso||typeof it.perso!=='object')it.perso={ada:false,note:''};
+  var p=it.perso;
+  /* bentuk lama {svc,tek} dipindahkan, bukan dibuang — itu kata client juga */
+  if(p.svc!==undefined||p.tek!==undefined){
+    var lama=[p.svc,p.tek].filter(Boolean).join(' — ');
+    p={ada:!!lama,note:lama};it.perso=p;}
+  if(p.ada===undefined)p.ada=false;
+  if(p.note===undefined)p.note='';
+  return p;}
 function leadItemPersoSet(id,i,f,v){
   var l=leadsAll().find(function(x){return x.id===id;});if(!l)return;
   var p=leadItemPerso(l,i);
+  var perawan=!p.ada&&!p.note;
   p[f]=v;
-  /* ganti jasanya, tekniknya ikut dilepas — teknik milik jasa lain tak berlaku */
-  if(f==='svc'){
-    var L=jasaTekList(v);
-    p.tek=(L.length===1)?L[0]:'';}
-  l._m=Date.now();saveLeads();render();}
+  /* diketik tanpa dicentang tetap terhitung — sama seperti catatan collateral */
+  if(f==='note'&&v&&perawan)p.ada=true;
+  l._m=Date.now();saveLeads();
+  if(f!=='note')render();}
 function leadItemColl(l,i,k){var it=leadItems(l)[i];if(!it)return {ada:false,note:''};
   if(!it.coll)it.coll={};if(!it.coll[k])it.coll[k]={ada:false,note:''};return it.coll[k];}
 function leadItemCollSet(id,i,k,f,v){
@@ -2186,23 +2200,14 @@ function leadKatalogBlok(l){
          sama sekali, jadi permintaan client soal inisial/logo hilang di sini
          dan ditanyakan ulang di Inquiry. */
       (function(){
-        var p=leadItemPerso(l,i),J=jasaByJenis('Service'),T=jasaTekList(p.svc);
-        return '<div style="font-size:9.5px;color:var(--muted);margin:9px 0 5px;font-weight:700">Personalisasi</div>'+
-          '<div style="display:flex;gap:7px;align-items:center;flex-wrap:wrap;margin-bottom:6px">'+
-          '<select class="pin" style="flex:1;min-width:130px;font-size:10.5px" '+
-            'onchange="leadItemPersoSet('+jsArg(l.id)+','+i+',\'svc\',this.value)">'+
-            '<option value="">— tanpa personalisasi —</option>'+
-            J.map(function(n){return '<option value="'+esc(n)+'" '+(p.svc===n?'selected':'')+'>'+esc(n)+'</option>';}).join('')+
-          '</select>'+
-          (p.svc
-            ? (T.length
-                ? ('<select class="pin" style="flex:1;min-width:130px;font-size:10.5px" '+
-                   'onchange="leadItemPersoSet('+jsArg(l.id)+','+i+',\'tek\',this.value)">'+
-                   '<option value="">— tekniknya belum pasti —</option>'+
-                   T.map(function(t){return '<option value="'+esc(t)+'" '+(p.tek===t?'selected':'')+'>'+esc(t)+'</option>';}).join('')+
-                   '</select>')
-                : '<span style="font-size:9.5px;color:var(--muted)">teknik diatur di Master Product → Jasa</span>')
-            : '')+
+        var p=leadItemPerso(l,i);
+        return '<div style="display:flex;gap:7px;align-items:center;margin:9px 0 6px">'+
+          '<label style="display:flex;align-items:center;gap:5px;font-size:10.5px;font-weight:700;min-width:118px;cursor:pointer">'+
+            '<input type="checkbox" '+(p.ada?'checked':'')+' '+
+              'onchange="leadItemPersoSet('+jsArg(l.id)+','+i+',\'ada\',this.checked)">Personalisasi</label>'+
+          '<input class="pin" style="font-size:10.5px;flex:1" value="'+esc(p.note||'')+'" '+
+            'placeholder="kata client apa adanya — mis. inisial nama tamu di depan" '+
+            'onchange="leadItemPersoSet('+jsArg(l.id)+','+i+',\'note\',this.value)">'+
           '</div>';})()+
       '<div style="font-size:9.5px;color:var(--muted);margin:9px 0 5px;font-weight:700">Collateral untuk produk ini</div>'+
       PACK_TIPE.map(function(pt){var k=pt[0],c=leadItemColl(l,i,k);
@@ -2393,7 +2398,7 @@ function kirimKeInquiry(id){
          konfirmasi dengan Rp 0. Yang tak berharga ikut antre seperti yang lain. */
       /* teknik yang sudah disebut client di prospek ikut ke barisnya — kolom
          inilah yang tercetak di PO ke vendor */
-      perso:(it.perso&&it.perso.tek)||'-',fixed:!!(K&&hpp>0)});});
+      perso:'-',fixed:!!(K&&hpp>0)});});
   /* custom belum punya produk bernama — satu baris kosong supaya PM tak mulai dari nol */
   if(!lines.length)lines.push({produk:l.produk||'(belum dirinci)',bahan:'',
     sumber:vendorNames()[0]||'Radja Leather',qty:+l.qty||0,hpp:0,jual:0,
@@ -2410,16 +2415,9 @@ function kirimKeInquiry(id){
     phone:l.kontak||'',sales:l.pic||(ST.userName||ST.user||''),
     status:'Inquiry',coll:coll});
   o.pricing={margin:MARGIN_BAWAAN,lines:lines};
-  /* personalisasi yang diminta client ikut jadi bagian PERSONALIZATION — kalau
-     tidak, PM menanyakan ulang hal yang sudah dijawab waktu prospek */
-  (function(){
-    var svc=[],tek={};
-    leadItems(l).forEach(function(it){
-      var p=(it&&it.perso)||{};
-      if(!p.svc)return;
-      if(svc.indexOf(p.svc)<0)svc.push(p.svc);
-      if(p.tek&&!tek[p.svc])tek[p.svc]=p.tek;});
-    if(svc.length){o.svc=svc;o.svcTeknik=tek;}})();
+  /* Jasa dan tekniknya TIDAK ditebak dari prospek: yang dicatat Sales kata
+     client, bukan nama jasa di master. Catatannya sampai ke PM lewat pita Sales
+     di bagian PERSONALIZATION, dan PM yang memilih jasanya. */
   /* kemasan & jasa yang diminta client ikut jadi baris, supaya vendornya
      masuk antrean "Minta harga vendor" — bukan baru ketahuan di Profitability */
   o.coll=coll;
@@ -2612,6 +2610,10 @@ function leadPanel(){
         '<label class="nlbl">Kontak<input class="pin" style="margin-top:3px" value="'+esc(l.kontak)+'" onchange="leadSet(\''+l.id+'\',\'kontak\',this.value)" placeholder="+62 812-..."></label>'+
         '<label class="nlbl">Channel<select class="pin" style="margin-top:3px" onchange="leadSet(\''+l.id+'\',\'channel\',this.value)">'+LEAD_CH.map(function(c){return '<option '+(l.channel===c?'selected':'')+'>'+c+'</option>';}).join('')+'</select></label>'+
         '<label class="nlbl">Minat produk<input class="pin" style="margin-top:3px" value="'+esc(l.produk)+'" onchange="leadSet(\''+l.id+'\',\'produk\',this.value)" placeholder="mis. Wallet 200pcs"></label>'+
+        /* Perkiraan, bukan angka pasti — tapi tanpa ini prospek Custom lahir
+           jadi order berqty nol, dan angka itu ikut ke mana-mana. */
+        '<label class="nlbl">Perkiraan qty<input class="pin n" type="number" min="0" style="margin-top:3px" value="'+
+          (+l.qty||0)+'" onchange="leadSet(\''+l.id+'\',\'qty\',this.value)" placeholder="mis. 150"></label>'+
         '<label class="nlbl">Estimasi nilai<input class="pin n money" inputmode="numeric" style="margin-top:3px" value="'+moneyInp(l.estimasi)+'" onchange="leadSet(\''+l.id+'\',\'estimasi\',this.value)"></label>'+
         (leadAktif(l)?'<label class="nlbl">Status<select class="pin" style="margin-top:3px" onchange="leadSet(\''+l.id+'\',\'status\',this.value)">'+LEAD_ST.map(function(s){return '<option '+(l.status===s?'selected':'')+'>'+s+'</option>';}).join('')+'</select></label>':'')+
       '</div>'+
@@ -12639,12 +12641,18 @@ function salesNote(o,k){
   var namaSek=(LEAD_SEK.find(function(x){return x[0]===k;})||[])[1]||k;
   (d.items||[]).forEach(function(it){
     if(k==='produk'){if(it.note)bagian.push('produk '+it.nama+' — '+it.note);return;}
+    /* personalisasi disimpan di barisnya sendiri, bukan di coll */
+    if(k==='perso'){
+      var pp=it.perso||{};
+      if(pp.ada&&pp.note)bagian.push('produk '+it.nama+' — '+pp.note);
+      return;}
     var c=(it.coll||{})[k];
     if(c&&c.ada&&c.note)bagian.push('produk '+it.nama+', catatan '+namaSek.toLowerCase()+' — '+c.note);});
   return bagian.filter(Boolean).join(' · ');}
 function salesMau(o,k){var d=salesGet(o);if(!d)return false;
   if(d.spec&&d.spec[k]&&d.spec[k].ada)return true;
   if(k==='produk')return (d.items||[]).length>0;
+  if(k==='perso')return (d.items||[]).some(function(it){return !!((it.perso||{}).ada);});
   return (d.items||[]).some(function(it){var c=(it.coll||{})[k];return !!(c&&c.ada);});}
 /* Bagian yang Sales sebutkan tapi belum diterjemahkan PM jadi nilai konkret. */
 function salesBelum(o){
