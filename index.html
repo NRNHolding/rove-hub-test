@@ -506,7 +506,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20260828-155935';
+const VERSI='20260828-161303';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -1917,6 +1917,15 @@ function pastikanBentuk(o){
   if(!o.po||typeof o.po!=='object')o.po={};
   if(!o.vpo||typeof o.vpo!=='object')o.vpo={};
   if(!Array.isArray(o.svc))o.svc=[];
+  /* kolom "Peletakan logo" lama sudah dibuang — isiannya pindah ke letak per
+     jasa kalau jasanya cuma satu dan letaknya masih kosong; selebihnya tetap
+     terbaca lewat checklist sebagai isian lama */
+  try{
+    var bl=String(((o.brief||{}).logoLetak)||'').trim();
+    if(bl&&(o.svc||[]).length===1){
+      if(!o.svcLetak)o.svcLetak={};
+      if(!String(o.svcLetak[o.svc[0]]||'').trim())o.svcLetak[o.svc[0]]=bl;}
+  }catch(e){}
   if(!Array.isArray(o.liveSvc))o.liveSvc=[];
   if(!o.pricing||typeof o.pricing!=='object')o.pricing={lines:[],margin:30};
   if(!Array.isArray(o.pricing.lines))o.pricing.lines=[];
@@ -6020,6 +6029,9 @@ const LETAK_SARAN=['Depan — tengah','Depan — kanan bawah','Depan — kiri at
   'Belakang — tengah','Bagian dalam (interior)','Flap / tutup','Samping',
   'Di bawah logo Rove','Pada kartu / hangtag'];
 function svcLetak(o,nama){return String((((o||{}).svcLetak)||{})[nama]||'').trim();}
+/* Kunci slot lampiran milik satu jasa — tiap personalisasi bawa logonya
+   sendiri, karena dua add-on logo bisa memakai dua logo yang berbeda. */
+function svcSlot(nama){return 'svcF_'+String(nama||'').replace(/[^A-Za-z0-9]+/g,'_');}
 /* Teknik yang dipakai jasa ini di order ini. Kalau daftar tekniknya cuma satu,
    tak ada yang perlu dipilih — itu jawabannya. */
 /* Teknik personalisasi order ini, dibaca dari bagian PERSONALIZATION. Dulu ada
@@ -8139,7 +8151,10 @@ const PH_CHECK=[
      sini — di Sketch barulah menahan fase. */
   {auto:function(o){return (((o.brief||{}).logoFiles)||[]).length>0;}, k:'logoCl', t:'Kalau client punya logo, minta file vektornya (.ai / .eps)', en:'If the client has a logo, ask for the vector file (.ai / .eps)', guna:'tak wajib — logonya bisa saja dibuat tim Rove sendiri. Kalau client memang punya, meminta sekarang membuat Creative tak menunggu di fase Sketch', gunaEn:'not required — the logo may be made by the Rove team. If the client does have one, asking now means Creative does not wait at Sketch', pic:'Sales'},
   {auto:function(o){var b=o.brief||{};
-    return String(b.logoLetak||'').trim().length>0||((b.persoFiles)||[]).length>0;},
+    /* kolom lama sudah dibuang — yang berlaku letak per jasa; isian lama dan
+       acuan gambar tetap dihitung */
+    var perJasa=false;try{perJasa=Object.keys(o.svcLetak||{}).some(function(k){return String(o.svcLetak[k]||'').trim();});}catch(e){}
+    return perJasa||String(b.logoLetak||'').trim().length>0||((b.persoFiles)||[]).length>0;},
    k:'logoLetak', t:'Tanyakan peletakan logo — di mana dan seberapa besar',
    en:'Ask where the logo goes and how big',
    guna:'ini yang paling sering menahan Creative — sketsanya cepat, menunggu jawabannya yang lama',
@@ -8246,7 +8261,10 @@ const PH_CHECK=[
  [ // 6 Sketch
   {auto:function(o){return (((o.brief||{}).logoFiles)||[]).length>0;}, k:'logoCl', t:'Logo siap dipakai — dari client, atau dibuat Creative', en:'Logo ready to use — from the client, or made by Creative', guna:'Creative tak bisa mulai tanpa logonya. Dari mana asalnya tak jadi soal: kalau client tak punya, Creative yang membuatnya lalu mengunggahnya di sini', gunaEn:'Creative cannot start without it. The source does not matter: if the client has none, Creative makes it and uploads it here',pic:'Creative',    w:true},
   {auto:function(o){var b=o.brief||{};
-    return String(b.logoLetak||'').trim().length>0||((b.persoFiles)||[]).length>0;},
+    /* kolom lama sudah dibuang — yang berlaku letak per jasa; isian lama dan
+       acuan gambar tetap dihitung */
+    var perJasa=false;try{perJasa=Object.keys(o.svcLetak||{}).some(function(k){return String(o.svcLetak[k]||'').trim();});}catch(e){}
+    return perJasa||String(b.logoLetak||'').trim().length>0||((b.persoFiles)||[]).length>0;},
    k:'logoLetak', t:'Tanyakan peletakan logo — di mana dan seberapa besar',
    en:'Ask where the logo goes and how big',
    guna:'ini yang paling sering menahan Creative — sketsanya cepat, menunggu jawabannya yang lama',
@@ -8585,7 +8603,7 @@ function chkSumber(fase,k){return CHK_SUMBER[fase+'.'+k]||'';}
 const CHK_FIELD={
   kontak:'picNama', acara:'tglAcara', kota:'venue', hpWo:'woHp',
   ref:'refFiles', terjemah:'mainMat',
-  logoCl:'logoFiles', logoLetak:'logoLetak',
+  logoCl:'logoFiles', logoLetak:'persoFiles',
   logoPch:'logoPouchFiles', logoBox:'logoBoxFiles', logoCard:'logoCardFiles',
   preview:'previewFiles', qc:'qcFiles', pack:'packFiles',
   alamat:'addr', alamatKantor:'addrKantor', email:'email',
@@ -12145,7 +12163,9 @@ const GBR_LABEL={refFiles:'Referensi dari client',logoFiles:'Logo client',
   /* tanpa dua ini, yang tercetak di lembar vendor nama berkas karangan */
   _line:'Gambar produk',_drive:'Gambar produk'};
 function gambarLabel(slot,n,total){
-  var t=GBR_LABEL[slot];if(!t)return '';
+  var t=GBR_LABEL[slot];
+  if(!t&&String(slot).slice(0,5)==='svcF_')t='Logo / acuan jasa ini';
+  if(!t)return '';
   return total>1?(t+' '+(n+1)):t;}
 function vendorGambar(o,l){
   var b=briefGet(o),out=[];
@@ -12173,6 +12193,10 @@ function vendorGambar(o,l){
     var slot={box:'logoBoxFiles',pouch:'logoPouchFiles',card:'logoCardFiles'}[l.coll];
     if(slot)(b[slot]||[]).forEach(function(f,i){tambah(slot,f,i);});}
   if(l&&(l.jasa||(l.perso&&l.perso!=='-')))(b.persoFiles||[]).forEach(function(f,i){tambah('persoFiles',f,i);});
+  /* lampiran milik jasa baris ini — logonya sendiri, bukan logo jasa lain */
+  if(l&&l.jasa){
+    var sj=svcSlot(namaJasaBaris(l));
+    (b[sj]||[]).forEach(function(f,i){tambah(sj,f,i);});}
   /* keterangannya diberi sesudah semuanya terkumpul, supaya yang sejenis
      bisa dinomori: "Referensi dari client 1", "… 2" */
   var hitung={};
@@ -13571,26 +13595,32 @@ function briefPanel(o){
     /* Personalisasi menempel pada spesifikasi produk — ia memang bagian dari
        produknya, bukan pekerjaan yang berdiri sendiri. Dulu ia terlempar ke
        bawah PACKAGING dan LIVE SERVICE, jauh dari kolom yang menerangkannya. */
+    lampiranBlok(o,'refFiles','Referensi dari client')+
+
     '<a id="sekPerso"></a>'+
     sub('PERSONALIZATION','dikerjakan di workshop pada produknya — initial, full name, logo')+
     salesPita(o,'perso')+
     ordSvcEditor(o,'Service')+
-    persoBlok(o)+
-
-    sub('LOGO','file dipakai vendor saat produksi')+
-    lampiranBlok(o,'logoFiles','Logo client')+
-    logoSamaTombol(o)+
-    txt('logoLetak','Peletakan logo — di mana & seberapa besar',
-      'mis. tengah depan, 15mm; box di tutup pojok kanan bawah','grid-column:1/-1')+
-    '<div style="font-size:9.5px;color:var(--muted);margin:-6px 0 10px">Boleh diisi kalimat, boleh dilampirkan gambar acuannya di <b>Acuan personalisasi</b> di bawah — Creative tak bisa mulai tanpa salah satunya.</div>'+
-    ((o.coll||{}).pouch?lampiranBlok(o,'logoPouchFiles','Logo soft pouch'):'')+
-    ((o.coll||{}).box?lampiranBlok(o,'logoBoxFiles','Logo box'):'')+
-    ((o.coll||{}).card?lampiranBlok(o,'logoCardFiles','Logo thank you card'):'')+
-    lampiranBlok(o,'refFiles','Referensi dari client')+
+    /* file induk logo client: tampil hanya kalau ada pemakainya — ada
+       personalisasi, atau ada kemasan yang akan mencetaknya */
+    ((liveList(o.svc).length>0||['box','pouch','card'].some(function(k){return (o.coll||{})[k];}))
+      ?lampiranBlok(o,'logoFiles','Logo client')
+      :'')+
+    (String(((o.brief||{}).logoLetak)||'').trim()&&(o.svc||[]).length!==1
+      ?('<div style="font-size:9.5px;color:var(--muted);margin:-3px 0 9px">Catatan peletakan lama: '+
+        esc((o.brief||{}).logoLetak)+' — pindahkan ke kolom "Diletakkan di" jasa yang tepat.</div>')
+      :'')+
     lampiranBlok(o,'persoFiles','Acuan personalisasi')+
+    persoBlok(o)+
 
     sub('PACKAGING')+
     briefPackBlok(o)+
+    /* logo tiap kemasan menempel di kemasannya — hanya yang dicentang yang
+       muncul, dan tombol samakan hidup di sini juga */
+    logoSamaTombol(o)+
+    ((o.coll||{}).pouch?lampiranBlok(o,'logoPouchFiles','Logo soft pouch'):'')+
+    ((o.coll||{}).box?lampiranBlok(o,'logoBoxFiles','Logo box'):'')+
+    ((o.coll||{}).card?lampiranBlok(o,'logoCardFiles','Logo thank you card'):'')+
 
     /* Dipisah: live service dikerjakan di lokasi acara oleh tim yang datang,
        add-on dikerjakan di workshop. Vendornya beda, harganya ditanya
@@ -13741,7 +13771,13 @@ function ordSvcEditor(o,hanya){
             'value="'+esc(svcLetak(o,n))+'" placeholder="mis. depan, kanan bawah — 2 cm dari tepi" '+
             'onchange="ordSvcLetak('+jsArg(o.id)+','+jsArg(n)+',this.value)">'+
           (svcLetak(o,n)?'':'<span style="font-size:9px;color:var(--warn);font-weight:700;white-space:nowrap">belum diisi</span>')+
-        '</div>';}).join('');}).join('');
+        '</div>'+
+        /* lampiran milik jasa INI — dua personalisasi bisa memakai dua logo
+           yang berbeda, jadi filenya menempel di jasanya, bukan satu untuk
+           semua */
+        (jenis==='Service'
+          ?('<div style="margin:0 0 9px 37px">'+lampiranBlok(o,svcSlot(n),'Logo / acuan untuk jasa ini')+'</div>')
+          :'');}).join('');}).join('');
   var datalist='<datalist id="letaksaran">'+LETAK_SARAN.map(function(x){return '<option value="'+esc(x)+'">';}).join('')+'</datalist>';
   /* Pembatasan berlaku untuk SELURUH order, bukan untuk blok ini saja —
      persoOpts() membacanya dari orderTeknik(o). Jadi katakan begitu, dan
