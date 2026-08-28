@@ -506,7 +506,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20260827-160135';
+const VERSI='20260828-153411';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -5760,13 +5760,6 @@ function persoKotakImpor(o,lembar,berkas){
     persoSimpanDaftar(o,baru,berkas+(lembar.length>1?(' — lembar '+L.nama):''));
     ov.remove();});}
 
-/* Mengantar ke bagian PERSONALIZATION di halaman yang sama — tanpa ini, orang
-   yang membaca ringkasannya harus mencari sendiri bagian mana yang dimaksud. */
-function briefKePerso(){
-  try{
-    var e=document.getElementById('sekPerso');
-    if(e&&e.scrollIntoView)e.scrollIntoView({behavior:'smooth',block:'center'});
-  }catch(err){}}
 function persoBlok(o){
   var N=persoGet(o),q=persoQty(o),n=N.daftar.length;
   var beda=n-q, warna=(!n?'var(--muted)':beda===0?'var(--ok)':'var(--warn)');
@@ -13490,31 +13483,10 @@ function briefPanel(o){
       briefWarna(o,'benangWarna','Warna benang')+
       sel('finishing','Finishing request',listArr('finreq'))+
       (dye?briefWarna(o,'finishWarna','Warna dye'):'')+
-      /* Personalization tak lagi punya dropdown sendiri di sini: jasanya dan
-         tekniknya dipilih di bagian PERSONALIZATION di bawah. Yang tampil di
-         sini ringkasannya, supaya spesifikasi produk tetap terbaca utuh. */
-      (function(){
-        var T=[];try{T=persoTeknikOrder(o);}catch(e){}
-        return '<div style="display:flex;flex-direction:column;gap:3px">'+
-          '<span class="nlbl">Personalization</span>'+
-          '<div style="border:1px dashed var(--line);border-radius:7px;padding:6px 9px;font-size:11px;'+
-            'line-height:1.5;background:var(--bg);min-height:32px;display:flex;align-items:center;gap:6px">'+
-            (T.length?('<b>'+T.map(esc).join(', ')+'</b>')
-                     :'<span style="color:var(--muted)">belum ada</span>')+
-            '<button class="btn ghost sm" style="margin-left:auto;font-size:9px;padding:2px 7px" '+
-              'onclick="briefKePerso()">di bagian PERSONALIZATION ↓</button>'+
-          '</div></div>';})(),170)+
-    (function(){
-      /* Keterangan ini dulu menerangkan dropdown Personalization di grid ini.
-         Dropdownnya sudah pindah ke bagian PERSONALIZATION, jadi yang perlu
-         dikatakan sekarang di mana memilihnya — bukan apa batasnya. */
-      var T=[];try{T=persoTeknikOrder(o);}catch(e){}
-      if(T.length)return '';
-      var ada=0;try{ada=liveList(o.svc).length;}catch(e){}
-      return '<div style="font-size:9.5px;color:var(--muted);margin:-6px 0 10px;line-height:1.6">'+
-        (ada?'<span>Jasa personalisasinya sudah dipilih, tekniknya belum — pilih di bagian PERSONALIZATION di bawah.</span>'
-            :'<span>Personalisasi produk (initial, full name, logo) dipilih di bagian PERSONALIZATION tepat di bawah, beserta teknik dan letaknya.</span>')+
-        '</div>';})()+
+      /* Personalization tak punya kolom di grid ini — bagiannya sendiri ada
+         tepat di bawah grid, jadi kotak ringkasan di sini cuma fungsi ganda
+         yang membingungkan. */
+      '',170)+
     (dye?'':'<div style="font-size:9.5px;color:var(--muted);margin:-6px 0 10px">Kolom warna dye muncul otomatis kalau Finishing request dipilih <b>Dye</b>.</div>')+
     grid(txt('fiturLain','Fungsi / fitur yang diminta client','mis. muat 6 kartu + slot koin','grid-column:1/-1'),300)+
 
