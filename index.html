@@ -506,7 +506,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20260828-153954';
+const VERSI='20260828-154547';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -5341,6 +5341,41 @@ function teknikData(nama){
   var n=String(nama||'').trim();
   return teknikKatalog().filter(function(x){return x.nama===n;})[0]||null;}
 /* Daftar teknik yang boleh dipakai satu jasa. Ditulis dipisah koma di Master. */
+/* ============ MENGUNCI TEKNIK SEBUAH JASA ============
+   Sejak teknik selalu bisa dipilih, jasa yang belum dikunci menawarkan SEMUA
+   teknik — dan salah pilih ikut tercetak di PO. Penguncinya kolom "Teknik yang
+   boleh" di Master → Jasa; dulu diketik dipisah koma (rawan salah tik, dan
+   salah tik berarti tekniknya diam-diam tak dikenal). Sekarang dicentang. */
+function tekListCell(i,r){
+  var L=String((r&&r.tekList)||'').split(',').map(function(x){return x.trim();}).filter(Boolean);
+  return '<td><button class="btn ghost sm" style="width:100%;text-align:left;font-size:10px" '+
+    'title="teknik yang boleh dipakai jasa ini — di luar daftar ini tak ditawarkan di order" '+
+    'onclick="tekListEdit('+i+')">'+
+    (L.length?esc(L.join(', ')):'<span style="color:var(--warn);font-weight:700">semua teknik — klik untuk mengunci</span>')+
+    '</button></td>';}
+function tekListEdit(i){
+  var j=(ST.master.jasa||[])[i];if(!j)return;
+  if(j.jenis==='Teknik'){alert('"'+j.nama+'" itu sendiri sebuah teknik — daftar ini untuk JASA (Live service / Service).');return;}
+  var ada=String(j.tekList||'').split(',').map(function(x){return x.trim();}).filter(Boolean);
+  /* semua teknik yang dikenal: katalog dulu, lalu daftar personalisasi umum,
+     lalu yang terlanjur tertulis di daftarnya sendiri */
+  var semua=teknikNama().slice();
+  persoVals().forEach(function(t){if(t&&t!=='-'&&semua.indexOf(t)<0)semua.push(t);});
+  ada.forEach(function(t){if(semua.indexOf(t)<0)semua.push(t);});
+  if(!semua.length){alert('Belum ada satu teknik pun yang dikenal — isi katalog teknik dulu (jenis "Teknik" di tabel ini), atau daftar Personalization di Opsi form.');return;}
+  var F=semua.map(function(t,k){
+    var H=null;try{H=teknikHarga(t,0);}catch(e){}
+    return {k:'t'+k,label:'',type:'checkbox',val:ada.indexOf(t)>=0,
+      cbLabel:t+((H&&(H.perPc||H.fix))?(' — '+(H.perPc?(fmt0(H.perPc)+'/pcs'):'')+(H.fix?((H.perPc?' + ':'')+fmt0(H.fix)+' tetap'):'')):'')};});
+  askForm({judul:'Teknik yang boleh — '+j.nama,
+    sub:'Yang dicentang saja yang ditawarkan di order. Tak ada yang dicentang = semua teknik boleh.',
+    fields:F,
+    ok:function(v){
+      var pilih=semua.filter(function(t,k){return !!v['t'+k];});
+      j.tekList=pilih.join(', ');
+      stampRow(j);saveMaster();
+      logHist&&0; /* master, bukan order — tak ada hist order yang pas */
+      render();}});}
 function jasaTekList(nama){
   var j=jasaAll().filter(function(x){return x.nama===nama;})[0];
   return String((j&&j.tekList)||'').split(',').map(function(x){return x.trim();}).filter(Boolean);}
@@ -6202,7 +6237,7 @@ function renderMaster(){
   /* table-layout:fixed — tanpa ini lebar kolom mengikuti isi terpanjang,
      jadi tabel melar dan halaman minta digeser kanan-kiri. */
   const tbl=(sec,cols,rows,idx)=>`<table class="rtable" style="table-layout:fixed"><thead><tr>${cols.map(c=>`<th${c[2]==='img'?' style="width:80px;font-size:9px"':''}>${c[1]}</th>`).join('')}<th style="width:120px;font-size:9px">Diubah</th><th style="width:60px"></th></tr></thead>
-    <tbody>${rows.map((r,n)=>{const i=idx?idx[n]:n;return `<tr${r&&r._del?' style="opacity:.55;background:var(--warn-bg)"':''}>${cols.map(c=>{if(c[2]==='img')return mImgCell(sec,i,r);if(Array.isArray(c[2]))return '<td><select class="pin" onchange="mEdit(\''+sec+'\','+i+',\''+c[0]+'\',this.value)">'+c[2].map(function(op){return '<option '+(r[c[0]]===op?'selected':'')+'>'+op+'</option>';}).join('')+'</select></td>';var mny=c[2]==='money',num=c[2]==='number';
+    <tbody>${rows.map((r,n)=>{const i=idx?idx[n]:n;return `<tr${r&&r._del?' style="opacity:.55;background:var(--warn-bg)"':''}>${cols.map(c=>{if(c[2]==='img')return mImgCell(sec,i,r);if(c[2]==='tekpilih')return tekListCell(i,r);if(Array.isArray(c[2]))return '<td><select class="pin" onchange="mEdit(\''+sec+'\','+i+',\''+c[0]+'\',this.value)">'+c[2].map(function(op){return '<option '+(r[c[0]]===op?'selected':'')+'>'+op+'</option>';}).join('')+'</select></td>';var mny=c[2]==='money',num=c[2]==='number';
        /* 'datalist:nama' = ketik bebas, tapi nilai yang sudah dipakai muncul sebagai saran */
        var dl=(typeof c[2]==='string'&&c[2].slice(0,9)==='datalist:')?c[2].slice(9):'';
        return '<td><input class="pin'+(mny?' n money':(num?' n':''))+'" '+(dl?('list="'+dl+'" '):'')+(mny?'inputmode="numeric" ':(num?'type="number" ':''))+'value="'+(mny?moneyInp(r[c[0]]):esc(r[c[0]]))+'" onchange="'+(mny?'mEditM':'mEdit')+'(\''+sec+'\','+i+',\''+c[0]+'\',this.value)" placeholder="'+esc(c[1])+'"></td>';}).join('')}<td style="font-size:9px;color:var(--muted)">${fmtStamp(r)}</td>${actCell(sec,i,r)}</tr>`;}).join('')}</tbody></table>`;
@@ -6366,7 +6401,7 @@ function renderMaster(){
        'Yang dibayarkan ke tim live service bukan angka ini, melainkan <b>fee tiap operator</b> di tab Live service. '+
        'Angka di sini harga standar; tiap order boleh punya harganya sendiri.</div>'+
          '<div class="xscroll">'+tbl('jasa',[['nama','Nama jasa'],['jenis','Jenis',['Live service','Service','Teknik']],
-        ['teknik','Teknik',persoVals()],['tekList','Teknik yang boleh (pisah koma)','datalist:tekpilih'],
+        ['teknik','Teknik',persoVals()],['tekList','Teknik yang boleh','tekpilih'],
         ['vendor','Vendor',[''].concat(vendorGrup('jasa'))],['fix','Biaya tetap','money'],['harga','Harga/pcs','money']],M.jasa||[])+'</div>'+
       '<datalist id="tekpilih">'+teknikNama().map(function(x){return '<option value="'+esc(x)+'">';}).join('')+'</datalist>'+
          '<button class="btn ghost sm" style="margin-top:9px" onclick="mAdd(\'jasa\')">＋ Tambah jasa</button>'+
