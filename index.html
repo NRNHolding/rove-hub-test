@@ -506,7 +506,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20260828-153411';
+const VERSI='20260828-153954';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -4228,7 +4228,11 @@ function cloudAutoLoad(){var c=ST.cfg||{};if(!c.dbUrl)return;
     }
     var changed=mergeOrders(d,true); // merge per-order, jangan ganggu order yg lagi dibuka
     var localTs=+localStorage.getItem('rovehub_ts')||0;
-    if(d.master&&(d.ts||0)>localTs){ST.master=d.master;saveMaster();buildCollatData();changed=true;}
+    if(d.master&&(d.ts||0)>localTs){ST.master=d.master;
+      /* master dari perangkat lain bisa belum kenal jenis 'Teknik' dan kolom
+         tekList — tanpa migrasi ulang, dropdown teknik kembali jadi label mati */
+      try{migrasiTeknikJasa();}catch(e){}
+      saveMaster();buildCollatData();changed=true;}
     /* digabung per baris — dulu diganti sekaligus, dan prospek yang dibuat di
        perangkat lain hilang begitu perangkat ini menyimpan sesuatu */
     if(mergeLeads(d))changed=true;
@@ -4314,7 +4318,7 @@ function cloudLoad(){var c=cfgSerap();if(!c.dbUrl){alert('Kotak "Cloud DB" di Ho
   fetch(c.dbUrl).then(function(r){return r.json();}).then(function(d){
     if(!d||!d.orders){ST.cloudStatus='cloud kosong / format salah';render();return;}
     ST.orders=d.orders;localStorage.setItem(KEY,JSON.stringify(ST.orders));
-    if(d.master){ST.master=d.master;saveMaster();buildCollatData();}
+    if(d.master){ST.master=d.master;try{migrasiTeknikJasa();}catch(e){}saveMaster();buildCollatData();}
     if(d.leads){ST.leads=d.leads;localStorage.setItem(LEAD_KEY,JSON.stringify(ST.leads));}
     if(d.tax){ST.tax=d.tax;localStorage.setItem(TAX_KEY,JSON.stringify(ST.tax));}
     if(d.konten){ST.konten=d.konten;localStorage.setItem(KON_KEY,JSON.stringify(ST.konten));}
@@ -13593,9 +13597,19 @@ function bukaMasterJasa(){
    Kalau jasa itu cuma punya satu teknik, tak ada yang perlu dipilih — label
    lama yang dipakai. */
 function teknikPilih(o,n){
+  /* Daftarnya bertingkat: teknik milik jasa itu (kolom "Teknik yang boleh" di
+     Master) kalau diisi; kalau tidak, seluruh katalog teknik; kalau katalognya
+     pun kosong, daftar personalisasi umum. Tekniknya SELALU bisa dipilih —
+     label mati "teknik: X" cuma menyisakan satu cara mengubahnya: lewat master,
+     yang berlaku ke semua order. */
   var L=jasaTekList(n);
-  if(L.length<2)return teknikLabel(n);
+  if(!L.length)L=teknikNama();
+  if(!L.length)L=persoVals().filter(function(x){return x&&x!=='-';});
+  if(!L.length)return teknikLabel(n);
   var cur=jasaTeknikOrder(o,n);
+  /* teknik lama dari master yang tak ada di daftar tetap ditampilkan —
+     menghilangkannya diam-diam berarti PO-nya berubah tanpa ada yang memilih */
+  if(cur&&L.indexOf(cur)<0)L=[cur].concat(L);
   var harga=function(t){
     var H=teknikHarga(t,o.qty||0);
     if(!H)return '';
