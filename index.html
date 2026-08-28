@@ -506,7 +506,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20260828-154547';
+const VERSI='20260828-155935';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -5182,6 +5182,16 @@ function evToolsPanel(o){
     '<div style="font-weight:800;font-size:11px;margin-bottom:6px">Form alat per operator <span style="font-weight:400;color:var(--muted)">— isi <b>Keluar</b> sebelum berangkat, <b>Kembali</b> setelah acara. Selisih merah = belum kembali.</span></div>'+blok+'</div>';}
 /* ---- fee live service → jadi baris pricing vendor tim (COGS Service di AIS) ---- */
 function svcVendors(){return ((ST.master&&ST.master.vendors)||[]).filter(function(v){return v.tipe==='Live Service'||v.cogs==='Service';});}
+/* Tarif resmi operator ini di Master → Operator. 0 = belum diisi. */
+function opTarifMaster(nama){
+  var op=operators().find(function(x){return x.nama===nama;});
+  return +((op||{}).tarif)||0;}
+function evFeeReset(id,i){
+  var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
+  var op=(o.event&&o.event.ops||[])[i];if(!op)return;
+  var t=opTarifMaster(op.nama);if(!t)return;
+  op.fee=t;logHist(o,'Fee '+op.nama+' dikembalikan ke tarif master: '+fmt0(t));
+  save();render();}
 function evFeeSet(id,i,v){var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
   var op=(o.event&&o.event.ops||[])[i];if(!op)return;op.fee=Math.max(0,moneyVal(v));save();render();}
 function evFeeVendor(id,v){var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
@@ -5220,9 +5230,18 @@ function evFeePanel(o){
   var vl=svcVendors();
   return '<div style="border-top:1px solid var(--line);margin-top:11px;padding-top:10px">'+
     '<div style="font-weight:800;font-size:11px;margin-bottom:6px">Pengajuan pembayaran <span style="font-weight:400;color:var(--muted)">— fee operator → biaya jasa (COGS <b>Service</b> di AIS)</span></div>'+
-    ops.map(function(x,i){return '<div style="display:flex;align-items:center;gap:9px;padding:4px 0;font-size:11px">'+
+    ops.map(function(x,i){
+      /* Feenya milik tarif master; yang menyimpang tak dilarang, tapi harus
+         terlihat menyimpang — kolom inilah yang jadi biaya di PO. */
+      var trf=opTarifMaster(x.nama);
+      var beda=trf>0&&(+x.fee||0)!==trf;
+      return '<div style="display:flex;align-items:center;gap:9px;padding:4px 0;font-size:11px;flex-wrap:wrap">'+
       '<span style="flex:1;min-width:0">'+esc(x.nama)+' <span style="color:var(--muted)">· '+esc(x.job)+'</span></span>'+
-      '<input class="pin n money" inputmode="numeric" style="width:120px" value="'+moneyInp(x.fee)+'" onchange="evFeeSet(\''+o.id+'\','+i+',this.value)" placeholder="Rp 0"></div>';}).join('')+
+      '<input class="pin n money" inputmode="numeric" style="width:120px'+(beda?';border-color:var(--warn)':'')+'" value="'+moneyInp(x.fee)+'" onchange="evFeeSet(\''+o.id+'\','+i+',this.value)" placeholder="Rp 0">'+
+      (beda?('<span style="font-size:9px;color:var(--warn);font-weight:700;white-space:nowrap">≠ tarif master '+fmt0(trf)+
+             ' <button class="btn ghost sm" style="font-size:8.5px;padding:1px 6px" onclick="evFeeReset(\''+o.id+'\','+i+')">↺ pakai tarif</button></span>')
+        :(trf?'':'<span style="font-size:9px;color:var(--muted);white-space:nowrap">tarif master belum diisi</span>'))+
+      '</div>';}).join('')+
     '<div style="display:flex;flex-wrap:wrap;gap:9px;align-items:flex-end;margin-top:9px">'+
       '<label style="font-size:10px;font-weight:700;color:var(--muted)">Vendor tim (sesuai AIS)<br>'+
       '<select class="pin" style="margin-top:3px;min-width:170px" onchange="evFeeVendor(\''+o.id+'\',this.value)"><option value="">— pilih —</option>'+
@@ -10533,6 +10552,24 @@ function pajakBlok(o){
                       :'Belum ditanya ke client. Selama masih begini, fase Quotation tertahan — kalau ternyata kena PPN dan terlewat, Rove yang menanggung 11%.')+'</span>'))+
     '</div></div>';}
 
+/* Batas TANDA, bukan kuncian: tak menahan apa-apa, cuma tampil mencolok di
+   panel Profitability dan Ringkasan Direktur. Angkanya silakan diubah. */
+const TANDA_MARGIN_MIN=15;   // % profit bersih di bawah ini ditandai tipis
+const TANDA_DISKON_MAX=20;   // % diskon dari omset di atas ini ditandai besar
+function tandaMarginDiskon(o){
+  var out=[];
+  try{
+    var P=profitTotals(o),T=orderTotals(o);
+    if(P.jual>0&&P.pct<TANDA_MARGIN_MIN)
+      out.push('Margin tipis: profit bersih '+P.pct+'% (di bawah '+TANDA_MARGIN_MIN+'%)');
+    var d=+T.disc||0,dasar=+T.sub||0;
+    if(d>0&&dasar>0&&Math.round(d/dasar*100)>TANDA_DISKON_MAX)
+      out.push('Diskon besar: '+fmt0(d)+' ('+Math.round(d/dasar*100)+'% dari omset, di atas '+TANDA_DISKON_MAX+'%)');
+  }catch(e){}
+  if(!out.length)return '';
+  return '<div style="border:1px solid var(--warn);background:var(--warn-bg);border-radius:9px;padding:9px 12px;margin-bottom:11px">'+
+    out.map(function(t){return '<div style="font-size:11px;font-weight:800;color:var(--warn)">⚠ '+t+'</div>';}).join('')+
+    '<div style="font-size:9.5px;color:var(--ink-soft);margin-top:3px">Tak menahan apa-apa — sekadar supaya terlihat sebelum di-approve.</div></div>';}
 function profitTotals(o){
   var m=((o.pricing||{}).margin||0)/100,P={jual:0,hpp:0,profit:0,kurang:0,spare:0};
   (((o.pricing||{}).lines)||[]).forEach(function(l){
@@ -11155,6 +11192,7 @@ function ringkasPanel(o){
     '<div><div class="t">Ringkasan untuk Direktur</div><div class="s">BACA SAJA — PUTUSKAN APPROVE ATAU TOLAK</div></div>'+
     '<span style="margin-left:auto;font-size:12px;font-weight:800;color:'+profitWarna(P.pct)+'">'+
       (P.jual?('Profit bersih '+fmt0(P.profit)+' · '+P.pct+'%'):'belum ada angka')+'</span></div><div class="body">'+
+    tandaMarginDiskon(o)+
     '<div style="font-size:10.5px;color:var(--muted);margin-bottom:10px;line-height:1.6">Tak ada yang bisa diubah dari sini. Kalau ada angka yang salah, <b>tolak</b> ordernya — HUB mengembalikannya ke fase yang tepat sesuai alasanmu.</div>'+
     '<div class="xscroll"><table class="ptable" style="min-width:420px"><thead><tr><th>Item</th>'+
       '<th class="num" style="width:52px">Qty</th><th class="num" style="width:104px">HPP</th>'+
@@ -11238,6 +11276,7 @@ function profitPanel(o){
   /* keadaan harga jual dinyatakan, bukan disimpulkan sendiri dari angka */
   var Lk=(((o.pricing||{}).lines)||[]).filter(function(l){return (l.qty||0)>0;});
   var kunci=Lk.filter(lineJualManual).length;
+  try{awas+=tandaMarginDiskon(o);}catch(e){}
   awas+='<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:10px;'+
     'color:var(--ink-soft);border:1px dashed var(--line);border-radius:9px;padding:7px 10px;margin-bottom:11px">'+
     '<span>'+(kunci
