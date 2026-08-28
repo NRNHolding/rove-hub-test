@@ -506,7 +506,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20260828-161303';
+const VERSI='20260828-163857';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -1920,6 +1920,14 @@ function pastikanBentuk(o){
   /* kolom "Peletakan logo" lama sudah dibuang — isiannya pindah ke letak per
      jasa kalau jasanya cuma satu dan letaknya masih kosong; selebihnya tetap
      terbaca lewat checklist sebagai isian lama */
+  /* daftar nama lama pindah ke jasa satu-satunya; dua jasa dibiarkan dan
+     ditampilkan sebagai blok lama supaya orang yang memindahkan */
+  try{
+    var Nl=((o.brief||{}).nama)||{};
+    if((Nl.perPcs||((Nl.daftar||[]).length))&&(o.svc||[]).length===1&&!o.persoNama){
+      o.persoNama={};o.persoNama[o.svc[0]]=Nl;
+      o.brief.nama={perPcs:false,daftar:[]};}
+  }catch(e){}
   try{
     var bl=String(((o.brief||{}).logoLetak)||'').trim();
     if(bl&&(o.svc||[]).length===1){
@@ -5501,16 +5509,36 @@ function defColl(){var b=['Board + Fancy Paper','Board + Kanvas','Rigid Board','
    dari client sebagai tempelan panjang, jadi masuknya lewat tempel-borong —
    bukan diketik satu-satu. Jumlah nama dibandingkan dgn qty supaya ketahuan
    kurang/lebih SEBELUM plate deboss dipesan. */
-function persoGet(o){var b=briefGet(o);if(!b.nama)b.nama={perPcs:false,daftar:[]};if(!b.nama.daftar)b.nama.daftar=[];return b.nama;}
-function persoPerPcs(o){return !!persoGet(o).perPcs;}
+/* Daftar nama hidup PER JASA — inisial dan full name adalah dua daftar yang
+   berbeda. nama kosong = penyimpanan lama (satu daftar untuk seluruh order),
+   masih dibaca untuk order sebelum perubahan ini. */
+function persoGet(o,nama){
+  if(nama){
+    if(!o.persoNama)o.persoNama={};
+    var N=o.persoNama[nama]||(o.persoNama[nama]={perPcs:false,daftar:[]});
+    if(!N.daftar)N.daftar=[];
+    return N;}
+  var b=briefGet(o);if(!b.nama)b.nama={perPcs:false,daftar:[]};if(!b.nama.daftar)b.nama.daftar=[];return b.nama;}
+/* Semua daftar yang order ini punya: tiap jasa + penyimpanan lama kalau berisi. */
+function persoSemua(o){
+  var out=[];
+  try{Object.keys(o.persoNama||{}).forEach(function(k){
+    var N=o.persoNama[k];if(N&&(N.perPcs||((N.daftar||[]).length)))out.push({nama:k,N:N});});}catch(e){}
+  try{var L=persoGet(o);if(L.perPcs||L.daftar.length)out.push({nama:'',N:L});}catch(e){}
+  return out;}
+function persoPerPcs(o){return persoSemua(o).some(function(x){return !!x.N.perPcs;});}
 /* Jumlah nama = qty baris produk TERBESAR, bukan jumlah semua baris. 200 tamu
    yang masing-masing dapat dompet + luggage tag tetap 200 nama, bukan 400. */
+function adaLogoFile(o){
+  var b=(o||{}).brief||{};
+  if(((b.logoFiles)||[]).length)return true;
+  try{return liveList(o.svc).some(function(n){return ((b[svcSlot(n)])||[]).length;});}catch(e){return false;}}
 function persoQty(o){
   var q=0;(((o.pricing||{}).lines)||[]).forEach(function(l){if(!l.coll&&(l.qty||0)>q)q=l.qty||0;});
   return q||o.qty||0;}
-function persoTogglePcs(id,on){
+function persoTogglePcs(id,nama,on){
   var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
-  persoGet(o).perPcs=!!on;o._m=Date.now();
+  persoGet(o,nama).perPcs=!!on;o._m=Date.now();
   logHist(o,on?'Personalisasi per pcs diaktifkan (tiap pcs beda nama)':'Personalisasi per pcs dimatikan');
   save();render();}
 /* Daftar nama datang dari client sebagai spreadsheet, lalu diteruskan ke Radja.
@@ -5540,13 +5568,13 @@ function persoCsvBaris(line){                                // pecah satu baris
     else if(c===d){out.push(cur);cur='';}
     else cur+=c;}
   out.push(cur);return out;}
-function persoSimpanDaftar(o,baru,sumber){
-  persoGet(o).daftar=baru;o._m=Date.now();
+function persoSimpanDaftar(o,nama,baru,sumber){
+  persoGet(o,nama).daftar=baru;o._m=Date.now();
   logHist(o,'Daftar nama personalisasi diperbarui'+(sumber?(' dari '+sumber):'')+': '+baru.length+' nama');
   save();render();}
-function persoTempel(id){
+function persoTempel(id,nama){
   var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
-  var N=persoGet(o);
+  var N=persoGet(o,nama);
   var awal=N.daftar.map(function(d){return d.nama+(d.catatan?(' | '+d.catatan):'');}).join('\n');
   var ov=document.createElement('div');
   ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:70;display:flex;align-items:center;justify-content:center;padding:18px';
@@ -5563,9 +5591,9 @@ function persoTempel(id){
     var a=(ev.target.dataset||{}).a;
     if(ev.target===ov||a==='x'){ov.remove();return;}
     if(a!=='ok')return;
-    persoSimpanDaftar(o,persoBuangJudul(persoParse(ta.value)),null);
+    persoSimpanDaftar(o,nama,persoBuangJudul(persoParse(ta.value)),null);
     ov.remove();});}
-function persoImpor(id){
+function persoImpor(id,nama){
   var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
   var inp=document.createElement('input');inp.type='file';
   inp.accept='.xlsx,.csv,.txt,text/csv,text/plain,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
@@ -5580,7 +5608,7 @@ function persoImpor(id){
         xlsxBaca(fr.result).then(function(lembar){
           var isi=lembar.filter(function(s){return s.baris.length;});
           if(!isi.length){alert('Semua lembar di '+f.name+' kosong.');return;}
-          persoKotakImpor(o,isi,f.name);
+          persoKotakImpor(o,nama,isi,f.name);
         }).catch(function(e){alert('Berkas .xlsx tak terbaca.\n\n'+e.message);});};
       fr.readAsArrayBuffer(f);
       return;}
@@ -5588,14 +5616,14 @@ function persoImpor(id){
       var baris=String(fr.result).split(/\r?\n/).filter(function(l){return l.trim();})
         .map(function(l){return persoCsvBaris(l).map(function(x){return String(x).trim();});});
       if(!baris.length){alert('Tak ada isi yang terbaca dari '+f.name+'.');return;}
-      persoKotakImpor(o,[{nama:f.name,baris:baris}],f.name);};
+      persoKotakImpor(o,nama,[{nama:f.name,baris:baris}],f.name);};
     fr.readAsText(f);};
   inp.click();}
 /* CSV yang diunduh = yang diteruskan ke Radja: identitas order + teknik + font
    di atas, lalu tabel nama. BOM supaya Excel membaca huruf ber-aksen dgn benar. */
-function persoUnduh(id){
+function persoUnduh(id,nama){
   var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
-  var N=persoGet(o),b=briefGet(o);
+  var N=persoGet(o,nama),b=briefGet(o);
   if(!N.daftar.length){alert('Daftar masih kosong.');return;}
   var e2=function(v){v=String(v==null?'':v);return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v;};
   var produk=(((o.pricing||{}).lines)||[]).filter(function(l){return !l.coll;})
@@ -5603,7 +5631,9 @@ function persoUnduh(id){
   var q=persoQty(o);
   var atas=[['DAFTAR NAMA PERSONALISASI'],['Order',o.customer||'-'],['No. SO',o.soNo||'-'],
     ['Produk',produk||'-'],
-    ['Teknik',(b.perso==='Others'||b.perso==='Other')?(b.persoLain||b.perso):(b.perso||'-')],
+    ['Jasa',nama||'-'],
+  ['Teknik',(nama?(jasaTeknikOrder(o,nama)||'-')
+    :((b.perso==='Others'||b.perso==='Other')?(b.persoLain||b.perso):(b.perso||'-')))],
     ['Font / tipografi',N.font||'-'],
     ['Jumlah nama',N.daftar.length+(N.daftar.length===q?' (cocok dengan qty pesanan)':(' \u2014 qty pesanan '+q))],[]];
   var csv='\ufeff'+atas.concat([['No','Nama','Catatan']])
@@ -5614,21 +5644,21 @@ function persoUnduh(id){
     .replace(/[\\\/:*?"<>|]+/g,'').trim()+'.csv';
   a.click();
   logHist(o,'Daftar nama diunduh untuk diteruskan ke vendor ('+N.daftar.length+' nama)');save();}
-function persoHapusSemua(id){
+function persoHapusSemua(id,nama){
   var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
-  var N=persoGet(o);if(!N.daftar.length)return;
+  var N=persoGet(o,nama);if(!N.daftar.length)return;
   if(!confirm('Hapus '+N.daftar.length+' nama dari daftar?'))return;
   N.daftar=[];o._m=Date.now();logHist(o,'Daftar nama personalisasi dikosongkan');save();render();}
-function persoSalin(id){
+function persoSalin(id,nama){
   var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
-  var t=persoGet(o).daftar.map(function(d,i){return (i+1)+'. '+d.nama+(d.catatan?(' — '+d.catatan):'');}).join('\n');
+  var t=persoGet(o,nama).daftar.map(function(d,i){return (i+1)+'. '+d.nama+(d.catatan?(' — '+d.catatan):'');}).join('\n');
   if(!t){alert('Daftar masih kosong.');return;}
   if(navigator.clipboard&&navigator.clipboard.writeText)
-    navigator.clipboard.writeText(t).then(function(){alert('✓ '+persoGet(o).daftar.length+' nama disalin — tinggal tempel ke PO vendor.');},function(){prompt('Salin manual:',t);});
+    navigator.clipboard.writeText(t).then(function(){alert('✓ '+persoGet(o,nama).daftar.length+' nama disalin — tinggal tempel ke PO vendor.');},function(){prompt('Salin manual:',t);});
   else prompt('Salin manual:',t);}
-function persoFont(id,v){
+function persoFont(id,nama,v){
   var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
-  persoGet(o).font=v;o._m=Date.now();save();}
+  persoGet(o,nama).font=v;o._m=Date.now();save();}
 /* ================= MEMBACA .XLSX LANGSUNG =================
    .xlsx itu berkas ZIP berisi XML. Dibuka tanpa pustaka luar:
    ZIP-nya dibongkar sendiri, isinya di-inflate pakai DecompressionStream
@@ -5768,7 +5798,7 @@ function persoLembarTerbaik(lembar){
   return besar;}
 /* Satu kotak untuk semua impor: pilih lembar, pilih kolom, lihat contohnya,
    baru masuk. Tanpa ini, berkas tamu yang kolomnya banyak gampang salah ambil. */
-function persoKotakImpor(o,lembar,berkas){
+function persoKotakImpor(o,nama,lembar,berkas){
   var pilih={l:0,n:0,c:-1};
   var ov=document.createElement('div');
   ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:70;display:flex;align-items:center;justify-content:center;padding:18px';
@@ -5822,26 +5852,26 @@ function persoKotakImpor(o,lembar,berkas){
     if(a!=='ok')return;
     var L=lembar[pilih.l], baru=persoDariKolom(L.baris,pilih.n,pilih.c);
     if(!baru.length)return;
-    var N=persoGet(o);
+    var N=persoGet(o,nama);
     if(N.daftar.length&&!confirm('Ganti '+N.daftar.length+' nama yang ada dengan '+baru.length+' nama dari '+berkas+'?'))return;
-    persoSimpanDaftar(o,baru,berkas+(lembar.length>1?(' — lembar '+L.nama):''));
+    persoSimpanDaftar(o,nama,baru,berkas+(lembar.length>1?(' — lembar '+L.nama):''));
     ov.remove();});}
 
-function persoBlok(o){
-  var N=persoGet(o),q=persoQty(o),n=N.daftar.length;
+function persoBlok(o,nama){
+  var N=persoGet(o,nama),q=persoQty(o),n=N.daftar.length;
   var beda=n-q, warna=(!n?'var(--muted)':beda===0?'var(--ok)':'var(--warn)');
   var hit={},dupK={};N.daftar.forEach(function(d){var k=d.nama.toLowerCase();if(hit[k])dupK[k]=1;hit[k]=1;});
   var dobel=[];N.daftar.forEach(function(d){if(dupK[d.nama.toLowerCase()]&&dobel.indexOf(d.nama)<0)dobel.push(d.nama);});
   var kepala='<div style="display:flex;flex-wrap:wrap;gap:9px;align-items:center;margin-bottom:7px">'+
     '<label style="font-size:11px;font-weight:700;display:flex;align-items:center;gap:7px;cursor:pointer">'+
       '<input type="checkbox" '+(N.perPcs?'checked':'')+' style="width:auto;accent-color:var(--brand)" '+
-        'onchange="persoTogglePcs(\'' + o.id + '\',this.checked)"> Tiap pcs beda nama</label>'+
+        'onchange="persoTogglePcs('+jsArg(o.id)+','+jsArg(nama||'')+',this.checked)"> Tiap pcs beda nama</label>'+
     (N.perPcs?('<span style="font-size:10px;color:var(--muted)">daftar nama wajib lengkap sebelum plate dipesan</span>'):'')+
     '</div>';
   if(!N.perPcs)
     return kepala+'<div style="font-size:10px;color:var(--muted);margin-bottom:11px">Centang kalau tiap pcs dipersonalisasi berbeda '+
       '(nama tamu, inisial). Kalau logonya sama semua, biarkan kosong.</div>';
-  var isi=batasKe('perso'+o.id,N.daftar,6,20).map(function(d,i){
+  var isi=batasKe('perso'+o.id+String(nama||''),N.daftar,6,20).map(function(d,i){
     return '<tr><td class="num" style="width:34px;color:var(--muted)">'+(i+1)+'</td>'+
       '<td><b>'+esc(d.nama)+'</b>'+(dupK[d.nama.toLowerCase()]?' <span style="color:var(--warn);font-size:9.5px;font-weight:800">\u26a0 dobel</span>':'')+'</td>'+
       '<td style="color:var(--muted)">'+esc(d.catatan||'')+'</td></tr>';}).join('');
@@ -5855,17 +5885,17 @@ function persoBlok(o){
       (dobel.length?('<span style="font-size:10.5px;font-weight:800;color:var(--warn)">\u26a0 nama dobel: '+
         esc(dobel.slice(0,3).join(', '))+(dobel.length>3?(' +'+(dobel.length-3)):'')+'</span>'):'')+
       '<span style="margin-left:auto;display:flex;gap:6px;flex-wrap:wrap">'+
-        '<button class="btn sm" onclick="persoTempel(\'' + o.id + '\')">\ud83d\udccb '+(n?'Ubah / tempel ulang':'Tempel daftar nama')+'</button>'+
-        '<button class="btn ghost sm" onclick="persoImpor(\'' + o.id + '\')">\ud83d\udcc1 Impor Excel / CSV</button>'+
-        (n?('<button class="btn ghost sm" onclick="persoUnduh(\'' + o.id + '\')">\u2b07 Unduh untuk Radja</button>'+
-            '<button class="btn ghost sm" onclick="persoSalin(\'' + o.id + '\')">\u29c9 Salin untuk PO</button>'+
-            '<button class="xrow" title="kosongkan daftar" onclick="persoHapusSemua(\'' + o.id + '\')">\u2715</button>'):'')+
+        '<button class="btn sm" onclick="persoTempel('+jsArg(o.id)+','+jsArg(nama||'')+')">\ud83d\udccb '+(n?'Ubah / tempel ulang':'Tempel daftar nama')+'</button>'+
+        '<button class="btn ghost sm" onclick="persoImpor('+jsArg(o.id)+','+jsArg(nama||'')+')">\ud83d\udcc1 Impor Excel / CSV</button>'+
+        (n?('<button class="btn ghost sm" onclick="persoUnduh('+jsArg(o.id)+','+jsArg(nama||'')+')">\u2b07 Unduh untuk Radja</button>'+
+            '<button class="btn ghost sm" onclick="persoSalin('+jsArg(o.id)+','+jsArg(nama||'')+')">\u29c9 Salin untuk PO</button>'+
+            '<button class="xrow" title="kosongkan daftar" onclick="persoHapusSemua('+jsArg(o.id)+','+jsArg(nama||'')+')">\u2715</button>'):'')+
       '</span></div>'+
     '<label style="font-size:10px;font-weight:700;color:var(--muted);display:block;margin-bottom:9px">Font / tipografi'+
       '<br><input class="pin" style="width:220px;margin-top:3px" value="'+esc(N.font||'')+
-      '" placeholder="mis. Didot italic, tinggi 4mm" onchange="persoFont(\'' + o.id + '\',this.value)"></label>'+
+      '" placeholder="mis. Didot italic, tinggi 4mm" onchange="persoFont('+jsArg(o.id)+','+jsArg(nama||'')+',this.value)"></label>'+
     (n?('<div class="xscroll"><table class="rtable"><thead><tr><th style="width:34px">#</th><th>Nama</th><th>Catatan</th></tr></thead>'+
-        '<tbody>'+isi+'</tbody></table></div>'+batasBtn('perso'+o.id,n,6,20))
+        '<tbody>'+isi+'</tbody></table></div>'+batasBtn('perso'+o.id+String(nama||''),n,6,20))
       :'<div style="border:1px dashed var(--warn);border-radius:9px;padding:11px 13px;font-size:10.5px;color:var(--warn)">'+
        'Daftar nama belum ada. Minta ke client (biasanya spreadsheet), lalu impor berkas .xlsx / .csv-nya, atau tempel isinya \u2014 jumlahnya langsung dicocokkan dengan qty pesanan.</div>')+
     '<div style="height:11px"></div>';}
@@ -8149,7 +8179,7 @@ const PH_CHECK=[
   /* Logo ditanyakan di sini, bukan nanti di Sketch. Kotaknya memang sudah
      ada di panel Brief; yang dulu tak ada cuma yang menagihnya. Tak wajib di
      sini — di Sketch barulah menahan fase. */
-  {auto:function(o){return (((o.brief||{}).logoFiles)||[]).length>0;}, k:'logoCl', t:'Kalau client punya logo, minta file vektornya (.ai / .eps)', en:'If the client has a logo, ask for the vector file (.ai / .eps)', guna:'tak wajib — logonya bisa saja dibuat tim Rove sendiri. Kalau client memang punya, meminta sekarang membuat Creative tak menunggu di fase Sketch', gunaEn:'not required — the logo may be made by the Rove team. If the client does have one, asking now means Creative does not wait at Sketch', pic:'Sales'},
+  {auto:function(o){return adaLogoFile(o);}, k:'logoCl', t:'Kalau client punya logo, minta file vektornya (.ai / .eps)', en:'If the client has a logo, ask for the vector file (.ai / .eps)', guna:'tak wajib — logonya bisa saja dibuat tim Rove sendiri. Kalau client memang punya, meminta sekarang membuat Creative tak menunggu di fase Sketch', gunaEn:'not required — the logo may be made by the Rove team. If the client does have one, asking now means Creative does not wait at Sketch', pic:'Sales', jika:'adaLogo'},
   {auto:function(o){var b=o.brief||{};
     /* kolom lama sudah dibuang — yang berlaku letak per jasa; isian lama dan
        acuan gambar tetap dihitung */
@@ -8259,7 +8289,7 @@ const PH_CHECK=[
    k:'quoAcc', t:'Tandai Approved begitu client menyetujui penawaran', en:'Mark Approved as soon as the client accepts the quotation', guna:'supaya penawaran tak menggantung tanpa jawaban', gunaEn:'so the offer does not hang unanswered', pic:'Sales', w:true}
  ],
  [ // 6 Sketch
-  {auto:function(o){return (((o.brief||{}).logoFiles)||[]).length>0;}, k:'logoCl', t:'Logo siap dipakai — dari client, atau dibuat Creative', en:'Logo ready to use — from the client, or made by Creative', guna:'Creative tak bisa mulai tanpa logonya. Dari mana asalnya tak jadi soal: kalau client tak punya, Creative yang membuatnya lalu mengunggahnya di sini', gunaEn:'Creative cannot start without it. The source does not matter: if the client has none, Creative makes it and uploads it here',pic:'Creative',    w:true},
+  {auto:function(o){return adaLogoFile(o);}, k:'logoCl', t:'Logo siap dipakai — dari client, atau dibuat Creative', en:'Logo ready to use — from the client, or made by Creative', guna:'Creative tak bisa mulai tanpa logonya. Dari mana asalnya tak jadi soal: kalau client tak punya, Creative yang membuatnya lalu mengunggahnya di sini', gunaEn:'Creative cannot start without it. The source does not matter: if the client has none, Creative makes it and uploads it here',pic:'Creative',    w:true, jika:'adaLogo'},
   {auto:function(o){var b=o.brief||{};
     /* kolom lama sudah dibuang — yang berlaku letak per jasa; isian lama dan
        acuan gambar tetap dihitung */
@@ -8273,7 +8303,9 @@ const PH_CHECK=[
   {auto:function(o){return !(o.coll||{}).pouch||(((o.brief||{}).logoPouchFiles)||[]).length>0;}, k:'logoPch', t:'Siapkan logo untuk soft pouch', en:'Prepare the logo for the soft pouch', guna:'supaya pouch tak dicetak polos', gunaEn:'so the pouch is not printed blank',            pic:'Creative', w:true},
   {auto:function(o){return !(o.coll||{}).box||(((o.brief||{}).logoBoxFiles)||[]).length>0;}, k:'logoBox', t:'Siapkan logo untuk box', en:'Prepare the logo for the box', guna:'supaya box tak dicetak polos', gunaEn:'so the box is not printed blank',                   pic:'Creative', w:true},
   {auto:function(o){return !(o.coll||{}).card||(((o.brief||{}).logoCardFiles)||[]).length>0;}, k:'logoCard', t:'Siapkan logo untuk thank you card', en:'Prepare the logo for the thank you card', guna:'supaya kartu tak dicetak tanpa logo', gunaEn:'so the card is not printed without a logo',        pic:'Creative'},
-  {auto:function(o){var N=persoGet(o);return N.daftar.length>0&&N.daftar.length===persoQty(o);}, k:'daftarNama', t:'Minta daftar nama tamu, cocokkan jumlahnya dengan qty', en:'Ask for the guest name list, match the count against the qty', guna:'supaya tak ada pcs yang tercetak tanpa nama', gunaEn:'so no piece is produced without a name', pic:'Sales', w:true, jika:'perPcs'},
+  {auto:function(o){var q=persoQty(o);
+     var L=persoSemua(o).filter(function(x){return x.N.perPcs;});
+     return L.length>0&&L.every(function(x){return x.N.daftar.length===q;});}, k:'daftarNama', t:'Minta daftar nama tamu, cocokkan jumlahnya dengan qty', en:'Ask for the guest name list, match the count against the qty', guna:'supaya tak ada pcs yang tercetak tanpa nama', gunaEn:'so no piece is produced without a name', pic:'Sales', w:true, jika:'perPcs'},
   {auto:function(o){return (((o.brief||{}).previewFiles)||[]).length>0;}, k:'preview', t:'Buat preview desain lalu kirim ke client', en:'Make the design preview and send it to the client', guna:'supaya client melihat hasilnya sebelum produksi jalan', gunaEn:'so the client sees it before production starts',  pic:'Creative', w:true}
  ],
  [ // 7 Menunggu approval sketsa
@@ -8354,6 +8386,10 @@ function chkBerlaku(o,it){
      master) tak memakai operator Rove sama sekali, dan gerbangnya dulu menuntut
      daftar operator untuk acara yang memang tak punya */
   if(it.jika==='live')return orderPakaiOperator(o);
+  /* urusan logo hanya untuk order yang memakainya: ada personalisasi, ada
+     kemasan, atau lampiran lamanya memang berisi */
+  if(it.jika==='adaLogo')return liveList(o.svc).length>0||
+    ['box','pouch','card'].some(function(k){return (o.coll||{})[k];})||adaLogoFile(o);
   if(it.jika==='adaJasa')return (liveList(o.liveSvc).length+liveList(o.svc).length)>0;
   if(it.jika==='coll')return ['box','pouch','card'].some(function(k){return (o.coll||{})[k];});
   /* cuma order yang lahir dari prospek bercatatan yang perlu diterjemahkan */
@@ -13211,7 +13247,11 @@ function logoSamaBisa(o){
 function logoSamakan(id){
   var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
   var b=briefGet(o),src=b.logoFiles||[];
-  if(!src.length){alert('Lampirkan dulu logo client-nya — itu yang akan disalin ke tiap kemasan.');return;}
+  if(!src.length){
+    /* sumber barunya lampiran per jasa - ambil yang pertama berisi */
+    try{liveList(o.svc).some(function(n){var f=b[svcSlot(n)]||[];if(f.length){src=f;return true;}return false;});}catch(e){}
+  }
+  if(!src.length){alert('Lampirkan dulu logonya di salah satu personalisasi - itu yang akan disalin ke tiap kemasan.');return;}
   var slot=logoSlotKemasan(o);
   if(!slot.length){alert('Order ini tak memesan kemasan, jadi tak ada logo kemasan yang perlu disamakan.');return;}
   var isi=slot.filter(function(x){return (b[x[1]]||[]).length;});
@@ -13601,17 +13641,22 @@ function briefPanel(o){
     sub('PERSONALIZATION','dikerjakan di workshop pada produknya — initial, full name, logo')+
     salesPita(o,'perso')+
     ordSvcEditor(o,'Service')+
-    /* file induk logo client: tampil hanya kalau ada pemakainya — ada
-       personalisasi, atau ada kemasan yang akan mencetaknya */
-    ((liveList(o.svc).length>0||['box','pouch','card'].some(function(k){return (o.coll||{})[k];}))
-      ?lampiranBlok(o,'logoFiles','Logo client')
+    /* Logo, acuan, dan daftar nama menempel di jasanya masing-masing di atas.
+       Dua blok lampiran umum yang dulu di sini dibuang - fungsi ganda; yang
+       lama ditampilkan hanya kalau memang masih berisi. */
+    ((briefGet(o).logoFiles||[]).length
+      ?lampiranBlok(o,'logoFiles','Logo client - lampiran lama, pindahkan ke jasanya')
       :'')+
     (String(((o.brief||{}).logoLetak)||'').trim()&&(o.svc||[]).length!==1
       ?('<div style="font-size:9.5px;color:var(--muted);margin:-3px 0 9px">Catatan peletakan lama: '+
-        esc((o.brief||{}).logoLetak)+' — pindahkan ke kolom "Diletakkan di" jasa yang tepat.</div>')
+        esc((o.brief||{}).logoLetak)+' - pindahkan ke kolom "Diletakkan di" jasa yang tepat.</div>')
       :'')+
-    lampiranBlok(o,'persoFiles','Acuan personalisasi')+
-    persoBlok(o)+
+    ((briefGet(o).persoFiles||[]).length
+      ?lampiranBlok(o,'persoFiles','Acuan personalisasi - lampiran lama, pindahkan ke jasanya')
+      :'')+
+    (persoGet(o).perPcs||persoGet(o).daftar.length
+      ?('<div style="font-size:9.5px;color:var(--muted);margin:0 0 4px">Daftar nama lama (belum menempel di jasa):</div>'+persoBlok(o,''))
+      :'')+
 
     sub('PACKAGING')+
     briefPackBlok(o)+
@@ -13776,7 +13821,10 @@ function ordSvcEditor(o,hanya){
            yang berbeda, jadi filenya menempel di jasanya, bukan satu untuk
            semua */
         (jenis==='Service'
-          ?('<div style="margin:0 0 9px 37px">'+lampiranBlok(o,svcSlot(n),'Logo / acuan untuk jasa ini')+'</div>')
+          ?('<div style="margin:0 0 9px 37px">'+lampiranBlok(o,svcSlot(n),'Logo / acuan untuk jasa ini')+
+            /* daftar nama juga milik jasa INI - inisial dan full name dua
+               daftar yang berbeda */
+            persoBlok(o,n)+'</div>')
           :'');}).join('');}).join('');
   var datalist='<datalist id="letaksaran">'+LETAK_SARAN.map(function(x){return '<option value="'+esc(x)+'">';}).join('')+'</datalist>';
   /* Pembatasan berlaku untuk SELURUH order, bukan untuk blok ini saja —
