@@ -506,7 +506,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20260828-163857';
+const VERSI='20260828-165819';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -13285,8 +13285,9 @@ function lampiranBlok(o,slot,judul){
           return '<div style="display:flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:8px;padding:4px 7px;background:var(--bg)">'+
             (gbr?'<img src="'+f.data+'" style="width:26px;height:26px;object-fit:cover;border-radius:4px;cursor:zoom-in" onclick="lampiranBuka(\''+o.id+'\',\''+slot+'\','+i+')">'
                 :'<span style="font-size:14px;cursor:pointer" onclick="lampiranBuka(\''+o.id+'\',\''+slot+'\','+i+')">📄</span>')+
-            '<span style="font-size:10px;cursor:pointer" onclick="lampiranBuka(\''+o.id+'\',\''+slot+'\','+i+')">'+esc(f.nama)+
-              '<span style="color:var(--muted)"> · '+f.kb+' KB</span></span>'+
+            '<span style="font-size:10px;cursor:pointer" onclick="lampiranBuka(\''+o.id+'\',\''+slot+'\','+i+')">'+esc(f.nama||f.n||'lampiran')+
+              /* berkas dari seed/cloud lama bisa tanpa ukuran — jangan cetak "undefined KB" */
+              (f.kb?('<span style="color:var(--muted)"> · '+f.kb+' KB</span>'):'')+'</span>'+
             '<button class="xrow" onclick="lampiranDel(\''+o.id+'\',\''+slot+'\','+i+')">✕</button></div>';}).join('')+'</div>'
       : '<div style="font-size:9.5px;color:var(--muted)">belum ada lampiran</div>')+
     '</div>';}
