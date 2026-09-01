@@ -504,7 +504,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20260901-151848';
+const VERSI='20260901-152405';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -10398,6 +10398,38 @@ function konfHargaBaris(l){
   if(p&&p.t&&p.t.length){var c=catPriceT(p.t,l.qty||0);if(c>0)return c;}
   return 0;}
 function konfDitanya(g){return g.baris.every(function(x){return !!(x.l.konfTanya&&x.l.konfTanya.tgl);});}
+/* Satu produk boleh dipesan beberapa warna/artikel kulit (mis. 25 biru +
+   25 merah, boleh tiga). Barisnya DIBELAH: tiap bagian jadi baris sendiri
+   dengan qty, kulit, dan harga masing-masing — RFQ, konfirmasi, dan PO
+   membacanya seperti baris biasa. */
+function bagiWarna(id,i){
+  var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
+  var L=((o.pricing||{}).lines)||[],l=L[i];if(!l)return;
+  var q=+l.qty||0;if(q<2){alert('Qty barisnya cuma '+q+' — tak ada yang bisa dibagi.');return;}
+  var f=[];
+  [[1,Math.ceil(q/2)],[2,Math.floor(q/2)],[3,0]].forEach(function(pr){
+    f.push({k:'w'+pr[0],label:'Warna / artikel '+pr[0],type:'text',val:'',
+      ph:pr[0]===3?'kosongkan kalau cuma 2 bagian':'mis. Biru · Pull Up Navy'});
+    f.push({k:'q'+pr[0],label:'Qty bagian '+pr[0],type:'text',val:String(pr[1]||'')});});
+  askForm({judul:'Bagi per warna — '+(l.produk||'item'),
+    sub:'Total '+q+' pcs. Tiap bagian jadi baris sendiri — kulitnya dipilih per baris, harganya juga per baris.',
+    fields:f,
+    ok:function(v){
+      var parts=[1,2,3].map(function(n){return {w:String(v['w'+n]||'').trim(),q:Math.max(0,parseInt(v['q'+n],10)||0)};})
+        .filter(function(pr){return pr.q>0;});
+      if(parts.length<2){alert('Isi minimal dua bagian ber-qty.');return;}
+      var tot=parts.reduce(function(a2,pr){return a2+pr.q;},0);
+      if(tot!==q&&!confirm('Jumlah bagian '+tot+' pcs ≠ qty baris '+q+' pcs. Lanjutkan dengan '+tot+' pcs?'))return;
+      var klon=parts.map(function(pr){
+        var c=JSON.parse(JSON.stringify(l));
+        c.qty=pr.q;
+        if(pr.w)c.detail='warna/artikel: '+pr.w+(c.detail?(' · '+c.detail):'');
+        /* harga per warna bisa beda — konfirmasi lama tak boleh terbawa */
+        delete c.konf;delete c.konfTanya;
+        return c;});
+      L.splice.apply(L,[i,1].concat(klon));
+      logHist(o,'⑂ '+(l.produk||'item')+' dibagi: '+parts.map(function(pr){return pr.q+' pcs '+(pr.w||'(tanpa nama)');}).join(' + '));
+      o._m=Date.now();save();render();}});}
 /* Jawaban vendor untuk baris berharga master: harganya boleh berubah (Radja
    update) — dicatat di sini, baris langsung terhitung dikonfirmasi. */
 function konfJawab(id,i){
@@ -12042,6 +12074,9 @@ function rfqPanel(o){
                     : ('<div style="font-size:9px;color:var(--warn);font-weight:700">tanpa teknik — isi di Master Product → Jasa</div>'))
                 : (l.bahan?('<div style="font-size:9px;color:var(--muted)">'+esc(l.bahan)+'</div>'):''))+
               '<div style="margin-top:4px;max-width:230px">'+rfqVendorSel(o,l,x.i)+'</div>'+
+              ((lineJenis(l)==='produk'&&(l.qty||0)>1)
+                ?('<button class="btn ghost sm" style="margin-top:4px;font-size:9px" title="mis. 25 biru + 25 merah — tiap bagian jadi baris sendiri" onclick="bagiWarna('+jsArg(o.id)+','+x.i+')">⑂ Bagi per warna / artikel</button>')
+                :'')+
               ((l.rfq&&l.rfq.note)?('<div style="font-size:9px;color:var(--muted);margin-top:3px">catatan vendor: '+esc(l.rfq.note)+'</div>'):'')+'</td>'+
             '<td class="num" style="width:52px;vertical-align:top;border-bottom:none;font-size:10.5px">'+esc(poQtyTeks(l)).replace(' ','<br>')+'</td>'+
             '<td style="width:150px;vertical-align:top;border-bottom:none">'+
@@ -12077,10 +12112,11 @@ function rfqPanel(o){
         (v?('<div style="display:flex;gap:7px;flex-wrap:wrap;align-items:center;border-top:1px dashed var(--line);margin-top:8px;padding-top:9px">'+
           (perlu.length
             ? (diserah
-                ? ('<span style="font-size:9.5px;color:var(--muted)">✋ diserahkan '+tglID(perlu[0].l.rfq.minta)+' — catat jawabannya lewat tombol ✓ di barisnya</span>')
+                ? ('<span style="font-size:9.5px;color:var(--muted)">'+(vendorLewatDiscord(o,v)?(MAILX+' dikirim ke Discord '):'✋ diserahkan ')+tglID(perlu[0].l.rfq.minta)+' — catat jawabannya lewat tombol ✓ di barisnya</span>')
                 : ('<button class="btn ghost sm" onclick="genRfqDoc('+jsArg(o.id)+','+jsArg(v)+')">📄 Dokumen'+
                    (perlu.length>1?(' ('+perlu.length+' item)'):'')+'</button>'+
-                   '<button class="btn sm" title="tandai sudah diminta &amp; kabari Purchasing lewat Discord" onclick="rfqSerah('+jsArg(o.id)+','+jsArg(v)+')">✋ Serahkan ke Purchasing</button>'))
+                   '<button class="btn sm" onclick="rfqSerah('+jsArg(o.id)+','+jsArg(v)+')">'+
+                   (vendorLewatDiscord(o,v)?(MAILX+' Kirim ke Discord'):'✋ Serahkan ke Purchasing')+'</button>'))
             : '')+
           (((o.rfqDoc||{})[v])?('<span style="font-size:9.5px;color:var(--muted)">📄 dokumen '+esc(o.rfqDoc[v])+'</span>'):'')+
           (master.length
@@ -12867,6 +12903,13 @@ function vendorChannel(nama){
 function vendorTujuan(o,vendor){
   var ch=vendorChannel(vendor);
   return ch?{ch:ch,keVendor:true}:{ch:chName(o),keVendor:false};}
+/* Vendor yang dihubungi lewat Discord — punya channel sendiri, atau Radja:
+   Radja memang di Discord (kategori radja di channel order), bukan WhatsApp,
+   jadi PM mengirim langsung tanpa mampir ke Purchasing. */
+var MAILX='📨';
+function vendorLewatDiscord(o,vendor){
+  try{if(vendorTujuan(o,vendor).keVendor)return true;}catch(e){}
+  return /radja/i.test(String(vendor||''));}
 /* Tiap vendor dihubungi dengan caranya sendiri. Yang punya channel Discord
    dikirimi ke sana; sisanya lewat WhatsApp — dan itu bukan kekurangan yang
    perlu ditegur, itu memang caranya. */
@@ -12875,6 +12918,9 @@ function tujuanTeks(t,live,vendor){
   if(t.keVendor)
     return live?('Terkirim ke channel <b>#'+esc(t.ch)+'</b>, dan tersalin ke clipboard kalau perlu ditempel lagi.')
                :('Mode live belum menyala — pesannya tak dikirim ke <b>#'+esc(t.ch)+'</b>, cuma disalin ke clipboard.');
+  if(/radja/i.test(String(vendor||'')))
+    return 'Radja dihubungi lewat <b>Discord</b> — pesannya masuk ke channel order (kategori Radja)'+
+      (live?'.':' begitu mode live menyala; sekarang teksnya tersalin ke clipboard.');
   if(hp)
     return 'Vendor ini dihubungi lewat <b>WhatsApp</b> — teksnya tersalin, tinggal tempel di chatnya '+
       'lewat tombol di atas.'+(live?(' Salinannya juga masuk ke channel order (<b>#'+esc(t.ch)+'</b>) sebagai catatan.'):'');
@@ -14803,10 +14849,15 @@ function rfqSerah(id,vendor){
     'Baris yang harganya sudah ada dari master tak ikut ditanyakan — untuk itu pakai '+
     'tombol "✓ Harga masih berlaku".');return;}
   var ulang=L.every(function(l){return l.rfq&&l.rfq.minta;});
-  if(!confirm((ulang?'Serahkan ULANG ':'Serahkan ')+'permintaan harga '+vendor+' ke Purchasing?'+
-    String.fromCharCode(10)+String.fromCharCode(10)+
-    L.length+' baris ditandai sudah diminta, dan pesannya masuk ke Discord. '+
-    'Purchasing yang menyimpan PDF-nya lalu meneruskan ke vendor.'))return;
+  var langsung=vendorLewatDiscord(o,vendor);
+  if(!confirm(langsung
+    ? ('Kirim permintaan harga '+vendor+' langsung ke Discord?'+
+       String.fromCharCode(10)+String.fromCharCode(10)+
+       L.length+' baris ditandai sudah diminta. Jawabannya dicatat lewat tombol ✓ di barisnya.')
+    : ((ulang?'Serahkan ULANG ':'Serahkan ')+'permintaan harga '+vendor+' ke Purchasing?'+
+       String.fromCharCode(10)+String.fromCharCode(10)+
+       L.length+' baris ditandai sudah diminta, dan pesannya masuk ke Discord. '+
+       'Purchasing yang menyimpan PDF-nya lalu meneruskan ke vendor.')))return;
   var teks=rfqSerahTeks(o,vendor,'purchasing');
   var teksVendor=rfqSerahTeks(o,vendor,'vendor');
   L.forEach(function(l){
@@ -14816,7 +14867,11 @@ function rfqSerah(id,vendor){
   /* ke channel vendornya kalau ada; kalau tidak, ke channel order — dan
      Purchasing disebut supaya tahu bola ada di dia */
   var tuj=vendorTujuan(o,vendor);
-  var pesan='✋ '+picMention('Purchasing')+' — tolong teruskan ke '+vendor+String.fromCharCode(10)+String.fromCharCode(10)+teks;
+  /* Radja: langsung ke Discord order (kategori Radja) — tanpa menyuruh
+     Purchasing meneruskan; vendor WhatsApp tetap lewat Purchasing */
+  var pesan=langsung&&!tuj.keVendor
+    ? (teksVendor)
+    : ('✋ '+picMention('Purchasing')+' — tolong teruskan ke '+vendor+String.fromCharCode(10)+String.fromCharCode(10)+teks);
   if(tuj.keVendor){
     notifyChannel(tuj.ch,teksVendor);
     /* Purchasing tetap dikabari — dialah yang menyimpan PDF-nya dan menjawab
