@@ -506,7 +506,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20260901-110117';
+const VERSI='20260901-111244';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -5343,14 +5343,11 @@ const OPS_GRUP=[
     {s:'warna',   n:'Warna',          c:[['v','Warna']],              b:'Warna'}],
    'Isian bahan di panel Brief tiap order. Artikel kulit per vendor diatur terpisah di Master Product → Kulit.'],
   ['kerja','Pengerjaan',[
-    {s:'perso',   n:'Personalization',c:[['v','Teknik (Deboss Blind/Engrave/Calligraphy/…)']], b:'Teknik'},
     {s:'finreq',  n:'Finishing request',c:[['v','Finishing']],        b:'Finishing'},
     {s:'stitch',  n:'Stitch technique',c:[['v','Teknik jahitan']],    b:'Teknik jahitan'}],
-   'Cara barangnya dikerjakan — teknik personalisasi, finishing, dan jahitan. '+
-   'Daftar Personalization di sini = KAMUS teknik tanpa harga: dipakai dropdown bebas '+
-   'saat sebuah jasa belum dikunci. Teknik yang BERHARGA (dan kotak centang '+
-   '“Teknik yang boleh” untuk mengunci per jasa) diatur di Master Product → Jasa, '+
-   'baris berjenis Teknik.'],
+   'Finishing dan jahitan. Teknik personalisasi TIDAK di sini lagi — semuanya '+
+   '(nama, harga, dan kunci “Teknik yang boleh” per jasa) di satu tempat: '+
+   'Master Product → Jasa, baris berjenis Teknik.'],
   ['mitra','Mitra & keuangan',[
     {s:'bank', n:'Bank',        c:[['v','Nama bank']],      b:'Bank'},
     {s:'vtipe',n:'Tipe vendor', c:[['v','Tipe vendor']],    b:'Tipe vendor'},
@@ -5402,7 +5399,11 @@ function teknikKatalog(){return jasaAll().filter(function(x){return x.jenis==='T
 function teknikNama(){return teknikKatalog().map(function(x){return x.nama;});}
 function teknikData(nama){
   var n=String(nama||'').trim();
-  return teknikKatalog().filter(function(x){return x.nama===n;})[0]||null;}
+  var m=teknikKatalog().filter(function(x){return x.nama===n;});
+  if(!m.length)return null;
+  /* leburan kamus lama bisa meninggalkan kembaran tanpa harga — yang berharga
+     yang dipercaya */
+  return m.filter(function(x){return (+x.fix||0)>0||(+x.harga||0)>0;})[0]||m[0];}
 /* Daftar teknik yang boleh dipakai satu jasa. Ditulis dipisah koma di Master. */
 /* ============ MENGUNCI TEKNIK SEBUAH JASA ============
    Sejak teknik selalu bisa dipilih, jasa yang belum dikunci menawarkan SEMUA
@@ -5927,7 +5928,12 @@ function persoBlok(o,nama){
        'Daftar nama belum ada. Minta ke client (biasanya spreadsheet), lalu impor berkas .xlsx / .csv-nya, atau tempel isinya \u2014 jumlahnya langsung dicocokkan dengan qty pesanan.</div>')+
     '<div style="height:11px"></div>';}
 
-function persoVals(){return listArr('perso');}
+/* SATU sumber untuk daftar teknik: baris berjenis "Teknik" di Master → Jasa —
+   tempat harganya juga hidup. Dulu ada kamus kedua di Opsi form (nama saja,
+   tanpa harga); dua daftar untuk satu hal, dan orang harus tahu bedanya. */
+function persoVals(){
+  var t=teknikNama();
+  return t.length?['-'].concat(t):listArr('perso');}
 function vendorNames(){return ((ST.master&&ST.master.vendors)||[]).map(function(v){return v.nama;}).filter(Boolean);}
 /* Baris pricing untuk tiap kemasan yang diminta + tiap jasa yang dipilih.
    Dipanggil waktu order lahir DAN tiap kali kemasan/jasa berubah — barisnya
@@ -6129,7 +6135,10 @@ function jasaTerapkanTeknik(o){
     if(tk&&l.perso!==tk&&!l._persoManual){l.perso=tk;ubah++;}
     if(l._hppManual||(l.rfq&&l.rfq.minta))return;
     var H=tk?teknikHarga(tk,l.qty||0):null;
-    if(!H)return;
+    /* teknik yang cuma NAMA (hasil leburan kamus, belum diberi harga) tak
+       boleh menandai barisnya sebagai harga-katalog — kalau iya, baris itu
+       lolos dari antrean tanya-vendor dengan HPP nol */
+    if(!H||(!(H.perPc>0)&&!(H.fix>0)))return;
     if((+l.hpp||0)!==H.perPc){l.hpp=H.perPc;ubah++;}
     if((+l.hppFix||0)!==H.fix){l.hppFix=H.fix;ubah++;}
     /* harga dari katalog: dipastikan ulang ke vendor, bukan ditawar dari nol */
@@ -8103,6 +8112,15 @@ function migrasiFaseProfit(){
    dipindah hanya baris yang jelas teknik: datang dari katalog (berharga),
    tak punya teknik sendiri, dan bukan salah satu jasa bawaan. */
 function migrasiTeknikJasa(){
+  /* kamus Personalization lama (Opsi form) dilebur ke sini: tiap namanya jadi
+     baris Teknik kalau belum ada — supaya nilai yang terlanjur dipakai order
+     lama tetap bisa dipilih, dan mulai sekarang harganya pun bisa diisi */
+  try{
+    listArr('perso').forEach(function(n){
+      n=String(n||'').trim();
+      if(!n||n==='-'||jasaAda(n))return;
+      (ST.master.jasa=ST.master.jasa||[]).push({nama:n,jenis:'Teknik',teknik:'-',fix:0,harga:0,vendor:''});});
+  }catch(e){}
   var M=ST.master;if(!M||!Array.isArray(M.jasa))return 0;
   var bawaan={};defJasa().forEach(function(j){bawaan[j.nama]=1;});
   var n=0;
@@ -12024,7 +12042,7 @@ function priceInput(el){
          mengubah harganya, kalau tidak angkanya milik teknik yang lama */
       if(l.jasa&&teknikData(el.value)){
         var Hp=teknikHarga(el.value,l.qty||0);
-        if(Hp&&!l._hppManual){l.hpp=Hp.perPc;l.hppFix=Hp.fix;l.fixed=true;}
+        if(Hp&&(Hp.perPc>0||Hp.fix>0)&&!l._hppManual){l.hpp=Hp.perPc;l.hppFix=Hp.fix;l.fixed=true;}
         if(!o.svcTeknik)o.svcTeknik={};
         o.svcTeknik[namaJasaBaris(l)]=el.value;}}
     if(['produk','bahan','tali','ukuran','finishing','qty','sumber'].indexOf(f)>=0)kombIsiHpp(o,l);}
