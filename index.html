@@ -504,7 +504,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20260901-131130';
+const VERSI='20260901-132414';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -5100,7 +5100,7 @@ function opBentrokTeks(nama,tgl,exceptId){
     return k.join(' · ');});}
 function opSuggest(o,job){ // urut: bisa job → belum diplot → lokasi cocok → nama
   var kota=String(opCity(o)).toLowerCase();
-  return operators().filter(function(op){return op.aktif!==false&&opCanJob(op,job);})
+  return operators().filter(function(op){return op.aktif!==false&&opCanJob(op,job)&&opBisaCocok(op,o);})
     .map(function(op){var bentrok=opPlots(op.nama,o.eventDate,o.id);
       /* dicocokkan dengan mesin yang sama dengan vendor — dulu di sini
          "Nusa Dua" tak dianggap sekota dengan operator ber-lokasi "Denpasar" */
@@ -5159,6 +5159,101 @@ function opLoad(){ // beban kerja tiap operator — biar Event Management lihat 
       return '<tr><td>'+esc(k)+'</td><td class="num">'+v.length+'</td><td style="font-size:10.5px">'+
         v.map(function(x){return (dup[x.t]>1?'<b style="color:#d9534f">':'<span>')+esc(x.t)+' '+esc(x.c)+' ('+esc(x.j)+')'+(dup[x.t]>1?'</b>':'</span>');}).join(' · ')+'</td></tr>';}).join('')+
     '</tbody></table></div><div style="font-size:9.5px;color:var(--muted);margin-top:5px">Merah = tanggal sama dipakai lebih dari satu acara.</div></div>';}
+/* ============ TIM LIVE SERVICE: SKILL, TIM VENDOR & JADWAL ============ */
+function opBisaList(op){return String((op&&op.bisa)||'').split(',').map(function(x){return x.trim();}).filter(Boolean);}
+/* kosong = bisa semua — operator lama tanpa kolom ini tetap tersarankan */
+function opBisaCocok(op,o){
+  var b=opBisaList(op);if(!b.length)return true;
+  var butuh=[];try{butuh=liveList((o&&o.liveSvc)||[]);}catch(e){}
+  if(!butuh.length)return true;
+  return butuh.some(function(n){return b.indexOf(n)>=0;});}
+function opBisaSel(i,r){
+  var L=opBisaList(r);
+  return '<td data-l="Bisa live service apa"><button class="btn ghost sm" style="width:100%;text-align:left;font-size:10px" '+
+    'title="live service yang dia kuasai — saran booking disaring kota + keahlian ini" onclick="opBisaEdit('+i+')">'+
+    (L.length?esc(L.join(', ')):'<span style="color:var(--muted)">semua \u2014 klik untuk memilih</span>')+'</button></td>';}
+function opBisaEdit(i){
+  var op=(ST.master.operator||[])[i];if(!op)return;
+  var ada=opBisaList(op);
+  var semua=jasaAll().filter(function(j){return j.jenis==='Live service';}).map(function(j){return j.nama;});
+  ada.forEach(function(n){if(semua.indexOf(n)<0)semua.push(n);});
+  if(!semua.length){alert('Belum ada jasa Live service di Master Product \u2192 Jasa.');return;}
+  var F=semua.map(function(n,k){return {k:'b'+k,label:'',type:'checkbox',val:ada.indexOf(n)>=0,cbLabel:n};});
+  askForm({judul:'Bisa live service apa \u2014 '+(op.nama||'operator'),
+    sub:'Yang dicentang yang dia kuasai \u2014 saran booking hanya menawarkan operator yang bisa. Tak ada yang dicentang = dianggap bisa semua.',
+    fields:F,ok:function(v){
+      op.bisa=semua.filter(function(n,k){return !!v['b'+k];}).join(', ');
+      stampRow(op);saveMaster();render();}});}
+/* jasa live yang seorang vendor kerjakan \u2014 dari centangan Vendor di tab Jasa */
+function vendorJasaLive(nama){
+  return jasaAll().filter(function(j){return j.jenis==='Live service'&&jasaVendorList(j.nama).indexOf(nama)>=0;})
+    .map(function(j){return j.nama;});}
+/* semua acara live service ber-tanggal ke depan \u2014 bahan jadwal & cek bentrok */
+function jadwalLive(){
+  var today=hariIni();
+  return ST.orders.filter(function(o){
+    if(o.deleted||o.status==='Cancel'||!o.eventDate)return false;
+    if(!(liveList(o.liveSvc||[]).length||((o.event||{}).ops||[]).length))return false;
+    return o.eventDate>=today;})
+    .sort(function(a,b){return a.eventDate<b.eventDate?-1:1;});}
+/* pelaksana sebuah acara: operator yang di-book + tim vendor di baris live.
+   Vendor ikut dihitung ketersediaannya \u2014 tim Mercia cuma satu; kalau tak
+   ikut dicek, dua acara bisa sama-sama mengandalkannya tanpa ada yang sadar. */
+function pelaksanaAcara(o){
+  var P=((o.event||{}).ops||[]).map(function(x){return {nama:x.nama,ket:x.job+(x.fix?' \u00b7 fix':' \u00b7 dipesan'),vendor:false};});
+  (((o.pricing||{}).lines)||[]).forEach(function(l){
+    if(l.jasa!=='Live service'||!l.sumber)return;
+    if(P.some(function(x){return x.nama===l.sumber;}))return;
+    P.push({nama:l.sumber,ket:'tim vendor',vendor:true});});
+  return P;}
+function timVendorBlok(){
+  var V=svcVendors(),today=hariIni();
+  return '<div style="font-size:10.5px;color:var(--muted);margin-bottom:9px"><b>Tim vendor</b> = live service yang disubkontrakkan. '+
+    'Datanya satu sumber di <b>Master data \u2192 Vendors</b> (edit di sana). Kolom "Mengerjakan" otomatis dari centangan Vendor di <b>Master Product \u2192 Jasa</b>. '+
+    'Bayarannya lewat PO vendor, bukan fee operator.</div>'+
+    (V.length?('<div class="xscroll"><table class="rtable"><thead><tr><th style="min-width:140px">Tim</th><th>Kota</th><th>Kontak</th><th>Mengerjakan</th><th>Jadwal terisi</th></tr></thead><tbody>'+
+    V.map(function(v){
+      var jasa=vendorJasaLive(v.nama);
+      var plots=ST.orders.filter(function(o){
+        if(o.deleted||o.status==='Cancel'||!o.eventDate||o.eventDate<today)return false;
+        return (((o.pricing||{}).lines)||[]).some(function(l){return l.jasa==='Live service'&&(l.sumber||'')===v.nama;});});
+      return '<tr><td style="font-weight:700">'+esc(v.nama)+'</td>'+
+        '<td>'+esc(v.kota||'\u2014')+'</td>'+
+        '<td style="font-size:10.5px">'+(esc([v.kontak,v.hp].filter(Boolean).join(' \u00b7 '))||'\u2014')+'</td>'+
+        '<td style="font-size:10.5px">'+(jasa.length?esc(jasa.join(', ')):'<span style="color:var(--warn);font-weight:700">belum dicentang di jasa mana pun</span>')+'</td>'+
+        '<td style="font-size:10.5px">'+(plots.length?plots.map(function(o){return esc(tglID(o.eventDate))+' '+esc(o.customer);}).join(' \u00b7 '):'<span style="color:var(--muted)">kosong</span>')+'</td></tr>';}).join('')+
+    '</tbody></table></div>'):'<div style="color:var(--muted);font-size:11px;padding:6px 0">Belum ada vendor bertipe Live Service di Master data \u2192 Vendors.</div>');}
+function jadwalLiveBlok(){
+  var J=jadwalLive();
+  if(!J.length)return '<div style="color:var(--muted);font-size:11px;padding:6px 0">Belum ada acara live service ber-tanggal ke depan. Tanggal acara diisi di ordernya.</div>';
+  var perTgl={},perOrang={};
+  J.forEach(function(o){(perTgl[o.eventDate]=perTgl[o.eventDate]||[]).push(o);
+    pelaksanaAcara(o).forEach(function(x){var k=o.eventDate+'|'+x.nama;perOrang[k]=(perOrang[k]||0)+1;});});
+  return '<div style="font-size:10.5px;color:var(--muted);margin-bottom:9px">Semua acara live service ke depan, urut tanggal. '+
+    '<b style="color:#d9534f">Merah</b> = bentrok: tanggal &amp; kota sama, atau satu pelaksana dipakai dua acara di tanggal yang sama.</div>'+
+    '<div class="xscroll"><table class="rtable"><thead><tr><th style="width:96px">Tanggal</th><th>Kota / venue</th><th>Client</th><th>Live service</th><th>Pelaksana</th><th style="min-width:130px"></th></tr></thead><tbody>'+
+    J.map(function(o){
+      var samaTgl=perTgl[o.eventDate].filter(function(x){return x.id!==o.id;});
+      var kotaku=String(opCity(o)||'');
+      var samaKota=samaTgl.filter(function(x){var k=String(opCity(x)||'');
+        if(!k||!kotaku)return false;
+        var cocok=false;try{cocok=kotaCocok(kotaku,k)||kotaCocok(k,kotaku);}catch(e){}
+        return cocok||k.toLowerCase()===kotaku.toLowerCase();});
+      var P=pelaksanaAcara(o);
+      var badge=samaKota.length?('<span style="color:#d9534f;font-weight:800">\u26a0 tanggal &amp; kota sama: '+esc(samaKota[0].customer)+'</span>')
+        :(samaTgl.length?('<span style="color:var(--warn);font-weight:700">\u26a0 tanggal sama: '+esc(samaTgl[0].customer)+'</span>'):'');
+      return '<tr>'+
+        '<td style="font-weight:700">'+esc(tglID(o.eventDate))+'</td>'+
+        '<td>'+esc(opCity(o)||'\u2014')+'</td>'+
+        '<td>'+esc(o.customer||'')+'</td>'+
+        '<td style="font-size:10.5px">'+(esc(liveList(o.liveSvc||[]).join(', '))||'\u2014')+'</td>'+
+        '<td style="font-size:10.5px">'+(P.length?P.map(function(x){
+          var dobel=perOrang[o.eventDate+'|'+x.nama]>1;
+          return '<span style="'+(dobel?'color:#d9534f;font-weight:800':'')+'"'+(dobel?' title="dipakai lebih dari satu acara di tanggal ini"':'')+'>'+
+            esc(x.nama)+' <span style="color:var(--muted)">('+esc(x.ket)+')</span></span>';}).join(', ')
+          :'<span style="color:var(--warn);font-weight:700">belum ada \u2014 book di ordernya</span>')+'</td>'+
+        '<td>'+badge+'</td></tr>';}).join('')+
+    '</tbody></table></div>';}
 /* ---- checklist tahapan event (bentuk pengingat) ----
    H = berapa hari sebelum acara langkah itu semestinya beres */
 const EV_STEPS=[
@@ -5385,7 +5480,7 @@ function venTab(v){ST._venTab=v;render();}
 function jasaTab(v){ST._jasaTab=v;render();}
 function shipTab(v){ST._shipTab=v;render();}
 function opTab(v){ST._opTab=v;render();}
-const MSEC=[['users','Users / Akun','akun login staff'],['access','Hak akses','siapa boleh buka apa'],['opts','Opsi form','isi dropdown order'],['customers','Customers','database client'],['vendors','Vendors','daftar vendor & bank'],['produk','Master Product','produk, collateral, jasa'],['operator','Operator','tim live service'],['shipping','Pengiriman','ongkir, kardus, kurs']];
+const MSEC=[['users','Users / Akun','akun login staff'],['access','Hak akses','siapa boleh buka apa'],['opts','Opsi form','isi dropdown order'],['customers','Customers','database client'],['vendors','Vendors','daftar vendor & bank'],['produk','Master Product','produk, collateral, jasa'],['operator','Tim live service','operator internal, tim vendor, jadwal'],['shipping','Pengiriman','ongkir, kardus, kurs']];
 const MSEC_OWNER={customers:['Sales'],vendors:['Purchasing'],produk:['Purchasing','Project Manager'],operator:['Event Management'],shipping:['Packing & Shipping']};
 /* ---- kardus & kurs (dari Cost Estimator / Shipping Calculator) ---- */
 function defKardus(){return [
@@ -6664,7 +6759,7 @@ function renderMaster(){
      var OP=M.operator||[],f=ST._opTab||'tim';
      var kota=[];OP.forEach(function(r){var k=(r.lokasi||'').trim()||'Tanpa kota';if(kota.indexOf(k)<0)kota.push(k);});
      kota.sort(function(a,b){return a.localeCompare(b);});
-     if(['tim','alat','tpl'].indexOf(f)<0&&kota.indexOf(f)<0)f='tim';
+     if(['tim','alat','tpl','vendor','jadwal'].indexOf(f)<0&&kota.indexOf(f)<0)f='tim';
      var dimana=function(r){return (r.lokasi||'').trim()||'Tanpa kota';};
      var idx=[];OP.forEach(function(r,i){if(f==='tim'||dimana(r)===f)idx.push(i);});
      var chip=function(k,l,n){return '<button class="btn '+(f===k?'':'ghost')+' sm" onclick="opTab(\''+esc(k)+'\')">'+
@@ -6674,9 +6769,14 @@ function renderMaster(){
        chip('tim','Semua tim',OP.length)+
        kota.map(function(k){return chip(k,k,OP.filter(function(r){return dimana(r)===k;}).length);}).join('')+
        '<span style="width:1px;background:var(--line);margin:0 3px"></span>'+
+       chip('vendor','Tim vendor',svcVendors().length)+
+       chip('jadwal','Jadwal acara',jadwalLive().length)+
+       '<span style="width:1px;background:var(--line);margin:0 3px"></span>'+
        chip('alat','Alat standar',(M.tools||[]).length)+chip('tpl','Template WA')+'</div>';
      var isi;
-     if(f==='alat')isi=
+     if(f==='vendor')isi=timVendorBlok();
+     else if(f==='jadwal')isi=jadwalLiveBlok();
+     else if(f==='alat')isi=
        '<div style="font-size:10.5px;color:var(--muted);margin-bottom:8px">Jadi <b>template form checklist</b> tiap operator (kolom Keluar / Kembali di tab Live service).</div>'+
        '<div class="xscroll">'+tbl('tools',[['nama','Nama alat'],['qty','Jumlah standar']],M.tools||[])+'</div>'+
        '<button class="btn ghost sm" style="margin-top:9px" onclick="mAdd(\'tools\')">＋ Tambah alat</button>';
@@ -6688,18 +6788,18 @@ function renderMaster(){
        '<button class="btn ghost sm" onclick="evTplReset()">↺ Kembalikan semua ke bawaan</button>';
      else isi=
        '<div style="font-size:10.5px;color:var(--muted);margin-bottom:9px">Tim yang dikirim ke acara. Centang keahliannya — satu orang bisa <b>Stamper</b>, <b>Assist</b>, atau keduanya. Dipakai HUB untuk <b>menyarankan operator</b> di tab Live service (yang sekota &amp; belum diplot di tanggal itu). <b>Tarif</b> ikut sendiri waktu orangnya dipilih — tetap bisa diubah kalau acara itu memang beda.</div>'+
-       (idx.length?('<div class="xscroll"><table class="rtable mstack"><thead><tr><th style="min-width:140px">Nama</th><th style="min-width:110px">Lokasi</th><th style="min-width:130px">No. HP</th><th style="width:104px" class="num">Tarif</th><th style="text-align:center;width:70px">Stamper</th><th style="text-align:center;width:60px">Assist</th><th style="text-align:center;width:55px">Aktif</th><th style="width:120px;font-size:9px">Diubah</th><th style="width:60px"></th></tr></thead>'+
+       (idx.length?('<div class="xscroll"><table class="rtable mstack"><thead><tr><th style="min-width:140px">Nama</th><th style="min-width:110px">Lokasi</th><th style="min-width:130px">No. HP</th><th style="min-width:150px">Bisa live service apa</th><th style="width:104px" class="num">Tarif</th><th style="text-align:center;width:70px">Stamper</th><th style="text-align:center;width:60px">Assist</th><th style="text-align:center;width:55px">Aktif</th><th style="width:120px;font-size:9px">Diubah</th><th style="width:60px"></th></tr></thead>'+
        '<tbody>'+idx.map(function(i){var r=OP[i];return '<tr'+(r._del?' style="opacity:.55;background:var(--warn-bg)"':'')+'>'+
          '<td><input class="pin" value="'+esc(r.nama)+'" onchange="mEdit(\'operator\','+i+',\'nama\',this.value)" placeholder="Nama"></td>'+
          '<td data-l="Lokasi"><input class="pin" value="'+esc(r.lokasi)+'" onchange="mEdit(\'operator\','+i+',\'lokasi\',this.value)" placeholder="Kota"></td>'+
          '<td data-l="No. HP"><input class="pin" value="'+esc(r.hp)+'" onchange="mEdit(\'operator\','+i+',\'hp\',this.value)" placeholder="+62 812-..."></td>'+
-         opTarifSel(i,r)+cek(i,'stamper',r.stamper)+cek(i,'assist',r.assist)+cek(i,'aktif',r.aktif!==false)+
+         opBisaSel(i,r)+opTarifSel(i,r)+cek(i,'stamper',r.stamper)+cek(i,'assist',r.assist)+cek(i,'aktif',r.aktif!==false)+
          '<td data-l="Diubah" style="font-size:9px;color:var(--muted)">'+fmtStamp(r)+'</td>'+actCell('operator',i,r)+'</tr>';}).join('')+
        '</tbody></table></div>')
         :'<div style="color:var(--muted);font-size:11px;padding:6px 0">Belum ada operator di kota ini.</div>')+
        '<button class="btn ghost sm" style="margin-top:9px" onclick="mAdd(\'operator\')">＋ Tambah operator</button>'+
        opLoad();
-     return `<div class="rcard"><h3>Operator live service (${OP.length})</h3>${bar}${isi}</div>`;})(),
+     return `<div class="rcard"><h3>Tim live service</h3>${bar}${isi}</div>`;})(),
    shipping:(function(){
      var S=M.shipping||[],f=ST._shipTab||'ALL';
      var nama=function(r){return (r.ekspedisi||'').trim()||'Tanpa ekspedisi';};
