@@ -352,9 +352,7 @@
     <div class="nav" id="navTax" data-view="tax"><span class="ic">§</span> Pajak<small>tenggat setor &amp; lapor</small></div>
     <div class="nav" data-view="new"><span class="ic">＋</span> Order baru<small>input inquiry dari client</small></div>
     <div id="userbox" style="margin-top:auto;background:var(--hub2);border:1px solid var(--hubline);border-radius:9px;padding:9px 11px;margin-bottom:8px"></div>
-    <div class="foot"><div id="sinkronBadge" style="margin-bottom:7px"></div>Prototype · data lokal (browser).<br>Discord/Trello belum tersambung — hasil muncul setelah trigger.
-      <button id="reset">↺ Muat data contoh</button>
-      <button id="kosong">🗑 Kosongkan order</button></div>
+    <div class="foot"><div id="sinkronBadge" style="margin-bottom:7px"></div>ROVE HUB · Discord/Trello belum tersambung.</div>
   </aside>
 
   <!-- MAIN -->
@@ -506,7 +504,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20260901-111554';
+const VERSI='20260901-111751';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -1884,16 +1882,17 @@ function sesiHapus(k){
 function modeUji(){
   try{return /\.github\.io$/i.test(location.hostname||'');}catch(e){return false;}}
 function pitaUji(){
+  /* Dulu pita merah selebar layar, menempel di bawah selamanya — mengganggu
+     justru orang yang paling sering memakainya. Kini satu baris kecil di kaki
+     sidebar: tetap terbaca, tak menutupi apa pun. */
   if(!modeUji())return;
   if(document.getElementById('pitauji'))return;
+  var f=document.querySelector('.side .foot');if(!f)return;
   var d=document.createElement('div');
   d.id='pitauji';
-  d.style.cssText='position:fixed;left:0;right:0;bottom:0;z-index:99999;background:#7a2418;'+
-    'color:#ffd9d2;font:700 11px/1.5 system-ui,sans-serif;text-align:center;padding:6px 12px;'+
-    'letter-spacing:.3px;border-top:1px solid #a33';
-  d.textContent='MODE UJI — hanya untuk mencoba alur antar PIC. Jangan isi data client, harga, atau gaji yang sebenarnya.';
-  document.body&&document.body.appendChild(d);
-  document.body&&(document.body.style.paddingBottom='30px');}
+  d.style.cssText='margin-top:7px;color:#e0912f;font-size:9px;line-height:1.5;font-weight:700';
+  d.textContent='⚠ Mode uji — isi dengan data karangan saja.';
+  f.appendChild(d);}
 
 /* Fase Profitability disisipkan di indeks 3. Order yang sudah tersimpan
    memakai penomoran lama — tanpa ini, order di Quotation (dulu 3) terbaca
@@ -15083,27 +15082,10 @@ $('#create').onclick=()=>{
   $('#f_status').value='Inquiry';$('#f_reasonwrap').style.display='none';NOL=[];$('#f_catlist').innerHTML='';
   ST.cur=o.id;render();
 };
-/* Hanya mengosongkan ORDER. Prospek, pajak, konten, HR, gudang, dan seluruh
-   master data tak disentuh — ini bukan "mulai bersih", cuma bersih-bersih papan
-   supaya bisa mencoba alur sendiri dari nol. */
-$('#kosong').onclick=()=>{
-  const n=(ST.orders||[]).filter(o=>!o.deleted).length;
-  if(!n){alert('Papan sudah kosong.');return;}
-  if(!confirm('Kosongkan '+n+' order dari papan?\n\nYang TIDAK ikut terhapus: prospek, pajak, konten, karyawan, gudang, dan seluruh master data (vendor, katalog, akun, tarif ongkir).\n\nData contoh bisa dimuat lagi lewat tombol di atasnya.'))return;
-  setPurgeTs(Date.now()-1000);   // order lama di cloud tak boleh hidup lagi lewat sinkronisasi
-  ST.orders=[];localStorage.setItem(KEY,'[]');
-  ST.cur=null;ST.view='board';ST._omTab='board';render();
-  if((ST.cfg||{}).live&&(ST.cfg||{}).url)pushCloud();
-  alert('✓ Papan dikosongkan.\n\nKlik ＋ Order baru untuk mulai membuat order sendiri.');
-};
-$('#reset').onclick=()=>{
-  if(!confirm('Muat data contoh?\n\nSemua order yang ada sekarang DIGANTI 36 order contoh: 3 client (Katalog / Custom / Mix), masing-masing dari fase 1 sampai selesai.\n\nMaster data tidak tersentuh.'))return;
-  /* Tandai batas waktu: order lama yang masih ada di cloud tak boleh hidup lagi
-     lewat sinkronisasi — dulu inilah yang bikin jumlahnya menggandakan diri. */
-  setPurgeTs(Date.now()-1000);
-  localStorage.removeItem(KEY);seed();ST.cur=null;ST.view='board';render();
-  if((ST.cfg||{}).live&&(ST.cfg||{}).url)pushCloud();      // kirim keadaan bersih ke device lain
-  alert('✓ Data contoh dimuat ulang.\n\nUnited Tractors — Katalog\nCarrie & Aaron — Custom (wedding)\nMelbourne Gift Co — Mix (AU)\n\nTiap kolom di papan berisi ketiga client itu, jadi satu client bisa diikuti dari fase ke fase.');};
+/* Tombol "Muat data contoh" & "Kosongkan order" sudah dibuang dari sidebar —
+   papan diisi lewat order sungguhan; membersihkan papan = "Mulai bersih" di
+   Panel Holding, yang juga menjaga sinkronisasinya. */
+
 
 document.addEventListener('input',function(e){var t=e.target;if(t&&t.classList&&t.classList.contains('money'))t.value=moneyInp(moneyVal(t.value));});
 load();render();fetchCatalog();cloudAutoLoad();startCloudPoll();
