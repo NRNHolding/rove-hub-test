@@ -504,7 +504,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20260901-134025';
+const VERSI='20260901-134413';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -15350,6 +15350,16 @@ $('#create').onclick=()=>{
 
 
 document.addEventListener('input',function(e){var t=e.target;if(t&&t.classList&&t.classList.contains('money'))t.value=moneyInp(moneyVal(t.value));});
+/* Enter = simpan. onchange baru menembak saat fokus pergi, jadi mengetik lalu
+   Enter terasa "tidak tersimpan". Enter kini melepas fokus input-nya —
+   onchange jalan, nilainya tersimpan (dan ikut sinkron), tanpa harus klik ke
+   tempat lain. Textarea tak disentuh: Enter di sana memang baris baru. */
+document.addEventListener('keydown',function(e){
+  if(e.key!=='Enter')return;
+  var t=e.target;
+  if(!t||t.tagName!=='INPUT')return;
+  if(t.type==='checkbox'||t.type==='radio'||t.type==='button'||t.type==='submit')return;
+  try{t.blur();}catch(err){}});
 load();render();fetchCatalog();cloudAutoLoad();startCloudPoll();
 try{sinkronBadge();}catch(e){}
 setTimeout(checkDeadlines,4000);
