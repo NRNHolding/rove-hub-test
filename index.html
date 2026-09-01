@@ -506,7 +506,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20260901-103159';
+const VERSI='20260901-104029';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -8300,9 +8300,9 @@ const PH_CHECK=[
    guna:'ini yang paling sering menahan Creative — sketsanya cepat, menunggu jawabannya yang lama',
    gunaEn:'this is what usually stalls Creative — the sketch is quick, waiting for the answer is not',
    pic:'Sales', w:true},
-  {auto:function(o){return !(o.coll||{}).pouch||(((o.brief||{}).logoPouchFiles)||[]).length>0;}, k:'logoPch', t:'Siapkan logo untuk soft pouch', en:'Prepare the logo for the soft pouch', guna:'supaya pouch tak dicetak polos', gunaEn:'so the pouch is not printed blank',            pic:'Creative', w:true},
-  {auto:function(o){return !(o.coll||{}).box||(((o.brief||{}).logoBoxFiles)||[]).length>0;}, k:'logoBox', t:'Siapkan logo untuk box', en:'Prepare the logo for the box', guna:'supaya box tak dicetak polos', gunaEn:'so the box is not printed blank',                   pic:'Creative', w:true},
-  {auto:function(o){return !(o.coll||{}).card||(((o.brief||{}).logoCardFiles)||[]).length>0;}, k:'logoCard', t:'Siapkan logo untuk thank you card', en:'Prepare the logo for the thank you card', guna:'supaya kartu tak dicetak tanpa logo', gunaEn:'so the card is not printed without a logo',        pic:'Creative'},
+  {auto:function(o){return !(o.coll||{}).pouch||kemasanAdaGambar(o,'pouch');}, k:'logoPch', t:'Siapkan logo untuk soft pouch', en:'Prepare the logo for the soft pouch', guna:'supaya pouch tak dicetak polos', gunaEn:'so the pouch is not printed blank',            pic:'Creative', w:true},
+  {auto:function(o){return !(o.coll||{}).box||kemasanAdaGambar(o,'box');}, k:'logoBox', t:'Siapkan logo untuk box', en:'Prepare the logo for the box', guna:'supaya box tak dicetak polos', gunaEn:'so the box is not printed blank',                   pic:'Creative', w:true},
+  {auto:function(o){return !(o.coll||{}).card||kemasanAdaGambar(o,'card');}, k:'logoCard', t:'Siapkan logo untuk thank you card', en:'Prepare the logo for the thank you card', guna:'supaya kartu tak dicetak tanpa logo', gunaEn:'so the card is not printed without a logo',        pic:'Creative'},
   {auto:function(o){var q=persoQty(o);
      var L=persoSemua(o).filter(function(x){return x.N.perPcs;});
      return L.length>0&&L.every(function(x){return x.N.daftar.length===q;});}, k:'daftarNama', t:'Minta daftar nama tamu, cocokkan jumlahnya dengan qty', en:'Ask for the guest name list, match the count against the qty', guna:'supaya tak ada pcs yang tercetak tanpa nama', gunaEn:'so no piece is produced without a name', pic:'Sales', w:true, jika:'perPcs'},
@@ -13237,13 +13237,26 @@ function lampiranBuka(id,slot,i){
   if(w)w.document.write('<iframe src="'+f.data+'" style="border:0;width:100%;height:100%;position:absolute;inset:0"></iframe>');
   else alert('Popup diblokir browser. Izinkan popup untuk membuka PDF.');}
 /* Kemasan yang benar-benar dipesan order ini, beserta slot logonya. */
+/* slot logo milik satu jenis kemasan */
+const KEMASAN_LOGO={box:'logoBoxFiles',pouch:'logoPouchFiles',card:'logoCardFiles'};
+/* Semua gambar milik satu kemasan: acuan (lama & per-produk) + logonya.
+   Sejak keduanya SATU kolom di layar, semua pembaca menilai gabungannya. */
+function kemasanGambar(o,k){
+  var b=briefGet(o),out=[];
+  ((b[k+'Ref'])||[]).forEach(function(f,j){out.push({f:f,asal:'ref',j:j});});
+  try{packLines(o).forEach(function(l,i){
+    var pr=(packLine(l,k)||{}).ref||[];
+    pr.forEach(function(f,j){out.push({f:f,asal:'line',i:i,j:j});});});}catch(e){}
+  ((b[KEMASAN_LOGO[k]])||[]).forEach(function(f,j){out.push({f:f,asal:'logo',j:j});});
+  return out;}
+function kemasanAdaGambar(o,k){return kemasanGambar(o,k).length>0;}
 function logoSlotKemasan(o){
   return [['pouch','logoPouchFiles','soft pouch'],['box','logoBoxFiles','box'],['card','logoCardFiles','thank you card']]
     .filter(function(x){return (o.coll||{})[x[0]];});}
 function logoSamaBisa(o){
   var b=briefGet(o);
   if(!((b.logoFiles||[]).length))return false;
-  return logoSlotKemasan(o).some(function(x){return !((b[x[1]]||[]).length);});}
+  return logoSlotKemasan(o).some(function(x){return !kemasanAdaGambar(o,x[0]);});}
 /* Satu logo untuk semua kemasan — keadaan yang paling sering. Yang beda
    tinggal diganti satu-satu sesudahnya. */
 function logoSamakan(id){
@@ -13269,7 +13282,7 @@ function logoSamaTombol(o){
   var slot=logoSlotKemasan(o);
   if(!slot.length)return '';
   var b=briefGet(o);
-  var belum=slot.filter(function(x){return !((b[x[1]]||[]).length);});
+  var belum=slot.filter(function(x){return !kemasanAdaGambar(o,x[0]);});
   return '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:2px 0 10px">'+
     '<button class="btn ghost sm" onclick="logoSamakan(\''+o.id+'\')">⧉ Samakan logo untuk semua kemasan</button>'+
     '<span style="font-size:9.5px;color:'+(belum.length?'var(--warn)':'var(--muted)')+'">'+
@@ -13412,8 +13425,11 @@ function packRefBuka(o,k,i,j){
   else alert('Popup diblokir browser. Izinkan popup untuk membuka PDF.');}
 function packRefBlok(o,k,i){
   var a=packRefOf(o,k,i),idx=(i===undefined?-1:i);
+  /* logo kemasan ikut tampil DI SINI — dulu ia baris unggah tersendiri di
+     bawah semua kartu, dua tempat untuk kemasan yang sama */
+  var logoSlot=KEMASAN_LOGO[k]||'',logoA=logoSlot?((briefGet(o)[logoSlot])||[]):[];
   return '<div style="display:flex;flex-wrap:wrap;gap:7px;align-items:center;margin-top:8px">'+
-    '<span style="font-size:10px;color:var(--muted);font-weight:700">Gambar acuan</span>'+
+    '<span style="font-size:10px;color:var(--muted);font-weight:700">Gambar acuan & logo</span>'+
     '<button class="btn ghost sm" onclick="packRefAdd(\''+o.id+'\',\''+k+'\','+idx+')">＋ jpg / png / pdf</button>'+
     a.map(function(f,j){
       var gbr=String(f.tipe||'').indexOf('image')===0;
@@ -13422,6 +13438,14 @@ function packRefBlok(o,k,i){
             :'<span style="font-size:13px;cursor:pointer" onclick="packRefBuka(ST.orders.find(function(x){return x.id===\''+o.id+'\'}),\''+k+'\','+idx+','+j+')">📄</span>')+
         '<span style="font-size:9.5px">'+esc(f.nama)+'</span>'+
         '<button class="xrow" onclick="packRefDel(\''+o.id+'\',\''+k+'\','+idx+','+j+')">✕</button></span>';}).join('')+
+    logoA.map(function(f,j){
+      var gbr=String(f.tipe||'').indexOf('image')===0;
+      return '<span style="display:inline-flex;align-items:center;gap:5px;border:1px solid var(--ok);border-radius:8px;padding:3px 6px;background:var(--card,#fff)" title="logo kemasan ini — ikut dicetak vendor">'+
+        (gbr?'<img src="'+f.data+'" style="width:24px;height:24px;object-fit:cover;border-radius:4px;cursor:zoom-in" onclick="lampiranBuka('+jsArg(o.id)+','+jsArg(logoSlot)+','+j+')">'
+            :'<span style="cursor:pointer" onclick="lampiranBuka('+jsArg(o.id)+','+jsArg(logoSlot)+','+j+')">\ud83d\udcc4</span>')+
+        '<span style="font-size:9px;color:var(--ok);font-weight:700">logo</span>'+
+        '<span style="font-size:9.5px">'+esc(f.nama||f.n||'logo')+'</span>'+
+        '<button class="xrow" onclick="lampiranDel('+jsArg(o.id)+','+jsArg(logoSlot)+','+j+')">\u2715</button></span>';}).join('')+
     (a.length?'':'<span style="font-size:9.5px;color:var(--muted)">belum ada</span>')+
     '</div>';}
 /* satu baris collateral — dipakai mode seragam maupun per produk */
@@ -13665,10 +13689,9 @@ function briefPanel(o){
     briefPackBlok(o)+
     /* logo tiap kemasan menempel di kemasannya — hanya yang dicentang yang
        muncul, dan tombol samakan hidup di sini juga */
+    /* logo tiap kemasan kini SATU kolom dengan gambar acuannya, di dalam
+       kartunya masing-masing — tombol Samakan menyalin ke sana juga */
     logoSamaTombol(o)+
-    ((o.coll||{}).pouch?lampiranBlok(o,'logoPouchFiles','Logo soft pouch'):'')+
-    ((o.coll||{}).box?lampiranBlok(o,'logoBoxFiles','Logo box'):'')+
-    ((o.coll||{}).card?lampiranBlok(o,'logoCardFiles','Logo thank you card'):'')+
 
     /* Dipisah: live service dikerjakan di lokasi acara oleh tim yang datang,
        add-on dikerjakan di workshop. Vendornya beda, harganya ditanya
