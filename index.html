@@ -504,7 +504,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20260901-152405';
+const VERSI='20260901-152728';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -12169,7 +12169,15 @@ function briefProduk(o){
   return '<div style="font-size:10px;font-weight:700;color:var(--muted);margin-bottom:6px">BARANG YANG DIPESAN ('+L.length+')</div>'+
     gridKotak(L.map(function(l){
       var det=[(l.qty||0)+' pcs',l.bahan,l.perso&&l.perso!=='-'?l.perso:''].filter(Boolean).join(' · ');
-      return imgKotak(lineImg(l),l.produk||'(tanpa nama)',det);}).join(''))+
+      /* permintaan dua-tiga warna kulit sudah terlihat sejak Inquiry — kartu
+         produk membawa tombol baginya, tak perlu menunggu fase harga vendor */
+      var idxAsli=(((o.pricing||{}).lines)||[]).indexOf(l);
+      var bagi=(lineJenis(l)==='produk'&&(l.qty||0)>1&&idxAsli>=0)
+        ?('<div style="text-align:center;margin-top:2px"><button class="btn ghost sm" style="padding:1px 8px;font-size:9px" '+
+          'title="mis. 25 biru + 25 merah — tiap bagian jadi baris sendiri" '+
+          'onclick="bagiWarna('+jsArg(o.id)+','+idxAsli+')">⑂ bagi warna</button></div>')
+        :'';
+      return '<div>'+imgKotak(lineImg(l),l.produk||'(tanpa nama)',det)+bagi+'</div>';}).join(''))+
     '<div style="font-size:9.5px;color:var(--muted);margin:-4px 0 11px">Gambar ikut dari Master Product / baris pricing. '+
       'Belum ada gambar? Unggah lewat 📷 di baris pricing atau di Master Product.</div>';}
 /* E — live service & add-on, dengan gambarnya. */
@@ -14519,7 +14527,9 @@ function pricingPanel(o){
         <select class="pin" style="width:44px;padding:6px 2px" data-id="${o.id}" data-idx="${i}" data-field="dcT" onchange="priceInput(this)"><option value="rp" ${(l.dcT||'rp')==='rp'?'selected':''}>Rp</option><option value="pct" ${l.dcT==='pct'?'selected':''}>%</option></select>
         <input class="pin n${l.dcT==='pct'?'':' money'}" ${l.dcT==='pct'?'type="number"':'inputmode="numeric"'} data-id="${o.id}" data-idx="${i}" data-field="dc" value="${l.dcT==='pct'?(l.dc||''):moneyInp(l.dc)}" oninput="priceInput(this)" placeholder="0"></div></td>
       <td class="num" id="pjual-${i}">${fmt0(sub)}${l.dc?`<div style="font-size:8.5px;color:var(--muted)">dari ${fmt0(lineJual(l,m)*(l.qty||0))}</div>`:''}</td>
-      <td><button class="xrow" onclick="delLine('${o.id}',${i})" aria-label="hapus">✕</button></td></tr>`;}).join('');
+      <td><div style="display:flex;gap:2px;align-items:center">
+        ${(lineJenis(l)==='produk'&&(l.qty||0)>1)?`<button class="xrow" style="font-size:11px" title="bagi per warna / artikel kulit — mis. 25 biru + 25 merah, tiap bagian jadi baris sendiri" onclick="bagiWarna('${o.id}',${i})">⑂</button>`:''}
+        <button class="xrow" onclick="delLine('${o.id}',${i})" aria-label="hapus">✕</button></div></td></tr>`;}).join('');
   const byV={};P.lines.forEach(l=>{const k=l.sumber||'Radja';byV[k]=(byV[k]||0)+(l.hpp||0)*(l.qty||0);});
   const vchips=Object.keys(byV).map(k=>`<span class="vchip">${k}: ${fmt0(byV[k])}</span>`).join('');
   const docst=[D.quotation?`✓ Quotation ${D.quotationDate}`:'',D.invoice?`✓ Invoice DP ${D.invoiceDate}`:'',
