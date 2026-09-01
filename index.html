@@ -504,7 +504,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20260901-141700';
+const VERSI='20260901-142137';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -9061,7 +9061,9 @@ function chkSumber(fase,k){return CHK_SUMBER[fase+'.'+k]||'';}
 const CHK_FIELD={
   kontak:'picNama', acara:'tglAcara', kota:'venue', hpWo:'woHp',
   ref:'refFiles', terjemah:'mainMat',
-  logoCl:'logoFiles', logoLetak:'persoFiles',
+  /* logo & letaknya kini menempel di jasanya (slot svcF_..., kolom letak
+     per baris) — slot logoFiles/persoFiles lama hanya tampil untuk warisan */
+  logoCl:'svcF_*', logoLetak:'svcLetak_*',
   logoPch:'logoPouchFiles', logoBox:'logoBoxFiles', logoCard:'logoCardFiles',
   preview:'previewFiles', qc:'qcFiles', pack:'packFiles',
   alamat:'addr', alamatKantor:'addrKantor', email:'email',
@@ -9675,7 +9677,11 @@ function sorotPanel(pk,kunci){
     var f=kunci&&CHK_FIELD[kunci];
     var kol=null;
     if(f){
-      var t=e.querySelector('[data-f="'+f+'"]');
+      /* 'svcF_*' = kolom per-jasa yang namanya dinamis; ambil yang pertama.
+         Tanpa ini, item logo menebak 'kolom kosong pertama' dan mendarat di
+         Email client. */
+      var t=(f.slice(-1)==='*')?e.querySelector('[data-f^="'+f.slice(0,-1)+'"]')
+                               :e.querySelector('[data-f="'+f+'"]');
       if(t)kol=(t.tagName==='INPUT'||t.tagName==='SELECT'||t.tagName==='TEXTAREA')
         ?t:(t.querySelector('input,select,textarea,button')||t);}
     if(!kol)kol=kolomKosongPertama(e);
@@ -14280,7 +14286,7 @@ function ordSvcEditor(o,hanya){
            letaknya satu-satunya hal yang tak bisa ditebak siapa pun. */
         '<div style="display:flex;align-items:center;gap:7px;margin:-2px 0 9px 37px">'+
           '<span style="font-size:9.5px;color:var(--muted);white-space:nowrap">Diletakkan di</span>'+
-          '<input class="pin" list="letaksaran" style="flex:1;min-width:0;font-size:11px" '+
+          '<input class="pin" list="letaksaran" data-f="svcLetak_'+esc(svcSlot(n).slice(5))+'" style="flex:1;min-width:0;font-size:11px" '+
             'value="'+esc(svcLetak(o,n))+'" placeholder="mis. depan, kanan bawah — 2 cm dari tepi" '+
             'onchange="ordSvcLetak('+jsArg(o.id)+','+jsArg(n)+',this.value)">'+
           (svcLetak(o,n)?'':'<span style="font-size:9px;color:var(--warn);font-weight:700;white-space:nowrap">belum diisi</span>')+
