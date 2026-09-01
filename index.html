@@ -504,7 +504,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20260901-134746';
+const VERSI='20260901-135125';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -6634,10 +6634,12 @@ function renderMaster(){
      var colsAtas=[['nama','Nama / akun'],['tipe','Jenis',['Wedding','Corporate','Others']],
        ['lokasi','Lokasi',['HQ','AU']],['pic','PIC / kontak person'],['kontak','No. HP'],
        ['email','Email'],['termin','Termin',TERMIN]];
-     var colsBawah=(adaWed?[['bride','Bride'],['groom','Groom']]:[])
-       .concat([['alamat','Alamat kirim'],['alamatKantor','Alamat client / kantor'],
-       ['kota','Kota'],['npwp','NPWP'],['catatan','Catatan']]);
-     var cols=colsAtas.concat(colsBawah);   // dipakai custStats & hitungan lain
+     /* Bride & Groom hanya untuk BARIS berjenis Wedding — dulu dihidupkan per
+        tab, jadi di ALL semua corporate ikut kebagian kolomnya */
+     var colsWed=[['bride','Bride'],['groom','Groom']];
+     var colsBawah=[['alamat','Alamat kirim'],['alamatKantor','Alamat client / kantor'],
+       ['kota','Kota'],['npwp','NPWP'],['catatan','Catatan']];
+     var cols=colsAtas.concat(adaWed?colsWed:[]).concat(colsBawah);   // dipakai custStats & hitungan lain
      /* satu kotak isian — dipakai baris atas maupun bawah */
      var kotak=function(c,i,r){
        if(Array.isArray(c[2]))return '<select class="pin" onchange="mEdit(\'customers\','+i+',\''+c[0]+'\',this.value)">'+
@@ -6650,9 +6652,10 @@ function renderMaster(){
          colsAtas.map(function(c){return '<td>'+kotak(c,i,r)+'</td>';}).join('')+
          '<td>'+klienSel(i)+'</td>'+
          '<td style="font-size:9px;color:var(--muted)">'+fmtStamp(r)+'</td>'+actCell('customers',i,r)+'</tr>';
+       var bawahCols=(r.tipe==='Wedding'?colsWed:[]).concat(colsBawah);
        var bawah='<tr'+redup+'><td colspan="'+(colsAtas.length+3)+'" style="padding-top:0;border-bottom:2px solid var(--line)">'+
          '<div style="display:flex;flex-wrap:wrap;gap:7px 10px">'+
-         colsBawah.map(function(c){
+         bawahCols.map(function(c){
            return '<div style="flex:'+(lebarBawah[c[0]]||'1 1 130px')+';min-width:0">'+
              '<div style="font-size:8.5px;color:var(--muted);font-weight:700;letter-spacing:.02em;margin-bottom:2px">'+esc(c[1])+'</div>'+
              kotak(c,i,r)+'</div>';}).join('')+
