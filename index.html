@@ -504,7 +504,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20260901-113034';
+const VERSI='20260901-114341';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -6376,7 +6376,7 @@ function renderMaster(){
   /* table-layout:fixed — tanpa ini lebar kolom mengikuti isi terpanjang,
      jadi tabel melar dan halaman minta digeser kanan-kiri. */
   const tbl=(sec,cols,rows,idx)=>`<table class="rtable" style="table-layout:fixed"><thead><tr>${cols.map(c=>`<th${c[2]==='img'?' style="width:80px;font-size:9px"':''}>${c[1]}</th>`).join('')}<th style="width:120px;font-size:9px">Diubah</th><th style="width:60px"></th></tr></thead>
-    <tbody>${rows.map((r,n)=>{const i=idx?idx[n]:n;return `<tr${r&&r._del?' style="opacity:.55;background:var(--warn-bg)"':''}>${cols.map(c=>{if(c[2]==='img')return mImgCell(sec,i,r);if(c[2]==='tekpilih')return tekListCell(i,r);if(Array.isArray(c[2]))return '<td><select class="pin" onchange="mEdit(\''+sec+'\','+i+',\''+c[0]+'\',this.value)">'+c[2].map(function(op){return '<option '+(r[c[0]]===op?'selected':'')+'>'+op+'</option>';}).join('')+'</select></td>';var mny=c[2]==='money',num=c[2]==='number';
+    <tbody>${rows.map((r,n)=>{const i=idx?idx[n]:n;return `<tr${r&&r._del?' style="opacity:.55;background:var(--warn-bg)"':''}>${cols.map(c=>{if(c[2]==='img')return mImgCell(sec,i,r);if(c[2]==='tekpilih')return tekListCell(i,r);if(Array.isArray(c[2]))return '<td><select class="pin" onchange="mEdit(\''+sec+'\','+i+',\''+c[0]+'\',this.value)">'+c[2].map(function(op){var v=Array.isArray(op)?op[0]:op,l=Array.isArray(op)?op[1]:op;return '<option value="'+esc(v)+'" '+(r[c[0]]===v?'selected':'')+'>'+esc(l)+'</option>';}).join('')+'</select></td>';var mny=c[2]==='money',num=c[2]==='number';
        /* 'datalist:nama' = ketik bebas, tapi nilai yang sudah dipakai muncul sebagai saran */
        var dl=(typeof c[2]==='string'&&c[2].slice(0,9)==='datalist:')?c[2].slice(9):'';
        return '<td><input class="pin'+(mny?' n money':(num?' n':''))+'" '+(dl?('list="'+dl+'" '):'')+(mny?'inputmode="numeric" ':(num?'type="number" ':''))+'value="'+(mny?moneyInp(r[c[0]]):esc(r[c[0]]))+'" onchange="'+(mny?'mEditM':'mEdit')+'(\''+sec+'\','+i+',\''+c[0]+'\',this.value)" placeholder="'+esc(c[1])+'"></td>';}).join('')}<td style="font-size:9px;color:var(--muted)">${fmtStamp(r)}</td>${actCell(sec,i,r)}</tr>`;}).join('')}</tbody></table>`;
@@ -6562,7 +6562,7 @@ function renderMaster(){
            '<b style="color:var(--warn)">Harga di sini harga JUAL ke client</b> — masuk quotation &amp; invoice; tiap order boleh punya harganya sendiri.'
          : '<b>Live service</b> = dikerjakan di lokasi acara. <b style="color:var(--warn)">Harga di sini harga JUAL ke client</b>. '+
            'Yang dibayarkan ke tim bukan angka ini, melainkan <b>fee tiap operator</b> di tab Live service. '+
-           'Vendor dikosongkan = dikerjakan tim Rove sendiri; diisi = disubkontrakkan.');
+           'Vendor dikosongkan = dikerjakan tim Rove sendiri; diisi = disubkontrakkan. Pindah jenis (mis. jadi add-on) lewat chip <b>Semua</b>.');
        isi='<div style="display:flex;flex-wrap:wrap;gap:7px;margin-bottom:10px">'+
            jChip('Live service','Live service',jJum('Live service'))+
            jChip('Service','Add-on',jJum('Service'))+
@@ -6572,13 +6572,23 @@ function renderMaster(){
          '<div style="font-size:10.5px;color:var(--muted);margin-bottom:9px">'+jKet+'</div>'+
          '<div class="xscroll">'+tbl('jasa',
            (adaTeknikChip
-             /* baris Teknik tak butuh kolom kunci/vendor — itu milik jasa */
-             ? [['nama','Nama teknik'],['untuk','Untuk',['Service','Live service']],
+             /* baris Teknik tak butuh kolom kunci/vendor — itu milik jasa.
+                Untuk = keluarganya, berlabel sama dengan chip. */
+             ? [['nama','Nama teknik'],['untuk','Untuk',[['Service','Add-on'],['Live service','Live service']]],
                 ['fix','Biaya tetap','money'],['harga','Harga/pcs','money']]
-             : [['nama','Nama jasa'],['jenis','Jenis',['Live service','Service','Teknik']],
+             : (JT==='ALL'
+             /* Jenis hanya di Semua — di chip lain, chip-nyalah jenisnya, dan
+                mengganti jenis dari dalam chip membuat barisnya lenyap dari
+                pandangan. Labelnya disamakan dengan nama chip. */
+             ? [['nama','Nama jasa / teknik'],
+                ['jenis','Jenis',[['Live service','Live service'],['Service','Add-on'],['Teknik','Teknik']]],
                 ['tekList','Teknik yang boleh','tekpilih'],
                 ['vendor','Vendor',[''].concat(vendorGrup('jasa'))],
-                ['fix','Biaya tetap','money'],['harga','Harga/pcs','money']]),
+                ['fix','Biaya tetap','money'],['harga','Harga/pcs','money']]
+             : [['nama','Nama jasa'],
+                ['tekList','Teknik yang boleh','tekpilih'],
+                ['vendor','Vendor',[''].concat(vendorGrup('jasa'))],
+                ['fix','Biaya tetap','money'],['harga','Harga/pcs','money']])),
            jRows,jIdx)+'</div>'+
       '<datalist id="tekpilih">'+teknikNama().map(function(x){return '<option value="'+esc(x)+'">';}).join('')+'</datalist>'+
          '<button class="btn ghost sm" style="margin-top:9px" onclick="mAdd(\'jasa\')">＋ Tambah '+
