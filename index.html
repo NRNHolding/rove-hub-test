@@ -504,7 +504,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20260901-114341';
+const VERSI='20260901-115442';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -5482,6 +5482,35 @@ function tekListEdit(i){
 function jasaTekList(nama){
   var j=jasaAll().filter(function(x){return x.nama===nama;})[0];
   return String((j&&j.tekList)||'').split(',').map(function(x){return x.trim();}).filter(Boolean);}
+/* ============ VENDOR SEBUAH JASA — DICENTANG, BOLEH BANYAK ============ */
+function venListCell(i,r){
+  var L=String((r&&r.vendor)||'').split(',').map(function(x){return x.trim();}).filter(Boolean);
+  var kosong=(r.jenis==='Live service')?'tim Rove sendiri':'ikut vendor produk';
+  return '<td><button class="btn ghost sm" style="width:100%;text-align:left;font-size:10px" '+
+    'title="vendor yang boleh mengerjakan jasa ini — lebih dari satu berarti dipilih per order" '+
+    'onclick="venListEdit('+i+')">'+
+    (L.length?esc(L.join(', ')):'<span style="color:var(--muted);font-weight:700">'+kosong+' — klik untuk pilih vendor</span>')+
+    '</button></td>';}
+function venListEdit(i){
+  var j=(ST.master.jasa||[])[i];if(!j)return;
+  if(j.jenis==='Teknik'){alert('"'+j.nama+'" itu teknik — vendor dipasang di JASA-nya (Live service / Add-on).');return;}
+  var ada=String(j.vendor||'').split(',').map(function(x){return x.trim();}).filter(Boolean);
+  /* live service dikerjakan tim yang datang ke acara; add-on oleh workshop —
+     dua kelompok vendor yang beda. Nama yang terlanjur tertulis tetap ikut. */
+  var semua=vendorGrup(j.jenis==='Live service'?'jasa':'produk').slice();
+  ada.forEach(function(v){if(semua.indexOf(v)<0)semua.push(v);});
+  if(!semua.length){alert('Belum ada vendor yang terdaftar — isi Master Data \u2192 Vendors dulu.');return;}
+  var F=semua.map(function(v,k){
+    var kt='';try{kt=(((ST.master||{}).vendors)||[]).filter(function(x){return x.nama===v;}).map(function(x){return x.kota;})[0]||'';}catch(e){}
+    return {k:'v'+k,label:'',type:'checkbox',val:ada.indexOf(v)>=0,cbLabel:v+(kt?(' \u2014 '+kt):'')};});
+  askForm({judul:'Vendor \u2014 '+j.nama,
+    sub:(j.jenis==='Live service'
+      ?'Kosong = dikerjakan tim Rove sendiri (biayanya fee operator). Satu = selalu dia. Lebih dari satu = dipilihkan menurut kota acaranya, dan tetap bisa diganti di ordernya.'
+      :'Kosong = ikut vendor pembuat produknya. Lebih dari satu = dipilih per order.'),
+    fields:F,
+    ok:function(v){
+      j.vendor=semua.filter(function(x,k){return !!v['v'+k];}).join(', ');
+      stampRow(j);saveMaster();render();}});}
 /* Harga teknik menurut jumlahnya — katalog punya tier (mis. Calligraphy 65rb
    di bawah 50 pcs, 35rb di atasnya). */
 function tekTier(tiers,qty){
@@ -6056,7 +6085,10 @@ function barisVendorLengkapi(o){
   L.forEach(function(l){
     if(!l.jasa||l._vendorManual||(l.rfq&&l.rfq.minta)||(l.hpp||0)>0)return;
     var n=String(l.produk||'').replace(/^(Live service|Add-on) — /,'');
-    var benar=jasaVendor(n)||((l.jasa==='Live service')?vendorJasaKota(o):vendorProdukOrder(o));
+    var VL=jasaVendorList(n);
+    /* >1 vendor dicentang: live service ditebak menurut kota acara (di antara
+       yang dicentang saja); add-on dibiarkan kosong — dipilih orang */
+    var benar=jasaVendor(n)||((l.jasa==='Live service')?vendorJasaKota(o,VL):(VL.length>1?'':vendorProdukOrder(o)));
     if((l.sumber||'')!==benar)l.sumber=benar;
     /* penanda disetel di luar syarat perubahan — kalau tidak, vendor yang
        tadinya tebakan lalu jadi pasti di master tetap berlencana "tebakan" */
@@ -6082,7 +6114,8 @@ function barisVendorLengkapi(o){
       /* Kalau tak ada yang tahu vendornya, dikosongkan — bukan diisi vendor
          pertama yang kebetulan bertipe sama. Add-on tak ikut tebakan kota:
          itu pekerjaan workshop, kota acara tak ada hubungannya. */
-      var vJasa=jasaVendor(n)||((x[1]==='Live service')?vendorJasaKota(o):vendorProdukOrder(o));
+      var VL2=jasaVendorList(n);
+      var vJasa=jasaVendor(n)||((x[1]==='Live service')?vendorJasaKota(o,VL2):(VL2.length>1?'':vendorProdukOrder(o)));
       /* Tekniknya dibawa serta: kolom perso itulah yang tercetak di PO ke
          vendor, dan tanpa itu ia menerima pesanan tanpa cara mengerjakannya. */
       /* jasaTeknikOrder mengembalikan '' kalau tekniknya lebih dari satu dan
@@ -6118,7 +6151,7 @@ function namaJasaBaris(l){
 /* Live service yang DIKERJAKAN SENDIRI oleh tim Rove — biayanya fee operator,
    bukan harga vendor. Yang punya vendor di master (mis. 'Live calligraphy' ke
    'Mercia Calligraphy') disubkontrakkan dan tetap lewat jalur harga vendor. */
-function jasaSendiri(nama){return !jasaVendor(nama);}
+function jasaSendiri(nama){return !jasaVendorList(nama).length;}
 function barisLiveSendiri(l){
   return !!(l&&l.jasa==='Live service'&&jasaSendiri(namaJasaBaris(l)));}
 /* Order ini memakai live service yang dikerjakan tim sendiri? Itu yang
@@ -6209,10 +6242,17 @@ function ordSvcLetak(id,nama,v){
     if(l.jasa&&namaJasaBaris(l)===nama)l.letak=baru;});
   logHist(o,'Peletakan '+nama+': '+(baru||'(dikosongkan)'));
   o._m=Date.now();save();render();}
-/* vendor untuk satu jasa, kalau didaftar di master */
-function jasaVendor(nama){
+/* Vendor untuk satu jasa — boleh LEBIH DARI SATU, dipisah koma seperti
+   tekList. Live Deboss dikerjakan tim JKT atau SBY tergantung kota acaranya;
+   satu dropdown memaksa memilih satu untuk selamanya. */
+function jasaVendorList(nama){
   var j=((ST.master&&ST.master.jasa)||[]).find(function(x){return x.nama===nama;});
-  return (j&&j.vendor)||'';}
+  return String((j&&j.vendor)||'').split(',').map(function(x){return x.trim();}).filter(Boolean);}
+function jasaVendor(nama){
+  var L=jasaVendorList(nama);
+  /* lebih dari satu = belum pasti — pemanggil memilihkan (kota acara) atau
+     membiarkan orang memilih di ordernya */
+  return L.length===1?L[0]:'';}
 /* Tim live service dipilih menurut kota acaranya, bukan menurut urutan daftar.
    Dicocokkan dua arah seperti opSuggest: venue ditulis bebas ("Nusa Dua"),
    kota vendor ditulis pendek ("Bali") — tak ada yang selalu memuat yang lain. */
@@ -6262,10 +6302,13 @@ function kotaCocok(tempat,kotaVendor){
     return kata.indexOf(n)>=0;};
   if(sama(k))return true;
   return (KOTA_ALIAS[k]||[]).some(sama);}
-function vendorJasaKota(o){
+function vendorJasaKota(o,izin){
   var tempat='';try{tempat=[opCity(o),o.shipKota,(briefGet(o)||{}).venue].filter(Boolean).join(' ');}catch(e){}
   if(!tempat)return '';
-  var m=svcVendors().filter(function(v){return kotaCocok(tempat,v.kota);})[0];
+  var kand=svcVendors();
+  /* jasanya mencentang beberapa vendor? hanya mereka yang boleh ditebak */
+  if(izin&&izin.length)kand=kand.filter(function(v){return izin.indexOf(v.nama)>=0;});
+  var m=kand.filter(function(v){return kotaCocok(tempat,v.kota);})[0];
   return m?m.nama:'';}
 function vendorForTipe(t){var v=((ST.master&&ST.master.vendors)||[]).find(function(x){return x.tipe===t;});return v?v.nama:t;}
 function seedMaster(){ST.master={access:defAccess(),msec:defMsec(),users:defUsers(),shipping:defShipping(),jenis:defJenis(),perso:defPerso(),coll:defColl(),catalog:[],operator:defOperators(),tools:defTools(),evTpl:defEvTpl(),kardus:defKardus(),kurs:defKurs(),jasa:defJasa(),volDiv:5000,packFactor:1.05,bank:[{v:'BCA'},{v:'Mandiri'},{v:'BNI'},{v:'BRI'}],vtipe:[{v:'Kulit'},{v:'Box'},{v:'Soft Pouch'},{v:'Thank You Card'},{v:'Live Service'},{v:'Others'}],cogs:[{v:'Main Product'},{v:'Packaging'},{v:'Service'}],customers:[{nama:'United Tractors',pic:'Ida Rahmawati (Purchasing)',kontak:'+62 811-2244-3010',email:'ida.rahmawati@unitedtractors.com',alamat:'Jl. Raya Bekasi KM 22, Cakung, Jakarta Timur 13910',alamatKantor:'Gedung UT Tower, Jl. Raya Bekasi KM 22, Jakarta Timur',kota:'Jakarta',tipe:'Corporate',lokasi:'HQ'},{nama:'Innaz Communique',kontak:'',alamat:'Surabaya',kota:'Surabaya',tipe:'Corporate',lokasi:'HQ'},{nama:'Bank Jatim',kontak:'',alamat:'Surabaya',kota:'Surabaya',tipe:'Corporate',lokasi:'HQ'}],vendors:[{nama:'Radja Leather',tipe:'Kulit',cogs:'Main Product',kontak:'Cici Andarwati',hp:'+62 811 3252 305'},{nama:'CraftByHanifah',tipe:'Soft Pouch',cogs:'Packaging',kontak:'-'},{nama:'BoxMaker',tipe:'Box',cogs:'Packaging',kontak:'-'},{nama:'CardPrint',tipe:'Thank You Card',cogs:'Packaging',kontak:'-'},{nama:'Tim Deboss Bali',tipe:'Live Service',cogs:'Service',kontak:'-',kota:'Bali'},{nama:'Tim Deboss SBY',tipe:'Live Service',cogs:'Service',kontak:'-',kota:'Surabaya'},{nama:'Tim Deboss JKT',tipe:'Live Service',cogs:'Service',kontak:'-',kota:'Jakarta'},{nama:'Mercia Calligraphy',tipe:'Live Service',cogs:'Service',kontak:'Mercia Anggara'}]};saveMaster();}
@@ -6376,7 +6419,7 @@ function renderMaster(){
   /* table-layout:fixed — tanpa ini lebar kolom mengikuti isi terpanjang,
      jadi tabel melar dan halaman minta digeser kanan-kiri. */
   const tbl=(sec,cols,rows,idx)=>`<table class="rtable" style="table-layout:fixed"><thead><tr>${cols.map(c=>`<th${c[2]==='img'?' style="width:80px;font-size:9px"':''}>${c[1]}</th>`).join('')}<th style="width:120px;font-size:9px">Diubah</th><th style="width:60px"></th></tr></thead>
-    <tbody>${rows.map((r,n)=>{const i=idx?idx[n]:n;return `<tr${r&&r._del?' style="opacity:.55;background:var(--warn-bg)"':''}>${cols.map(c=>{if(c[2]==='img')return mImgCell(sec,i,r);if(c[2]==='tekpilih')return tekListCell(i,r);if(Array.isArray(c[2]))return '<td><select class="pin" onchange="mEdit(\''+sec+'\','+i+',\''+c[0]+'\',this.value)">'+c[2].map(function(op){var v=Array.isArray(op)?op[0]:op,l=Array.isArray(op)?op[1]:op;return '<option value="'+esc(v)+'" '+(r[c[0]]===v?'selected':'')+'>'+esc(l)+'</option>';}).join('')+'</select></td>';var mny=c[2]==='money',num=c[2]==='number';
+    <tbody>${rows.map((r,n)=>{const i=idx?idx[n]:n;return `<tr${r&&r._del?' style="opacity:.55;background:var(--warn-bg)"':''}>${cols.map(c=>{if(c[2]==='img')return mImgCell(sec,i,r);if(c[2]==='tekpilih')return tekListCell(i,r);if(c[2]==='venpilih')return venListCell(i,r);if(Array.isArray(c[2]))return '<td><select class="pin" onchange="mEdit(\''+sec+'\','+i+',\''+c[0]+'\',this.value)">'+c[2].map(function(op){var v=Array.isArray(op)?op[0]:op,l=Array.isArray(op)?op[1]:op;return '<option value="'+esc(v)+'" '+(r[c[0]]===v?'selected':'')+'>'+esc(l)+'</option>';}).join('')+'</select></td>';var mny=c[2]==='money',num=c[2]==='number';
        /* 'datalist:nama' = ketik bebas, tapi nilai yang sudah dipakai muncul sebagai saran */
        var dl=(typeof c[2]==='string'&&c[2].slice(0,9)==='datalist:')?c[2].slice(9):'';
        return '<td><input class="pin'+(mny?' n money':(num?' n':''))+'" '+(dl?('list="'+dl+'" '):'')+(mny?'inputmode="numeric" ':(num?'type="number" ':''))+'value="'+(mny?moneyInp(r[c[0]]):esc(r[c[0]]))+'" onchange="'+(mny?'mEditM':'mEdit')+'(\''+sec+'\','+i+',\''+c[0]+'\',this.value)" placeholder="'+esc(c[1])+'"></td>';}).join('')}<td style="font-size:9px;color:var(--muted)">${fmtStamp(r)}</td>${actCell(sec,i,r)}</tr>`;}).join('')}</tbody></table>`;
@@ -6583,11 +6626,11 @@ function renderMaster(){
              ? [['nama','Nama jasa / teknik'],
                 ['jenis','Jenis',[['Live service','Live service'],['Service','Add-on'],['Teknik','Teknik']]],
                 ['tekList','Teknik yang boleh','tekpilih'],
-                ['vendor','Vendor',[''].concat(vendorGrup('jasa'))],
+                ['vendor','Vendor','venpilih'],
                 ['fix','Biaya tetap','money'],['harga','Harga/pcs','money']]
              : [['nama','Nama jasa'],
                 ['tekList','Teknik yang boleh','tekpilih'],
-                ['vendor','Vendor',[''].concat(vendorGrup('jasa'))],
+                ['vendor','Vendor','venpilih'],
                 ['fix','Biaya tetap','money'],['harga','Harga/pcs','money']])),
            jRows,jIdx)+'</div>'+
       '<datalist id="tekpilih">'+teknikNama().map(function(x){return '<option value="'+esc(x)+'">';}).join('')+'</datalist>'+
@@ -10174,8 +10217,7 @@ function rfqVendorSet(id,i,v){
   logHist(o,'Vendor '+(l.produk||'baris')+' → '+(v||'dikosongkan'));
   o._m=Date.now();save();render();}
 function rfqVendorSel(o,l,i){
-  var opts=vendorGrup(vendorGrupBaris(l)).slice();
-  if(l.sumber&&opts.indexOf(l.sumber)<0)opts.unshift(l.sumber);
+  var opts=vendorOptBaris(l).slice();
   return '<select class="pin" style="width:100%;font-size:10.5px;padding:3px 5px'+
       (l.sumber?'':';border-color:var(--warn)')+'" '+
       'onchange="rfqVendorSet(\''+o.id+'\','+i+',this.value)">'+
@@ -12191,6 +12233,13 @@ function vendorOptGrup(g,cur){
   var L=vendorGrup(g).slice();
   if(cur&&L.indexOf(cur)<0)L=[cur].concat(L);
   return L;}
+/* Untuk baris jasa yang vendornya dicentang di master, dropdown-nya hanya
+   menawarkan yang dicentang — sama seperti kunci teknik. */
+function vendorOptBaris(l){
+  if(l&&l.jasa){
+    var VL=jasaVendorList(namaJasaBaris(l));
+    if(VL.length){var L=VL.slice();if(l.sumber&&L.indexOf(l.sumber)<0)L.unshift(l.sumber);return L;}}
+  return vendorOptGrup(vendorGrupBaris(l),l&&l.sumber);}
 /* Harga jual per pcs boleh ditetapkan langsung (dari inquiry), bukan hasil margin. */
 function lineJualManual(l){return (+((l&&l.jual)||0))>0;}
 function lineMargin(l,m){return (l.mg===''||l.mg===undefined||l.mg===null)?m:((+l.mg||0)/100);}
@@ -14093,7 +14142,7 @@ function pricingPanel(o){
       <td><select class="pin" data-id="${o.id}" data-idx="${i}" data-field="perso" onchange="priceInput(this)">${persoOpts(o,l.sumber,l.perso,l).map(function(s){return '<option '+(l.perso===s?'selected':'')+'>'+esc(s)+'</option>';}).join('')}</select></td>
       ${showTali?`<td>${vendorTali(l.sumber).length?`<select class="pin" data-id="${o.id}" data-idx="${i}" data-field="tali" onchange="priceInput(this)">${selOpts(vendorTali(l.sumber),l.tali)}</select>`:'<span style="color:var(--muted)">—</span>'}</td>`:''}
       ${showUk?`<td>${vendorUkuran(l.sumber).length?`<select class="pin" data-id="${o.id}" data-idx="${i}" data-field="ukuran" onchange="priceInput(this)">${selOpts(vendorUkuran(l.sumber),l.ukuran)}</select>`:'<span style="color:var(--muted)">—</span>'}</td>`:''}
-      <td><select class="pin" data-id="${o.id}" data-idx="${i}" data-field="sumber" onchange="priceInput(this)">${vendorOptGrup(vendorGrupBaris(l),l.sumber).map(function(s){return '<option '+(l.sumber===s?'selected':'')+'>'+esc(s)+'</option>';}).join('')}</select></td>
+      <td><select class="pin" data-id="${o.id}" data-idx="${i}" data-field="sumber" onchange="priceInput(this)">${vendorOptBaris(l).map(function(s){return '<option '+(l.sumber===s?'selected':'')+'>'+esc(s)+'</option>';}).join('')}</select></td>
       <td><input class="pin n" type="number" data-id="${o.id}" data-idx="${i}" data-field="qty" value="${l.qty||''}" oninput="priceInput(this)" placeholder="0"></td>
       ${H?`<td><input class="pin n money" inputmode="numeric" data-id="${o.id}" data-idx="${i}" data-field="hpp" value="${moneyInp(l.hpp)}" oninput="priceInput(this)" placeholder="Rp 0"></td>`:''}
       <td>${l.fixed?'<span style="color:var(--muted);font-size:10px" title="harga katalog, margin diabaikan">—</span>'
