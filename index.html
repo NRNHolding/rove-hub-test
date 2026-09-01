@@ -504,7 +504,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20260901-144839';
+const VERSI='20260901-150205';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -9256,7 +9256,20 @@ function chkPanel(o){
      peringatanBlok. Yang tersisa di sini: kolom yang boleh diisi lebih awal,
      lalu tabel kontrolnya — keduanya di paling bawah, sesudah ringkasan
      langkah-langkah sebelumnya. */
-  return bukaAwalBlok(o)+
+  /* Tombol Selesai diulang DI SINI, sebelum "Bisa kamu isi lebih awal" —
+     orang menutup fase sesudah menggarap kelengkapan di bawah, dan tombol
+     satu-satunya di kepala halaman sudah jauh tertinggal di atas. */
+  var selesaiBar=(function(){
+    if(o.done||o.status==='Cancel')return '';
+    var nx=PH[f+1];
+    return '<div style="display:flex;justify-content:flex-end;align-items:center;gap:10px;margin-top:14px;flex-wrap:wrap">'+
+      '<span style="font-size:10px;color:var(--muted)">'+(nx?('lanjut ke <b>'+esc(nx.n)+'</b>'):'fase terakhir')+'</span>'+
+      (faseMilikku(o)
+        ?('<button class="btn" onclick="trigger('+jsArg(o.id)+')">✓ Selesai — lanjut fase</button>')
+        :('<div style="text-align:right"><button class="btn" disabled title="dipegang '+esc(fasePemilik(o))+'">✓ Selesai — lanjut fase</button>'+
+           '<div style="font-size:9.5px;color:var(--muted);margin-top:4px">dipegang '+esc(fasePemilik(o))+'</div></div>'))+
+      '</div>';})();
+  return selesaiBar+bukaAwalBlok(o)+
     '<div class="card actcard" style="margin-top:14px"><div class="ch">'+
     '<span class="ico" style="background:'+(sisaWajib?'var(--warn)':'var(--ok)')+'">☑</span>'+
     '<div><div class="t">Kelengkapan '+esc(PH[f].n)+'</div>'+
