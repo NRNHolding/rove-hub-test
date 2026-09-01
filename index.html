@@ -506,7 +506,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20260901-111244';
+const VERSI='20260901-111554';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -5357,6 +5357,7 @@ const OPS_GRUP=[
 ];
 function optsTab(v){ST._optsTab=v;render();}
 function venTab(v){ST._venTab=v;render();}
+function jasaTab(v){ST._jasaTab=v;render();}
 function shipTab(v){ST._shipTab=v;render();}
 function opTab(v){ST._opTab=v;render();}
 const MSEC=[['users','Users / Akun','akun login staff'],['access','Hak akses','siapa boleh buka apa'],['opts','Opsi form','isi dropdown order'],['customers','Customers','database client'],['vendors','Vendors','daftar vendor & bank'],['produk','Master Product','produk, collateral, jasa'],['operator','Operator','tim live service'],['shipping','Pengiriman','ongkir, kardus, kurs']];
@@ -6310,7 +6311,7 @@ function tabAktif(nama,bawaan){
   if(!v||v==='ALL'||v==='Tanpa tipe')return bawaan;
   return v;}
 function mAdd(sec){var r=(sec==='users'?{username:'',password:'',jabatan:'Sales',jabatans:['Sales'],aktif:true}:sec==='shipping'?{ekspedisi:'JNE',kota:'',tarif:0}:sec==='jenis'?{label:'',code:''}:(sec==='perso'||sec==='bank'||sec==='vtipe'||sec==='cogs'||sec==='mainmat'||sec==='filler'||sec==='lining'||sec==='finreq'||sec==='stitch'||sec==='warna')?{v:''}:sec==='customers'?{nama:'',termin:'DP',bride:'',groom:'',kontak:'',email:'',alamat:'',alamatKantor:'',kota:'',npwp:'',pic:'',
-    tipe:((ST._custTab&&ST._custTab!=='ALL')?ST._custTab:'Corporate'),lokasi:'HQ',catatan:''}:sec==='coll'?{type:'Hardbox',kind:'Material',value:''}:sec==='catalog'?{name:'',material:'',jenis:'Katalog',t:[0,0,0,0,0,0,0]}:sec==='operator'?{nama:'',lokasi:tabAktif('_opTab',''),hp:'',tarif:0,stamper:true,assist:true,aktif:true}:sec==='tools'?{nama:'',qty:1}:sec==='kardus'?{size:'',L:0,W:0,H:0,wg:0}:sec==='kurs'?{kode:'',nilai:0}:sec==='kulit'?{nama:'',warna:'',stok:'Ready',minOrder:'',vendor:'Radja Leather',catatan:''}:sec==='jasa'?{nama:'',jenis:'Service',teknik:'-',tekList:'',fix:0,harga:0,vendor:''}:{nama:'',tipe:tabAktif('_venTab',''),cogs:'Main Product',kontak:'',hp:'',bank:'',rek:'',alamat:''});
+    tipe:((ST._custTab&&ST._custTab!=='ALL')?ST._custTab:'Corporate'),lokasi:'HQ',catatan:''}:sec==='coll'?{type:'Hardbox',kind:'Material',value:''}:sec==='catalog'?{name:'',material:'',jenis:'Katalog',t:[0,0,0,0,0,0,0]}:sec==='operator'?{nama:'',lokasi:tabAktif('_opTab',''),hp:'',tarif:0,stamper:true,assist:true,aktif:true}:sec==='tools'?{nama:'',qty:1}:sec==='kardus'?{size:'',L:0,W:0,H:0,wg:0}:sec==='kurs'?{kode:'',nilai:0}:sec==='kulit'?{nama:'',warna:'',stok:'Ready',minOrder:'',vendor:'Radja Leather',catatan:''}:sec==='jasa'?{nama:'',jenis:(['Live service','Service','Teknik'].indexOf(ST._jasaTab)>=0?ST._jasaTab:'Live service'),teknik:'-',tekList:'',fix:0,harga:0,vendor:''}:{nama:'',tipe:tabAktif('_venTab',''),cogs:'Main Product',kontak:'',hp:'',bank:'',rek:'',alamat:''});
   /* COGS mengikuti tipenya — vendor Live Service selalu Service, kemasan
      selalu Packaging. Kalau tipenya sudah diketahui, tak perlu ditanya lagi. */
   if(sec==='vendors'&&r.tipe)
@@ -6493,15 +6494,44 @@ function renderMaster(){
          '<div class="xscroll">'+tbl('kulit',[['nama','Nama / artikel'],['warna','Warna'],['stok','Ketersediaan',KULIT_STOK],['minOrder','Minimum order'],['vendor','Vendor',vendorNames()],['catatan','Catatan']],M.kulit||[])+'</div>'+
          '<button class="btn ghost sm" style="margin-top:9px" onclick="mAdd(\u0027kulit\u0027)">＋ Tambah kulit</button>';
      } else {
-       isi='<div style="font-size:10.5px;color:var(--muted);margin-bottom:9px"><b>Live service</b> = dikerjakan di lokasi acara. <b>Service</b> = add-on yang dikerjakan di workshop. <b>Teknik</b> menentukan pilihan Personalization yang muncul di baris pricing — jadi tak bisa salah pilih. <b>Biaya tetap</b> = sekali per order (mis. bikin plat deboss); <b>Harga/pcs</b> = dikali jumlah barang. '+
-       '<b style="color:var(--warn)">Keduanya harga JUAL ke client</b> — yang masuk quotation &amp; invoice. '+
-       'Yang dibayarkan ke tim live service bukan angka ini, melainkan <b>fee tiap operator</b> di tab Live service. '+
-       'Angka di sini harga standar; tiap order boleh punya harganya sendiri.</div>'+
-         '<div class="xscroll">'+tbl('jasa',[['nama','Nama jasa'],['jenis','Jenis',['Live service','Service','Teknik']],
-        ['teknik','Teknik',persoVals()],['tekList','Teknik yang boleh','tekpilih'],
-        ['vendor','Vendor',[''].concat(vendorGrup('jasa'))],['fix','Biaya tetap','money'],['harga','Harga/pcs','money']],M.jasa||[])+'</div>'+
+       /* Satu tabel dulu mencampur tiga jenis baris — makin panjang makin
+          sulit dibaca. Dipecah pakai chip, seperti tab Vendors. */
+       var JT=ST._jasaTab||'Live service';
+       var J=M.jasa||[];
+       var jJum=function(j){return J.filter(function(x){return x.jenis===j;}).length;};
+       if(['Live service','Service','Teknik','ALL'].indexOf(JT)<0)JT='Live service';
+       var jIdx=[];J.forEach(function(x,i){if(JT==='ALL'||x.jenis===JT)jIdx.push(i);});
+       var jRows=jIdx.map(function(i){return J[i];});
+       var jChip=function(k,label,n){return '<button class="btn '+(JT===k?'':'ghost')+' sm" onclick="jasaTab(\''+k+'\')">'+
+         label+' <span style="opacity:.7">('+n+')</span></button>';};
+       var jKet=(JT==='Teknik')
+         ? '<b>Teknik</b> = cara mengerjakan personalisasi, BERIKUT harganya (Biaya tetap = sekali per order, Harga/pcs = dikali jumlah barang). '+
+           'Daftar ini yang mengisi dropdown Personalization di mana-mana. Kunci teknik mana yang boleh untuk tiap jasa lewat kolom "Teknik yang boleh" di chip Live service / Add-on.'
+         : ((JT==='Service')
+         ? '<b>Add-on</b> = dikerjakan di workshop pada produknya (initial, full name, logo). Tekniknya dipilih per order dari daftar "Teknik yang boleh". '+
+           '<b style="color:var(--warn)">Harga di sini harga JUAL ke client</b> — masuk quotation &amp; invoice; tiap order boleh punya harganya sendiri.'
+         : '<b>Live service</b> = dikerjakan di lokasi acara. <b style="color:var(--warn)">Harga di sini harga JUAL ke client</b>. '+
+           'Yang dibayarkan ke tim bukan angka ini, melainkan <b>fee tiap operator</b> di tab Live service. '+
+           'Vendor dikosongkan = dikerjakan tim Rove sendiri; diisi = disubkontrakkan.');
+       isi='<div style="display:flex;flex-wrap:wrap;gap:7px;margin-bottom:10px">'+
+           jChip('Live service','Live service',jJum('Live service'))+
+           jChip('Service','Add-on',jJum('Service'))+
+           jChip('Teknik','Teknik',jJum('Teknik'))+
+           jChip('ALL','Semua',J.length)+'</div>'+
+         '<div style="font-size:10.5px;color:var(--muted);margin-bottom:9px">'+jKet+'</div>'+
+         '<div class="xscroll">'+tbl('jasa',
+           (JT==='Teknik'
+             /* baris Teknik tak butuh kolom kunci/vendor — itu milik jasa */
+             ? [['nama','Nama teknik'],['jenis','Jenis',['Live service','Service','Teknik']],
+                ['fix','Biaya tetap','money'],['harga','Harga/pcs','money']]
+             : [['nama','Nama jasa'],['jenis','Jenis',['Live service','Service','Teknik']],
+                ['tekList','Teknik yang boleh','tekpilih'],
+                ['vendor','Vendor',[''].concat(vendorGrup('jasa'))],
+                ['fix','Biaya tetap','money'],['harga','Harga/pcs','money']]),
+           jRows,jIdx)+'</div>'+
       '<datalist id="tekpilih">'+teknikNama().map(function(x){return '<option value="'+esc(x)+'">';}).join('')+'</datalist>'+
-         '<button class="btn ghost sm" style="margin-top:9px" onclick="mAdd(\'jasa\')">＋ Tambah jasa</button>'+
+         '<button class="btn ghost sm" style="margin-top:9px" onclick="mAdd(\'jasa\')">＋ Tambah '+
+           (JT==='Teknik'?'teknik':(JT==='Service'?'add-on':'live service'))+'</button>'+
          (function(){var bt=(M.jasa||[]).filter(function(j){return j.perPcTiers&&j.perPcTiers.length;});
            return bt.length?('<div style="margin-top:11px;font-size:10.5px;color:var(--muted)"><b>Harga bertingkat</b> (dari Estimator): '+
              bt.map(function(j){return esc(j.nama)+' → '+j.perPcTiers.map(function(t){return (t.max>=999999?'di atas itu':'s/d '+t.max)+' = '+fmt0(t.price);}).join(' · ');}).join('<br>')+'</div>'):'';})();
