@@ -506,7 +506,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20260901-105405';
+const VERSI='20260901-110117';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -5346,7 +5346,11 @@ const OPS_GRUP=[
     {s:'perso',   n:'Personalization',c:[['v','Teknik (Deboss Blind/Engrave/Calligraphy/…)']], b:'Teknik'},
     {s:'finreq',  n:'Finishing request',c:[['v','Finishing']],        b:'Finishing'},
     {s:'stitch',  n:'Stitch technique',c:[['v','Teknik jahitan']],    b:'Teknik jahitan'}],
-   'Cara barangnya dikerjakan — teknik personalisasi, finishing, dan jahitan.'],
+   'Cara barangnya dikerjakan — teknik personalisasi, finishing, dan jahitan. '+
+   'Daftar Personalization di sini = KAMUS teknik tanpa harga: dipakai dropdown bebas '+
+   'saat sebuah jasa belum dikunci. Teknik yang BERHARGA (dan kotak centang '+
+   '“Teknik yang boleh” untuk mengunci per jasa) diatur di Master Product → Jasa, '+
+   'baris berjenis Teknik.'],
   ['mitra','Mitra & keuangan',[
     {s:'bank', n:'Bank',        c:[['v','Nama bank']],      b:'Bank'},
     {s:'vtipe',n:'Tipe vendor', c:[['v','Tipe vendor']],    b:'Tipe vendor'},
