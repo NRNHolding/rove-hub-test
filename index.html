@@ -504,7 +504,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20260901-150205';
+const VERSI='20260901-151848';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -5681,7 +5681,8 @@ function jasaTekList(nama){
 /* ============ VENDOR SEBUAH JASA — DICENTANG, BOLEH BANYAK ============ */
 function venListCell(i,r){
   var L=String((r&&r.vendor)||'').split(',').map(function(x){return x.trim();}).filter(Boolean);
-  var kosong=(r.jenis==='Live service')?'tim Rove sendiri':'ikut vendor produk';
+  var kosong=(r.jenis==='Teknik')?'semua vendor \u2014 klik untuk mengunci'
+    :((r.jenis==='Live service')?'tim Rove sendiri':'ikut vendor produk');
   return '<td><button class="btn ghost sm" style="width:100%;text-align:left;font-size:10px" '+
     'title="vendor yang boleh mengerjakan jasa ini — lebih dari satu berarti dipilih per order" '+
     'onclick="venListEdit('+i+')">'+
@@ -5689,11 +5690,12 @@ function venListCell(i,r){
     '</button></td>';}
 function venListEdit(i){
   var j=(ST.master.jasa||[])[i];if(!j)return;
-  if(j.jenis==='Teknik'){alert('"'+j.nama+'" itu teknik — vendor dipasang di JASA-nya (Live service / Add-on).');return;}
   var ada=String(j.vendor||'').split(',').map(function(x){return x.trim();}).filter(Boolean);
-  /* live service dikerjakan tim yang datang ke acara; add-on oleh workshop —
-     dua kelompok vendor yang beda. Nama yang terlanjur tertulis tetap ikut. */
-  var semua=vendorGrup(j.jenis==='Live service'?'jasa':'produk').slice();
+  /* live service dikerjakan tim yang datang ke acara; add-on/teknik oleh
+     workshop — kelompok vendornya beda. Untuk baris TEKNIK, centangan ini
+     mengunci vendor semua baris order yang memakai teknik itu. */
+  var keLive=(j.jenis==='Live service')||(j.jenis==='Teknik'&&teknikUntuk(j)==='Live service');
+  var semua=vendorGrup(keLive?'jasa':'produk').slice();
   ada.forEach(function(v){if(semua.indexOf(v)<0)semua.push(v);});
   if(!semua.length){alert('Belum ada vendor yang terdaftar — isi Master Data \u2192 Vendors dulu.');return;}
   var F=semua.map(function(v,k){
@@ -6851,6 +6853,7 @@ function renderMaster(){
              /* baris Teknik tak butuh kolom kunci/vendor — itu milik jasa.
                 Untuk = keluarganya, berlabel sama dengan chip. */
              ? [['nama','Nama teknik'],['untuk','Untuk',[['Service','Add-on'],['Live service','Live service']]],
+                ['vendor','Vendor yang bisa','venpilih'],
                 ['fix','Biaya tetap','money'],['harga','Harga/pcs','money']]
              /* tak ada kolom Jenis: chip-nyalah jenisnya. Salah jenis?
                 hapus barisnya, tambah lagi di chip yang benar. */
@@ -10395,6 +10398,27 @@ function konfHargaBaris(l){
   if(p&&p.t&&p.t.length){var c=catPriceT(p.t,l.qty||0);if(c>0)return c;}
   return 0;}
 function konfDitanya(g){return g.baris.every(function(x){return !!(x.l.konfTanya&&x.l.konfTanya.tgl);});}
+/* Jawaban vendor untuk baris berharga master: harganya boleh berubah (Radja
+   update) — dicatat di sini, baris langsung terhitung dikonfirmasi. */
+function konfJawab(id,i){
+  var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
+  var l=(((o.pricing||{}).lines)||[])[i];if(!l)return;
+  askForm({judul:'Catat jawaban '+(l.sumber||'vendor'),
+    sub:(l.produk||'item')+' \u00b7 '+(l.qty||0)+' pcs \u00b7 harga master '+fmt0(konfHargaBaris(l)),
+    fields:[
+      {k:'harga',label:'Harga/pcs jawaban vendor',type:'money',val:konfHargaBaris(l),req:true,
+       hint:'Sama dengan master = harga masih berlaku. Beda = harga baru dipakai order ini.'},
+      {k:'note',label:'Catatan vendor',type:'text',val:(l.rfq&&l.rfq.note)||'',ph:'mis. naik per Oktober'}],
+    ok:function(v){
+      var h=moneyVal(v.harga);if(!(h>0)){alert('Harganya belum diisi.');return;}
+      var lama=konfHargaBaris(l);
+      l.hpp=h;
+      if(v.note){if(!l.rfq)l.rfq={};l.rfq.note=v.note;}
+      l.konf={hpp:h,tgl:hariIni(),oleh:(ST.userName||ST.user||'')};
+      delete l.konfTanya;
+      logHist(o,'\u2713 Jawaban harga '+(l.sumber||'vendor')+' \u2014 '+(l.produk||'item')+': '+fmt0(h)+
+        (h!==lama?(' (master '+fmt0(lama)+')'):' (masih berlaku)'));
+      o._m=Date.now();save();render();}});}
 function konfPesan(o,vendor,baris){
   var P=['📨 **PASTIKAN HARGA — '+vendor+'**','',
          'Order: '+chName(o)+' · client '+o.customer];
@@ -10582,10 +10606,7 @@ function kulitBlok(o,l,i){
     isi='<div style="font-size:10px;color:var(--warn);font-weight:700">Sudah ditanya '+tglID(k.tanya)+' — menunggu jawaban '+esc(l.sumber||'vendor')+'.</div>'+
       (k.saran&&k.saran.length?('<div style="font-size:9.5px;color:var(--muted);margin-top:2px">Disarankan: '+k.saran.map(esc).join(', ')+'</div>'):'');
   } else {
-    isi='<div style="font-size:10px;color:var(--muted)">Belum ditanya. Biasanya tanya dulu kulit apa yang ready untuk qty ini, baru minta harga.</div>'+
-      (siap.length?('<div style="font-size:9.5px;color:var(--muted);margin-top:4px">Dari Master Kulit: '+
-        siap.slice(0,6).map(function(x){return chip(x.nama,x.warna,x.stok,k.pilih===x.nama,
-          '<button class="btn ghost sm" style="padding:1px 7px;font-size:9px" onclick="kulitPilih('+jsArg(o.id)+','+i+','+jsArg(x.nama)+')">pakai ini</button>','');}).join('')+'</div>'):'');
+    isi='<div style="font-size:10px;color:var(--muted)">Belum ditanya. Biasanya tanya dulu kulit apa yang ready untuk qty ini, baru minta harga.</div>';
   }
   return '<div style="border-top:1px dashed var(--line);margin-top:8px;padding-top:8px">'+isi+'</div>';}
 /* ================= SATU TRIGGER PER BARIS =================
@@ -12041,30 +12062,33 @@ function rfqPanel(o){
             '<td style="width:118px;vertical-align:top;border-bottom:none;padding-right:0">'+
               ((!otomatis&&l.rfq&&l.rfq.minta)
                 ? '<button class="btn sm" style="width:100%" onclick="rfqJawab('+jsArg(o.id)+','+x.i+')">✓ Catat jawaban</button>'
-                : '')+'</td></tr>'+
+                : (otomatis&&!konfSah(l)
+                /* harga master pun bisa berubah — jawaban vendor dicatat di
+                   sini, sekaligus jalan mengedit harganya */
+                ? '<button class="btn sm" style="width:100%" onclick="konfJawab('+jsArg(o.id)+','+x.i+')">✓ Catat jawaban</button>'
+                : ''))+'</td></tr>'+
             (lineKulit(l)?('<tr><td colspan="4" style="border-bottom:none;padding:0 0 6px">'+kulitBlok(o,l,x.i)+'</td></tr>'):'');}).join('')+
         '</tbody></table>'+
-        /* tindakan sekali untuk seluruh vendor ini */
+        /* Disederhanakan seperti blok collateral: SEBELUM diserahkan — dua
+           tombol (Dokumen, Serahkan). SESUDAH — hanya jejak teks; jawaban
+           dicatat lewat tombol ✓ di tiap barisnya. Tombol Serahkan ulang,
+           Tanya lagi, dan Tanyakan harga dibuang — membingungkan dan semua
+           jalannya sudah terwakili. */
         (v?('<div style="display:flex;gap:7px;flex-wrap:wrap;align-items:center;border-top:1px dashed var(--line);margin-top:8px;padding-top:9px">'+
           (perlu.length
-            ? ('<button class="btn ghost sm" onclick="genRfqDoc('+jsArg(o.id)+','+jsArg(v)+')">📄 Dokumen'+
-               (perlu.length>1?(' ('+perlu.length+' item)'):'')+'</button>'+
-               '<button class="btn sm" title="tandai sudah diminta &amp; kabari Purchasing lewat Discord" onclick="rfqSerah('+jsArg(o.id)+','+jsArg(v)+')">'+
-               (diserah?'↻ Serahkan ulang':'✋ Serahkan ke Purchasing')+'</button>'+
-               (diserah?('<span style="font-size:9.5px;color:var(--muted)">diserahkan '+tglID(perlu[0].l.rfq.minta)+'</span>'):''))
+            ? (diserah
+                ? ('<span style="font-size:9.5px;color:var(--muted)">✋ diserahkan '+tglID(perlu[0].l.rfq.minta)+' — catat jawabannya lewat tombol ✓ di barisnya</span>')
+                : ('<button class="btn ghost sm" onclick="genRfqDoc('+jsArg(o.id)+','+jsArg(v)+')">📄 Dokumen'+
+                   (perlu.length>1?(' ('+perlu.length+' item)'):'')+'</button>'+
+                   '<button class="btn sm" title="tandai sudah diminta &amp; kabari Purchasing lewat Discord" onclick="rfqSerah('+jsArg(o.id)+','+jsArg(v)+')">✋ Serahkan ke Purchasing</button>'))
             : '')+
-          /* jejak dokumen berdiri sendiri: dibuat lebih dulu, diserahkan
-             menyusul — dua hal yang tak selalu terjadi bersamaan */
           (((o.rfqDoc||{})[v])?('<span style="font-size:9.5px;color:var(--muted)">📄 dokumen '+esc(o.rfqDoc[v])+'</span>'):'')+
-
           (master.length
             ? (konfBeres
-                ? ('<button class="btn ghost sm" onclick="konfSet('+jsArg(o.id)+','+jsArg(v)+')">↺ Batalkan konfirmasi</button>'+
-                   '<span style="font-size:9.5px;color:var(--ok);font-weight:700">✓ harga dipastikan '+tglID((master[0].l.konf||{}).tgl)+'</span>')
-                : ('<button class="btn ghost sm" onclick="konfTanya('+jsArg(o.id)+','+jsArg(v)+')">📨 '+(ditanya?'Tanya lagi':'Tanyakan harga')+'</button>'+
-                   '<button class="btn sm" onclick="konfSet('+jsArg(o.id)+','+jsArg(v)+')">✓ Harga masih berlaku'+
-                   (master.length>1?(' ('+master.length+')'):'')+'</button>'+
-                   (ditanya?('<span style="font-size:9.5px;color:var(--warn)">sudah ditanya '+tglID(master[0].l.konfTanya.tgl)+'</span>'):'')))
+                ? ('<span style="font-size:9.5px;color:var(--ok);font-weight:700">✓ harga dipastikan '+tglID((master[0].l.konf||{}).tgl)+'</span>'+
+                   '<button class="btn ghost sm" onclick="konfSet('+jsArg(o.id)+','+jsArg(v)+')">↺ Batalkan</button>')
+                : ('<button class="btn sm" onclick="konfSet('+jsArg(o.id)+','+jsArg(v)+')">✓ Harga masih berlaku'+
+                   (master.length>1?(' ('+master.length+')'):'')+'</button>'))
             : '')+
           '</div>'):'')+
         '</div>';}).join('')+
@@ -12520,6 +12544,12 @@ function vendorOptGrup(g,cur){
 /* Untuk baris jasa yang vendornya dicentang di master, dropdown-nya hanya
    menawarkan yang dicentang — sama seperti kunci teknik. */
 function vendorOptBaris(l){
+  /* teknik menentukan siapa yang BISA mengerjakan — kuncinya menang duluan.
+     Berlaku untuk baris produk maupun add-on yang tekniknya sudah dipilih. */
+  if(l&&l.perso&&l.perso!=='-'){
+    var t=null;try{t=teknikData(l.perso);}catch(e){}
+    var TV=t?String(t.vendor||'').split(',').map(function(x){return x.trim();}).filter(Boolean):[];
+    if(TV.length){var TL=TV.slice();if(l.sumber&&TL.indexOf(l.sumber)<0)TL.unshift(l.sumber);return TL;}}
   if(l&&l.jasa){
     var VL=jasaVendorList(namaJasaBaris(l));
     if(VL.length){var L=VL.slice();if(l.sumber&&L.indexOf(l.sumber)<0)L.unshift(l.sumber);return L;}}
