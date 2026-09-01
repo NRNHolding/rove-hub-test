@@ -504,7 +504,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20260901-115758';
+const VERSI='20260901-131130';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -5449,7 +5449,11 @@ function tekListCell(i,r){
   return '<td><button class="btn ghost sm" style="width:100%;text-align:left;font-size:10px" '+
     'title="teknik yang boleh dipakai jasa ini — di luar daftar ini tak ditawarkan di order" '+
     'onclick="tekListEdit('+i+')">'+
-    (L.length?esc(L.join(', ')):'<span style="color:var(--warn);font-weight:700">semua teknik — klik untuk mengunci</span>')+
+    (L.length?L.map(function(t){
+      var kenal=teknikNama();
+      return (kenal.length&&kenal.indexOf(t)<0)
+        ?'<span style="color:var(--warn);font-weight:700" title="belum ada di daftar teknik — buat baris Teknik-nya, atau hapus dari kunci ini">'+esc(t)+' \u26a0</span>'
+        :esc(t);}).join(', '):'<span style="color:var(--warn);font-weight:700">semua teknik — klik untuk mengunci</span>')+
     '</button></td>';}
 function tekListEdit(i){
   var j=(ST.master.jasa||[])[i];if(!j)return;
@@ -5464,14 +5468,19 @@ function tekListEdit(i){
      kunci live service kembali dipenuhi teknik workshop */
   if(!semua.length)semua=teknikNama().slice();
   if(!semua.length)persoVals().forEach(function(t){if(t&&t!=='-'&&semua.indexOf(t)<0)semua.push(t);});
-  ada.forEach(function(t){if(semua.indexOf(t)<0)semua.push(t);});
+  /* nama warisan yang tak ada di daftar Teknik tetap ikut (dan tetap
+     tersimpan) — tapi DITANDAI, supaya tak tampak seperti teknik sungguhan */
+  var asing=[];
+  ada.forEach(function(t){if(semua.indexOf(t)<0){semua.push(t);asing.push(t);}});
   if(!semua.length){alert('Belum ada satu teknik pun yang dikenal — isi katalog teknik dulu (jenis "Teknik" di tabel ini), atau daftar Personalization di Opsi form.');return;}
   var F=semua.map(function(t,k){
     var H=null;try{H=teknikHarga(t,0);}catch(e){}
     return {k:'t'+k,label:'',type:'checkbox',val:ada.indexOf(t)>=0,
-      cbLabel:t+((H&&(H.perPc||H.fix))?(' — '+(H.perPc?(fmt0(H.perPc)+'/pcs'):'')+(H.fix?((H.perPc?' + ':'')+fmt0(H.fix)+' tetap'):'')):'')};});
+      cbLabel:t+((H&&(H.perPc||H.fix))?(' — '+(H.perPc?(fmt0(H.perPc)+'/pcs'):'')+(H.fix?((H.perPc?' + ':'')+fmt0(H.fix)+' tetap'):'')):'')+
+        (asing.indexOf(t)>=0?' \u26a0 tak ada di daftar teknik':'')};});
   askForm({judul:'Teknik yang boleh — '+j.nama,
-    sub:'Yang dicentang saja yang ditawarkan di order. Tak ada yang dicentang = semua teknik boleh.',
+    sub:'Yang dicentang saja yang ditawarkan di order. Tak ada yang dicentang = semua teknik boleh.'+
+      (asing.length?(' \u26a0 Yang bertanda: nama lama yang belum ada di daftar Teknik — buat baris Teknik-nya (berikut harganya), atau hapus centangnya kalau memang sudah tak dipakai.'):''),
     fields:F,
     ok:function(v){
       var pilih=semua.filter(function(t,k){return !!v['t'+k];});
