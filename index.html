@@ -504,7 +504,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20260901-112209';
+const VERSI='20260901-113034';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -5422,6 +5422,14 @@ function jasaAll(){return (ST.master&&ST.master.jasa)||[];}
 /* Teknik = cara mengerjakan, berharga sendiri di katalog Radja. Ia bukan jasa
    yang dipilih client, jadi tak pernah muncul di dropdown Live service/Add-on. */
 function teknikKatalog(){return jasaAll().filter(function(x){return x.jenis==='Teknik';});}
+/* Teknik live service dan teknik add-on dua dunia: satu dikerjakan tim di
+   acara, satu di workshop. Kolom `untuk` memisahkannya; kosong = warisan
+   lama, dianggap add-on (katalog lamanya memang teknik workshop). */
+function teknikUntuk(t){return (t&&t.untuk)==='Live service'?'Live service':'Service';}
+function teknikKatalogUntuk(jenis){
+  var j=(jenis==='Live service')?'Live service':'Service';
+  return teknikKatalog().filter(function(t){return teknikUntuk(t)===j;});}
+function teknikNamaUntuk(jenis){return teknikKatalogUntuk(jenis).map(function(x){return x.nama;});}
 function teknikNama(){return teknikKatalog().map(function(x){return x.nama;});}
 function teknikData(nama){
   var n=String(nama||'').trim();
@@ -5449,8 +5457,13 @@ function tekListEdit(i){
   var ada=String(j.tekList||'').split(',').map(function(x){return x.trim();}).filter(Boolean);
   /* semua teknik yang dikenal: katalog dulu, lalu daftar personalisasi umum,
      lalu yang terlanjur tertulis di daftarnya sendiri */
-  var semua=teknikNama().slice();
-  persoVals().forEach(function(t){if(t&&t!=='-'&&semua.indexOf(t)<0)semua.push(t);});
+  /* yang ditawarkan teknik se-keluarga jasanya; nama yang terlanjur ada di
+     kuncinya tetap ikut supaya tak hilang dari centangan */
+  var semua=teknikNamaUntuk(j.jenis).slice();
+  /* fallback kamus hanya saat keluarganya benar-benar kosong — kalau tidak,
+     kunci live service kembali dipenuhi teknik workshop */
+  if(!semua.length)semua=teknikNama().slice();
+  if(!semua.length)persoVals().forEach(function(t){if(t&&t!=='-'&&semua.indexOf(t)<0)semua.push(t);});
   ada.forEach(function(t){if(semua.indexOf(t)<0)semua.push(t);});
   if(!semua.length){alert('Belum ada satu teknik pun yang dikenal — isi katalog teknik dulu (jenis "Teknik" di tabel ini), atau daftar Personalization di Opsi form.');return;}
   var F=semua.map(function(t,k){
@@ -6336,7 +6349,10 @@ function tabAktif(nama,bawaan){
   if(!v||v==='ALL'||v==='Tanpa tipe')return bawaan;
   return v;}
 function mAdd(sec){var r=(sec==='users'?{username:'',password:'',jabatan:'Sales',jabatans:['Sales'],aktif:true}:sec==='shipping'?{ekspedisi:'JNE',kota:'',tarif:0}:sec==='jenis'?{label:'',code:''}:(sec==='perso'||sec==='bank'||sec==='vtipe'||sec==='cogs'||sec==='mainmat'||sec==='filler'||sec==='lining'||sec==='finreq'||sec==='stitch'||sec==='warna')?{v:''}:sec==='customers'?{nama:'',termin:'DP',bride:'',groom:'',kontak:'',email:'',alamat:'',alamatKantor:'',kota:'',npwp:'',pic:'',
-    tipe:((ST._custTab&&ST._custTab!=='ALL')?ST._custTab:'Corporate'),lokasi:'HQ',catatan:''}:sec==='coll'?{type:'Hardbox',kind:'Material',value:''}:sec==='catalog'?{name:'',material:'',jenis:'Katalog',t:[0,0,0,0,0,0,0]}:sec==='operator'?{nama:'',lokasi:tabAktif('_opTab',''),hp:'',tarif:0,stamper:true,assist:true,aktif:true}:sec==='tools'?{nama:'',qty:1}:sec==='kardus'?{size:'',L:0,W:0,H:0,wg:0}:sec==='kurs'?{kode:'',nilai:0}:sec==='kulit'?{nama:'',warna:'',stok:'Ready',minOrder:'',vendor:'Radja Leather',catatan:''}:sec==='jasa'?{nama:'',jenis:(['Live service','Service','Teknik'].indexOf(ST._jasaTab)>=0?ST._jasaTab:'Live service'),teknik:'-',tekList:'',fix:0,harga:0,vendor:''}:{nama:'',tipe:tabAktif('_venTab',''),cogs:'Main Product',kontak:'',hp:'',bank:'',rek:'',alamat:''});
+    tipe:((ST._custTab&&ST._custTab!=='ALL')?ST._custTab:'Corporate'),lokasi:'HQ',catatan:''}:sec==='coll'?{type:'Hardbox',kind:'Material',value:''}:sec==='catalog'?{name:'',material:'',jenis:'Katalog',t:[0,0,0,0,0,0,0]}:sec==='operator'?{nama:'',lokasi:tabAktif('_opTab',''),hp:'',tarif:0,stamper:true,assist:true,aktif:true}:sec==='tools'?{nama:'',qty:1}:sec==='kardus'?{size:'',L:0,W:0,H:0,wg:0}:sec==='kurs'?{kode:'',nilai:0}:sec==='kulit'?{nama:'',warna:'',stok:'Ready',minOrder:'',vendor:'Radja Leather',catatan:''}:sec==='jasa'?(function(){var t=ST._jasaTab;
+    if(t==='TeknikLive')return {nama:'',jenis:'Teknik',untuk:'Live service',teknik:'-',tekList:'',fix:0,harga:0,vendor:''};
+    if(t==='TeknikAddon'||t==='Teknik')return {nama:'',jenis:'Teknik',untuk:'Service',teknik:'-',tekList:'',fix:0,harga:0,vendor:''};
+    return {nama:'',jenis:(['Live service','Service'].indexOf(t)>=0?t:'Live service'),teknik:'-',tekList:'',fix:0,harga:0,vendor:''};})():{nama:'',tipe:tabAktif('_venTab',''),cogs:'Main Product',kontak:'',hp:'',bank:'',rek:'',alamat:''});
   /* COGS mengikuti tipenya — vendor Live Service selalu Service, kemasan
      selalu Packaging. Kalau tipenya sudah diketahui, tak perlu ditanya lagi. */
   if(sec==='vendors'&&r.tipe)
@@ -6524,14 +6540,23 @@ function renderMaster(){
        var JT=ST._jasaTab||'Live service';
        var J=M.jasa||[];
        var jJum=function(j){return J.filter(function(x){return x.jenis===j;}).length;};
-       if(['Live service','Service','Teknik','ALL'].indexOf(JT)<0)JT='Live service';
-       var jIdx=[];J.forEach(function(x,i){if(JT==='ALL'||x.jenis===JT)jIdx.push(i);});
+       if(JT==='Teknik')JT='TeknikAddon';
+       if(['Live service','Service','TeknikLive','TeknikAddon','ALL'].indexOf(JT)<0)JT='Live service';
+       var jIdx=[];J.forEach(function(x,i){
+         if(JT==='ALL'){jIdx.push(i);return;}
+         if(JT==='TeknikLive'){if(x.jenis==='Teknik'&&teknikUntuk(x)==='Live service')jIdx.push(i);return;}
+         if(JT==='TeknikAddon'){if(x.jenis==='Teknik'&&teknikUntuk(x)!=='Live service')jIdx.push(i);return;}
+         if(x.jenis===JT)jIdx.push(i);});
        var jRows=jIdx.map(function(i){return J[i];});
        var jChip=function(k,label,n){return '<button class="btn '+(JT===k?'':'ghost')+' sm" onclick="jasaTab(\''+k+'\')">'+
          label+' <span style="opacity:.7">('+n+')</span></button>';};
-       var jKet=(JT==='Teknik')
-         ? '<b>Teknik</b> = cara mengerjakan personalisasi, BERIKUT harganya (Biaya tetap = sekali per order, Harga/pcs = dikali jumlah barang). '+
-           'Daftar ini yang mengisi dropdown Personalization di mana-mana. Kunci teknik mana yang boleh untuk tiap jasa lewat kolom "Teknik yang boleh" di chip Live service / Add-on.'
+       var adaTeknikChip=(JT==='TeknikLive'||JT==='TeknikAddon');
+       var jKet=adaTeknikChip
+         ? ((JT==='TeknikLive'
+             ? '<b>Teknik live service</b> = cara pengerjaan di lokasi acara (mis. gold tint, silver tint), berikut harganya. '
+             : '<b>Teknik add-on</b> = cara pengerjaan di workshop pada produknya, berikut harganya. ')+
+           'Biaya tetap = sekali per order; Harga/pcs = dikali jumlah barang. Kolom <b>Untuk</b> memindahkan teknik ke keluarga satunya. '+
+           'Kunci teknik mana yang boleh untuk tiap jasa lewat "Teknik yang boleh" di chip Live service / Add-on.')
          : ((JT==='Service')
          ? '<b>Add-on</b> = dikerjakan di workshop pada produknya (initial, full name, logo). Tekniknya dipilih per order dari daftar "Teknik yang boleh". '+
            '<b style="color:var(--warn)">Harga di sini harga JUAL ke client</b> — masuk quotation &amp; invoice; tiap order boleh punya harganya sendiri.'
@@ -6541,13 +6566,14 @@ function renderMaster(){
        isi='<div style="display:flex;flex-wrap:wrap;gap:7px;margin-bottom:10px">'+
            jChip('Live service','Live service',jJum('Live service'))+
            jChip('Service','Add-on',jJum('Service'))+
-           jChip('Teknik','Teknik',jJum('Teknik'))+
+           jChip('TeknikLive','Teknik live',J.filter(function(x){return x.jenis==='Teknik'&&teknikUntuk(x)==='Live service';}).length)+
+           jChip('TeknikAddon','Teknik add-on',J.filter(function(x){return x.jenis==='Teknik'&&teknikUntuk(x)!=='Live service';}).length)+
            jChip('ALL','Semua',J.length)+'</div>'+
          '<div style="font-size:10.5px;color:var(--muted);margin-bottom:9px">'+jKet+'</div>'+
          '<div class="xscroll">'+tbl('jasa',
-           (JT==='Teknik'
+           (adaTeknikChip
              /* baris Teknik tak butuh kolom kunci/vendor — itu milik jasa */
-             ? [['nama','Nama teknik'],['jenis','Jenis',['Live service','Service','Teknik']],
+             ? [['nama','Nama teknik'],['untuk','Untuk',['Service','Live service']],
                 ['fix','Biaya tetap','money'],['harga','Harga/pcs','money']]
              : [['nama','Nama jasa'],['jenis','Jenis',['Live service','Service','Teknik']],
                 ['tekList','Teknik yang boleh','tekpilih'],
@@ -6556,7 +6582,7 @@ function renderMaster(){
            jRows,jIdx)+'</div>'+
       '<datalist id="tekpilih">'+teknikNama().map(function(x){return '<option value="'+esc(x)+'">';}).join('')+'</datalist>'+
          '<button class="btn ghost sm" style="margin-top:9px" onclick="mAdd(\'jasa\')">＋ Tambah '+
-           (JT==='Teknik'?'teknik':(JT==='Service'?'add-on':'live service'))+'</button>'+
+           (JT==='TeknikLive'?'teknik live service':(JT==='TeknikAddon'?'teknik add-on':(JT==='Service'?'add-on':'live service')))+'</button>'+
          (function(){var bt=(M.jasa||[]).filter(function(j){return j.perPcTiers&&j.perPcTiers.length;});
            return bt.length?('<div style="margin-top:11px;font-size:10.5px;color:var(--muted)"><b>Harga bertingkat</b> (dari Estimator): '+
              bt.map(function(j){return esc(j.nama)+' → '+j.perPcTiers.map(function(t){return (t.max>=999999?'di atas itu':'s/d '+t.max)+' = '+fmt0(t.price);}).join(' · ');}).join('<br>')+'</div>'):'';})();
@@ -13878,6 +13904,10 @@ function teknikPilih(o,n){
      label mati "teknik: X" cuma menyisakan satu cara mengubahnya: lewat master,
      yang berlaku ke semua order. */
   var L=jasaTekList(n);
+  /* belum dikunci: tawarkan teknik SE-KELUARGA saja — jasa acara tak perlu
+     melihat teknik workshop, dan sebaliknya */
+  var jj=(jasaAll().filter(function(x){return x.nama===n;})[0]||{}).jenis||'Service';
+  if(!L.length)L=teknikNamaUntuk(jj);
   if(!L.length)L=teknikNama();
   if(!L.length)L=persoVals().filter(function(x){return x&&x!=='-';});
   if(!L.length)return teknikLabel(n);
