@@ -504,7 +504,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20260901-143823';
+const VERSI='20260901-144143';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -9684,6 +9684,9 @@ function sorotPanel(pk,kunci){
   var kartu=e.querySelector('.card')||e;
   kedip(kartu);
   setTimeout(function(){
+    /* render ulang (sinkron otomatis) bisa terjadi di sela jeda ini — elemen
+       yang dipegang dari awal sudah copot; cari lagi yang hidup */
+    e=document.getElementById('pnl_'+pk)||e;
     /* kolom yang memang dituju item ini; kalau tak terdaftar, baru menebak */
     var f=kunci&&CHK_FIELD[kunci];
     var kol=null;
@@ -9702,7 +9705,7 @@ function sorotPanel(pk,kunci){
     /* item yang PUNYA sasaran terdaftar tapi kolomnya belum dirender (mis.
        jasanya belum dipilih) berhenti di kepala panelnya — tak menebak */
     if(!kol&&!f)kol=kolomKosongPertama(e);
-    if(!kol)return;
+    if(!kol){try{e.scrollIntoView({block:'start'});}catch(err){}return;}
     try{kol.scrollIntoView({block:'center',behavior:'smooth'});}catch(err){}
     kedip(kol,'var(--gold)');
     try{kol.focus({preventScroll:true});}catch(err){try{kol.focus();}catch(e2){}}
