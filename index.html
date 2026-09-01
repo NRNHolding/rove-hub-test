@@ -506,7 +506,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20260901-104029';
+const VERSI='20260901-105405';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -1272,7 +1272,6 @@ const EN={
 'Bahasa':'Language','Indonesia':'Indonesian','Inggris':'English',
 /* --- papan pipeline --- */
 'Semua jenis':'All types','Semua status':'All statuses','Aktif':'Active',
-'⟲ Sinkron sekarang':'⟲ Sync now','⇧ Kirim semua':'⇧ Send all',
 '⊘ sinkron mati — data cuma di browser ini':'⊘ sync off — data stays in this browser only','Sembunyikan selesai & cancel':'Hide done & cancelled',
 'Sembunyikan yang selesai':'Hide completed','Sembunyikan yang selesai/batal':'Hide completed/cancelled',
 '＋ Order baru':'＋ New order','✕ Reset':'✕ Reset','Semua':'All','Semua bulan':'All months','Semua kanal':'All channels',
@@ -4214,8 +4213,21 @@ function pushPeriksa(){
       var ada={};((d&&d.orders)||[]).forEach(function(o){if(o&&o.id)ada[o.id]=1;});
       var hilang=punya.filter(function(id){return !ada[id];});
       var jam=new Date().toLocaleTimeString('id-ID');
+      if(hilang.length&&!ST._susul){
+        /* dulu ini menyuruh orang menekan tombol — sekarang disusulkan
+           sendiri: penanda waktunya disegarkan (supaya lolos saringan purgeTs
+           di perangkat lain) lalu didorong ulang, sekali per pemeriksaan */
+        ST._susul=true;
+        var t=Date.now();
+        (ST.orders||[]).forEach(function(o,ix){if(hilang.indexOf(o.id)>=0)o._m=t+ix;});
+        localStorage.setItem(KEY,JSON.stringify(ST.orders));
+        ST.cloudStatus='menyusulkan '+hilang.length+' order yang belum sampai cloud…';
+        try{sinkronBadge();}catch(e){}
+        try{pushCloudAman();}catch(e){}
+        return;}
+      ST._susul=false;
       ST.cloudStatus=hilang.length
-        ? ('⚠ '+hilang.length+' order belum sampai cloud — tekan "Kirim semua"')
+        ? ('⚠ '+hilang.length+' order belum sampai cloud — masih dicoba lagi')
         : ('tersimpan cloud '+jam+(punya.length?(' · '+punya.length+' order'):''));
       try{sinkronBadge();}catch(e){}
     }).catch(function(){
@@ -4279,13 +4291,15 @@ function sinkronBadge(){
      bertemu. Tanpa disebut, itu mustahil ditebak dari layar. */
   var beda=!!(BACKEND_BAWAAN&&c.url&&c.url!==BACKEND_BAWAAN);
   var host='';try{host=(String(c.url||'').match(/\/s\/([A-Za-z0-9_-]{6,12})/)||[])[1]||'';}catch(err){}
+  /* Tanpa tombol: sinkron jalan sendiri — tarik tiap beberapa detik & tiap
+     tab dibuka lagi, dan order yang ketahuan belum sampai disusulkan otomatis
+     oleh pushPeriksa. Satu-satunya tombol yang tersisa untuk keadaan yang
+     memang butuh keputusan orang: perangkat yang memakai backend berbeda. */
   e.innerHTML='<span style="color:'+(buruk?'#d9534f':'#7bbf7b')+'">'+(buruk?'⚠ ':'⇅ ')+esc(st)+'</span>'+
     (beda?('<div style="color:#e0912f;line-height:1.5;margin-top:5px">⚠ Perangkat ini memakai backend sendiri'+
       (host?(' (…'+esc(host)+'…)'):'')+', bukan yang bawaan — jadi datanya tak bertemu dengan yang lain.'+
       '<button onclick="pakaiBackendBawaan()" title="kosongkan URL sendiri, ikut yang bawaan">↺ Ikut backend bawaan</button></div>')
-     :(host?('<div style="color:#7b809c;margin-top:3px">backend …'+esc(host)+'…</div>'):''))+
-    '<button onclick="sinkronPaksa()" title="tarik dari cloud sekarang, lalu dorong punya perangkat ini">⟲ Sinkron sekarang</button>'+
-    '<button onclick="sinkronDorong()" title="dorong SELURUH order di perangkat ini ke cloud, termasuk yang lebih tua dari pembersihan terakhir">⇧ Kirim semua</button>';}
+     :(host?('<div style="color:#7b809c;margin-top:3px">backend …'+esc(host)+'…</div>'):''));}
 /* Melepas URL backend yang diisi sendiri, lalu kembali ke bawaan. Dipakai
    perangkat yang dulu pernah disetel manual dan sejak itu menyimpan datanya ke
    tempat lain tanpa ada yang tahu. */
@@ -4300,7 +4314,7 @@ function pakaiBackendBawaan(){
   ST.cloudStatus='pindah ke backend bawaan…';
   try{sinkronBadge();}catch(e){}
   try{pushCloudAman();}catch(e){}
-  alert('✓ Sekarang ikut backend bawaan. Tekan "⇧ Kirim semua" supaya data perangkat ini menyusul ke sana.');
+  alert('✓ Sekarang ikut backend bawaan — data perangkat ini menyusul sendiri dalam beberapa detik.');
   render();}
 /* Menarik lalu mendorong — dipakai kalau ada yang merasa datanya tak sama. */
 function sinkronPaksa(){
@@ -4328,7 +4342,16 @@ function sinkronDorong(){
   ST.cloudStatus='mengirim '+n+' order…';sinkronBadge();
   alert('✓ '+n+' order dikirim. Minta yang lain menekan "⟲ Sinkron sekarang", atau tunggu 25 detik.');}
 var _pollT=null;
-function startCloudPoll(){if(_pollT)clearInterval(_pollT);_pollT=setInterval(function(){if((ST.cfg||{}).dbUrl&&ST.user)cloudAutoLoad();},25000);}
+function startCloudPoll(){if(_pollT)clearInterval(_pollT);
+  _pollT=setInterval(function(){if((ST.cfg||{}).dbUrl&&ST.user)cloudAutoLoad();},15000);
+  /* saat orang kembali ke tabnya, itulah detik ia berharap melihat yang baru —
+     jangan suruh ia menunggu putaran berikutnya */
+  var terakhir=0,tarik=function(){
+    if(!((ST.cfg||{}).dbUrl&&ST.user))return;
+    var kini=Date.now();if(kini-terakhir<4000)return;
+    terakhir=kini;cloudAutoLoad();};
+  try{document.addEventListener('visibilitychange',function(){if(!document.hidden)tarik();});}catch(e){}
+  try{window.addEventListener('focus',tarik);}catch(e){}}
 function cloudLoad(){var c=cfgSerap();if(!c.dbUrl){alert('Kotak "Cloud DB" di Holding → Integrasi masih kosong.\n\nIsi URL-nya dulu (backend uji: URL /exec ditambah ?db=1).');return;}
   if(!confirm('Muat data dari cloud akan MENIMPA data lokal saat ini. Lanjut?'))return;
   ST.cloudStatus='memuat dari cloud…';render();
