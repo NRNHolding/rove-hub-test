@@ -504,7 +504,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20260901-142823';
+const VERSI='20260901-143025';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -823,7 +823,7 @@ const EN={
 'Kotak "Katalog Cost Estimator" di Holding → Integrasi masih kosong.':'The "Cost Estimator catalogue" box under Holding → Integrations is still empty.','Kotak "Cloud DB" di Holding → Integrasi masih kosong.':'The "Cloud DB" box under Holding → Integrations is still empty.',
 '🔕 Nyalakan notifikasi browser':'🔕 Turn on browser notifications','🔔 Notifikasi browser: nyala':'🔔 Browser notifications: on',
 'Yang harus kamu kerjakan':'What you need to do',
-'MENUNGGU JABATAN LAIN':'WAITING ON OTHER ROLES','SEMUA ITEM FASE INI':'ALL ITEMS IN THIS PHASE','Tak ada jabatan lain yang perlu ditagih di fase ini.':'No other role needs chasing in this phase.',
+'MENUNGGU JABATAN LAIN':'WAITING ON OTHER ROLES','INGATKAN JABATAN YANG BERSANGKUTAN (⏰)':'REMIND THE ROLE RESPONSIBLE (⏰)','SEMUA ITEM FASE INI':'ALL ITEMS IN THIS PHASE','Tak ada jabatan lain yang perlu ditagih di fase ini.':'No other role needs chasing in this phase.',
 'tabel kontrol — tercentang sendiri begitu datanya terisi. Klik item yang jadi tugasmu untuk langsung ke tempat mengisinya.':'control table — ticks itself once the data is filled in. Click an item that is yours to jump straight to where it is filled.','buka tempat mengisinya':'open where it is filled in',
 'Pakai harga ini':'Use this price','terakhir':'last paid',
 'ADD-ON INI UNTUK PRODUK:':'THIS ADD-ON APPLIES TO:','Belum ada produk dipilih. Buka tab 2. Detail product dulu — add-on menempel di produk, bukan berdiri sendiri.':'No product selected yet. Open tab 2. Detail product first — an add-on attaches to a product, it does not stand alone.',
@@ -9199,8 +9199,9 @@ function chkPanel(o){
   if(!items.length||o.done||o.status==='Cancel')return '';
   var sudah=items.filter(function(it){return chkDone(o,f,it.k);}).length;
   var sisaWajib=chkKurang(o,f,true).length;
-  /* Tugas sendiri di atas dan tegas; milik jabatan lain diredupkan di bawah —
-     tetap terlihat sebagai kontrol bersama, tapi tak terasa ikut ditagih. */
+  /* Tugas sendiri di atas dan tegas. Milik jabatan lain tetap tegas selama
+     BELUM beres — dulu diredupkan semua dan malah terbaca seperti nonaktif;
+     yang diredupkan sekarang hanya baris yang sudah selesai. */
   var baris=function(it,redup){
     var ok=chkAuto(o,f,it.k),src=chkSumber(f,it.k);
     return '<div style="display:flex;gap:9px;align-items:flex-start;padding:7px 0;border-top:1px solid var(--line)'+(redup?';opacity:.62':'')+'">'+
@@ -9240,8 +9241,8 @@ function chkPanel(o){
       milikku.map(function(it){return baris(it,false);}).join(''):'')+
     (santai.length?sekat('BISA KAMU ISI SEKARANG ('+santai.length+') — tak menahan fase')+
       santai.map(function(it){return baris(it,false);}).join(''):'')+
-    (lain.length?sekat((milikku.length||santai.length)?'MENUNGGU JABATAN LAIN':'SEMUA ITEM FASE INI')+
-      lain.map(function(it){return baris(it,true);}).join(''):'');
+    (lain.length?sekat((milikku.length||santai.length)?'INGATKAN JABATAN YANG BERSANGKUTAN (⏰)':'SEMUA ITEM FASE INI')+
+      lain.map(function(it){return baris(it,chkAuto(o,f,it.k));}).join(''):'');
   /* Yang mendesak (permintaan isi, revisi) sudah naik ke atas lewat
      peringatanBlok. Yang tersisa di sini: kolom yang boleh diisi lebih awal,
      lalu tabel kontrolnya — keduanya di paling bawah, sesudah ringkasan
