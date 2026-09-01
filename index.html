@@ -504,7 +504,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20260901-134413';
+const VERSI='20260901-134746';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -1361,7 +1361,7 @@ const EN={
 /* --- saringan Vendors / Pengiriman / Operator --- */
 'Semua tim':'All crew','Ukuran kardus':'Box sizes','Kurs':'Exchange rates','Alat standar':'Standard tools',
 'Template WA':'WA templates','Tanpa tipe':'No type','Tanpa ekspedisi':'No courier','Tanpa kota':'No city',
-'No. HP':'Phone','Stamper':'Stamper','Assist':'Assist',
+'No. HP':'Phone','Stamper':'Stamper','Operator utama':'Lead operator','Utama':'Lead','Assist':'Assist',
 'Belum ada vendor pada kategori ini.':'No vendors in this category yet.',
 'Belum ada zona untuk ekspedisi ini.':'No zones for this courier yet.',
 'Belum ada operator di kota ini.':'No operators in this city yet.',
@@ -1455,7 +1455,7 @@ const EN={
 'Form checklist diisi tiap operator':'Checklist form filled in by each operator',
 'Pembagian tugas, cek alat, rute':'Task split, equipment check, route','Reminder jadwal ke tim':'Schedule reminder to the team',
 'Reminder isi form alat':'Reminder to fill in the equipment form','Alat perlu dikirim (luar kota)':'Equipment must be shipped (out of town)',
-'＋ Stamper':'＋ Stamper','＋ Assist':'＋ Assist','Belum ada operator dipilih.':'No operators selected yet.',
+'＋ Stamper':'＋ Stamper','＋ Operator utama':'＋ Lead operator','＋ Assist':'＋ Assist','Belum ada operator dipilih.':'No operators selected yet.',
 'No. HP PIC WO':'WO contact phone','PIC WO Event':'WO event contact','isi tanggal acara dulu':'fill in the event date first',
 '— HUB menyarankan yang sekota & belum diplot di tanggal ini':'— HUB suggests people in the same city who are free on this date',
 '💡 Order yang pakai':'💡 Orders that use',
@@ -1906,6 +1906,9 @@ const PETA_FASE15={0:0,1:1,2:2,3:3,4:4,5:6,6:8,7:10,8:11,9:12,10:13,11:14};
    nyata di perangkat lain. */
 function pastikanBentuk(o){
   if(!o||typeof o!=='object')return o;
+  /* sebutan job lama: 'Stamper' \u2192 'Operator utama' (di tim ada juga
+     calligrapher; kunci keahlian di master tetap `stamper`) */
+  try{(((o.event||{}).ops)||[]).forEach(function(x){if(x.job==='Stamper')x.job='Operator utama';});}catch(e){}
   if(!Array.isArray(o.disc))o.disc=[];
   if(!Array.isArray(o.hist))o.hist=[];
   if(!Array.isArray(o.checks))o.checks=[];
@@ -4827,7 +4830,7 @@ function can(f){
   return R.some(function(r){return canRole(r,f);});}
 /* ---- akses PER SEKSI master data ---- */
 /* ---- operator live service (Event Management) ---- */
-const OP_JOBS=['Stamper','Assist'];
+const OP_JOBS=['Operator utama','Assist'];
 function defOperators(){return [
   {nama:'Bagus Prasetyo',lokasi:'Jakarta',hp:'+62 812-1100-2201',stamper:true,assist:true,aktif:true},
   {nama:'Dwi Lestari',lokasi:'Jakarta',hp:'+62 812-1100-2202',stamper:false,assist:true,aktif:true},
@@ -5034,7 +5037,8 @@ function opTarifSel(i,r){
   return '<td data-l="Tarif" class="num"><input class="pin n money" inputmode="numeric" value="'+
     moneyInp((r&&r.tarif)||0)+'" placeholder="Rp 0" '+
     'onchange="mEdit('+jsArg('operator')+','+i+','+jsArg('tarif')+',moneyVal(this.value))"></td>';}
-function opCanJob(op,job){return job==='Stamper'?!!op.stamper:!!op.assist;}
+/* kunci datanya tetap `stamper` (warisan) — hanya sebutannya yang netral */
+function opCanJob(op,job){return (job==='Operator utama'||job==='Stamper')?!!op.stamper:!!op.assist;}
 function opPlots(nama,tgl,exceptId){ // order lain yang sudah memakai operator ini di tanggal sama
   return ST.orders.filter(function(o){
     if(o.deleted||o.status==='Cancel'||o.id===exceptId)return false;
@@ -5326,7 +5330,7 @@ function evToolsPanel(o){
     var totOut=ts.reduce(function(s,t){return s+(t.out||0);},0),totIn=ts.reduce(function(s,t){return s+(t['in']||0);},0);
     return '<div style="border:1px solid var(--line);border-radius:9px;padding:10px 11px;margin-bottom:9px">'+
       '<div style="display:flex;align-items:center;gap:8px;margin-bottom:7px"><b style="font-size:12px">'+esc(op.nama)+'</b>'+
-        '<span class="tlabel" style="background:'+(op.job==='Stamper'?'#9a6a2f':'#5865F2')+'">'+esc(op.job)+'</span>'+
+        '<span class="tlabel" style="background:'+((op.job==='Stamper'||op.job==='Operator utama')?'#9a6a2f':'#5865F2')+'">'+esc(op.job)+'</span>'+
         '<span style="margin-left:auto;font-size:10.5px;font-weight:800;color:'+(totOut===0?'var(--muted)':(kurang.length?'#d9534f':'var(--ok)'))+'">'+
         (totOut===0?'belum diisi':(kurang.length?('⚠ '+kurang.length+' item belum kembali'):'✓ lengkap'))+'</span></div>'+
       '<div class="xscroll"><table class="ptable" style="min-width:340px"><thead><tr><th>Alat</th><th style="width:60px">Keluar</th><th style="width:60px">Kembali</th><th style="width:64px">Selisih</th></tr></thead><tbody>'+
@@ -5431,7 +5435,7 @@ function opPanel(o){
     return '<div style="border:1px solid '+(sudah?'var(--ok)':'var(--line)')+';border-radius:9px;'+
       'padding:8px 10px;margin-bottom:6px;background:var(--bg)">'+
       '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">'+
-        '<span class="tlabel" style="background:'+(x.job==='Stamper'?'#9a6a2f':'#5865F2')+'">'+esc(x.job)+'</span>'+
+        '<span class="tlabel" style="background:'+((x.job==='Stamper'||x.job==='Operator utama')?'#9a6a2f':'#5865F2')+'">'+esc(x.job)+'</span>'+
         '<b style="font-size:11.5px">'+esc(x.nama)+'</b>'+
         '<span style="font-size:9.5px;color:var(--muted)">'+esc(x.lokasi||'-')+
           (x.hp&&x.hp!=='-'?(' · '+esc(x.hp)):'')+'</span>'+
@@ -6790,7 +6794,7 @@ function renderMaster(){
      var idx=[];OP.forEach(function(r,i){if(f==='tim'||dimana(r)===f)idx.push(i);});
      var chip=function(k,l,n){return '<button class="btn '+(f===k?'':'ghost')+' sm" onclick="opTab(\''+esc(k)+'\')">'+
        esc(l)+(n===undefined?'':' <span style="opacity:.7">('+n+')</span>')+'</button>';};
-     var cek=function(i,fl,on){return '<td data-l="'+(fl==='stamper'?'Stamper':(fl==='assist'?'Assist':'Aktif'))+'" style="text-align:center"><input type="checkbox" '+(on?'checked':'')+' onchange="mEdit(\'operator\','+i+',\''+fl+'\',this.checked)" style="width:auto;accent-color:var(--brand)"></td>';};
+     var cek=function(i,fl,on){return '<td data-l="'+(fl==='stamper'?'Utama':(fl==='assist'?'Assist':'Aktif'))+'" style="text-align:center"><input type="checkbox" '+(on?'checked':'')+' onchange="mEdit(\'operator\','+i+',\''+fl+'\',this.checked)" style="width:auto;accent-color:var(--brand)"></td>';};
      var bar='<div style="display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px">'+
        chip('tim','Semua tim',OP.length)+
        grup.map(function(k){return chip(k,k,OP.filter(function(r){return dimana(r)===k;}).length);}).join('')+
@@ -6813,8 +6817,8 @@ function renderMaster(){
          '<div style="font-size:10.5px;white-space:pre-wrap;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px 11px;color:#555;max-height:110px;overflow:auto">'+esc(evTpl(k))+'</div></div>';}).join('')+
        '<button class="btn ghost sm" onclick="evTplReset()">↺ Kembalikan semua ke bawaan</button>';
      else isi=
-       '<div style="font-size:10.5px;color:var(--muted);margin-bottom:9px">Tim yang dikirim ke acara, dikelompokkan per <b>grup</b> (Tim Deboss Bali, dst) — rekening &amp; pembukuan fee ikut grupnya di <b>Vendors</b>. Centang keahliannya — satu orang bisa <b>Stamper</b>, <b>Assist</b>, atau keduanya. Dipakai HUB untuk <b>menyarankan operator</b> di tab Live service (yang sekota &amp; belum diplot di tanggal itu). <b>Tarif</b> ikut sendiri waktu orangnya dipilih — tetap bisa diubah kalau acara itu memang beda.</div>'+
-       (idx.length?('<div class="xscroll"><table class="rtable mstack"><thead><tr><th style="min-width:140px">Nama</th><th style="min-width:130px">Grup / tim</th><th style="min-width:110px">Lokasi</th><th style="min-width:130px">No. HP</th><th style="min-width:150px">Bisa live service apa</th><th style="width:104px" class="num">Tarif</th><th style="text-align:center;width:70px">Stamper</th><th style="text-align:center;width:60px">Assist</th><th style="text-align:center;width:55px">Aktif</th><th style="width:120px;font-size:9px">Diubah</th><th style="width:60px"></th></tr></thead>'+
+       '<div style="font-size:10.5px;color:var(--muted);margin-bottom:9px">Tim yang dikirim ke acara, dikelompokkan per <b>grup</b> (Tim Deboss Bali, dst) — rekening &amp; pembukuan fee ikut grupnya di <b>Vendors</b>. Centang perannya — <b>Utama</b> = pelaksana service-nya (stamper, calligrapher, dst), <b>Assist</b> = pendamping; boleh keduanya. Dipakai HUB untuk <b>menyarankan operator</b> di tab Live service (yang sekota &amp; belum diplot di tanggal itu). <b>Tarif</b> ikut sendiri waktu orangnya dipilih — tetap bisa diubah kalau acara itu memang beda.</div>'+
+       (idx.length?('<div class="xscroll"><table class="rtable mstack"><thead><tr><th style="min-width:140px">Nama</th><th style="min-width:130px">Grup / tim</th><th style="min-width:110px">Lokasi</th><th style="min-width:130px">No. HP</th><th style="min-width:150px">Bisa live service apa</th><th style="width:104px" class="num">Tarif</th><th style="text-align:center;width:70px" title="pelaksana utama service-nya: stamper, calligrapher, dst">Utama</th><th style="text-align:center;width:60px">Assist</th><th style="text-align:center;width:55px">Aktif</th><th style="width:120px;font-size:9px">Diubah</th><th style="width:60px"></th></tr></thead>'+
        '<tbody>'+idx.map(function(i){var r=OP[i];return '<tr'+(r._del?' style="opacity:.55;background:var(--warn-bg)"':'')+'>'+
          '<td><input class="pin" value="'+esc(r.nama)+'" onchange="mEdit(\'operator\','+i+',\'nama\',this.value)" placeholder="Nama"></td>'+
          '<td data-l="Grup / tim"><select class="pin" onchange="mEdit(\'operator\','+i+',\'grup\',this.value)">'+
@@ -6878,7 +6882,7 @@ function renderMaster(){
     customers:'Database client — <b>terisi otomatis</b> tiap Sales buat order baru (nama, HP, email, alamat). Lengkapi PIC/kota/NPWP/tipe di sini. Rekap order per customer ada di bawah tabel.',
     vendors:'Daftar vendor + tipenya. <b>Tipe menentukan produk apa yang muncul</b> di dropdown baris pricing. Isi <b>Kapasitas/bln</b> untuk dapat peringatan bila qty melebihi.',
     produk:'Satu tempat untuk <b>Produk</b> (+ ukuran &amp; berat untuk hitung kardus), <b>Collateral</b>, dan <b>Jasa</b> (live service &amp; add-on beserta tekniknya).',
-    operator:'Tim live service. Centang keahlian (<b>Stamper</b> / <b>Assist</b>, boleh dua-duanya). HUB pakai ini untuk <b>menyarankan operator</b> di tab Live service — yang sekota &amp; belum diplot di tanggal itu didahulukan.',
+    operator:'Tim live service. Centang perannya (<b>Utama</b> = pelaksana service-nya — stamper, calligrapher, dst — / <b>Assist</b>, boleh dua-duanya). HUB pakai ini untuk <b>menyarankan operator</b> di tab Live service — yang sekota &amp; belum diplot di tanggal itu didahulukan.',
     shipping:'Tarif ekspedisi per kota, <b>ukuran kardus</b> (untuk pilih kardus paling hemat), dan <b>kurs</b>. Dipakai <b>hitung ongkir otomatis</b> (tarif × berat) di pricing.'};
   var pd=pendingDel();
   $('#main').innerHTML=`<div class="topbar"><h1>Master data · ${T[tab]||''}</h1><span class="demo">${ST.user==='Holding'?'Admin Holding':esc(ST.user)}</span></div>`
@@ -8023,7 +8027,7 @@ function liveOperator(L){
       '<th style="min-width:130px">Event</th><th style="width:104px">Tanggal</th><th style="min-width:110px">Lokasi</th><th style="min-width:120px">No. HP</th><th style="width:88px">Cek</th></tr></thead><tbody>'+
       R.map(function(r){var b=opPlots(r.x.nama,r.o.eventDate,r.o.id);
         return '<tr><td><b>'+esc(r.x.nama)+'</b></td>'+
-          '<td data-l="Job"><span class="tlabel" style="background:'+(r.x.job==='Stamper'?'#9a6a2f':'#5865F2')+'">'+esc(r.x.job)+'</span></td>'+
+          '<td data-l="Job"><span class="tlabel" style="background:'+((r.x.job==='Stamper'||r.x.job==='Operator utama')?'#9a6a2f':'#5865F2')+'">'+esc(r.x.job)+'</span></td>'+
           '<td data-l="Event"><a href="#" onclick="liveBuka(\''+r.o.id+'\');return false" style="color:var(--brand);font-weight:700;text-decoration:none">'+esc(r.o.customer)+'</a></td>'+
           '<td data-l="Tanggal">'+(r.o.eventDate?tglID(r.o.eventDate):'—')+'</td>'+
           '<td data-l="Lokasi" style="font-size:10.5px">'+(esc(r.x.lokasi)||'—')+'</td>'+
