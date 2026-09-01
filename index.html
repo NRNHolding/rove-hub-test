@@ -506,7 +506,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20260828-165819';
+const VERSI='20260901-103159';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -11653,8 +11653,10 @@ function briefProduk(o){
 /* E — live service & add-on, dengan gambarnya. */
 function briefSvcImg(o){
   var t=[];
+  /* hanya live service — add-on sudah tampil (berikut gambarnya) di barisnya
+     sendiri di bagian PERSONALIZATION; menampilkannya di sini juga membuat
+     bagian LIVE SERVICE terlihat berisi padahal belum ada yang dipilih */
   liveList(o.liveSvc).forEach(function(n){t.push(imgKotak(jasaImg(n),n,'live service · '+(jasaTeknik(n)||'-')));});
-  liveList(o.svc).forEach(function(n){t.push(imgKotak(jasaImg(n),n,'add-on · '+(jasaTeknik(n)||'-')));});
   if(!t.length)return '';
   return '<div style="font-size:10px;font-weight:700;color:var(--muted);margin:4px 0 6px">JASA DIPILIH</div>'+gridKotak(t.join(''));}
 
@@ -13845,6 +13847,9 @@ function ordSvcEditor(o,hanya){
       (jenisDipakai.indexOf('Service')>=0
         ?'<button class="btn ghost sm" onclick="ordSvcAdd(\''+o.id+'\',\'Service\')">＋ Personalization</button>':'')+
       '</div>'+
+    /* keterangan teknik ini urusan PERSONALIZATION — di bawah tombol
+       + Live service ia bicara soal add-on, salah kamar */
+    (jenisDipakai.indexOf('Service')<0?'</div>':(
     '<div style="font-size:9.5px;color:var(--muted);margin-top:5px">'+
       (function(){
         /* Tiap potongan berdiri sendiri sebagai text node supaya penerjemah
@@ -13866,7 +13871,8 @@ function ordSvcEditor(o,hanya){
         if(dLive.length)
           pesan+=' <span>Live service</span> <b>'+dLive.map(esc).join(', ')+'</b> '+
             '<span>dikerjakan di acara — tekniknya tak membatasi spesifikasi produk.</span>';
-        return pesan+(adaBaris?'':' <span>Bagian ini sendiri belum berisi apa-apa.</span>');})()+'</div></div>';}
+        return pesan+(adaBaris?'':' <span>Bagian ini sendiri belum berisi apa-apa.</span>');})()+'</div></div>'))+'';}
+
 function kardusPakai(id){ // pakai hasil hitungan sebagai berat kirim
   var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
   var k=hitungKardus(o);if(!k.paket.length){alert('Belum bisa dihitung — lengkapi ukuran & berat produk di Master Product.');return;}
