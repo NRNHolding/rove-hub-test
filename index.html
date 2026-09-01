@@ -504,7 +504,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20260901-135514';
+const VERSI='20260901-135821';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -5606,6 +5606,7 @@ function tekListEdit(i){
       logHist&&0; /* master, bukan order — tak ada hist order yang pas */
       render();}});}
 function jasaTekList(nama){
+  nama=jasaNamaAsli(nama);
   var j=jasaAll().filter(function(x){return x.nama===nama;})[0];
   return String((j&&j.tekList)||'').split(',').map(function(x){return x.trim();}).filter(Boolean);}
 /* ============ VENDOR SEBUAH JASA — DICENTANG, BOLEH BANYAK ============ */
@@ -5650,6 +5651,7 @@ function teknikHarga(nama,qty){
   return {fix:+t.fix||0,perPc:per};}
 /* dirapikan di sumbernya: '-', '', dan '   ' sama-sama berarti tak ada teknik */
 function jasaTeknik(nama){
+  nama=jasaNamaAsli(nama);
   var j=jasaAll().find(function(x){return x.nama===nama;});
   var t=String((j&&j.teknik)||'').trim();
   return (t==='-')?'':t;}
@@ -6274,6 +6276,11 @@ function barisVendorLengkapi(o){
 /* Nama jasa dari nama barisnya: 'Add-on — Full Name' jadi 'Full Name'. */
 function namaJasaBaris(l){
   return String((l&&l.produk)||'').replace(/^(Live service|Add-on) — /,'');}
+/* 'Add-on Logo (2)' → 'Add-on Logo'. Satu order boleh memakai jasa yang sama
+   dua kali (mis. dua logo di tempat berbeda) — barisnya diberi nomor supaya
+   kunci lampiran/teknik/letaknya tak saling timpa, dan master dicari dengan
+   nama aslinya. */
+function jasaNamaAsli(n){return String(n||'').replace(/ \((\d+)\)$/,'');}
 /* Live service lewat JALUR FEE OPERATOR — bukan RFQ vendor — kalau:
    (a) tak ada vendor sama sekali, atau (b) semua vendor yang dicentang itu
    GRUP yang punya operator di master (Tim Deboss JKT dst = tim internal
@@ -6381,6 +6388,7 @@ function ordSvcLetak(id,nama,v){
    tekList. Live Deboss dikerjakan tim JKT atau SBY tergantung kota acaranya;
    satu dropdown memaksa memilih satu untuk selamanya. */
 function jasaVendorList(nama){
+  nama=jasaNamaAsli(nama);
   var j=((ST.master&&ST.master.jasa)||[]).find(function(x){return x.nama===nama;});
   return String((j&&j.vendor)||'').split(',').map(function(x){return x.trim();}).filter(Boolean);}
 function jasaVendor(nama){
@@ -9047,8 +9055,9 @@ function jasaHargaIsi(o){
         var perPcs=(v['s'+i]==='pcs');
         o.jasaHarga[n]={fix:perPcs?0:harga,harga:perPcs?harga:0};
         if(v.standar){
-          var j=(ST.master.jasa||[]).filter(function(x){return x.nama===n;})[0];
-          if(!j){j={nama:n,jenis:'Service',teknik:'-',fix:0,harga:0,vendor:''};(ST.master.jasa=ST.master.jasa||[]).push(j);}
+          var nAsli=jasaNamaAsli(n);
+          var j=(ST.master.jasa||[]).filter(function(x){return x.nama===nAsli;})[0];
+          if(!j){j={nama:nAsli,jenis:'Service',teknik:'-',fix:0,harga:0,vendor:''};(ST.master.jasa=ST.master.jasa||[]).push(j);}
           if(perPcs){j.harga=harga;j.fix=0;}else{j.fix=harga;j.harga=0;}}
         ubah++;});
       if(!ubah){alert('Tak ada harga yang diisi.');return;}
@@ -9744,7 +9753,8 @@ function lineJenis(l){
 /* Harga jual jasa untuk order INI. Master jadi harga standar; order boleh
    punya angkanya sendiri, karena harganya berubah menurut clientnya. */
 function jasaHargaOrder(o,nama){
-  var j=jasaAll().filter(function(x){return x.nama===nama;})[0]||{};
+  /* harga override order tetap per BARIS (nama bernomor); master per nama asli */
+  var j=jasaAll().filter(function(x){return x.nama===jasaNamaAsli(nama);})[0]||{};
   var ov=((o||{}).jasaHarga||{})[nama];
   if(ov&&(( +ov.fix||0)>0||(+ov.harga||0)>0))
     return {fix:(+ov.fix||0),perPc:(+ov.harga||0),sendiri:true};
@@ -9758,7 +9768,7 @@ function jasaBaris(o){
   var out=[];
   [['Service',liveList(o.svc)],['Live service',liveList(o.liveSvc)]].forEach(function(pair){
     pair[1].forEach(function(nama){
-      var j=jasaAll().find(function(x){return x.nama===nama;})||{};
+      var j=jasaAll().find(function(x){return x.nama===jasaNamaAsli(nama);})||{};
       var H=jasaHargaOrder(o,nama),fix=H.fix,perPc=H.perPc;
       out.push({nama:nama,jenis:pair[0],teknik:j.teknik||'-',qty:qty,
         perPc:perPc,fix:fix,amount:fix+perPc*qty,sendiri:H.sendiri});});});
@@ -11975,7 +11985,7 @@ function collImgTipe(tipe){
   if(r)return r.img;
   var f={'Hardbox':'box','Softbox':'box','Soft Pouch':'pouch','Thank You Card':'card'}[tipe];
   return (COLLAT_IMG&&f)?(COLLAT_IMG[f]||''):'';}
-function jasaImg(nama){var j=jasaAll().find(function(x){return x.nama===nama;});return (j&&j.img)||'';}
+function jasaImg(nama){var j=jasaAll().find(function(x){return x.nama===jasaNamaAsli(nama);});return (j&&j.img)||'';}
 /* C — daftar barang yang dipesan, lengkap dengan gambarnya. */
 function briefProduk(o){
   var L=((o.pricing||{}).lines||[]).filter(function(l){return (l.qty||0)>0||l.produk;});
@@ -14057,7 +14067,11 @@ function ordSvcAdd(id,jenis){
   if(!ada.length){alert('Belum ada '+jenis.toLowerCase()+' di Master Data → Produk → Jasa.\n\nTambahkan dulu di sana, lengkap dengan tekniknya.');return;}
   var k=SVCKEY[jenis],cur=liveList(o[k]);
   var blm=ada.filter(function(n){return cur.indexOf(n)<0;});
-  if(!blm.length){alert('Semua '+jenis.toLowerCase()+' sudah dipilih.');return;}
+  if(!blm.length){
+    /* semuanya sudah dipakai — tambahkan lagi yang pertama sebagai baris
+       bernomor; namanya bisa diganti lewat dropdown barisnya */
+    var n2=2;while(cur.indexOf(ada[0]+' ('+n2+')')>=0)n2++;
+    blm=[ada[0]+' ('+n2+')'];}
   cur.push(blm[0]);o[k]=cur;o._m=Date.now();
   try{barisVendorLengkapi(o);persoSinkron(o);}catch(e){}
   logHist(o,jenis+' ditambah: '+blm[0]);save();render();}
@@ -14089,7 +14103,11 @@ function ordSvcSetLalu(o){try{barisVendorLengkapi(o);}catch(e){}}
 function ordSvcSet(id,jenis,i,v){
   var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
   var k=SVCKEY[jenis],cur=liveList(o[k]);
-  if(cur.indexOf(v)>=0&&cur[i]!==v){alert('"'+v+'" sudah ada di daftar.');render();return;}
+  if(cur.indexOf(v)>=0&&cur[i]!==v){
+    /* jasa yang sama boleh dua kali (mis. dua logo) — baris keduanya diberi
+       nomor supaya lampiran/teknik/letaknya punya kunci sendiri-sendiri */
+    var n2=2;while(cur.indexOf(v+' ('+n2+')')>=0)n2++;
+    v=v+' ('+n2+')';}
   cur[i]=v;o[k]=cur;o._m=Date.now();
   /* jasanya sudah bernama — vendornya masuk antrean harga */
   try{barisVendorLengkapi(o);persoSinkron(o);}catch(e){}
@@ -14128,7 +14146,7 @@ function teknikPilih(o,n){
   var L=jasaTekList(n);
   /* belum dikunci: tawarkan teknik SE-KELUARGA saja — jasa acara tak perlu
      melihat teknik workshop, dan sebaliknya */
-  var jj=(jasaAll().filter(function(x){return x.nama===n;})[0]||{}).jenis||'Service';
+  var jj=(jasaAll().filter(function(x){return x.nama===jasaNamaAsli(n);})[0]||{}).jenis||'Service';
   if(!L.length)L=teknikNamaUntuk(jj);
   if(!L.length)L=teknikNama();
   if(!L.length)L=persoVals().filter(function(x){return x&&x!=='-';});
