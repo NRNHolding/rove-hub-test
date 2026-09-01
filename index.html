@@ -504,7 +504,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20260901-143025';
+const VERSI='20260901-143823';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -517,6 +517,15 @@ function versiCek(){
         if(!t)return;
         t=String(t).trim();
         if(!t||t===VERSI)return;
+        /* tab yang sedang TIDAK dilihat dimuat ulang sendiri — aman, tak ada
+           yang sedang mengetik di sana, dan semua isian memang tersimpan
+           seketika. Dengan banyak tab (Holding/PM/Sales), tanpa ini tiap tab
+           harus di-refresh tangan satu-satu dan yang lupa tetap memakai
+           salinan lama berjam-jam. Tab yang sedang dilihat tetap sopan:
+           hanya pita ajakan muat ulang. */
+        if(document.hidden){
+          try{var u=new URL(location.href);u.searchParams.set('v',String(Date.now()));location.replace(u.toString());return;}
+          catch(e){try{location.reload();return;}catch(e2){}}}
         versiPita(t);})
       .catch(function(){});
   }catch(e){}}
