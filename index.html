@@ -504,7 +504,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20260901-111751';
+const VERSI='20260901-112209';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -4341,6 +4341,28 @@ function sinkronDorong(){
   ST.cloudStatus='mengirim '+n+' order…';sinkronBadge();
   alert('✓ '+n+' order dikirim. Minta yang lain menekan "⟲ Sinkron sekarang", atau tunggu 25 detik.');}
 var _pollT=null;
+/* Tiga tab satu browser (Holding / PM / Sales) berbagi localStorage tapi
+   masing-masing memegang salinannya di memori. Browser sudah menyediakan
+   jembatannya: event `storage` menyala di TAB LAIN setiap localStorage
+   berubah — dipakai di sini supaya master, order, dan prospek yang diubah
+   satu tab langsung terlihat di tab sebelahnya, tanpa menunggu cloud. */
+function tabLainBerubah(e){
+  try{
+    if(!e||!e.key)return;
+    if(e.key==='rovehub_master'){
+      loadMaster();try{migrasiTeknikJasa();}catch(x){}
+      try{buildCollatData();}catch(x){}
+      ST.cloudStatus='master diperbarui dari tab lain';render();return;}
+    if(e.key===KEY){
+      try{ST.orders=JSON.parse(e.newValue||'[]')||[];}catch(x){return;}
+      pastikanBentukSemua();
+      if(ST.cur&&!ST.orders.some(function(o){return o.id===ST.cur;}))ST.cur=null;
+      render();return;}
+    if(e.key===LEAD_KEY){
+      try{ST.leads=JSON.parse(e.newValue||'[]')||[];}catch(x){return;}
+      render();return;}
+  }catch(err){}}
+try{window.addEventListener('storage',tabLainBerubah);}catch(e){}
 function startCloudPoll(){if(_pollT)clearInterval(_pollT);
   _pollT=setInterval(function(){if((ST.cfg||{}).dbUrl&&ST.user)cloudAutoLoad();},15000);
   /* saat orang kembali ke tabnya, itulah detik ia berharap melihat yang baru —
@@ -4694,7 +4716,11 @@ function syncSidebar(){
     } else sm.innerHTML='';
   }
 }
-function saveMaster(){localStorage.setItem('rovehub_master',JSON.stringify(ST.master));}
+function saveMaster(){localStorage.setItem('rovehub_master',JSON.stringify(ST.master));
+  /* perubahan master harus menyeberang juga — dulu ia cuma menunggu tumpangan
+     dari penyimpanan order berikutnya, jadi tab/perangkat lain bisa lama
+     sekali tak tahu */
+  try{cloudSave();}catch(e){}}
 
 /* Centang jabatan — satu orang boleh lebih dari satu. Jabatan pertama yang
    dicentang jadi jabatan utama (dipakai untuk tampilan & channel Discord). */
