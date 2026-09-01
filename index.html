@@ -504,7 +504,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20260901-142137';
+const VERSI='20260901-142823';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -9063,7 +9063,8 @@ const CHK_FIELD={
   ref:'refFiles', terjemah:'mainMat',
   /* logo & letaknya kini menempel di jasanya (slot svcF_..., kolom letak
      per baris) — slot logoFiles/persoFiles lama hanya tampil untuk warisan */
-  logoCl:'svcF_*', logoLetak:'svcLetak_*',
+  logoCl:'svcF_*,logoFiles', logoLetak:'svcLetak_*,persoFiles',
+  bahanWarna:'mainMat',
   logoPch:'logoPouchFiles', logoBox:'logoBoxFiles', logoCard:'logoCardFiles',
   preview:'previewFiles', qc:'qcFiles', pack:'packFiles',
   alamat:'addr', alamatKantor:'addrKantor', email:'email',
@@ -9677,14 +9678,20 @@ function sorotPanel(pk,kunci){
     var f=kunci&&CHK_FIELD[kunci];
     var kol=null;
     if(f){
-      /* 'svcF_*' = kolom per-jasa yang namanya dinamis; ambil yang pertama.
-         Tanpa ini, item logo menebak 'kolom kosong pertama' dan mendarat di
-         Email client. */
-      var t=(f.slice(-1)==='*')?e.querySelector('[data-f^="'+f.slice(0,-1)+'"]')
-                               :e.querySelector('[data-f="'+f+'"]');
+      /* daftar sasaran dipisah koma, dicoba berurutan; akhiran * berarti
+         nama dinamis (mis. svcF_<jasa>). Tanpa ini, item menebak 'kolom
+         kosong pertama' dan mendarat di Email client. */
+      var t=null;
+      String(f).split(',').some(function(satu){
+        satu=satu.trim();if(!satu)return false;
+        t=(satu.slice(-1)==='*')?e.querySelector('[data-f^="'+satu.slice(0,-1)+'"]')
+                                :e.querySelector('[data-f="'+satu+'"]');
+        return !!t;});
       if(t)kol=(t.tagName==='INPUT'||t.tagName==='SELECT'||t.tagName==='TEXTAREA')
         ?t:(t.querySelector('input,select,textarea,button')||t);}
-    if(!kol)kol=kolomKosongPertama(e);
+    /* item yang PUNYA sasaran terdaftar tapi kolomnya belum dirender (mis.
+       jasanya belum dipilih) berhenti di kepala panelnya — tak menebak */
+    if(!kol&&!f)kol=kolomKosongPertama(e);
     if(!kol)return;
     try{kol.scrollIntoView({block:'center',behavior:'smooth'});}catch(err){}
     kedip(kol,'var(--gold)');
