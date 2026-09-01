@@ -504,7 +504,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20260901-152728';
+const VERSI='20260901-152820';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -12074,9 +12074,8 @@ function rfqPanel(o){
                     : ('<div style="font-size:9px;color:var(--warn);font-weight:700">tanpa teknik — isi di Master Product → Jasa</div>'))
                 : (l.bahan?('<div style="font-size:9px;color:var(--muted)">'+esc(l.bahan)+'</div>'):''))+
               '<div style="margin-top:4px;max-width:230px">'+rfqVendorSel(o,l,x.i)+'</div>'+
-              ((lineJenis(l)==='produk'&&(l.qty||0)>1)
-                ?('<button class="btn ghost sm" style="margin-top:4px;font-size:9px" title="mis. 25 biru + 25 merah — tiap bagian jadi baris sendiri" onclick="bagiWarna('+jsArg(o.id)+','+x.i+')">⑂ Bagi per warna / artikel</button>')
-                :'')+
+              /* pembagian warna urusan Inquiry (Brief & tabel Pricing) —
+                 panel ini fokus ke harganya saja */
               ((l.rfq&&l.rfq.note)?('<div style="font-size:9px;color:var(--muted);margin-top:3px">catatan vendor: '+esc(l.rfq.note)+'</div>'):'')+'</td>'+
             '<td class="num" style="width:52px;vertical-align:top;border-bottom:none;font-size:10.5px">'+esc(poQtyTeks(l)).replace(' ','<br>')+'</td>'+
             '<td style="width:150px;vertical-align:top;border-bottom:none">'+
