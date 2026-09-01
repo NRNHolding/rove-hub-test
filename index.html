@@ -504,7 +504,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20260901-135821';
+const VERSI='20260901-141700';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -2453,6 +2453,59 @@ function leadSet(id,f,v){var l=leadsAll().find(function(x){return x.id===id;});i
   l.touch=new Date().toISOString().slice(0,10);l._m=Date.now();
   if(f==='status')l.log.push({t:nowStr(),by:(ST.userName||ST.user),txt:'Status → '+v});
   saveLeads();render();}
+/* ---- lampiran prospek: referensi bergambar dengan keterangan ----
+   Tidak wajib dan tak menahan apa-apa: prospek tanpa gambar tetap bisa
+   dikirim ke Inquiry. Keterangannya bebas: Referensi box, Referensi A, dst. */
+function leadRef(l){if(!Array.isArray(l.ref))l.ref=[];return l.ref;}
+function leadRefAdd(id){
+  var l=leadsAll().find(function(x){return x.id===id;});if(!l)return;
+  var inp=document.createElement('input');inp.type='file';inp.multiple=true;
+  inp.accept='.jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf';
+  inp.onchange=function(){
+    Array.prototype.slice.call(inp.files||[]).forEach(function(f){
+      if(f.size>4*1024*1024){alert('"'+f.name+'" terlalu besar ('+Math.round(f.size/1024)+' KB). Maksimal 4 MB.');return;}
+      var rd=new FileReader();
+      rd.onload=function(){
+        leadRef(l).push({nama:f.name,tipe:f.type,kb:Math.round(f.size/1024),data:rd.result,
+          ket:'',t:nowStr(),by:(ST.userName||ST.user||'-')});
+        l._m=Date.now();saveLeads();render();};
+      rd.readAsDataURL(f);});};
+  inp.click();}
+function leadRefKet(id,i,v){
+  var l=leadsAll().find(function(x){return x.id===id;});if(!l)return;
+  var f=leadRef(l)[i];if(!f)return;
+  f.ket=String(v||'').trim();l._m=Date.now();saveLeads();}
+function leadRefDel(id,i){
+  var l=leadsAll().find(function(x){return x.id===id;});if(!l)return;
+  var a=leadRef(l);if(!a[i])return;
+  if(!confirm('Hapus "'+(a[i].ket||a[i].nama)+'"?'))return;
+  a.splice(i,1);l._m=Date.now();saveLeads();render();}
+function leadRefBuka(id,i){
+  var l=leadsAll().find(function(x){return x.id===id;});if(!l)return;
+  var f=leadRef(l)[i];if(!f)return;
+  if(String(f.tipe||'').indexOf('image')===0){openLB(f.data);return;}
+  var w=window.open('','_blank');
+  if(w)w.document.write('<iframe src="'+f.data+'" style="border:0;width:100%;height:100%;position:absolute;inset:0"></iframe>');
+  else alert('Popup diblokir browser. Izinkan popup untuk membuka PDF.');}
+function leadRefBlok(l){
+  var a=leadRef(l);
+  return '<div style="margin-top:10px">'+
+    '<div style="display:flex;align-items:center;gap:8px;margin-bottom:5px;flex-wrap:wrap">'+
+      '<span class="nlbl" style="margin:0">Referensi dari client</span>'+
+      '<button class="btn ghost sm" onclick="leadRefAdd('+jsArg(l.id)+')">\uff0b Lampirkan jpg / png / pdf</button>'+
+      '<span style="font-size:9px;color:var(--muted)">tidak wajib \u2014 ikut terbawa saat dikirim ke Inquiry</span></div>'+
+    (a.length?('<div style="display:flex;flex-wrap:wrap;gap:8px">'+a.map(function(f,i){
+      var gbr=String(f.tipe||'').indexOf('image')===0;
+      return '<div style="border:1px solid var(--line);border-radius:9px;padding:6px;background:var(--bg);width:122px">'+
+        (gbr?('<img src="'+f.data+'" style="width:100%;height:74px;object-fit:cover;border-radius:6px;cursor:zoom-in" onclick="leadRefBuka('+jsArg(l.id)+','+i+')">')
+            :('<div style="height:74px;display:flex;align-items:center;justify-content:center;font-size:26px;cursor:pointer" onclick="leadRefBuka('+jsArg(l.id)+','+i+')">\ud83d\udcc4</div>'))+
+        '<input class="pin" style="width:100%;margin-top:5px;font-size:10px" value="'+esc(f.ket||'')+'" placeholder="mis. Referensi box" '+
+          'onchange="leadRefKet('+jsArg(l.id)+','+i+',this.value)" title="keterangan gambar \u2014 mis. Referensi box, Referensi A">'+
+        '<div style="display:flex;align-items:center;gap:4px;margin-top:3px">'+
+          '<span style="font-size:8.5px;color:var(--muted);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(f.nama||'')+(f.kb?(' \u00b7 '+f.kb+' KB'):'')+'</span>'+
+          '<button class="xrow" onclick="leadRefDel('+jsArg(l.id)+','+i+')">\u2715</button></div>'+
+      '</div>';}).join('')+'</div>')
+    :'<div style="font-size:9.5px;color:var(--muted)">belum ada lampiran</div>')+'</div>';}
 function leadNote(id){var l=leadsAll().find(function(x){return x.id===id;});if(!l)return;
   var n=prompt('Catatan tindak lanjut:','');if(n===null||!n.trim())return;
   l.log.push({t:nowStr(),by:(ST.userName||ST.user),txt:n.trim()});
@@ -2525,6 +2578,12 @@ function kirimKeInquiry(id){
   if(l.brideNama)o.brief.brideNama=l.brideNama;
   if(l.groomNama)o.brief.groomNama=l.groomNama;
   if(l.clientUtama)o.brief.clientUtama=l.clientUtama;
+  /* referensi bergambar prospek ikut ke slot "Referensi dari client" order;
+     keterangannya jadi nama depan supaya PM tahu itu gambar apa */
+  if(Array.isArray(l.ref)&&l.ref.length){
+    o.brief.refFiles=(o.brief.refFiles||[]).concat(l.ref.map(function(f){
+      return {nama:(f.ket?(f.ket+' \u2014 '):'')+(f.nama||'referensi'),tipe:f.tipe,kb:f.kb,data:f.data,t:f.t,by:f.by};}));
+    logHist(o,'\ud83d\udcce '+l.ref.length+' referensi bergambar terbawa dari prospek');}
   o.vip=isVip(l);                       // status VIP ikut, tak perlu ditetapkan ulang
   if(vipMinta(l))o.vipMinta=JSON.parse(JSON.stringify(l.vipMinta));  // pengajuan ikut juga
   o.dariSales={dari:l.nama,channel:l.channel,pic:l.pic,catatan:l.catatan||'',
@@ -2715,6 +2774,7 @@ function leadPanel(){
            di kepala kartu ("didiamkan 5 hari"). Yang berarti cuma Batal dan
            Kirim ke Inquiry — keduanya punya tombolnya sendiri di atas. */
       '</div>'+
+      leadRefBlok(l)+
       leadSpekBlok(l)+
       (l.log&&l.log.length?'<div style="margin-top:9px;font-size:10px;color:var(--muted);border-top:1px dashed var(--line);padding-top:7px">'+
         l.log.slice(-3).reverse().map(function(x){return '<div>'+esc(x.t)+' · '+esc(x.by||'')+' — '+esc(x.txt)+'</div>';}).join('')+
@@ -8518,6 +8578,18 @@ const PH_CHECK=[
    guna:'supaya Purchasing bisa minta harga — vendor tak bisa menghargai "elegant"',
    gunaEn:'so Purchasing can request quotes — no vendor can price "elegant"',
    pic:'PM', w:true, jika:'dariSales'},
+  {auto:function(o){var b=(o.brief||{});var isi=function(x){x=String(x||'').trim();return !!x&&x!=='-';};
+     /* lining & benang menyusul pasangannya: warna lining wajib hanya kalau
+        pakai lining, warna benang hanya kalau jahitannya sudah dipilih */
+     return isi(b.mainMat)&&isi(b.mainMatWarna)
+       &&(!isi(b.lining)||isi(b.liningWarna))
+       &&(!isi(b.stitch)||isi(b.benangWarna));},
+   k:'bahanWarna', t:'Pilih bahan & warnanya: main material + warna, warna lining (kalau pakai), warna benang',
+   en:'Pick the materials & colours: main material + colour, lining colour (if used), thread colour',
+   guna:'warnanya pilihan client — kalau tak ditanyakan sekarang, produksi jalan dengan tebakan',
+   gunaEn:'the client chooses the colours — ask now or production runs on guesses',
+   /* tak menahan fase: warnanya bisa menyusul; yang penting tertanya & terlihat */
+   pic:'Sales'},
   {auto:function(o){return !!(o.phone&&String(o.phone).trim());}, k:'kontak', t:'Catat nama PIC client beserta nomor HP-nya', en:'Record the client PIC and their phone number', guna:'supaya semua komunikasi order punya tujuan yang jelas', gunaEn:'so every message about this order has somewhere to go',                 pic:'PM', w:true},
   {auto:function(o){var b=o.brief||{};return !!o.eventDate&&!!b.tglKirim;},
    k:'acara', t:'Tanyakan tanggal acara dan tanggal kirim yang diminta', en:'Ask for the event date and the requested ship date', guna:'supaya seluruh hitung mundur produksi punya acuan', gunaEn:'so the whole production countdown has a reference', pic:'PM'},
@@ -9066,7 +9138,7 @@ function jasaHargaIsi(o){
         ': '+K.join(', '));
       o._m=Date.now();save();render();}});}
 const CHK_PANEL={jualJasa:'_master',operator:'_live',opFix:'_live',logoLetak:'brief',
-  brief:'brief', kontak:'brief', acara:'brief', kota:'brief', hpWo:'brief', ref:'brief',
+  brief:'brief', bahanWarna:'brief', kontak:'brief', acara:'brief', kota:'brief', hpWo:'brief', ref:'brief',
   rfq:'rfq', kulit:'rfq', harga:'rfq', moq:'rfq', konfKatalog:'rfq',
   hpp:'profit', margin:'profit', ongkir:'pricing', biayaLain:'profit',
   gen:'pricing', kirim:'pricing', follow:'pricing', email:'brief',
@@ -9390,7 +9462,7 @@ const MINTA_URUT=[
   /* kulit, harga, dan MOQ sengaja TIDAK di sini — itu ditanyakan PM ke vendor,
      bukan Sales ke client. Menaruhnya di sini membuat tombol "Ingatkan Sales"
      muncul di fase Pricing Vendor, fase yang seluruh isinya pekerjaan PM. */
-  ['Spesifikasi produk',['terjemah','brief','ref','kontak','acara','kota','hpWo']],
+  ['Spesifikasi produk',['terjemah','bahanWarna','brief','ref','kontak','acara','kota','hpWo']],
   ['Logo',['logoCl','logoLetak','logoPch','logoBox','logoCard']],
   ['Packaging',['coll','spec']],
   ['Live service',['live','operator']],
