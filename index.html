@@ -504,7 +504,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20260901-135125';
+const VERSI='20260901-135514';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -6274,10 +6274,19 @@ function barisVendorLengkapi(o){
 /* Nama jasa dari nama barisnya: 'Add-on — Full Name' jadi 'Full Name'. */
 function namaJasaBaris(l){
   return String((l&&l.produk)||'').replace(/^(Live service|Add-on) — /,'');}
-/* Live service yang DIKERJAKAN SENDIRI oleh tim Rove — biayanya fee operator,
-   bukan harga vendor. Yang punya vendor di master (mis. 'Live calligraphy' ke
-   'Mercia Calligraphy') disubkontrakkan dan tetap lewat jalur harga vendor. */
-function jasaSendiri(nama){return !jasaVendorList(nama).length;}
+/* Live service lewat JALUR FEE OPERATOR — bukan RFQ vendor — kalau:
+   (a) tak ada vendor sama sekali, atau (b) semua vendor yang dicentang itu
+   GRUP yang punya operator di master (Tim Deboss JKT dst = tim internal
+   ber-wadah akuntansi; feenya per operator, diajukan ke vendor grupnya).
+   Vendor tanpa operator = subkontrak sungguhan, tetap lewat jalur RFQ.
+   Tanpa pembedaan ini, jasa ber-vendor grup dibiayakan DUA KALI (baris RFQ
+   + fee operator) dan panel booking operatornya malah tersembunyi. */
+function grupBerOperator(nama){
+  return operators().some(function(op){return ((op.grup||'').trim())===nama&&op.aktif!==false;});}
+function jasaSendiri(nama){
+  var VL=jasaVendorList(nama);
+  if(!VL.length)return true;
+  return VL.every(grupBerOperator);}
 function barisLiveSendiri(l){
   return !!(l&&l.jasa==='Live service'&&jasaSendiri(namaJasaBaris(l)));}
 /* Order ini memakai live service yang dikerjakan tim sendiri? Itu yang
@@ -6752,7 +6761,7 @@ function renderMaster(){
            '<b style="color:var(--warn)">Harga di sini harga JUAL ke client</b> — masuk quotation &amp; invoice; tiap order boleh punya harganya sendiri.'
          : '<b>Live service</b> = dikerjakan di lokasi acara. <b style="color:var(--warn)">Harga di sini harga JUAL ke client</b>. '+
            'Yang dibayarkan ke tim bukan angka ini, melainkan <b>fee tiap operator</b> di tab Live service. '+
-           'Vendor dikosongkan = dikerjakan tim Rove sendiri; diisi = disubkontrakkan.');
+           'Vendor dikosongkan ATAU diisi grup yang punya operator = biayanya fee operator; vendor tanpa operator = disubkontrakkan lewat RFQ/PO.');
        isi='<div style="display:flex;flex-wrap:wrap;gap:7px;margin-bottom:10px">'+
            jChip('Live service','Live service',jJum('Live service'))+
            jChip('Service','Add-on',jJum('Service'))+
