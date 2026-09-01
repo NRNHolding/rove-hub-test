@@ -504,7 +504,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20260901-144143';
+const VERSI='20260901-144839';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -9072,7 +9072,7 @@ const CHK_FIELD={
   ref:'refFiles', terjemah:'mainMat',
   /* logo & letaknya kini menempel di jasanya (slot svcF_..., kolom letak
      per baris) — slot logoFiles/persoFiles lama hanya tampil untuk warisan */
-  logoCl:'svcF_*,logoFiles', logoLetak:'svcLetak_*,persoFiles',
+  logoCl:'svcF_*,logoFiles,sekPerso', logoLetak:'svcLetak_*,persoFiles,sekPerso',
   bahanWarna:'mainMat',
   logoPch:'logoPouchFiles', logoBox:'logoBoxFiles', logoCard:'logoCardFiles',
   preview:'previewFiles', qc:'qcFiles', pack:'packFiles',
@@ -14121,7 +14121,7 @@ function briefPanel(o){
     lampiranBlok(o,'refFiles','Referensi dari client')+
 
     '<a id="sekPerso"></a>'+
-    sub('PERSONALIZATION','dikerjakan di workshop pada produknya — initial, full name, logo')+
+    '<div data-f="sekPerso">'+sub('PERSONALIZATION','dikerjakan di workshop pada produknya — initial, full name, logo')+'</div>'+
     salesPita(o,'perso')+
     ordSvcEditor(o,'Service')+
     /* Logo, acuan, dan daftar nama menempel di jasanya masing-masing di atas.
