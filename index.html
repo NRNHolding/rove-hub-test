@@ -504,7 +504,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20260902-134643';
+const VERSI='20260902-134722';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -10519,11 +10519,10 @@ function bagiWarna(id,i){
         '<span style="font-size:9px;color:var(--muted);width:14px;text-align:right">'+(k+1)+'</span>'+
         kotakIn('w',k,v.w,'Warna / artikel — pilih dari daftar atau ketik','flex:1;min-width:0','varDlW')+
         '<input class="pin n" type="number" min="0" data-k="'+k+'" data-f="q" value="'+(v.q||'')+'" placeholder="qty" style="width:66px">'+
-        '<button type="button" class="btn ghost sm" data-act="spec" data-k="'+k+'" title="spec varian ini berbeda (benang / finishing / catatan)" style="padding:4px 8px'+(v._open||varianRingkas(v)?';border-color:var(--brand);color:var(--brand)':'')+'">⚙</button>'+
         '<button type="button" class="btn ghost sm" data-act="pisah" data-k="'+k+'" title="pisahkan jadi baris pricing sendiri — untuk varian yang HARGANYA beda" style="padding:4px 8px">⇄</button>'+
         '<button type="button" class="xrow" data-act="hapus" data-k="'+k+'">✕</button>'+
       '</div>'+
-      (v._open?('<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:6px;margin-top:6px;padding-left:20px">'+
+      (('<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:6px;margin-top:6px;padding-left:20px">'+
         kotakIn('lining',k,v.lining,'lining','','varDlLining')+
         kotakIn('liningWarna',k,v.liningWarna,'warna lining','','varDlBenang')+
         kotakIn('filler',k,v.filler,'filler','','varDlFiller')+
@@ -10532,14 +10531,14 @@ function bagiWarna(id,i){
         kotakIn('finishing',k,v.finishing,'finishing','','varDlFin')+
         kotakIn('cat',k,v.cat,'catatan lain','grid-column:1/-1')+
         '<div style="grid-column:1/-1;font-size:9px;color:var(--muted)">kosong = ikut spec utama order</div>'+
-        '</div>'):'')+
+        '</div>'))+
       '</div>';}
   function gambar(){
     var tot=V.reduce(function(a,v){return a+(+v.q||0);},0),q=+l.qty||0;
     ov.innerHTML='<div style="background:var(--card,#fff);color:var(--ink,#222);border-radius:14px;max-width:600px;width:100%;padding:17px 19px;box-shadow:0 18px 50px rgba(0,0,0,.35)">'+
       '<div style="font-weight:800;font-size:14px">Bagi per warna / artikel — '+esc(l.produk||'item')+'</div>'+
       '<div style="font-size:10.5px;color:var(--muted);margin:3px 0 11px">Qty baris <b>'+q+' pcs</b> · total varian <b style="color:'+(q&&tot!==q?'var(--warn)':'var(--ok)')+'">'+tot+' pcs</b>. '+
-        'Spec utama order (material, benang, finishing di bagian Spesifikasi Produk) berlaku untuk semua varian — ⚙ hanya untuk varian yang MENYIMPANG darinya; ⇄ memisahkan varian berharga beda jadi baris sendiri.</div>'+
+        'Kolom spec tiap varian langsung tersedia — kosong = ikut spec utama order; ⇄ memisahkan varian berharga beda jadi baris sendiri.</div>'+
       V.map(baris).join('')+dlHTML+
       '<button type="button" class="btn ghost sm" data-act="tambah">＋ Tambah varian</button>'+
       '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:13px">'+
