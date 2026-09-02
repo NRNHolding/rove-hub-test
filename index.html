@@ -504,7 +504,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20260902-142501';
+const VERSI='20260902-143447';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -12313,12 +12313,9 @@ function briefProduk(o){
       /* permintaan dua-tiga warna kulit sudah terlihat sejak Inquiry — kartu
          produk membawa tombol baginya, tak perlu menunggu fase harga vendor */
       var idxAsli=(((o.pricing||{}).lines)||[]).indexOf(l);
-      var bagi=(lineJenis(l)==='produk'&&(l.qty||0)>1&&idxAsli>=0)
-        ?(
-          '<div style="text-align:center;margin-top:2px"><button class="btn ghost sm" style="padding:1px 8px;font-size:9px" '+
-          'title="mis. 25 biru + 25 merah — boleh banyak varian, spec per varian boleh beda" '+
-          'onclick="bagiWarna('+jsArg(o.id)+','+idxAsli+')">'+(lineVarian(l).length?'✎ varian ('+lineVarian(l).length+')':'⑂ bagi warna')+'</button></div>')
-        :'';
+      /* tombol bagi warna di kartu kecil dihapus — variannya diurus di
+         kartu spec produknya (＋ Tambah varian) tepat di bawah */
+      var bagi='';
       return '<div>'+imgKotak(lineImg(l),l.produk||'(tanpa nama)',det)+bagi+'</div>';}).join(''))+
     '<div style="font-size:9.5px;color:var(--muted);margin:-4px 0 11px">Gambar ikut dari Master Product / baris pricing. '+
       'Belum ada gambar? Unggah lewat 📷 di baris pricing atau di Master Product.</div>';}
