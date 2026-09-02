@@ -504,7 +504,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20260902-161350';
+const VERSI='20260902-162026';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -935,8 +935,8 @@ const EN={
 'Yang kamu kerjakan:':'What you do:','— belum':'— not yet','— tidak ada':'— none','DP masuk':'deposit received',
 '🔒 tunggu: DP masuk':'🔒 waiting: deposit received','ITEM OTOMATIS DARI PRICING · 1 PO PER VENDOR':'ITEMS AUTOMATIC FROM PRICING · 1 PO PER VENDOR',
 'Berat manual tetap bisa diisi kalau datanya belum lengkap.':'You can still enter the weight manually if the data is incomplete.',
-'Harga per-pcs ikut tier Qty dari Cost Estimator; harga = harga jual (margin 0).':
-  'The per-piece price follows the Cost Estimator qty tier; price = selling price (margin 0).',
+'Angka di daftar = harga per-pcs dari Cost Estimator pada tier Qty itu, dan masuk sebagai HPP (biaya vendor). Harga jualnya dihitung dari margin order, tetap bisa diedit di barisnya.':
+  'The listed price is the Cost Estimator per-piece price at that qty tier, and lands as HPP (vendor cost). The selling price comes from the order margin and stays editable on the line.',
 '— ambil harga langsung dari':'— pull prices straight from','— isi Qty lalu klik produk':'— enter the qty then click a product',
 'lewat picker di bawah. Tak perlu nanya vendor manual. HPP bisa disembunyikan saat presentasi.':
   'using the picker below. No need to ask the vendor manually. Cost price can be hidden during a presentation.',
@@ -13695,7 +13695,7 @@ function catalogPicker(o){
         <input id="cat_qty" class="pin n" type="number" oninput="catFilter('${o.id}')" placeholder="0" style="width:80px;margin-top:3px"></label>
     </div>
     <div id="cat_list" style="max-height:236px;overflow-y:auto;border:1px solid var(--line,#eee);border-radius:9px;padding:4px;background:var(--card,#fff)">${catRowsHTML(o)}</div>
-    <div style="font-size:9.5px;color:var(--muted);margin-top:7px">Harga per-pcs ikut tier Qty dari Cost Estimator; harga = harga jual (margin 0).</div>
+    <div style="font-size:9.5px;color:var(--muted);margin-top:7px">Angka di daftar = harga per-pcs dari Cost Estimator pada tier Qty itu, dan masuk sebagai HPP (biaya vendor). Harga jualnya dihitung dari margin order, tetap bisa diedit di barisnya.</div>
   </div>`;
 }
 /* ---- collaterals Inquiry → baris pricing (harga dari Cost Estimator) ---- */
