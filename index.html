@@ -504,7 +504,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20260903-060627';
+const VERSI='20260903-061602';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -871,7 +871,6 @@ const EN={
 'HARGA BARU DIMINTA, HARGA KATALOG DIPASTIKAN':'NEW PRICES REQUESTED, CATALOGUE PRICES CONFIRMED',
 'HARGA DARI MASTER — TETAP DIPASTIKAN KE VENDOR':'PRICED FROM THE MASTER — STILL CONFIRMED WITH THE VENDOR',
 '✓ Harga masih berlaku':'✓ Price still stands','↺ Batalkan':'↺ Undo',
-'→ Lanjut ke Quotation':'→ Continue to Quotation',
 'semua sudah dikonfirmasi':'all confirmed',
 '✓ Semua harga sudah dipastikan ke vendornya':'✓ Every price has been confirmed with its vendor',
 'Tak ada harga baru yang perlu diminta — tapi harganya tetap dipastikan':
@@ -11548,7 +11547,17 @@ function profitTambahCustom(id){
       o.pricing.lines.push({produk:v.nama,bahan:v.bahan||'',sumber:v.sumber,qty:+v.qty||0,
         hpp:+v.hpp||0,jual:+v.jual||0,perso:'-',fixed:false,imgs:[]});
       o._m=Date.now();logHist(o,'Item ditambah: '+v.nama);save();render();}});}
+/* Dulu form kecil ber-dropdown nama produk. Yang diharapkan orang: picker
+   katalog yang sama seperti di panel Pricing (gambar, material, harga tier).
+   Sejak panel Pricing tak lagi dibuka di fase ini, pickernya digambar di
+   panel Penentuan harga jual sendiri. */
 function profitTambahKatalog(id){
+  var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
+  if(!catalog().length){alert('Katalog masih kosong. Impor dulu di Master data → Master Product.');return;}
+  catToggle(id);
+  try{setTimeout(function(){var el=document.getElementById('cat_list');if(el)el.scrollIntoView({block:'center',behavior:'smooth'});},60);}catch(e){}}
+/* form lama — masih dipakai kalau katalog belum bisa digambar (fase >= Quotation) */
+function profitTambahKatalogForm(id){
   var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
   var C=catalog();
   if(!C.length){alert('Katalog masih kosong. Impor dulu di Master data → Master Product.');return;}
@@ -12195,6 +12204,18 @@ function negoTutup(o,l,hppBaru){
    belum butuh quotation. */
 function ongkirBlok(o){
   var P=o.pricing||{};
+  var e=shipEstimasi(o);
+  /* order lama: ekspedisi & kota sudah terisi tapi berat belum — diisi
+     sekali di sini supaya ongkirnya langsung kelihatan */
+  if(o.shipEksp&&o.shipKota&&!(o.shipKg>0)&&e.kg>0){
+    o.shipKg=e.kg;o._shipKgAuto=true;
+    if(!o.pricing)o.pricing={lines:[],margin:30};P=o.pricing;
+    P.ship=Math.round(o.shipKg*(o.shipTarif||0));try{save();}catch(x){}}
+  var ket='';
+  if(e.kg>0)ket='estimasi <b>'+e.kg+' kg</b> dari '+(e.dari==='kardus'?('ukuran &amp; berat produk ('+e.kardus+' kardus)'):'berat produk × qty')+
+    ((o.shipKg>0&&Math.abs(o.shipKg-e.kg)>0.005)?(' — <button class="btn ghost sm" style="padding:0 7px;font-size:9px" onclick="shipSet('+jsArg(o.id)+',\'kg\','+e.kg+')">pakai '+e.kg+' kg</button>'):'');
+  if(e.kurang.length)ket+=(ket?' · ':'')+'<span style="color:var(--warn);font-weight:700">'+esc(e.kurang.slice(0,3).join(', '))+(e.kurang.length>3?(' +'+(e.kurang.length-3)):'')+' belum ada ukuran/berat di Master Product</span>';
+  if(o.shipEksp&&o.shipKota&&!(o.shipTarif>0))ket+=(ket?' · ':'')+'<span style="color:var(--warn);font-weight:700">tarif '+esc(o.shipEksp)+' ke '+esc(o.shipKota)+' belum ada — isi sekali, tersimpan ke master</span>';
   return '<div data-f="ongkirBlok" style="border:1px dashed var(--line);border-radius:9px;padding:9px 11px;margin-top:12px">'+
     '<div style="font-size:10px;font-weight:800;color:var(--muted);margin-bottom:6px">ONGKIR '+
       '<span style="font-weight:400">— ditagih terpisah ke client; dihitung di sini supaya profitnya kelihatan utuh</span></div>'+
@@ -12209,10 +12230,12 @@ function ongkirBlok(o){
       '<label style="font-size:11px;font-weight:700;color:var(--muted)">Tarif/kg'+
         '<input class="pin n money" style="width:92px;margin-top:3px" inputmode="numeric" value="'+moneyInp(o.shipTarif)+'" onchange="shipSet('+jsArg(o.id)+',\'tarif\',this.value)"></label>'+
       '<label style="font-size:11px;font-weight:700;color:var(--muted)">Berat kg'+
-        '<input class="pin n" style="width:58px;margin-top:3px" type="number" value="'+(o.shipKg||'')+'" onchange="shipSet('+jsArg(o.id)+',\'kg\',this.value)" title="terisi otomatis dari ukuran &amp; berat produk"></label>'+
+        '<input class="pin n" style="width:58px;margin-top:3px" type="number" step="0.01" value="'+(o.shipKg||'')+'" onchange="shipSet('+jsArg(o.id)+',\'kg\',this.value)" title="terisi otomatis dari ukuran &amp; berat produk begitu ekspedisi &amp; kota dipilih; boleh ditimpa"></label>'+
       '<label style="font-size:11px;font-weight:700;color:var(--muted)">Ongkir'+
         '<input class="pin n money" style="width:96px;margin-top:3px" inputmode="numeric" data-id="'+esc(o.id)+'" data-field="ship" value="'+moneyInp(P.ship)+'" oninput="priceInput(this)"></label>'+
-    '</div></div>';}
+    '</div>'+
+    (ket?('<div style="font-size:9.5px;color:var(--muted);margin-top:6px">'+ket+'</div>'):'')+
+    '</div>';}
 function profitPanel(o){
   /* Dulu di sini ada profitSiapkan(o) — ia MENULIS l.jual lalu save(), jadi
      sekadar membuka layar order membekukan harga jualnya dan mematikan kolom
@@ -12244,11 +12267,15 @@ function profitPanel(o){
       'Yang dipakai quotation adalah <b>harga jual</b>; HPP hanya untuk menghitung profit.</div>'+
     (P.kurang?('<div style="font-size:10.5px;color:var(--warn);font-weight:700;margin-bottom:9px">⚠ '+P.kurang+' item belum ada HPP vendor — profitnya belum bisa dihitung penuh.</div>'):'')+
     '<div style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:10px">'+
-      '<button class="btn ghost sm" onclick="profitTambahKatalog(\u0027'+o.id+'\u0027)">＋ Item katalog</button>'+
+      ((o.phase||0)>=3
+        ? '<button class="btn ghost sm" onclick="profitTambahKatalogForm(\u0027'+o.id+'\u0027)">＋ Item katalog</button>'
+        : '<button class="btn ghost sm" onclick="profitTambahKatalog(\u0027'+o.id+'\u0027)">'+
+          (((ST._catBuka||{})[o.id])?'✕ Tutup katalog':'＋ Item katalog')+'</button>')+
       '<button class="btn ghost sm" onclick="profitTambahCustom(\u0027'+o.id+'\u0027)">＋ Item custom</button>'+
       '<button class="btn ghost sm" onclick="spareSemua(\u0027'+o.id+'\u0027)">＋% Spare vendor</button>'+
       '<span style="font-size:9.5px;color:var(--muted);align-self:center">item masih bisa ditambah/dikurangi di sini — setelah Quotation sudah terkunci</span>'+
     '</div>'+
+    (((ST._catBuka||{})[o.id])?catalogPicker(o,'profit'):'')+
     (L.length?'<div class="xscroll"><table class="rtable mstack"><thead><tr>'+
       '<th style="min-width:150px">Item</th><th style="width:70px">Qty client</th><th style="width:82px">Qty vendor</th>'+
       '<th style="width:118px" class="num">HPP/pcs</th><th style="width:78px" class="num">Margin %</th>'+
@@ -12508,12 +12535,11 @@ function rfqPanel(o){
             : '')+
           '</div>'):'')+
         '</div>';}).join('')+
-      (belum?'':('<div style="border:1px dashed var(--ok);border-radius:9px;padding:11px 13px;background:var(--bg)">'+
-        '<div style="font-size:12px;font-weight:800;color:var(--ok);margin-bottom:4px">✓ Semua harga sudah beres</div>'+
-        (faseMilikku(o)
-          ?('<button class="btn sm" onclick="trigger('+jsArg(o.id)+')">→ Lanjut ke Quotation</button>')
-          :('<button class="btn sm" disabled>→ Lanjut ke Quotation</button>'+
-            '<div style="font-size:9.5px;color:var(--muted);margin-top:4px">dipegang '+esc(fasePemilik(o))+'</div>'))+'</div>'));
+      /* Dulu ada tombol "→ Lanjut ke Quotation" di sini — salah alamat
+         (fase berikutnya Penentuan harga jual, bukan Quotation) dan
+         menduplikasi tombol ✓ Selesai. Cukup penanda beresnya. */
+      (belum?'':('<div style="border:1px dashed var(--ok);border-radius:9px;padding:9px 13px;background:var(--bg);font-size:11px;font-weight:800;color:var(--ok)">'+
+        '✓ Semua harga sudah beres <span style="font-weight:400;color:var(--muted)">— tutup fase lewat tombol ✓ Selesai di bawah</span></div>'));
   }
   return kepala+isi+sketchBar(o)+'</div></div>';}
 
@@ -13054,10 +13080,26 @@ function clientEdit(id,f,v){var o=ST.orders.find(function(x){return x.id===id;})
   save();}
 function upsertShip(eksp,kota,tarif){if(!eksp||!kota)return;if(!ST.master.shipping)ST.master.shipping=[];var r=ST.master.shipping.find(function(s){return s.ekspedisi===eksp&&s.kota===kota;});if(r)r.tarif=tarif;else ST.master.shipping.push({ekspedisi:eksp,kota:kota,tarif:tarif});saveMaster();}
 function dpSet(id,v){var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;o.dpPct=Math.max(0,Math.min(100,+v||0));save();render();}
+/* Berat kiriman yang ditagih: dari ukuran & berat produk di Master Product
+   (dan berat kemasan dari konfigurasi Estimator). Kalau kardusnya terdaftar,
+   yang dipakai berat tagih per kardus (maks berat vs volumetrik); kalau
+   tidak, cukup berat produk × qty × faktor packing. */
+function shipEstimasi(o){
+  var out={kg:0,dari:'',kurang:[],kardus:0};
+  try{var K=hitungKardus(o);
+    if(K.paket.length&&K.tagih>0){out.kg=K.tagih;out.dari='kardus';out.kardus=K.paket.reduce(function(a,p){return a+p.nb;},0);}
+    out.kurang=K.kurang||[];}catch(e){}
+  if(!(out.kg>0)){try{var B=orderBerat(o);if(B.kg>0){out.kg=B.kg;out.dari='berat';}}catch(e){}}
+  return out;}
 function shipSet(id,f,v){var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
-  if(f==='eksp')o.shipEksp=v;else if(f==='kota')o.shipKota=v;else if(f==='kg')o.shipKg=Math.max(0,+v||0);
+  if(f==='eksp')o.shipEksp=v;else if(f==='kota')o.shipKota=v;
+  else if(f==='kg'){o.shipKg=Math.max(0,+v||0);o._shipKgAuto=false;}   // diketik sendiri — jangan ditimpa estimasi
   else if(f==='tarif'){o.shipTarif=Math.max(0,moneyVal(v));upsertShip(o.shipEksp,o.shipKota,o.shipTarif);}
-  if(f==='eksp'||f==='kota'){var z=(ST.master.shipping||[]).find(function(s){return s.ekspedisi===o.shipEksp&&s.kota===o.shipKota;});if(z)o.shipTarif=+z.tarif||0;}
+  if(f==='eksp'||f==='kota'){
+    var z=(ST.master.shipping||[]).find(function(s){return s.ekspedisi===o.shipEksp&&s.kota===o.shipKota;});if(z)o.shipTarif=+z.tarif||0;
+    /* begitu ekspedisi & kota ada, beratnya diisi dari estimasi — selama
+       belum pernah diketik orang */
+    if(o.shipEksp&&o.shipKota&&(!(o.shipKg>0)||o._shipKgAuto)){var e=shipEstimasi(o);if(e.kg>0){o.shipKg=e.kg;o._shipKgAuto=true;}}}
   if(!o.pricing)o.pricing={lines:[],margin:30};
   o.pricing.ship=Math.round((o.shipKg||0)*(o.shipTarif||0));
   save();render();}
@@ -13807,7 +13849,8 @@ function addFromCatalog(id,i){
 function catMaterials(){var s={};catalog().forEach(function(c){if(c.material)s[c.material]=1;});return Object.keys(s).sort();}
 function catRowsHTML(o){
   var q=(ST._catq||'').toLowerCase(),mat=ST._catmat||'';
-  var qty=+((document.getElementById('cat_qty')||{}).value)||0;
+  /* sebelum kotak Qty ada di layar (render pertama), tier harga memakai qty order */
+  var qty=+((document.getElementById('cat_qty')||{}).value)||(+o.qty||0);
   var list=catalog().map(function(c,i){return {c:c,i:i};}).filter(function(x){
     if(mat&&(x.c.material||'')!==mat)return false;
     if(!q)return true;
@@ -13865,9 +13908,12 @@ function orderTipeSet(id,v){
    tombol kecil yang membukanya saat memang mau menambah. */
 function catToggle(id){
   ST._catBuka=ST._catBuka||{};ST._catBuka[id]=!ST._catBuka[id];render();}
-function catalogPicker(o){
-  if(o.type==='Custom')return '';          // order custom tak pakai katalog
+function catalogPicker(o,tempat){
+  if(o.type==='Custom'&&tempat!=='profit')return '';   // order custom tak pakai katalog — kecuali sengaja dibuka dari Penentuan harga jual
   if((o.phase||0)>=3)return '';              // sejak Quotation item sudah final — tambah item lewat panel Profitability
+  /* di fase Penentuan harga jual pickernya digambar panel itu sendiri; kalau
+     panel Pricing kebetulan dibuka lebih awal, jangan gambar dua kali */
+  if(tempat!=='profit'&&(o.phase||0)===2)return '';
   var mats=catMaterials(),liveN=((ST.master&&ST.master.catalog&&ST.master.catalog.length)||(CATALOG_LIVE&&CATALOG_LIVE.length));
   var buka=!!((ST._catBuka||{})[o.id]);
   if(!buka)return '<div style="margin-bottom:11px">'+
@@ -13882,7 +13928,7 @@ function catalogPicker(o){
       ${mats.length?`<label style="font-size:10px;font-weight:700;color:var(--muted)">Material<br>
         <select id="cat_mat" class="pin" onchange="catFilter('${o.id}')" style="margin-top:3px;min-width:130px"><option value="">Semua material</option>${mats.map(function(m){return '<option '+((ST._catmat===m)?'selected':'')+'>'+esc(m)+'</option>';}).join('')}</select></label>`:''}
       <label style="font-size:10px;font-weight:700;color:var(--muted)">Qty<br>
-        <input id="cat_qty" class="pin n" type="number" oninput="catFilter('${o.id}')" placeholder="0" style="width:80px;margin-top:3px"></label>
+        <input id="cat_qty" class="pin n" type="number" value="${(+o.qty||'')}" oninput="catFilter('${o.id}')" placeholder="0" style="width:80px;margin-top:3px"></label>
     </div>
     <div id="cat_list" style="max-height:236px;overflow-y:auto;border:1px solid var(--line,#eee);border-radius:9px;padding:4px;background:var(--card,#fff)">${catRowsHTML(o)}</div>
     <div style="font-size:9.5px;color:var(--muted);margin-top:7px">Angka di daftar = harga per-pcs dari Cost Estimator pada tier Qty itu, dan masuk sebagai HPP (biaya vendor). Harga jualnya dihitung dari margin order, tetap bisa diedit di barisnya.</div>
@@ -15041,7 +15087,7 @@ function pricingPanel(o){
      <div style="font-size:10.5px;color:var(--muted);margin-bottom:9px;line-height:1.5">${kunci
        ? 'Harga, margin, dan diskon sudah dikunci sejak fase Quotation — ubahnya di panel <b>Penentuan harga jual</b>. Di sini tinggal isi <b>ekspedisi, kota, tarif, dan berat</b> untuk ongkir, lalu generate dokumen.'
        : tipeNote(o)}</div>
-     ${catalogPicker(o)}
+     ${catalogPicker(o,'pricing')}
      ${(!kunci&&o.coll&&(o.coll.box||o.coll.pouch||o.coll.card||o.coll.others))?`<div style="margin-bottom:11px"><button class="btn ghost sm" onclick="addCollaterals('${o.id}')">＋ Tambah collaterals dari Inquiry (${collList(o.coll).length})</button> <span style="font-size:9.5px;color:var(--muted)">Box / Soft Pouch / Thank You Card / Others → baris harga otomatis</span></div>`:''}
      <div class="xscroll"><table class="ptable" style="min-width:640px"><thead><tr><th style="width:52px">Gambar</th><th>Produk</th><th>Bahan</th><th>Personalization</th>${showTali?'<th style="width:90px">Tali</th>':''}${showUk?'<th style="width:90px">Ukuran</th>':''}<th style="width:110px">Sumber vendor</th><th style="width:52px">Qty</th>${H?'<th style="width:96px">HPP/pcs</th>':''}<th style="width:62px">Margin %</th><th style="width:108px">Diskon/pcs</th><th style="width:116px" class="num">Harga jual</th><th style="width:22px"></th></tr></thead>
        <tbody>${rows}</tbody></table></div>
