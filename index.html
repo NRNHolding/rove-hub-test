@@ -504,7 +504,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20260902-131833';
+const VERSI='20260902-134455';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -10430,7 +10430,12 @@ function orderVarian(o){
   return out;}
 function varianTotal(l){return lineVarian(l).reduce(function(a,v){return a+(+v.q||0);},0);}
 function varianRingkas(v){
-  var t=[];if(v.benang)t.push('benang '+v.benang);
+  var t=[];
+  if(v.lining)t.push('lining '+v.lining+(v.liningWarna?(' '+v.liningWarna):''));
+  else if(v.liningWarna)t.push('warna lining '+v.liningWarna);
+  if(v.filler)t.push('filler '+v.filler);
+  if(v.stitch)t.push('stitch '+v.stitch);
+  if(v.benang)t.push('benang '+v.benang);
   if(v.finishing)t.push('finishing '+v.finishing);
   if(v.cat)t.push(v.cat);
   return t.join(', ');}
@@ -10461,8 +10466,11 @@ function varianTeks(l){
     return '   – '+(+v.q||0)+' pcs '+(v.w||'-')+(ket?(' ('+ket+')'):'');}).join(String.fromCharCode(10));}
 function varianSimpan(o,i,V){
   var l=(((o.pricing||{}).lines)||[])[i];if(!l)return;
-  var B=V.map(function(v){return {w:String(v.w||'').trim(),q:Math.max(0,+v.q||0),
-      benang:String(v.benang||'').trim(),finishing:String(v.finishing||'').trim(),cat:String(v.cat||'').trim()};})
+  var B=V.map(function(v){
+      var r={w:String(v.w||'').trim(),q:Math.max(0,+v.q||0)};
+      ['lining','liningWarna','filler','stitch','benang','finishing','cat'].forEach(function(f){
+        r[f]=String(v[f]||'').trim();});
+      return r;})
     .filter(function(v){return v.q>0||v.w;});
   if(B.length)l.varian=B;else delete l.varian;
   logHist(o,'⑂ Varian '+(l.produk||'item')+': '+(B.length?B.map(function(v){return v.q+' '+(v.w||'?');}).join(' + '):'(dihapus)'));
@@ -10485,8 +10493,10 @@ function varianPisah(o,i,k){
 function bagiWarna(id,i){
   var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
   var l=(((o.pricing||{}).lines)||[])[i];if(!l)return;
-  var V=lineVarian(l).map(function(v){return {w:v.w||'',q:+v.q||0,benang:v.benang||'',
-    finishing:v.finishing||'',cat:v.cat||'',_open:!!(v.benang||v.finishing||v.cat)};});
+  var V=lineVarian(l).map(function(v){
+    var r={w:v.w||'',q:+v.q||0};
+    ['lining','liningWarna','filler','stitch','benang','finishing','cat'].forEach(function(f){r[f]=v[f]||'';});
+    r._open=!!varianRingkas(v);return r;});
   if(!V.length){var q0=+l.qty||0;V=[{w:'',q:Math.ceil(q0/2)},{w:'',q:Math.floor(q0/2)}];}
   var lama=document.getElementById('varOv');if(lama)lama.remove();
   var ov=document.createElement('div');ov.id='varOv';
@@ -10500,7 +10510,9 @@ function bagiWarna(id,i){
     var dl=function(id,arr){return '<datalist id="'+id+'">'+arr.map(function(x){return '<option value="'+esc(x)+'">';}).join('')+'</datalist>';};
     var benang=[];try{benang=listArr('warna');}catch(e){}
     var fin=[];try{fin=listArr('finreq');}catch(e){}
-    return dl('varDlW',w)+dl('varDlBenang',benang)+dl('varDlFin',fin);})();
+    var amb=function(k2){try{return listArr(k2);}catch(e){return [];}};
+    return dl('varDlW',w)+dl('varDlBenang',benang)+dl('varDlFin',fin)+
+      dl('varDlLining',amb('lining'))+dl('varDlFiller',amb('filler'))+dl('varDlStitch',amb('stitch'));})();
   function baris(v,k){
     return '<div style="border:1px solid var(--line);border-radius:9px;padding:8px 9px;margin-bottom:7px;background:var(--bg)">'+
       '<div style="display:flex;gap:6px;align-items:center">'+
@@ -10511,10 +10523,16 @@ function bagiWarna(id,i){
         '<button type="button" class="btn ghost sm" data-act="pisah" data-k="'+k+'" title="pisahkan jadi baris pricing sendiri — untuk varian yang HARGANYA beda" style="padding:4px 8px">⇄</button>'+
         '<button type="button" class="xrow" data-act="hapus" data-k="'+k+'">✕</button>'+
       '</div>'+
-      (v._open?('<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;padding-left:20px">'+
-        kotakIn('benang',k,v.benang,'benang — kosong = ikut spec utama','flex:1;min-width:120px','varDlBenang')+
-        kotakIn('finishing',k,v.finishing,'finishing — kosong = ikut spec utama','flex:1;min-width:120px','varDlFin')+
-        kotakIn('cat',k,v.cat,'catatan lain','flex:2;min-width:160px')+'</div>'):'')+
+      (v._open?('<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:6px;margin-top:6px;padding-left:20px">'+
+        kotakIn('lining',k,v.lining,'lining','','varDlLining')+
+        kotakIn('liningWarna',k,v.liningWarna,'warna lining','','varDlBenang')+
+        kotakIn('filler',k,v.filler,'filler','','varDlFiller')+
+        kotakIn('stitch',k,v.stitch,'stitch','','varDlStitch')+
+        kotakIn('benang',k,v.benang,'warna benang','','varDlBenang')+
+        kotakIn('finishing',k,v.finishing,'finishing','','varDlFin')+
+        kotakIn('cat',k,v.cat,'catatan lain','grid-column:1/-1')+
+        '<div style="grid-column:1/-1;font-size:9px;color:var(--muted)">kosong = ikut spec utama order</div>'+
+        '</div>'):'')+
       '</div>';}
   function gambar(){
     var tot=V.reduce(function(a,v){return a+(+v.q||0);},0),q=+l.qty||0;
@@ -12297,7 +12315,7 @@ function briefProduk(o){
          produk membawa tombol baginya, tak perlu menunggu fase harga vendor */
       var idxAsli=(((o.pricing||{}).lines)||[]).indexOf(l);
       var bagi=(lineJenis(l)==='produk'&&(l.qty||0)>1&&idxAsli>=0)
-        ?(varianChips(l,o.id,idxAsli)+
+        ?(
           '<div style="text-align:center;margin-top:2px"><button class="btn ghost sm" style="padding:1px 8px;font-size:9px" '+
           'title="mis. 25 biru + 25 merah — boleh banyak varian, spec per varian boleh beda" '+
           'onclick="bagiWarna('+jsArg(o.id)+','+idxAsli+')">'+(lineVarian(l).length?'✎ varian ('+lineVarian(l).length+')':'⑂ bagi warna')+'</button></div>')
@@ -14325,10 +14343,12 @@ function briefPanel(o){
       /* warnanya sudah dirinci per varian? kolom warna utama menyingkir —
          diisi satu warna pun bohong, karena tiap varian punya warnanya */
       (orderVarian(o).length
-        ?('<label class="nlbl">Warna main material'+
-          '<div style="margin-top:3px;font-size:10.5px;line-height:1.8">'+
-          orderVarian(o).map(function(x){return varianChips(x.l,o.id,x.i);}).join('')+
-          '<div style="font-size:9px;color:var(--muted)">diatur per varian — klik chip untuk mengubah</div></div></label>')
+        ?(function(){var OV=orderVarian(o),x=OV[0];
+          var nm=[];OV.forEach(function(y){lineVarian(y.l).forEach(function(v){if(v.w)nm.push(v.w);});});
+          var n=nm.length,teks=nm.slice(0,3).join(', ')+(n>3?(' +'+(n-3)):'');
+          return '<label class="nlbl">Warna main material'+
+            '<button type="button" class="btn ghost sm" style="width:100%;margin-top:3px;text-align:left;font-size:10.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" '+
+            'title="diatur per varian — klik untuk mengubah" onclick="bagiWarna('+jsArg(o.id)+','+x.i+')">⑂ '+n+' varian — '+esc(teks)+'</button></label>';})()
         :briefWarna(o,'mainMatWarna','Warna main material'))+
       sel('lining','Lining',listArr('lining'))+
       briefWarna(o,'liningWarna','Warna lining')+
@@ -14339,7 +14359,7 @@ function briefPanel(o){
       (dye?briefWarna(o,'finishWarna','Warna dye'):'')+
       (orderVarian(o).length
         ?('<div style="grid-column:1/-1;font-size:9px;color:var(--muted);margin-top:-3px">'+
-          'Benang &amp; finishing di atas = bawaan untuk semua varian; varian yang menyimpang mengaturnya lewat ⚙ di "bagi warna".</div>')
+          'Semua kolom di atas = bawaan untuk semua varian; tiap varian bisa menyimpang di kolom mana pun lewat ⚙ di "bagi warna".</div>')
         :'')+
       /* Personalization tak punya kolom di grid ini — bagiannya sendiri ada
          tepat di bawah grid, jadi kotak ringkasan di sini cuma fungsi ganda
