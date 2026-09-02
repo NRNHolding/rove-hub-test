@@ -504,7 +504,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20260903-055306';
+const VERSI='20260903-060627';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -8660,12 +8660,13 @@ const PH_CHECK=[
      punya jawaban Radja DAN satu kulit yang dipilih dari jawaban itu — dan
      itu menahan fase, karena inilah pengganti "pastikan material siap di
      vendor" yang dulu berdiri di fase Produksi. Baris yang harganya dari
-     master lolos lewat konfirmasi katalog, yang sekalian menanyakan stok. */
+     master pun ditanyai — form Catat jawaban harga master ikut menanyakan
+     kulitnya, jadi tak ada lagi yang lolos tanpa jawaban. */
   {auto:function(o){
      var K=(((o.pricing||{}).lines)||[]).filter(function(l){return (l.qty||0)>0&&lineKulit(l);});
      return K.length===0||K.every(function(l){
        var k=rfqKulitBaca(l),J=k.jawab||[];
-       if(!J.length)return konfSah(l);           // harga dari master — dipastikan lewat konfirmasi katalog
+       if(!J.length)return false;                 // belum ada jawaban kulit dari Radja
        var nama=k.pilih||l.bahan;                // yang dijawab Radja HABIS tak boleh lolos
        var d=J.filter(function(x){return x.nama===nama;})[0];
        return !!d&&d.stok!=='Habis';});},
@@ -9397,9 +9398,15 @@ const FASE_HASIL=[
     ['Harga master dipastikan', function(o){
       return konfVendor(o).filter(function(g){
         return g.baris.every(function(x){return konfSah(x.l);});}).map(function(g){return g.vendor;}).join(', ');}],
-    ['Ketersediaan kulit', function(o){var K=rfqLines(o).filter(function(x){return lineKulit(x.l);});
+    ['Ketersediaan kulit', function(o){
+      /* semua baris pembelian kulit — yang di-RFQ maupun yang harganya dari master */
+      var K=(((o.pricing||{}).lines)||[]).filter(function(l){return (l.qty||0)>0&&lineKulit(l);});
       if(!K.length)return '';
-      return K.filter(function(x){return (rfqKulitBaca(x.l).jawab||[]).length>0;}).length+' dari '+K.length+' baris sudah dijawab Radja';}]],
+      var J=K.filter(function(l){return (rfqKulitBaca(l).jawab||[]).length>0;});
+      var pakai=K.map(function(l){var k=rfqKulitBaca(l);return k.pilih?(k.pilih+' ('+(l.produk||'item')+')'):'';}).filter(Boolean);
+      return J.length+' dari '+K.length+' baris sudah dijawab Radja'+
+        (pakai.length?(' — dipakai: '+pakai.join(', ')):'')+
+        (J.length<K.length?(' — '+(K.length-J.length)+' belum ditanya/dijawab'):'');}]],
   /* 2 Penentuan harga jual */[
     ['Deadline produksi Radja', function(o){return tglID((o.po||{}).deadline);}],
     ['Batas PO harus turun', function(o){return tglID((o.po||{}).tglPOMax);}],
@@ -10637,9 +10644,13 @@ function bagiWarna(id,i){
 function konfJawab(id,i){
   var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
   var l=(((o.pricing||{}).lines)||[])[i];if(!l)return;
+  /* baris pembelian kulit: sekalian tanya kulit apa yang ready — sama
+     seperti form RFQ; tanpa ini baris harga-master tak pernah ditanyai */
+  var kulit=lineKulit(l),k=kulit?rfqKulit(l):null;
   askForm({judul:'Catat jawaban '+(l.sumber||'vendor'),
-    sub:(l.produk||'item')+' \u00b7 '+(l.qty||0)+' pcs \u00b7 harga master '+fmt0(konfHargaBaris(l)),
-    fields:(function(){
+    sub:(l.produk||'item')+' \u00b7 '+(l.qty||0)+' pcs \u00b7 harga master '+fmt0(konfHargaBaris(l))+
+      (kulit?' \u00b7 sekalian catat kulit yang ready':''),
+    fields:(kulit?[kulitJawabField(k)]:[]).concat((function(){
       var V=lineVarian(l);
       if(!V.length)return [
         {k:'harga',label:'Harga/pcs jawaban vendor',type:'money',val:konfHargaBaris(l),req:true,
@@ -10650,11 +10661,13 @@ function konfJawab(id,i){
         return {k:'hv'+k2,label:'Harga/pcs — '+(v.q||0)+' pcs '+(v.w||('varian '+(k2+1))),type:'money',
           val:(+v.hpp||0)||konfHargaBaris(l)};});
       F2.push({k:'note',label:'Catatan vendor',type:'text',val:(l.rfq&&l.rfq.note)||'',ph:'mis. naik per Oktober'});
-      return F2;})().concat(keVendorProduksi(l)
+      return F2;})()).concat(keVendorProduksi(l)
       /* dijawab bersamaan dengan harganya — sama seperti form RFQ */
       ?[{k:'tglPOMax',label:'Paling lambat PO boleh turun — jawaban vendor',type:'date',
          val:(o.po||{}).tglPOMax||'',
-         hint:'Lewat tanggal ini vendor tak lagi menjamin barangnya sampai sebelum acara. Boleh kosong kalau belum dijawab.'}]:[]),
+         hint:'Lewat tanggal ini vendor tak lagi menjamin barangnya sampai sebelum acara. Boleh kosong kalau belum dijawab.'}]:[])
+      .concat(kulit?[{k:'keMaster',label:'Simpan kulit ke Master Kulit?',type:'checkbox',val:true,
+        cbLabel:'Ya — order berikutnya tinggal pilih, tak perlu tanya lagi'}]:[]),
     ok:function(v){
       var V=lineVarian(l),h;
       if(V.length){
@@ -10669,12 +10682,14 @@ function konfJawab(id,i){
       var lama=konfHargaBaris(l);
       l.hpp=h;try{negoTutup(o,l,h);}catch(e){}
       if(v.note){if(!l.rfq)l.rfq={};l.rfq.note=v.note;}
+      if(kulit)kulitJawabSimpan(l,k,v.kulit,hariIni(),v.keMaster);
       l.konf={hpp:h,tgl:hariIni(),oleh:(ST.userName||ST.user||'')};
       delete l.konfTanya;
       if(v.tglPOMax){o.po=o.po||{};o.po.tglPOMax=v.tglPOMax;
         logHist(o,'Radja: PO paling lambat turun '+tglID(v.tglPOMax));}
       logHist(o,'\u2713 Jawaban harga '+(l.sumber||'vendor')+' \u2014 '+(l.produk||'item')+': '+fmt0(h)+
-        (h!==lama?(' (master '+fmt0(lama)+')'):' (masih berlaku)'));
+        (h!==lama?(' (master '+fmt0(lama)+')'):' (masih berlaku)')+
+        (kulit&&k.jawab.length?(' \u00b7 '+k.jawab.length+' pilihan kulit'):''));
       o._m=Date.now();save();render();}});}
 function konfPesan(o,vendor,baris){
   var P=['📨 **PASTIKAN HARGA — '+vendor+'**','',
@@ -10869,7 +10884,8 @@ function kulitBlok(o,l,i){
     isi='<div style="font-size:10px;color:var(--warn);font-weight:700">Sudah ditanya '+tglID(k.tanya)+' — menunggu jawaban '+esc(l.sumber||'vendor')+'.</div>'+
       (k.saran&&k.saran.length?('<div style="font-size:9.5px;color:var(--muted);margin-top:2px">Disarankan: '+k.saran.map(esc).join(', ')+'</div>'):'');
   } else {
-    isi='<div style="font-size:10px;color:var(--muted)">Belum ditanya. Biasanya tanya dulu kulit apa yang ready untuk qty ini, baru minta harga.</div>';
+    isi='<div style="font-size:10px;color:var(--muted)">Belum ditanya. Biasanya tanya dulu kulit apa yang ready untuk qty ini, baru minta harga. '+
+      'Jawabannya dicatat lewat tombol <b>✓ Catat jawaban</b> di baris ini.</div>';
   }
   return '<div data-f="rfqKulit" style="border-top:1px dashed var(--line);margin-top:8px;padding-top:8px">'+isi+'</div>';}
 /* ================= SATU TRIGGER PER BARIS =================
@@ -11090,15 +11106,30 @@ function rfqKirim(id,i){
                :'✓ Teks tersalin — tinggal tempel di #'+tuj.ch+'.')
         : ('✓ Teks tersalin — tinggal tempel di WhatsApp '+l.sumber+'.'));}});}
 /* Satu form untuk semua jawaban vendor: kulit + harga sekaligus. */
+/* Pertanyaan & penyimpanan "kulit yang ditawarkan" dipakai DUA form: Catat
+   jawaban RFQ dan Catat jawaban harga master. Dulu hanya form RFQ yang
+   menanyakannya — baris Radja yang harganya dari master (kebanyakan produk
+   katalog) tak pernah ditanyai kulit apa yang ready. */
+function kulitJawabField(k){
+  return {k:'kulit',label:'Kulit yang ditawarkan — satu per baris',type:'textarea',tinggi:110,
+    val:(k.jawab||[]).map(function(d){return [d.nama,d.warna,d.stok,d.catatan].filter(Boolean).join(' | ');}).join('\n'),
+    ph:'Pull Up | Coklat tua | Ready | stok banyak\nButtero | Cognac | Terbatas | sisa 2 lembar',
+    hint:'Format: <b>nama | warna | Ready/Terbatas/Indent/Habis | catatan</b>. Warna &amp; catatan boleh kosong.'};}
+function kulitJawabSimpan(l,k,teks,tgl,keMaster){
+  var baru=String(teks||'').split('\n').map(function(b){return b.trim();}).filter(Boolean).map(function(b){
+    var d=b.split('|').map(function(x){return x.trim();});
+    var stok=KULIT_STOK.find(function(sx){return sx.toLowerCase()===String(d[2]||'').toLowerCase();})||'Ready';
+    return {nama:d[0],warna:d[1]||'',stok:stok,minOrder:'',catatan:d[3]||'',t:tgl};}).filter(function(d){return d.nama;});
+  k.jawab=baru;k.terima=tgl;if(!k.tanya)k.tanya=tgl;
+  if(k.pilih&&!baru.some(function(d){return d.nama===k.pilih;}))k.pilih='';
+  if(keMaster)baru.forEach(function(d){kulitKeMaster(d,l.sumber);});
+  return baru;}
 function rfqJawab(id,i){
   var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
   var l=o.pricing.lines[i];if(!l)return;
   var kulit=lineKulit(l),k=rfqKulit(l);
   var F=[];
-  if(kulit)F.push({k:'kulit',label:'Kulit yang ditawarkan — satu per baris',type:'textarea',tinggi:110,
-    val:(k.jawab||[]).map(function(d){return [d.nama,d.warna,d.stok,d.catatan].filter(Boolean).join(' | ');}).join('\n'),
-    ph:'Pull Up | Coklat tua | Ready | stok banyak\nButtero | Cognac | Terbatas | sisa 2 lembar',
-    hint:'Format: <b>nama | warna | Ready/Terbatas/Indent/Habis | catatan</b>. Warna &amp; catatan boleh kosong.'});
+  if(kulit)F.push(kulitJawabField(k));
   var jasaBrs=(lineJenis(l)==='jasa');
   /* satuan hanya jadi pertanyaan untuk live service — add-on selalu per pcs */
   var liveBrs=jasaBrs&&(l.jasa==='Live service'||jasaSatuan(l)==='event');
@@ -11134,14 +11165,7 @@ function rfqJawab(id,i){
       if(!l.rfq)l.rfq={};
       l.rfq.terima=v.tgl;if(v.note)l.rfq.note=v.note;
       if(!l.rfq.minta)l.rfq.minta=v.tgl;
-      if(kulit){
-        var baru=String(v.kulit||'').split('\n').map(function(b){return b.trim();}).filter(Boolean).map(function(b){
-          var d=b.split('|').map(function(x){return x.trim();});
-          var stok=KULIT_STOK.find(function(sx){return sx.toLowerCase()===String(d[2]||'').toLowerCase();})||'Ready';
-          return {nama:d[0],warna:d[1]||'',stok:stok,minOrder:'',catatan:d[3]||'',t:v.tgl};}).filter(function(d){return d.nama;});
-        k.jawab=baru;k.terima=v.tgl;
-        if(k.pilih&&!baru.some(function(d){return d.nama===k.pilih;}))k.pilih='';
-        if(v.keMaster)baru.forEach(function(d){kulitKeMaster(d,l.sumber);});}
+      if(kulit)kulitJawabSimpan(l,k,v.kulit,v.tgl,v.keMaster);
       if(liveBrs&&v.satuan)l.satuan=v.satuan;
       if(Vv.length&&!liveBrs){
         Vv.forEach(function(vr,k2){var hv=moneyVal(v['hv'+k2]);if(hv>0)vr.hpp=hv;});
