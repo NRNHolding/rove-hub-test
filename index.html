@@ -504,7 +504,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20260902-164052';
+const VERSI='20260903-054123';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -8576,8 +8576,10 @@ function invSet(id,st){
    diringkas jadi baris tipis — masih bisa dibuka, tapi tak lagi memenuhi layar. */
 /* 'chk' ikut di semua fase — kelengkapan selalu terlihat di panel fase berjalan. */
 const PH_PANEL=[['chk','brief'],['chk','rfq'],
-                /* fase 3: Purchasing menghitung ongkir di panel Pricing */
-                ['chk','profit','pricing'],
+                /* fase 3 (Penentuan harga jual): ongkir dihitung di panel
+                   Penentuan harga jual sendiri — quotation baru terbit
+                   sesudah profit disetujui, jadi panel Pricing belum perlu */
+                ['chk','profit'],
                 ['chk','ringkas'],
                 /* fase 5: Sales mengisi email & alamat penagihan di Brief — tanpa
                    ini fase menahan pada data yang tak punya tempat pengisian */
@@ -9054,7 +9056,7 @@ const CHK_SUMBER={'0.logoCl':'Brief → lampiran Logo client',
   '5.quoAcc':'panel Pricing → status quotation','7.sketsaAcc':'panel Referensi gambar → tombol approval sketsa','9.dpMasuk':'panel Pembayaran → Catat DP masuk',
   '3.dirAcc':'panel Ringkasan untuk Direktur',
   '0.terjemah':'Brief → Material utama, Personalization, dan spesifikasi tiap collateral',
-  '0.brief':'form order baru / panel Pricing','0.kontak':'Brief Inquiry','0.acara':'Brief Inquiry','0.ref':'Brief → lampiran Referensi client','0.kota':'Brief → Venue / kota tujuan','0.hpWo':'Brief → WO / EO phone','1.rfq':'panel Minta harga vendor','1.kulit':'panel Minta harga vendor → ketersediaan kulit','1.harga':'panel Minta harga vendor → Catat jawaban','1.konfKatalog':'panel Minta harga vendor → Harga dari master → tombol Harga masih berlaku','1.moq':'panel Minta harga vendor → catatan vendor','2.hpp':'panel Penentuan harga jual','2.margin':'panel Penentuan harga jual','2.ongkir':'panel Pricing → Ongkir','2.biayaLain':'panel Penentuan harga jual → Biaya di luar HPP','2.deadlineProd':'panel Penentuan harga jual → Info dari Radja','2.tglPOMax':'panel Penentuan harga jual → Info dari Radja','2.operator':'tab Live service → order ini → Operator','10.opFix':'tab Live service → order ini → Operator → ✓ Sudah fix',
+  '0.brief':'form order baru / panel Pricing','0.kontak':'Brief Inquiry','0.acara':'Brief Inquiry','0.ref':'Brief → lampiran Referensi client','0.kota':'Brief → Venue / kota tujuan','0.hpWo':'Brief → WO / EO phone','1.rfq':'panel Minta harga vendor','1.kulit':'panel Minta harga vendor → ketersediaan kulit','1.harga':'panel Minta harga vendor → Catat jawaban','1.konfKatalog':'panel Minta harga vendor → Harga dari master → tombol Harga masih berlaku','1.moq':'panel Minta harga vendor → catatan vendor','2.hpp':'panel Penentuan harga jual','2.margin':'panel Penentuan harga jual','2.ongkir':'panel Penentuan harga jual → Ongkir','2.biayaLain':'panel Penentuan harga jual → Biaya di luar HPP','2.deadlineProd':'panel Penentuan harga jual → Info dari Radja','2.tglPOMax':'panel Penentuan harga jual → Info dari Radja','2.operator':'tab Live service → order ini → Operator','10.opFix':'tab Live service → order ini → Operator → ✓ Sudah fix',
 '2.jualJasa':'Master data → Master Product → Jasa → kolom Harga/pcs atau Biaya tetap','2.accJual':'panel Penentuan harga jual → Persetujuan harga jual','4.gen':'panel Pricing → Generate Quotation','4.kirim':'panel Pricing → status quotation','4.follow':'panel Pricing → tandai Approved','4.email':'Master data → Customers (atau Brief → Email client kalau order ini beda)','4.kirimData':'panel Pricing → Ekspedisi, Kota, Berat','4.alamatKantor':'Brief → Alamat client / kantor','4.ppn':'panel Pricing → Status PPN','6.logoCl':'Brief → lampiran Logo client','6.logoPch':'Brief → lampiran Logo soft pouch','6.logoBox':'Brief → lampiran Logo box','6.logoCard':'Brief → lampiran Logo thank you card','6.daftarNama':'Brief → daftar nama tamu','6.preview':'panel Referensi gambar → lampiran preview','6.approve':'panel Referensi gambar → tombol approval sketsa','8.inv':'panel Pricing → Generate Invoice','8.kirim':'panel Pricing → status invoice','8.dp':'panel Pembayaran → Catat DP masuk','8.faktur':'panel Pricing → No. faktur pajak','10.spec':'Form PO Radja','10.appr':'Form PO Radja → approval margin','10.poR':'Form PO Radja → Generate PO','10.poV':'panel PO vendor lain','10.trello':'otomatis saat fase Spec & PO dilewati','10.spare':'Form PO Radja → Qty spare produksi','10.warnaLogo':'Form PO Radja → warna logo','11.sample':'panel Produksi → sample disetujui','11.progres':'panel Produksi → catatan progres','12.qc':'panel Produksi → lampiran foto QC & retur','12.pack':'panel Produksi → lampiran foto packing','12.coll':'panel Produksi → collateral lengkap','13.invP':'panel Pricing → Generate Invoice','13.lunas':'panel Pembayaran → Catat pelunasan','13.alamat':'Brief → Alamat kirim','13.penerima':'panel Pengiriman barang','13.resi':'panel Pengiriman barang','14.tglTerima':'panel Pengiriman barang → Tanggal diterima','14.bukti':'panel Pengiriman barang → foto serah terima','14.testi':'panel Komplain & kepuasan','14.arsip':'otomatis saat order ditutup'};
 
 /* "Brief → lampiran Logo client" diterjemahkan per potong, bukan sebagai satu
@@ -9109,6 +9111,7 @@ const CHK_FIELD={
   /* fase Minta harga vendor: tiap item menyorot tombol/blok tempat aksinya */
   rfq:'rfqSerah', kulit:'rfqKulit', harga:'rfqJawab_*,rfqSerah',
   konfKatalog:'konfBerlaku', moq:'rfqJawab_*,rfqSerah',
+  ongkir:'ongkirBlok',
 };
 /* Sebagian kecil item tempat mengisinya di luar order — di Master data.
    Diantar ke sana, bukan dijawab "item ini tak punya panel". */
@@ -9184,7 +9187,7 @@ function jasaHargaIsi(o){
 const CHK_PANEL={jualJasa:'_master',operator:'_live',opFix:'_live',logoLetak:'brief',
   brief:'brief', bahanWarna:'brief', kontak:'brief', acara:'brief', kota:'brief', hpWo:'brief', ref:'brief',
   rfq:'rfq', kulit:'rfq', harga:'rfq', moq:'rfq', konfKatalog:'rfq',
-  hpp:'profit', margin:'profit', ongkir:'pricing', biayaLain:'profit',
+  hpp:'profit', margin:'profit', ongkir:'profit', biayaLain:'profit',
   gen:'pricing', kirim:'pricing', follow:'pricing', email:'brief',
   kirimData:'pricing', alamatKantor:'brief', ppn:'pricing',
   /* item yang ditambahkan belakangan — tanpa didaftarkan di sini, klik-lompat
@@ -12117,6 +12120,29 @@ function negoTutup(o,l,hppBaru){
   delete l.nego;
   logHist(o,'⚖ Hasil nego '+(l.produk||'item')+': '+fmt0(dari)+' → '+fmt0(ke)+
     (ke<dari?(' (turun '+fmt0(dari-ke)+'/pcs · hemat '+fmt0((dari-ke)*(l.qty||0))+')'):' (tak turun)'));}
+/* Ongkir dihitung di sini — angkanya masuk hitungan profit. Dulu kolomnya
+   cuma ada di panel Pricing, yang memaksa panel itu dibuka di fase yang
+   belum butuh quotation. */
+function ongkirBlok(o){
+  var P=o.pricing||{};
+  return '<div data-f="ongkirBlok" style="border:1px dashed var(--line);border-radius:9px;padding:9px 11px;margin-top:12px">'+
+    '<div style="font-size:10px;font-weight:800;color:var(--muted);margin-bottom:6px">ONGKIR '+
+      '<span style="font-weight:400">— ditagih terpisah ke client; dihitung di sini supaya profitnya kelihatan utuh</span></div>'+
+    '<div style="display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end">'+
+      '<label style="font-size:11px;font-weight:700;color:var(--muted)">Ekspedisi'+
+        '<select class="pin" style="min-width:84px;margin-top:3px" onchange="shipSet('+jsArg(o.id)+',\'eksp\',this.value)"><option value="">—</option>'+
+        ekspSemua().map(function(e){return '<option '+(o.shipEksp===e?'selected':'')+'>'+esc(e)+'</option>';}).join('')+'</select></label>'+
+      '<label style="font-size:11px;font-weight:700;color:var(--muted)">Kota'+
+        '<input class="pin" list="kotalist2" style="width:116px;margin-top:3px" value="'+esc(o.shipKota||'')+'" onchange="shipSet('+jsArg(o.id)+',\'kota\',this.value)" placeholder="Jakarta"></label>'+
+      '<datalist id="kotalist2">'+[].concat.apply([],[(ST.master.shipping||[]).map(function(x){return x.kota;})])
+        .filter(function(k,i,a){return k&&a.indexOf(k)===i;}).map(function(k){return '<option value="'+esc(k)+'">';}).join('')+'</datalist>'+
+      '<label style="font-size:11px;font-weight:700;color:var(--muted)">Tarif/kg'+
+        '<input class="pin n money" style="width:92px;margin-top:3px" inputmode="numeric" value="'+moneyInp(o.shipTarif)+'" onchange="shipSet('+jsArg(o.id)+',\'tarif\',this.value)"></label>'+
+      '<label style="font-size:11px;font-weight:700;color:var(--muted)">Berat kg'+
+        '<input class="pin n" style="width:58px;margin-top:3px" type="number" value="'+(o.shipKg||'')+'" onchange="shipSet('+jsArg(o.id)+',\'kg\',this.value)" title="terisi otomatis dari ukuran &amp; berat produk"></label>'+
+      '<label style="font-size:11px;font-weight:700;color:var(--muted)">Ongkir'+
+        '<input class="pin n money" style="width:96px;margin-top:3px" inputmode="numeric" data-id="'+esc(o.id)+'" data-field="ship" value="'+moneyInp(P.ship)+'" oninput="priceInput(this)"></label>'+
+    '</div></div>';}
 function profitPanel(o){
   /* Dulu di sini ada profitSiapkan(o) — ia MENULIS l.jual lalu save(), jadi
      sekadar membuka layar order membekukan harga jualnya dan mematikan kolom
@@ -12177,6 +12203,7 @@ function profitPanel(o){
           '<td><button class="xrow" title="hapus item" onclick="profitHapus(\u0027'+o.id+'\u0027,'+i+')">✕</button></td></tr>';}).join('')+
       '</tbody></table></div>'
       :'<div style="color:var(--muted);font-size:11px">Belum ada baris pricing.</div>')+
+    ongkirBlok(o)+
     '<div style="display:flex;flex-wrap:wrap;gap:18px;margin-top:13px;padding-top:11px;border-top:1px solid var(--line);font-size:11px">'+
       '<div><div style="color:var(--muted);font-size:10px;font-weight:700">TOTAL JUAL</div><b style="font-size:15px">'+fmt0(P.jual)+'</b></div>'+
       '<div><div style="color:var(--muted);font-size:10px;font-weight:700">TOTAL HPP</div><b style="font-size:15px">'+fmt0(P.hpp)+'</b>'+
