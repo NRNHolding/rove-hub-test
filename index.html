@@ -504,7 +504,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20260902-111459';
+const VERSI='20260902-112057';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -562,6 +562,10 @@ function cfgBawaan(c){
   if(!String(c.url||'').trim()){
     c.url=BACKEND_BAWAAN;
     c.dbUrl=BACKEND_BAWAAN+'?db=1';
+    /* kotak Katalog ikut terisi dari backend bawaan (endpoint ?est=1) —
+       tanpa ini kotaknya kosong dan orang mengira harus mencari URL sendiri.
+       Saat produksi tinggal ditimpa URL Worker /estimator sungguhan. */
+    if(!(c.catalogUrl||'').trim())c.catalogUrl=BACKEND_BAWAAN+'?est=1';
     /* sinkron dinyalakan sendiri - tanpa itu URL-nya ada tapi tak dipakai, dan
        orangnya tetap melihat HUB kosong tanpa tahu kenapa */
     if(c.live===undefined||c.live===false)c.live=true;
