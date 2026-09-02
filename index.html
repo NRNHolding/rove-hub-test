@@ -504,7 +504,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20260903-054123';
+const VERSI='20260903-055306';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -9338,6 +9338,46 @@ function chkPanel(o){
    yang tampil "—" dan itu memang keadaannya. Untuk fase Inquiry yang
    sebelumnya bukan fase melainkan prospek, jadi yang diringkas kartu
    prospeknya. */
+/* Rincian baris yang ditanyakan ke vendor — dibaca fase berikutnya.
+   Dulu cuma "6 baris ditanyakan ke vendor": jumlah tanpa isi. Yang ingin
+   diketahui orang di fase Penentuan harga jual: barang apa ke vendor siapa,
+   dijawab berapa (per varian kalau ada), kapan, dan mana yang masih
+   menggantung. Hasilnya {ringkas, rinci[]} — ringkasSebelumBlok menggambar
+   baris ringkasnya lalu baris-baris rinci di bawahnya. */
+function rfqRingkasJawaban(o){
+  var L=rfqLines(o);if(!L.length)return '';
+  var n={terima:0,tunggu:0,belum:0},rinci=[];
+  L.forEach(function(x){
+    var l=x.l,st=rfqStatus(l),jenis=rfqJenisBaris(l),V=lineVarian(l);
+    var sat=(jenis==='live')?('/'+(jasaSatuan(l)==='event'?'event':'pcs')):'/pcs';
+    var label=(l.produk||'item')+' · '+(jenis==='live'?'1 event':((l.qty||0)+' pcs'))+
+      (V.length?(' · '+V.length+' varian'):'');
+    var ven=l.sumber||'';
+    var t=[],warna='';
+    if(st==='Harga diterima'){
+      n.terima++;warna='var(--ok)';
+      if(V.length&&varianAdaHpp(l))
+        t.push(V.map(function(v){return fmt0((+v.hpp||0)||l.hpp||0)+' ('+(+v.q||0)+' '+(v.w||'?')+')';}).join(' · ')+sat);
+      else t.push(fmt0(l.hpp)+sat);
+      if(l.rfq&&l.rfq.terima)t.push('dijawab '+tglID(l.rfq.terima));
+      if(l.negoHasil&&(+l.negoHasil.ke||0)<(+l.negoHasil.dari||0))
+        t.push('nego turun '+fmt0(l.negoHasil.dari-l.negoHasil.ke)+sat);
+      else if(l.nego)t.push('nego berjalan'+((+l.nego.target||0)>0?(', target '+fmt0(l.nego.target)):''));
+    } else if(st==='Menunggu jawaban'){
+      n.tunggu++;warna='var(--warn)';
+      t.push('menunggu jawaban — dikirim '+tglID(l.rfq.minta));
+    } else {
+      n.belum++;warna='var(--muted)';
+      t.push(l.sumber?'belum diminta':'belum diminta — vendor belum dipilih');
+    }
+    if(lineKulit(l)){var k=rfqKulitBaca(l);
+      if(k.pilih)t.push('kulit '+k.pilih);
+      else if((k.jawab||[]).length)t.push(k.jawab.length+' pilihan kulit, belum dipilih');}
+    if(l.rfq&&l.rfq.note)t.push(l.rfq.note);
+    rinci.push([label,(ven?(ven+' — '):'')+t.join(' · '),warna]);});
+  var ringkas=L.length+' baris — '+[n.terima?(n.terima+' sudah dijawab'):'',
+    n.tunggu?(n.tunggu+' menunggu jawaban'):'',n.belum?(n.belum+' belum diminta'):''].filter(Boolean).join(', ');
+  return {ringkas:ringkas,rinci:rinci};}
 const FASE_HASIL=[
   /* 0 Inquiry */[
     ['PIC client', function(o){var b=briefGet(o);
@@ -9352,7 +9392,8 @@ const FASE_HASIL=[
       return n?(n+' lampiran'):'';}]],
   /* 1 Pricing Vendor */[
     ['Harga modal (HPP)', function(o){return fmt0(profitTotals(o).hpp);}],
-    ['Baris yang di-RFQ', function(o){var n=rfqLines(o).length;return n?(n+' baris ditanyakan ke vendor'):'';}],
+    ['Ditanyakan ke vendor', function(o){return rfqRingkasJawaban(o);}],
+    ['Paling lambat PO turun — jawaban Radja', function(o){return tglID((o.po||{}).tglPOMax);}],
     ['Harga master dipastikan', function(o){
       return konfVendor(o).filter(function(g){
         return g.baris.every(function(x){return konfSah(x.l);});}).map(function(g){return g.vendor;}).join(', ');}],
@@ -9462,6 +9503,8 @@ function ringkasSebelumBlok(o){
     R={judul:'Hasil dari '+PH[f-1].n+' — PIC '+PH[f-1].pic,
        baris:H.map(function(p){
          var v='';try{v=p[1](o);}catch(e){v='';}
+         /* {ringkas,rinci}: satu baris ringkas + baris-baris rinci di bawahnya */
+         if(v&&typeof v==='object'&&v.rinci)return [p[0],String(v.ringkas||'').trim(),v.rinci];
          return [p[0],String(v==null?'':v).trim()];})};
   }
   var isi=R.baris.filter(function(b){return b[1];});
@@ -9476,7 +9519,10 @@ function ringkasSebelumBlok(o){
       ? '<div class="xscroll"><table class="rtable"><tbody>'+
         isi.map(function(b){
           return '<tr><td style="width:210px;color:var(--muted);font-size:10.5px">'+esc(b[0])+'</td>'+
-            '<td style="font-weight:600">'+esc(b[1])+'</td></tr>';}).join('')+
+            '<td style="font-weight:600">'+esc(b[1])+'</td></tr>'+
+            (b[2]||[]).map(function(r){
+              return '<tr><td style="padding-left:22px;font-size:10px;color:var(--muted)">↳ '+esc(r[0])+'</td>'+
+                '<td style="font-size:10.5px;font-weight:500'+(r[2]?(';color:'+r[2]):'')+'">'+esc(r[1])+'</td></tr>';}).join('');}).join('')+
         '</tbody></table></div>'
       : '<div style="font-size:10.5px;color:var(--muted)">Langkah sebelumnya belum meninggalkan isian apa pun.</div>')+
     '</div></div>';}
