@@ -504,7 +504,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20260902-162026';
+const VERSI='20260902-162700';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -13679,13 +13679,22 @@ function orderTipeSet(id,v){
   if(!confirm('Ubah tipe order dari "'+o.type+'" jadi "'+v+'"?\n\nBaris pricing yang sudah ada tidak terhapus.'))return;
   var lama=o.type;o.type=v;o._m=Date.now();
   logHist(o,'Tipe order: '+lama+' → '+v);save();render();}
+/* Picker katalog itu alat MENAMBAH produk — dipakai sekali di awal, lalu
+   cuma memenuhi layar di atas tabel yang sudah berisi. Jadi ia terlipat:
+   tombol kecil yang membukanya saat memang mau menambah. */
+function catToggle(id){
+  ST._catBuka=ST._catBuka||{};ST._catBuka[id]=!ST._catBuka[id];render();}
 function catalogPicker(o){
   if(o.type==='Custom')return '';          // order custom tak pakai katalog
   if((o.phase||0)>=3)return '';              // sejak Quotation item sudah final — tambah item lewat panel Profitability
   var mats=catMaterials(),liveN=((ST.master&&ST.master.catalog&&ST.master.catalog.length)||(CATALOG_LIVE&&CATALOG_LIVE.length));
+  var buka=!!((ST._catBuka||{})[o.id]);
+  if(!buka)return '<div style="margin-bottom:11px">'+
+    '<button class="btn ghost sm" onclick="catToggle('+jsArg(o.id)+')">＋ Tambah produk dari katalog</button> '+
+    '<span style="font-size:9.5px;color:var(--muted)">'+(liveN?(liveN+' produk Cost Estimator'):'katalog contoh')+' — isi Qty lalu klik produknya</span></div>';
   return `<style>.catrow{display:flex;align-items:center;gap:11px;padding:8px 10px;border-radius:8px;cursor:pointer;transition:background .12s}.catrow:hover{background:var(--bg)}</style>
   <div style="background:var(--card,#fff);border:1px dashed var(--accent);border-radius:11px;padding:12px 13px;margin-bottom:12px">
-    <div style="font-size:11px;font-weight:800;color:var(--brand);margin-bottom:9px;letter-spacing:.03em">◈ KATALOG COST ESTIMATOR <span style="color:var(--muted);font-weight:400;letter-spacing:0">— isi Qty lalu klik produk</span> <span style="font-size:9px;color:var(--muted)">${liveN?'● live '+liveN+' produk':'○ mock'}</span></div>
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:9px"><span style="font-size:11px;font-weight:800;color:var(--brand);letter-spacing:.03em">◈ KATALOG COST ESTIMATOR</span><span style="color:var(--muted);font-size:10px">— isi Qty lalu klik produk</span><span style="font-size:9px;color:var(--muted)">${liveN?'● live '+liveN+' produk':'○ mock'}</span><button class="btn ghost sm" style="margin-left:auto;padding:2px 9px;font-size:9.5px" onclick="catToggle('${o.id}')">Tutup</button></div>
     <div style="display:flex;flex-wrap:wrap;gap:9px;align-items:flex-end;margin-bottom:9px">
       <label style="font-size:10px;font-weight:700;color:var(--muted);flex:1;min-width:150px">Cari<br>
         <input id="cat_search" class="pin" value="${esc(ST._catq||'')}" oninput="catFilter('${o.id}')" placeholder="Nama, material…" style="margin-top:3px;width:100%"></label>
