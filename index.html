@@ -504,7 +504,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20260902-114127';
+const VERSI='20260902-121935';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -10481,20 +10481,29 @@ function bagiWarna(id,i){
   var lama=document.getElementById('varOv');if(lama)lama.remove();
   var ov=document.createElement('div');ov.id='varOv';
   ov.style.cssText='position:fixed;inset:0;z-index:9998;background:rgba(30,22,12,.45);display:flex;align-items:flex-start;justify-content:center;padding:26px 14px;overflow:auto';
-  var kotakIn=function(f,k,v,ph,lebar){return '<input class="pin" data-k="'+k+'" data-f="'+f+'" value="'+esc(v)+'" placeholder="'+esc(ph)+'" style="'+(lebar||'')+'">';};
+  var kotakIn=function(f,k,v,ph,lebar,dl){return '<input class="pin" '+(dl?('list="'+dl+'" '):'')+'data-k="'+k+'" data-f="'+f+'" value="'+esc(v)+'" placeholder="'+esc(ph)+'" style="'+(lebar||'')+'">';};
+  /* pilihannya dari sumber yang sama dengan grid Spesifikasi Produk — kulit
+     master + daftar warna/finishing dari Opsi form; tetap boleh ketik bebas */
+  var dlHTML=(function(){
+    var w=[];try{kulitAll().forEach(function(x){var n=(x.nama||'')+(x.warna?(' '+x.warna):'');if(n&&w.indexOf(n)<0)w.push(n);});}catch(e){}
+    try{listArr('warna').forEach(function(x){if(w.indexOf(x)<0)w.push(x);});}catch(e){}
+    var dl=function(id,arr){return '<datalist id="'+id+'">'+arr.map(function(x){return '<option value="'+esc(x)+'">';}).join('')+'</datalist>';};
+    var benang=[];try{benang=listArr('warna');}catch(e){}
+    var fin=[];try{fin=listArr('finreq');}catch(e){}
+    return dl('varDlW',w)+dl('varDlBenang',benang)+dl('varDlFin',fin);})();
   function baris(v,k){
     return '<div style="border:1px solid var(--line);border-radius:9px;padding:8px 9px;margin-bottom:7px;background:var(--bg)">'+
       '<div style="display:flex;gap:6px;align-items:center">'+
         '<span style="font-size:9px;color:var(--muted);width:14px;text-align:right">'+(k+1)+'</span>'+
-        kotakIn('w',k,v.w,'Warna / artikel — mis. Biru · Pull Up Navy','flex:1;min-width:0')+
+        kotakIn('w',k,v.w,'Warna / artikel — pilih dari daftar atau ketik','flex:1;min-width:0','varDlW')+
         '<input class="pin n" type="number" min="0" data-k="'+k+'" data-f="q" value="'+(v.q||'')+'" placeholder="qty" style="width:66px">'+
         '<button type="button" class="btn ghost sm" data-act="spec" data-k="'+k+'" title="spec varian ini berbeda (benang / finishing / catatan)" style="padding:4px 8px'+(v._open||varianRingkas(v)?';border-color:var(--brand);color:var(--brand)':'')+'">⚙</button>'+
         '<button type="button" class="btn ghost sm" data-act="pisah" data-k="'+k+'" title="pisahkan jadi baris pricing sendiri — untuk varian yang HARGANYA beda" style="padding:4px 8px">⇄</button>'+
         '<button type="button" class="xrow" data-act="hapus" data-k="'+k+'">✕</button>'+
       '</div>'+
       (v._open?('<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;padding-left:20px">'+
-        kotakIn('benang',k,v.benang,'benang — kosong = ikut order','flex:1;min-width:120px')+
-        kotakIn('finishing',k,v.finishing,'finishing — kosong = ikut order','flex:1;min-width:120px')+
+        kotakIn('benang',k,v.benang,'benang — kosong = ikut spec utama','flex:1;min-width:120px','varDlBenang')+
+        kotakIn('finishing',k,v.finishing,'finishing — kosong = ikut spec utama','flex:1;min-width:120px','varDlFin')+
         kotakIn('cat',k,v.cat,'catatan lain','flex:2;min-width:160px')+'</div>'):'')+
       '</div>';}
   function gambar(){
@@ -10502,8 +10511,8 @@ function bagiWarna(id,i){
     ov.innerHTML='<div style="background:var(--card,#fff);color:var(--ink,#222);border-radius:14px;max-width:600px;width:100%;padding:17px 19px;box-shadow:0 18px 50px rgba(0,0,0,.35)">'+
       '<div style="font-weight:800;font-size:14px">Bagi per warna / artikel — '+esc(l.produk||'item')+'</div>'+
       '<div style="font-size:10.5px;color:var(--muted);margin:3px 0 11px">Qty baris <b>'+q+' pcs</b> · total varian <b style="color:'+(q&&tot!==q?'var(--warn)':'var(--ok)')+'">'+tot+' pcs</b>. '+
-        'Tambah varian sebanyak perlunya; ⚙ untuk spec yang menyimpang; ⇄ memisahkan varian berharga beda jadi baris sendiri.</div>'+
-      V.map(baris).join('')+
+        'Spec utama order (material, benang, finishing di bagian Spesifikasi Produk) berlaku untuk semua varian — ⚙ hanya untuk varian yang MENYIMPANG darinya; ⇄ memisahkan varian berharga beda jadi baris sendiri.</div>'+
+      V.map(baris).join('')+dlHTML+
       '<button type="button" class="btn ghost sm" data-act="tambah">＋ Tambah varian</button>'+
       '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:13px">'+
         '<button type="button" class="btn ghost" data-act="batal">Batal</button>'+
@@ -14299,7 +14308,7 @@ function briefPanel(o){
     grid(txt('woNama','WO / EO — nama','kosongkan kalau tak ada')+
       txt('woHp','WO / EO — phone','+62 812-…'),170)+
 
-    sub('SPESIFIKASI PRODUK')+
+    sub('SPESIFIKASI PRODUK','spec UTAMA — berlaku untuk semua pcs; varian yang menyimpang diisi lewat ⚙ di "bagi warna"')+
     salesPita(o,'produk')+
     briefProduk(o)+
     grid(selMat()+
