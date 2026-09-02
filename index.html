@@ -504,7 +504,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20260902-145040';
+const VERSI='20260902-161350';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -4976,7 +4976,11 @@ function askForm(o){
   /* keterangan yang perlu dibaca sebelum mengisi — mis. nomor kontak vendor */
   b.innerHTML=(o.info||'')+(o.fields||[]).map(function(f,i){
     var id='fmf'+i,v=(f.val===undefined||f.val===null)?'':f.val;
-    if(draf&&Object.prototype.hasOwnProperty.call(draf.nilai,f.k))v=draf.nilai[f.k];
+    if(draf&&Object.prototype.hasOwnProperty.call(draf.nilai,f.k)){v=draf.nilai[f.k];
+      /* draf menyimpan apa yang tertulis di layar ("Rp 80.000"); kolom uang
+         menghitung angkanya, jadi teks itu diurai dulu — kalau tidak
+         Math.round-nya NaN dan kotaknya berbunyi "Rp NaN" */
+      if(f.type==='money'&&typeof v==='string')v=moneyVal(v);}
     var inp;
     if(f.type==='select')inp='<select class="pin" id="'+id+'" style="width:100%;margin-top:3px">'+
       (f.opts||[]).map(function(x){var val=(typeof x==='object')?x.v:x,lab=(typeof x==='object')?x.l:x;
@@ -10597,7 +10601,11 @@ function konfJawab(id,i){
         return {k:'hv'+k2,label:'Harga/pcs — '+(v.q||0)+' pcs '+(v.w||('varian '+(k2+1))),type:'money',
           val:(+v.hpp||0)||konfHargaBaris(l)};});
       F2.push({k:'note',label:'Catatan vendor',type:'text',val:(l.rfq&&l.rfq.note)||'',ph:'mis. naik per Oktober'});
-      return F2;})(),
+      return F2;})().concat(keVendorProduksi(l)
+      /* dijawab bersamaan dengan harganya — sama seperti form RFQ */
+      ?[{k:'tglPOMax',label:'Paling lambat PO boleh turun — jawaban vendor',type:'date',
+         val:(o.po||{}).tglPOMax||'',
+         hint:'Lewat tanggal ini vendor tak lagi menjamin barangnya sampai sebelum acara. Boleh kosong kalau belum dijawab.'}]:[]),
     ok:function(v){
       var V=lineVarian(l),h;
       if(V.length){
@@ -10614,6 +10622,8 @@ function konfJawab(id,i){
       if(v.note){if(!l.rfq)l.rfq={};l.rfq.note=v.note;}
       l.konf={hpp:h,tgl:hariIni(),oleh:(ST.userName||ST.user||'')};
       delete l.konfTanya;
+      if(v.tglPOMax){o.po=o.po||{};o.po.tglPOMax=v.tglPOMax;
+        logHist(o,'Radja: PO paling lambat turun '+tglID(v.tglPOMax));}
       logHist(o,'\u2713 Jawaban harga '+(l.sumber||'vendor')+' \u2014 '+(l.produk||'item')+': '+fmt0(h)+
         (h!==lama?(' (master '+fmt0(lama)+')'):' (masih berlaku)'));
       o._m=Date.now();save();render();}});}
