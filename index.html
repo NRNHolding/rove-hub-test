@@ -504,7 +504,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20260902-121935';
+const VERSI='20260902-131833';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -8602,7 +8602,11 @@ const PH_CHECK=[
   {auto:function(o){var b=(o.brief||{});var isi=function(x){x=String(x||'').trim();return !!x&&x!=='-';};
      /* lining & benang menyusul pasangannya: warna lining wajib hanya kalau
         pakai lining, warna benang hanya kalau jahitannya sudah dipilih */
-     return isi(b.mainMat)&&isi(b.mainMatWarna)
+     /* order ber-varian: warnanya hidup di variannya — dianggap terisi
+        bila SEMUA varian bernama warna/artikel */
+     var V=orderVarian(o),varLengkap=V.length>0&&V.every(function(x){
+       return lineVarian(x.l).every(function(v){return !!String(v.w||'').trim();});});
+     return isi(b.mainMat)&&(isi(b.mainMatWarna)||varLengkap)
        &&(!isi(b.lining)||isi(b.liningWarna))
        &&(!isi(b.stitch)||isi(b.benangWarna));},
    k:'bahanWarna', t:'Pilih bahan & warnanya: main material + warna, warna lining (kalau pakai), warna benang',
@@ -10418,6 +10422,12 @@ function konfDitanya(g){return g.baris.every(function(x){return !!(x.l.konfTanya
    PO & RFQ mencetak tabel varian; varian yang HARGANYA beda barulah
    dipisah jadi baris sendiri lewat tombol ⇄ di editornya. */
 function lineVarian(l){return (l&&Array.isArray(l.varian))?l.varian:[];}
+/* baris-baris produk ber-varian di order ini (dipakai grid spec & checklist) */
+function orderVarian(o){
+  var out=[];
+  try{(((o||{}).pricing||{}).lines||[]).forEach(function(l,i){
+    if(lineVarian(l).length)out.push({l:l,i:i});});}catch(e){}
+  return out;}
 function varianTotal(l){return lineVarian(l).reduce(function(a,v){return a+(+v.q||0);},0);}
 function varianRingkas(v){
   var t=[];if(v.benang)t.push('benang '+v.benang);
@@ -14312,7 +14322,14 @@ function briefPanel(o){
     salesPita(o,'produk')+
     briefProduk(o)+
     grid(selMat()+
-      briefWarna(o,'mainMatWarna','Warna main material')+
+      /* warnanya sudah dirinci per varian? kolom warna utama menyingkir —
+         diisi satu warna pun bohong, karena tiap varian punya warnanya */
+      (orderVarian(o).length
+        ?('<label class="nlbl">Warna main material'+
+          '<div style="margin-top:3px;font-size:10.5px;line-height:1.8">'+
+          orderVarian(o).map(function(x){return varianChips(x.l,o.id,x.i);}).join('')+
+          '<div style="font-size:9px;color:var(--muted)">diatur per varian — klik chip untuk mengubah</div></div></label>')
+        :briefWarna(o,'mainMatWarna','Warna main material'))+
       sel('lining','Lining',listArr('lining'))+
       briefWarna(o,'liningWarna','Warna lining')+
       sel('filler','Filler',listArr('filler')),170)+
@@ -14320,6 +14337,10 @@ function briefPanel(o){
       briefWarna(o,'benangWarna','Warna benang')+
       sel('finishing','Finishing request',listArr('finreq'))+
       (dye?briefWarna(o,'finishWarna','Warna dye'):'')+
+      (orderVarian(o).length
+        ?('<div style="grid-column:1/-1;font-size:9px;color:var(--muted);margin-top:-3px">'+
+          'Benang &amp; finishing di atas = bawaan untuk semua varian; varian yang menyimpang mengaturnya lewat ⚙ di "bagi warna".</div>')
+        :'')+
       /* Personalization tak punya kolom di grid ini — bagiannya sendiri ada
          tepat di bawah grid, jadi kotak ringkasan di sini cuma fungsi ganda
          yang membingungkan. */
