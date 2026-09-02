@@ -504,7 +504,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20260902-162700';
+const VERSI='20260902-164052';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -10618,7 +10618,7 @@ function konfJawab(id,i){
         h=moneyVal(v.harga);if(!(h>0)){alert('Harganya belum diisi.');return;}
       }
       var lama=konfHargaBaris(l);
-      l.hpp=h;
+      l.hpp=h;try{negoTutup(o,l,h);}catch(e){}
       if(v.note){if(!l.rfq)l.rfq={};l.rfq.note=v.note;}
       l.konf={hpp:h,tgl:hariIni(),oleh:(ST.userName||ST.user||'')};
       delete l.konfTanya;
@@ -11097,8 +11097,8 @@ function rfqJawab(id,i){
       if(Vv.length&&!liveBrs){
         Vv.forEach(function(vr,k2){var hv=moneyVal(v['hv'+k2]);if(hv>0)vr.hpp=hv;});
         var rata=varianHppRata(l);
-        if(rata>0){l.hpp=rata;l._hppManual=true;}
-      } else if(v.hpp>0){l.hpp=v.hpp;l._hppManual=true;}
+        if(rata>0){l.hpp=rata;l._hppManual=true;try{negoTutup(o,l,rata);}catch(e){}}
+      } else if(v.hpp>0){l.hpp=v.hpp;l._hppManual=true;try{negoTutup(o,l,v.hpp);}catch(e){}}
       if(v.tglPOMax){o.po=o.po||{};o.po.tglPOMax=v.tglPOMax;
         logHist(o,'Radja: PO paling lambat turun '+tglID(v.tglPOMax));}
       logHist(o,'Jawaban '+(l.sumber||'-')+' dicatat'+(v.hpp>0?(' — HPP '+fmt0(v.hpp)):'')+
@@ -11446,7 +11446,8 @@ function profitSet(id,i,f,v){
     if(!hv){alert('Isi HPP vendor dulu — margin dihitung dari situ.');return;}
     l.jual=Math.round(hv*(1+mg/100));}
   else if(f==='hpp'){                                 // HPP vendor, tak pernah menyentuh harga jual
-    l.hpp=Math.max(0,moneyVal(v));l._hppManual=true;}  // HPP selalu bisa ditimpa (mis. vendor naik harga)
+    l.hpp=Math.max(0,moneyVal(v));l._hppManual=true;   // HPP selalu bisa ditimpa (mis. vendor naik harga)
+    try{negoTutup(o,l,l.hpp);}catch(e){}}
   else if(f==='qty'){l.qty=Math.max(0,+v||0);}
   o._m=Date.now();save();render();}
 /* Margin baris = selisih harga jual terhadap HPP vendor. */
@@ -12035,6 +12036,87 @@ function dirBatal(id){
   logHist(o,'↺ Keputusan Direktur dibatalkan');
   o._m=Date.now();save();render();}
 
+/* Rincian satu item: varian (qty · warna · harga) dan spec yang dipakai.
+   Ditaruh di panel Penentuan harga jual — tempat orang memutuskan harganya. */
+function itemDetail(o,l){
+  var t=[];
+  var V=lineVarian(l);
+  if(V.length)t.push(V.map(function(v){
+    var ket=varianRingkas(v);
+    return '• '+(+v.q||0)+' '+(v.w||'?')+((+v.hpp||0)>0?(' @'+fmt0(v.hpp)):'')+(ket?(' — '+ket):'');}).join('<br>'));
+  else if(lineJenis(l)==='produk'){
+    var sp=[];
+    try{['mainMatWarna','lining','liningWarna','filler','stitch','benangWarna','finishing']
+      .forEach(function(f){var v2=spekVal(o,l,f);if(v2&&v2!=='-'&&sp.indexOf(v2)<0)sp.push(v2);});}catch(e){}
+    if(sp.length)t.push(sp.join(' · '));}
+  if(l.perso&&l.perso!=='-')t.push('teknik: '+l.perso);
+  if(l.letak)t.push('letak: '+l.letak);
+  if(!t.length)return '';
+  return '<div style="font-size:9px;color:var(--muted);margin-top:3px;line-height:1.6">'+t.join('<br>')+'</div>';}
+/* ================= NEGO HARGA VENDOR =================
+   Harga vendor bukan harga mati. Dulu satu-satunya jalan menurunkannya
+   adalah menimpa angkanya diam-diam — tak ada jejak siapa keberatan, apa
+   targetnya, dan berapa yang berhasil ditawar. */
+function negoLencana(o,l,i){
+  var n=l.nego,h=l.negoHasil;
+  var tombol='<button class="btn ghost sm" style="padding:1px 7px;font-size:9px;margin-top:4px" '+
+    'title="harga vendor terasa kemahalan — catat targetnya, HUB mengabarkan vendornya" '+
+    'onclick="negoBuka('+jsArg(o.id)+','+i+')">⚖ '+(n?'Nego berjalan':'Nego harga')+'</button>';
+  var teks='';
+  if(n)teks='<div style="font-size:9px;color:var(--warn);font-weight:700;margin-top:3px">⚖ dinego '+esc(tglID(n.tgl))+
+    ((+n.target||0)>0?(' — target '+fmt0(n.target)):'')+(n.oleh?(' · '+esc(n.oleh)):'')+'</div>';
+  else if(h)teks='<div style="font-size:9px;color:var(--ok);font-weight:700;margin-top:3px">⚖ nego '+
+    (h.ke<h.dari?('turun '+fmt0(h.dari-h.ke)+'/pcs'):'tak turun')+' · '+esc(tglID(h.tgl))+'</div>';
+  return teks+tombol;}
+function negoBuka(id,i){
+  var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
+  var l=(((o.pricing||{}).lines)||[])[i];if(!l)return;
+  var kini=lineHppVendor(l)||konfHargaBaris(l)||0;
+  if(!(kini>0)){alert('Harga vendornya belum ada — tak ada yang bisa dinego.');return;}
+  var hl=null;try{hl=hargaTerakhir(o,l);}catch(e){}
+  var n=l.nego;
+  var info='<div style="font-size:10px;line-height:1.7;background:var(--bg);border:1px solid var(--line);border-radius:9px;padding:8px 10px">'+
+    '<b>'+esc(l.produk||'item')+'</b> · '+(l.qty||0)+' pcs · '+esc(l.sumber||'vendor')+
+    '<div>Harga sekarang <b>'+fmt0(kini)+'</b>/pcs — total '+fmt0(kini*(l.qty||0))+'</div>'+
+    (hl?('<div>Terakhir kita bayar <b>'+fmt0(hl.hpp)+'</b>/pcs — '+esc(hl.cust)+' · '+hl.qty+' pcs</div>'):'')+
+    '</div>';
+  askForm({judul:'Nego harga — '+(l.sumber||'vendor'),
+    sub:'Dicatat di barisnya; vendornya dikabari, dan hasilnya tersimpan jadi riwayat.',
+    info:info,
+    fields:[
+      {k:'target',label:'Harga yang kita minta (per pcs)',type:'money',val:(n&&n.target)||0,
+       hint:'Boleh dikosongkan kalau cuma minta "tolong dikurangi".'},
+      {k:'alasan',label:'Alasannya',type:'text',val:(n&&n.alasan)||'',
+       ph:'mis. client mentok 250rb / vendor lain 60rb / qty naik jadi 150'},
+      {k:'kirim',label:'Kabari vendornya',type:'checkbox',val:true,
+       cbLabel:'Ya — kirim ke channel/PIC vendor lewat Discord'}],
+    ok:function(v){
+      var t=moneyVal(v.target);
+      l.nego={dari:kini,target:t,alasan:String(v.alasan||'').trim(),
+        tgl:hariIni(),oleh:(ST.userName||ST.user||'')};
+      delete l.negoHasil;
+      var NL=String.fromCharCode(10);
+      var pesan='⚖ **Nego harga — '+(l.sumber||'vendor')+'**'+NL+
+        (l.produk||'item')+' · '+(l.qty||0)+' pcs'+NL+
+        'Penawaran sekarang '+fmt0(kini)+'/pcs.'+
+        (t>0?(NL+'Kami minta '+fmt0(t)+'/pcs.'):'')+
+        (l.nego.alasan?(NL+l.nego.alasan):'');
+      if(v.kirim){
+        var tuj=vendorTujuan(o,l.sumber||'');
+        if(tuj.keVendor)notifyChannel(tuj.ch,pesan);
+        notifyOrder(o,pesan+(tuj.keVendor?'':(NL+picMention('Purchasing')+' — tolong sampaikan ke vendornya.')));}
+      logHist(o,'⚖ Nego '+(l.produk||'item')+' ke '+(l.sumber||'vendor')+' — dari '+fmt0(kini)+
+        (t>0?(' minta '+fmt0(t)):'')+(l.nego.alasan?(' ('+l.nego.alasan+')'):''));
+      o._m=Date.now();save();render();}});}
+/* dipanggil tiap kali harga vendor sebuah baris berubah — nego yang sedang
+   berjalan ditutup dan selisihnya disimpan */
+function negoTutup(o,l,hppBaru){
+  var n=l&&l.nego;if(!n)return;
+  var dari=+n.dari||0,ke=+hppBaru||0;if(!(ke>0))return;
+  l.negoHasil={dari:dari,ke:ke,target:+n.target||0,tgl:hariIni(),oleh:(ST.userName||ST.user||'')};
+  delete l.nego;
+  logHist(o,'⚖ Hasil nego '+(l.produk||'item')+': '+fmt0(dari)+' → '+fmt0(ke)+
+    (ke<dari?(' (turun '+fmt0(dari-ke)+'/pcs · hemat '+fmt0((dari-ke)*(l.qty||0))+')'):' (tak turun)'));}
 function profitPanel(o){
   /* Dulu di sini ada profitSiapkan(o) — ia MENULIS l.jual lalu save(), jadi
      sekadar membuka layar order membekukan harga jualnya dan mematikan kolom
@@ -12080,7 +12162,9 @@ function profitPanel(o){
       L.map(function(l){var i=o.pricing.lines.indexOf(l),d=lineProfit(l,m);
         return '<tr><td><b>'+esc(l.produk||'-')+'</b>'+
             (l.bahan?('<div style="font-size:9px;color:var(--muted)">'+esc(l.bahan)+'</div>'):'')+
-            (l.sumber?('<div style="font-size:9px;color:var(--muted)">'+esc(l.sumber)+'</div>'):'')+'</td>'+
+            (l.sumber?('<div style="font-size:9px;color:var(--muted)">'+esc(l.sumber)+'</div>'):'')+
+            /* rinciannya dibaca DI SINI — tabel pricing cukup memuat angkanya */
+            itemDetail(o,l)+negoLencana(o,l,i)+'</td>'+
           '<td data-l="Qty client"><input class="pin n" type="number" style="width:64px" value="'+(l.qty||0)+'" onchange="profitSet(\''+o.id+'\','+i+',\'qty\',this.value)"></td>'+
           '<td data-l="Qty vendor"><input class="pin n" type="number" style="width:74px" value="'+lineQtyPO(l)+'" title="jumlah yang dipesan ke vendor — selisihnya jadi spare" onchange="spareSet(\''+o.id+'\','+i+',this.value)">'+
             (d.spare?('<div style="font-size:8.5px;color:var(--warn);font-weight:700">+'+d.spare+' spare</div>'):'')+'</td>'+
@@ -14833,7 +14917,7 @@ function pricingPanel(o){
       <td></td></tr>`;
     return `<tr>
       ${lineImgCell(o,l,i)}
-      <td><div style="display:flex;align-items:center;gap:3px"><input class="pin" list="vp${i}" value="${esc(l.produk)}" onchange="lineProdPick('${o.id}',${i},this.value)" placeholder="Produk"><button type="button" class="xrow" onclick="toggleFixed('${o.id}',${i})" title="${l.fixed?'Katalog: harga pas (margin diabaikan)':'Custom: kena margin'}" style="font-size:11px">${l.fixed?'🔒':'📈'}</button></div><datalist id="vp${i}">${vendorProducts(l.sumber).map(function(p){return '<option value="'+esc(p.name)+'">';}).join('')}</datalist>${varianChips(l,o.id,i)}</td>
+      <td><div style="display:flex;align-items:center;gap:3px"><input class="pin" list="vp${i}" value="${esc(l.produk)}" onchange="lineProdPick('${o.id}',${i},this.value)" placeholder="Produk"><button type="button" class="xrow" onclick="toggleFixed('${o.id}',${i})" title="${l.fixed?'Katalog: harga pas (margin diabaikan)':'Custom: kena margin'}" style="font-size:11px">${l.fixed?'🔒':'📈'}</button></div><datalist id="vp${i}">${vendorProducts(l.sumber).map(function(p){return '<option value="'+esc(p.name)+'">';}).join('')}</datalist></td>
       <td><input class="pin" list="vb${i}" data-id="${o.id}" data-idx="${i}" data-field="bahan" value="${esc(l.bahan)}" oninput="priceInput(this)" placeholder="Bahan"><datalist id="vb${i}">${vendorMaterials(l.sumber).map(function(m){return '<option value="'+esc(m)+'">';}).join('')}</datalist></td>
       <td><select class="pin" data-id="${o.id}" data-idx="${i}" data-field="perso" onchange="priceInput(this)">${persoOpts(o,l.sumber,l.perso,l).map(function(s){return '<option '+(l.perso===s?'selected':'')+'>'+esc(s)+'</option>';}).join('')}</select></td>
       ${showTali?`<td>${vendorTali(l.sumber).length?`<select class="pin" data-id="${o.id}" data-idx="${i}" data-field="tali" onchange="priceInput(this)">${selOpts(vendorTali(l.sumber),l.tali)}</select>`:'<span style="color:var(--muted)">—</span>'}</td>`:''}
