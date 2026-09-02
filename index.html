@@ -504,7 +504,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20260903-062819';
+const VERSI='20260903-063456';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -11538,9 +11538,9 @@ function profitHapus(id,i){
    fase Penentuan harga jual berarti ada harga vendor yang belum ada / harus
    ditanyakan ulang. Itu pekerjaan PM di fase Pricing Vendor — jadi kartunya
    otomatis kembali ke sana, PM dikabari, dan persetujuan harga jual /
-   Direktur yang terlanjur ada gugur (angkanya sudah berubah). Panel
-   Penentuan harga jual dibiarkan tetap terbuka supaya Sales bisa
-   meneruskan inputnya. */
+   Direktur yang terlanjur ada gugur (angkanya sudah berubah). Kartu
+   benar-benar mundur: Sales yang mau menambah lagi menunggu harga vendor
+   selesai dulu. */
 function kembaliKePricingVendor(o,sebab){
   var f=o.phase||0;
   if(o.status==='Cancel'||f<2||f>3)return false;      // hanya dari Penentuan harga jual / Profitability
@@ -11550,7 +11550,9 @@ function kembaliKePricingVendor(o,sebab){
     sebab:'Harga vendor perlu ditanyakan',catatan:sebab,dari:dari,ke:ke,poRev:false});
   o.phase=ke;o._faseSejak=Date.now();o.ingatOtomatis={};
   o._kembaliPV={t:Date.now(),sebab:sebab,dari:PH[dari].n};
-  try{var L=bukaAwalSet(o);if(L.indexOf('profit')<0)L.push('profit');}catch(e){}
+  /* benar-benar mundur: panel Penentuan harga jual tak dibiarkan terbuka dan
+     picker katalog ditutup — Sales menunggu harga vendor selesai dulu */
+  if(ST._catBuka)ST._catBuka[o.id]=false;
   logHist(o,'↩ '+sebab+' — kembali ke '+PH[ke].n+' dari '+PH[dari].n+
     (gugur.length?(' · gugur: '+gugur.join(', ')):''));
   notifyOrder(o,'↩ **'+o.customer+' kembali ke '+PH[ke].n+'**'+String.fromCharCode(10)+sebab+String.fromCharCode(10)+
@@ -11567,10 +11569,18 @@ function kembaliPVBlok(o){
   return '<div style="border:1px solid var(--warn);background:var(--bg);border-radius:9px;padding:8px 11px;margin-bottom:10px;font-size:10.5px">'+
     '<b style="color:var(--warn)">↩ Kartu ada di fase Pricing Vendor</b>'+
     (k?(' — '+esc(k.sebab)+'.'):'.')+' '+
-    esc(PH[1].pic)+' menanyakan harga vendor untuk item yang baru; harga jual dilanjutkan sesudah harganya masuk. '+
-    'Item masih bisa ditambah di sini — semuanya ikut ditanyakan.</div>';}
+    esc(PH[1].pic)+' menanyakan harga vendor dulu. Tambah item dan nego harga bisa lagi setelah kartu kembali ke '+esc(PH[2].n)+'.</div>';}
+/* selagi kartu di Pricing Vendor, deret tombol tambah item diganti keterangan */
+function tungguPVBlok(o){
+  return '<div style="font-size:10.5px;color:var(--muted);margin-bottom:10px">⏳ Tambah item &amp; nego harga menunggu '+esc(PH[1].pic)+
+    ' menyelesaikan harga vendor — tombolnya kembali di fase '+esc(PH[2].n)+'.</div>';}
+function tungguPV(o){
+  if((o.phase||0)!==1)return false;
+  alert('Kartu sedang di fase '+PH[1].n+' — '+PH[1].pic+' menyelesaikan harga vendor dulu. Tambah item / nego harga bisa lagi setelah kartu kembali ke '+PH[2].n+'.');
+  return true;}
 function profitTambahCustom(id){
   var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
+  if(tungguPV(o))return;
   askForm({judul:'Tambah item custom',sub:o.customer,
     fields:[{k:'nama',label:'Nama produk',type:'text',req:true},
       {k:'bahan',label:'Bahan / material',type:'text'},
@@ -11591,6 +11601,7 @@ function profitTambahCustom(id){
    panel Penentuan harga jual sendiri. */
 function profitTambahKatalog(id){
   var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
+  if(tungguPV(o))return;
   if(!catalog().length){alert('Katalog masih kosong. Impor dulu di Master data → Master Product.');return;}
   catToggle(id);
   try{setTimeout(function(){var el=document.getElementById('cat_list');if(el)el.scrollIntoView({block:'center',behavior:'smooth'});},60);}catch(e){}}
@@ -12189,10 +12200,13 @@ function negoLencana(o,l,i){
     ((+n.target||0)>0?(' — target '+fmt0(n.target)):'')+(n.oleh?(' · '+esc(n.oleh)):'')+'</div>';
   else if(h)teks='<div style="font-size:9px;color:var(--ok);font-weight:700;margin-top:3px">⚖ nego '+
     (h.ke<h.dari?('turun '+fmt0(h.dari-h.ke)+'/pcs'):'tak turun')+' · '+esc(tglID(h.tgl))+'</div>';
-  return teks+tombol;}
+  /* di Pricing Vendor harga sedang ditanyakan PM — nego dari Sales menunggu
+     kartu kembali ke Penentuan harga jual */
+  return teks+(((o.phase||0)>=2)?tombol:'');}
 function negoBuka(id,i){
   var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
   var l=(((o.pricing||{}).lines)||[])[i];if(!l)return;
+  if(tungguPV(o))return;
   var kini=lineHppVendor(l)||konfHargaBaris(l)||0;
   if(!(kini>0)){alert('Harga vendornya belum ada — tak ada yang bisa dinego.');return;}
   var hl=null;try{hl=hargaTerakhir(o,l);}catch(e){}
@@ -12309,6 +12323,7 @@ function profitPanel(o){
     '<div style="font-size:10.5px;color:var(--muted);margin-bottom:10px">Angka di sini bisa langsung diubah — qty, HPP dari vendor, dan harga jual ke client. '+
       'Yang dipakai quotation adalah <b>harga jual</b>; HPP hanya untuk menghitung profit.</div>'+
     (P.kurang?('<div style="font-size:10.5px;color:var(--warn);font-weight:700;margin-bottom:9px">⚠ '+P.kurang+' item belum ada HPP vendor — profitnya belum bisa dihitung penuh.</div>'):'')+
+    (((o.phase||0)===1)?tungguPVBlok(o):
     '<div style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:10px">'+
       ((o.phase||0)>=3
         ? '<button class="btn ghost sm" onclick="profitTambahKatalogForm(\u0027'+o.id+'\u0027)">＋ Item katalog</button>'
@@ -12321,7 +12336,7 @@ function profitPanel(o){
           ?'menambah item / nego harga = kartu kembali ke Pricing Vendor, PM menanyakan harganya'
           :'item masih bisa ditambah/dikurangi di sini — setelah Quotation sudah terkunci')+'</span>'+
     '</div>'+
-    (((ST._catBuka||{})[o.id])?catalogPicker(o,'profit'):'')+
+    (((ST._catBuka||{})[o.id])?catalogPicker(o,'profit'):''))+
     (L.length?'<div class="xscroll"><table class="rtable mstack"><thead><tr>'+
       '<th style="min-width:150px">Item</th><th style="width:70px">Qty client</th><th style="width:82px">Qty vendor</th>'+
       '<th style="width:118px" class="num">HPP/pcs</th><th style="width:78px" class="num">Margin %</th>'+
