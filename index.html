@@ -504,7 +504,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20260902-143447';
+const VERSI='20260902-144600';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -10469,6 +10469,13 @@ function orderVarian(o){
     if(lineVarian(l).length)out.push({l:l,i:i});});}catch(e){}
   return out;}
 function varianTotal(l){return lineVarian(l).reduce(function(a,v){return a+(+v.q||0);},0);}
+/* harga per varian: baris menyimpan rata-rata tertimbangnya supaya semua
+   perhitungan lama (HPP x qty, margin, quotation) tetap benar */
+function varianHppRata(l){
+  var V=lineVarian(l),tq=0,tb=0;
+  V.forEach(function(v){var q=+v.q||0,h=+v.hpp||0;if(q>0&&h>0){tq+=q;tb+=q*h;}});
+  return tq>0?Math.round(tb/tq):0;}
+function varianAdaHpp(l){return lineVarian(l).some(function(v){return (+v.hpp||0)>0;});}
 function varianRingkas(v){
   var t=[];
   if(v.lining)t.push('lining '+v.lining+(v.liningWarna?(' '+v.liningWarna):''));
@@ -10487,7 +10494,7 @@ function varianChips(l,klikId,klikIdx){
     (klikId?(' title="klik untuk mengubah varian" onclick="bagiWarna('+jsArg(klikId)+','+klikIdx+')"'):'')+'>'+
     V.map(function(v){var ket=varianRingkas(v);
       return '<span style="display:inline-block;border:1px solid var(--line);border-radius:12px;padding:0 8px;margin:0 3px 2px 0;background:var(--bg)" '+
-        (ket?('title="'+esc(ket)+'"'):'')+'>'+(+v.q||0)+' '+esc(v.w||'?')+(ket?' <span style="color:var(--brand)">⚙</span>':'')+'</span>';}).join('')+
+        (ket?('title="'+esc(ket)+'"'):'')+'>'+(+v.q||0)+' '+esc(v.w||'?')+((+v.hpp||0)>0?(' <span style="color:var(--muted)">@'+fmt0(v.hpp)+'</span>'):'')+(ket?' <span style="color:var(--brand)">⚙</span>':'')+'</span>';}).join('')+
     (q&&tot!==q?('<span style="color:var(--warn);font-weight:700"> ⚠ total varian '+tot+' ≠ '+q+' pcs</span>'):'')+
     '</div>';}
 /* tabel varian untuk dokumen RFQ / PO — vendor membaca satu tabel rapi */
@@ -10497,13 +10504,14 @@ function varianHTML(l){
     V.map(function(v){var ket=varianRingkas(v);
       return '<tr><td style="border:1px solid #bbb;padding:2px 8px;white-space:nowrap">'+(+v.q||0)+' pcs</td>'+
         '<td style="border:1px solid #bbb;padding:2px 8px"><b>'+esc(v.w||'-')+'</b>'+
-        (ket?('<div style="color:#777">'+esc(ket)+'</div>'):'')+'</td></tr>';}).join('')+
+        (ket?('<div style="color:#777">'+esc(ket)+'</div>'):'')+'</td>'+
+        ((+v.hpp||0)>0?('<td style="border:1px solid #bbb;padding:2px 8px;white-space:nowrap">'+fmt0(v.hpp)+'/pcs</td>'):'')+'</tr>';}).join('')+
     '</table></div>';}
 /* versi teks untuk pesan Discord */
 function varianTeks(l){
   var V=lineVarian(l);if(!V.length)return '';
   return V.map(function(v){var ket=varianRingkas(v);
-    return '   – '+(+v.q||0)+' pcs '+(v.w||'-')+(ket?(' ('+ket+')'):'');}).join(String.fromCharCode(10));}
+    return '   – '+(+v.q||0)+' pcs '+(v.w||'-')+((+v.hpp||0)>0?(' @'+fmt0(v.hpp)):'')+(ket?(' ('+ket+')'):'');}).join(String.fromCharCode(10));}
 function varianSimpan(o,i,V){
   var l=(((o.pricing||{}).lines)||[])[i];if(!l)return;
   var B=V.map(function(v){
@@ -10578,12 +10586,29 @@ function konfJawab(id,i){
   var l=(((o.pricing||{}).lines)||[])[i];if(!l)return;
   askForm({judul:'Catat jawaban '+(l.sumber||'vendor'),
     sub:(l.produk||'item')+' \u00b7 '+(l.qty||0)+' pcs \u00b7 harga master '+fmt0(konfHargaBaris(l)),
-    fields:[
-      {k:'harga',label:'Harga/pcs jawaban vendor',type:'money',val:konfHargaBaris(l),req:true,
-       hint:'Sama dengan master = harga masih berlaku. Beda = harga baru dipakai order ini.'},
-      {k:'note',label:'Catatan vendor',type:'text',val:(l.rfq&&l.rfq.note)||'',ph:'mis. naik per Oktober'}],
+    fields:(function(){
+      var V=lineVarian(l);
+      if(!V.length)return [
+        {k:'harga',label:'Harga/pcs jawaban vendor',type:'money',val:konfHargaBaris(l),req:true,
+         hint:'Sama dengan master = harga masih berlaku. Beda = harga baru dipakai order ini.'},
+        {k:'note',label:'Catatan vendor',type:'text',val:(l.rfq&&l.rfq.note)||'',ph:'mis. naik per Oktober'}];
+      /* harga PER VARIAN — warnanya beda, harganya boleh beda */
+      var F2=V.map(function(v,k2){
+        return {k:'hv'+k2,label:'Harga/pcs — '+(v.q||0)+' pcs '+(v.w||('varian '+(k2+1))),type:'money',
+          val:(+v.hpp||0)||konfHargaBaris(l)};});
+      F2.push({k:'note',label:'Catatan vendor',type:'text',val:(l.rfq&&l.rfq.note)||'',ph:'mis. naik per Oktober'});
+      return F2;})(),
     ok:function(v){
-      var h=moneyVal(v.harga);if(!(h>0)){alert('Harganya belum diisi.');return;}
+      var V=lineVarian(l),h;
+      if(V.length){
+        var kosong=false;
+        V.forEach(function(vr,k2){var hv=moneyVal(v['hv'+k2]);if(hv>0)vr.hpp=hv;else kosong=true;});
+        if(kosong&&!varianAdaHpp(l)){alert('Isi harganya dulu.');return;}
+        h=varianHppRata(l);
+        if(!(h>0)){alert('Harganya belum diisi.');return;}
+      }else{
+        h=moneyVal(v.harga);if(!(h>0)){alert('Harganya belum diisi.');return;}
+      }
       var lama=konfHargaBaris(l);
       l.hpp=h;
       if(v.note){if(!l.rfq)l.rfq={};l.rfq.note=v.note;}
@@ -11013,9 +11038,19 @@ function rfqJawab(id,i){
   if(jasaBrs)F.push({k:'satuan',label:'Vendor menghitungnya per apa?',type:'select',
     opts:JASA_SATUAN.map(function(x){return {v:x[0],l:x[1]};}),val:jasaSatuan(l),
     hint:'Salah satuan membuat harga satu event dikali jumlah barang — itu selisih puluhan juta.'});
-  F.push({k:'hpp',label:jasaBrs?'Harga vendor (HPP)':'Harga vendor per pcs (HPP)',type:'money',val:l.hpp||0,
-    hint:jasaBrs?'Angka apa adanya dari vendor, sesuai satuan di atas.'
-                :'Kosongkan kalau vendor baru menjawab soal kulit, harganya menyusul.'});
+  var Vv=lineVarian(l);
+  if(Vv.length&&!jasaBrs){
+    /* baris ber-varian: harga dicatat PER VARIAN; harga baris = rata-rata
+       tertimbang supaya total biayanya tetap benar */
+    Vv.forEach(function(vr,k2){F.push({k:'hv'+k2,type:'money',
+      label:'Harga/pcs — '+(vr.q||0)+' pcs '+(vr.w||('varian '+(k2+1))),
+      val:(+vr.hpp||0)||l.hpp||0,
+      hint:k2===0?'Kosongkan semua kalau harganya menyusul.':''});});
+  } else {
+    F.push({k:'hpp',label:jasaBrs?'Harga vendor (HPP)':'Harga vendor per pcs (HPP)',type:'money',val:l.hpp||0,
+      hint:jasaBrs?'Angka apa adanya dari vendor, sesuai satuan di atas.'
+                  :'Kosongkan kalau vendor baru menjawab soal kulit, harganya menyusul.'});
+  }
   F.push({k:'tgl',label:'Tanggal jawaban diterima',type:'date',val:hariIni(),req:true});
   F.push({k:'note',label:'Catatan vendor',type:'text',val:(l.rfq&&l.rfq.note)||'',ph:'mis. berlaku 30 hari, MOQ 100 pcs'});
   /* Jawabannya datang bersamaan dengan harga, jadi dicatat di sini juga —
@@ -11040,7 +11075,11 @@ function rfqJawab(id,i){
         if(k.pilih&&!baru.some(function(d){return d.nama===k.pilih;}))k.pilih='';
         if(v.keMaster)baru.forEach(function(d){kulitKeMaster(d,l.sumber);});}
       if(jasaBrs&&v.satuan)l.satuan=v.satuan;
-      if(v.hpp>0){l.hpp=v.hpp;l._hppManual=true;}
+      if(Vv.length&&!jasaBrs){
+        Vv.forEach(function(vr,k2){var hv=moneyVal(v['hv'+k2]);if(hv>0)vr.hpp=hv;});
+        var rata=varianHppRata(l);
+        if(rata>0){l.hpp=rata;l._hppManual=true;}
+      } else if(v.hpp>0){l.hpp=v.hpp;l._hppManual=true;}
       if(v.tglPOMax){o.po=o.po||{};o.po.tglPOMax=v.tglPOMax;
         logHist(o,'Radja: PO paling lambat turun '+tglID(v.tglPOMax));}
       logHist(o,'Jawaban '+(l.sumber||'-')+' dicatat'+(v.hpp>0?(' — HPP '+fmt0(v.hpp)):'')+
