@@ -504,7 +504,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20260901-152820';
+const VERSI='20260902-111215';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -9080,6 +9080,9 @@ const CHK_FIELD={
   logoPch:'logoPouchFiles', logoBox:'logoBoxFiles', logoCard:'logoCardFiles',
   preview:'previewFiles', qc:'qcFiles', pack:'packFiles',
   alamat:'addr', alamatKantor:'addrKantor', email:'email',
+  /* fase Minta harga vendor: tiap item menyorot tombol/blok tempat aksinya */
+  rfq:'rfqSerah', kulit:'rfqKulit', harga:'rfqJawab_*,rfqSerah',
+  konfKatalog:'konfBerlaku', moq:'rfqJawab_*,rfqSerah',
 };
 /* Sebagian kecil item tempat mengisinya di luar order — di Master data.
    Diantar ke sana, bukan dijawab "item ini tak punya panel". */
@@ -9720,7 +9723,8 @@ function sorotPanel(pk,kunci){
         ?t:(t.querySelector('input,select,textarea,button')||t);}
     /* item yang PUNYA sasaran terdaftar tapi kolomnya belum dirender (mis.
        jasanya belum dipilih) berhenti di kepala panelnya — tak menebak */
-    if(!kol&&!f)kol=kolomKosongPertama(e);
+    /* tak ada sasaran terdaftar = berhenti di kepala panel. Dulu menebak
+       'kolom kosong pertama' — itulah biang klik yang nyasar ke mana-mana. */
     if(!kol){try{e.scrollIntoView({block:'start'});}catch(err){}return;}
     try{kol.scrollIntoView({block:'center',behavior:'smooth'});}catch(err){}
     kedip(kol,'var(--gold)');
@@ -10640,7 +10644,7 @@ function kulitBlok(o,l,i){
   } else {
     isi='<div style="font-size:10px;color:var(--muted)">Belum ditanya. Biasanya tanya dulu kulit apa yang ready untuk qty ini, baru minta harga.</div>';
   }
-  return '<div style="border-top:1px dashed var(--line);margin-top:8px;padding-top:8px">'+isi+'</div>';}
+  return '<div data-f="rfqKulit" style="border-top:1px dashed var(--line);margin-top:8px;padding-top:8px">'+isi+'</div>';}
 /* ================= SATU TRIGGER PER BARIS =================
    Dulu ada 5 tombol (Spek, Minta harga, Tanya kulit, Catat jawaban, Isi harga).
    Sekarang cukup dua keadaan: kirim permintaan → catat jawaban.
@@ -12095,11 +12099,11 @@ function rfqPanel(o){
                           '<button class="btn ghost sm" style="margin-top:3px;font-size:9px" onclick="pakaiHargaLama('+jsArg(o.id)+','+x.i+')">Pakai harga ini</button>';})())))+'</td>'+
             '<td style="width:118px;vertical-align:top;border-bottom:none;padding-right:0">'+
               ((!otomatis&&l.rfq&&l.rfq.minta)
-                ? '<button class="btn sm" style="width:100%" onclick="rfqJawab('+jsArg(o.id)+','+x.i+')">✓ Catat jawaban</button>'
+                ? '<button class="btn sm" style="width:100%" data-f="rfqJawab_'+x.i+'" onclick="rfqJawab('+jsArg(o.id)+','+x.i+')">✓ Catat jawaban</button>'
                 : (otomatis&&!konfSah(l)
                 /* harga master pun bisa berubah — jawaban vendor dicatat di
                    sini, sekaligus jalan mengedit harganya */
-                ? '<button class="btn sm" style="width:100%" onclick="konfJawab('+jsArg(o.id)+','+x.i+')">✓ Catat jawaban</button>'
+                ? '<button class="btn sm" style="width:100%" data-f="rfqJawab_'+x.i+'" onclick="konfJawab('+jsArg(o.id)+','+x.i+')">✓ Catat jawaban</button>'
                 : ''))+'</td></tr>'+
             (lineKulit(l)?('<tr><td colspan="4" style="border-bottom:none;padding:0 0 6px">'+kulitBlok(o,l,x.i)+'</td></tr>'):'');}).join('')+
         '</tbody></table>'+
@@ -12114,7 +12118,7 @@ function rfqPanel(o){
                 ? ('<span style="font-size:9.5px;color:var(--muted)">'+(vendorLewatDiscord(o,v)?(MAILX+' dikirim ke Discord '):'✋ diserahkan ')+tglID(perlu[0].l.rfq.minta)+' — catat jawabannya lewat tombol ✓ di barisnya</span>')
                 : ('<button class="btn ghost sm" onclick="genRfqDoc('+jsArg(o.id)+','+jsArg(v)+')">📄 Dokumen'+
                    (perlu.length>1?(' ('+perlu.length+' item)'):'')+'</button>'+
-                   '<button class="btn sm" onclick="rfqSerah('+jsArg(o.id)+','+jsArg(v)+')">'+
+                   '<button class="btn sm" data-f="rfqSerah" onclick="rfqSerah('+jsArg(o.id)+','+jsArg(v)+')">'+
                    (vendorLewatDiscord(o,v)?(MAILX+' Kirim ke Discord'):'✋ Serahkan ke Purchasing')+'</button>'))
             : '')+
           (((o.rfqDoc||{})[v])?('<span style="font-size:9.5px;color:var(--muted)">📄 dokumen '+esc(o.rfqDoc[v])+'</span>'):'')+
@@ -12122,7 +12126,7 @@ function rfqPanel(o){
             ? (konfBeres
                 ? ('<span style="font-size:9.5px;color:var(--ok);font-weight:700">✓ harga dipastikan '+tglID((master[0].l.konf||{}).tgl)+'</span>'+
                    '<button class="btn ghost sm" onclick="konfSet('+jsArg(o.id)+','+jsArg(v)+')">↺ Batalkan</button>')
-                : ('<button class="btn sm" onclick="konfSet('+jsArg(o.id)+','+jsArg(v)+')">✓ Harga masih berlaku'+
+                : ('<button class="btn sm" data-f="konfBerlaku" onclick="konfSet('+jsArg(o.id)+','+jsArg(v)+')">✓ Harga masih berlaku'+
                    (master.length>1?(' ('+master.length+')'):'')+'</button>'))
             : '')+
           '</div>'):'')+
