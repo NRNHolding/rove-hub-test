@@ -504,7 +504,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20260902-112057';
+const VERSI='20260902-113916';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -10411,38 +10411,130 @@ function konfHargaBaris(l){
   if(p&&p.t&&p.t.length){var c=catPriceT(p.t,l.qty||0);if(c>0)return c;}
   return 0;}
 function konfDitanya(g){return g.baris.every(function(x){return !!(x.l.konfTanya&&x.l.konfTanya.tgl);});}
-/* Satu produk boleh dipesan beberapa warna/artikel kulit (mis. 25 biru +
-   25 merah, boleh tiga). Barisnya DIBELAH: tiap bagian jadi baris sendiri
-   dengan qty, kulit, dan harga masing-masing — RFQ, konfirmasi, dan PO
-   membacanya seperti baris biasa. */
+/* ================= VARIAN WARNA / ARTIKEL DALAM SATU BARIS =================
+   Order sungguhan bisa 150 pcs dibagi 10 warna, dan tiap warna boleh beda
+   benang/finishing. Kalau tiap warna jadi baris pricing sendiri, tabelnya
+   penuh. Jadi: barisnya TETAP SATU, varian tinggal di dalamnya (l.varian);
+   PO & RFQ mencetak tabel varian; varian yang HARGANYA beda barulah
+   dipisah jadi baris sendiri lewat tombol ⇄ di editornya. */
+function lineVarian(l){return (l&&Array.isArray(l.varian))?l.varian:[];}
+function varianTotal(l){return lineVarian(l).reduce(function(a,v){return a+(+v.q||0);},0);}
+function varianRingkas(v){
+  var t=[];if(v.benang)t.push('benang '+v.benang);
+  if(v.finishing)t.push('finishing '+v.finishing);
+  if(v.cat)t.push(v.cat);
+  return t.join(', ');}
+/* chip ringkas di layar; klikId+klikIdx membuatnya bisa diklik untuk edit */
+function varianChips(l,klikId,klikIdx){
+  var V=lineVarian(l);if(!V.length)return '';
+  var tot=varianTotal(l),q=+l.qty||0;
+  return '<div style="font-size:9.5px;line-height:1.9;margin-top:3px'+(klikId?';cursor:pointer':'')+'"'+
+    (klikId?(' title="klik untuk mengubah varian" onclick="bagiWarna('+jsArg(klikId)+','+klikIdx+')"'):'')+'>'+
+    V.map(function(v){var ket=varianRingkas(v);
+      return '<span style="display:inline-block;border:1px solid var(--line);border-radius:12px;padding:0 8px;margin:0 3px 2px 0;background:var(--bg)" '+
+        (ket?('title="'+esc(ket)+'"'):'')+'>'+(+v.q||0)+' '+esc(v.w||'?')+(ket?' <span style="color:var(--brand)">⚙</span>':'')+'</span>';}).join('')+
+    (q&&tot!==q?('<span style="color:var(--warn);font-weight:700"> ⚠ total varian '+tot+' ≠ '+q+' pcs</span>'):'')+
+    '</div>';}
+/* tabel varian untuk dokumen RFQ / PO — vendor membaca satu tabel rapi */
+function varianHTML(l){
+  var V=lineVarian(l);if(!V.length)return '';
+  return '<div style="margin-top:5px"><table style="border-collapse:collapse;font-size:9.5px">'+
+    V.map(function(v){var ket=varianRingkas(v);
+      return '<tr><td style="border:1px solid #bbb;padding:2px 8px;white-space:nowrap">'+(+v.q||0)+' pcs</td>'+
+        '<td style="border:1px solid #bbb;padding:2px 8px"><b>'+esc(v.w||'-')+'</b>'+
+        (ket?('<div style="color:#777">'+esc(ket)+'</div>'):'')+'</td></tr>';}).join('')+
+    '</table></div>';}
+/* versi teks untuk pesan Discord */
+function varianTeks(l){
+  var V=lineVarian(l);if(!V.length)return '';
+  return V.map(function(v){var ket=varianRingkas(v);
+    return '   – '+(+v.q||0)+' pcs '+(v.w||'-')+(ket?(' ('+ket+')'):'');}).join(String.fromCharCode(10));}
+function varianSimpan(o,i,V){
+  var l=(((o.pricing||{}).lines)||[])[i];if(!l)return;
+  var B=V.map(function(v){return {w:String(v.w||'').trim(),q:Math.max(0,+v.q||0),
+      benang:String(v.benang||'').trim(),finishing:String(v.finishing||'').trim(),cat:String(v.cat||'').trim()};})
+    .filter(function(v){return v.q>0||v.w;});
+  if(B.length)l.varian=B;else delete l.varian;
+  logHist(o,'⑂ Varian '+(l.produk||'item')+': '+(B.length?B.map(function(v){return v.q+' '+(v.w||'?');}).join(' + '):'(dihapus)'));
+  o._m=Date.now();save();render();}
+/* varian berharga beda dipisah jadi baris sendiri; qty induknya berkurang */
+function varianPisah(o,i,k){
+  var L=((o.pricing||{}).lines)||[],l=L[i];if(!l)return null;
+  var V=lineVarian(l),v=V[k];if(!v||!((+v.q||0)>0))return null;
+  var c=JSON.parse(JSON.stringify(l));
+  delete c.varian;delete c.konf;delete c.konfTanya;
+  c.qty=+v.q||0;
+  var ket=varianRingkas(v);
+  c.detail='warna/artikel: '+(v.w||'?')+(ket?(' · '+ket):'')+(c.detail?(' · '+c.detail):'');
+  V.splice(k,1);if(!V.length)delete l.varian;
+  l.qty=Math.max(0,(+l.qty||0)-c.qty);
+  L.splice(i+1,0,c);
+  logHist(o,'⇄ '+c.qty+' pcs '+(v.w||'?')+' dipisah jadi baris sendiri (harga sendiri)');
+  o._m=Date.now();save();render();return c;}
+/* ---- editor varian: daftar dinamis, tambah sebanyak perlunya ---- */
 function bagiWarna(id,i){
   var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
-  var L=((o.pricing||{}).lines)||[],l=L[i];if(!l)return;
-  var q=+l.qty||0;if(q<2){alert('Qty barisnya cuma '+q+' — tak ada yang bisa dibagi.');return;}
-  var f=[];
-  [[1,Math.ceil(q/2)],[2,Math.floor(q/2)],[3,0]].forEach(function(pr){
-    f.push({k:'w'+pr[0],label:'Warna / artikel '+pr[0],type:'text',val:'',
-      ph:pr[0]===3?'kosongkan kalau cuma 2 bagian':'mis. Biru · Pull Up Navy'});
-    f.push({k:'q'+pr[0],label:'Qty bagian '+pr[0],type:'text',val:String(pr[1]||'')});});
-  askForm({judul:'Bagi per warna — '+(l.produk||'item'),
-    sub:'Total '+q+' pcs. Tiap bagian jadi baris sendiri — kulitnya dipilih per baris, harganya juga per baris.',
-    fields:f,
-    ok:function(v){
-      var parts=[1,2,3].map(function(n){return {w:String(v['w'+n]||'').trim(),q:Math.max(0,parseInt(v['q'+n],10)||0)};})
-        .filter(function(pr){return pr.q>0;});
-      if(parts.length<2){alert('Isi minimal dua bagian ber-qty.');return;}
-      var tot=parts.reduce(function(a2,pr){return a2+pr.q;},0);
-      if(tot!==q&&!confirm('Jumlah bagian '+tot+' pcs ≠ qty baris '+q+' pcs. Lanjutkan dengan '+tot+' pcs?'))return;
-      var klon=parts.map(function(pr){
-        var c=JSON.parse(JSON.stringify(l));
-        c.qty=pr.q;
-        if(pr.w)c.detail='warna/artikel: '+pr.w+(c.detail?(' · '+c.detail):'');
-        /* harga per warna bisa beda — konfirmasi lama tak boleh terbawa */
-        delete c.konf;delete c.konfTanya;
-        return c;});
-      L.splice.apply(L,[i,1].concat(klon));
-      logHist(o,'⑂ '+(l.produk||'item')+' dibagi: '+parts.map(function(pr){return pr.q+' pcs '+(pr.w||'(tanpa nama)');}).join(' + '));
-      o._m=Date.now();save();render();}});}
+  var l=(((o.pricing||{}).lines)||[])[i];if(!l)return;
+  var V=lineVarian(l).map(function(v){return {w:v.w||'',q:+v.q||0,benang:v.benang||'',
+    finishing:v.finishing||'',cat:v.cat||'',_open:!!(v.benang||v.finishing||v.cat)};});
+  if(!V.length){var q0=+l.qty||0;V=[{w:'',q:Math.ceil(q0/2)},{w:'',q:Math.floor(q0/2)}];}
+  var lama=document.getElementById('varOv');if(lama)lama.remove();
+  var ov=document.createElement('div');ov.id='varOv';
+  ov.style.cssText='position:fixed;inset:0;z-index:9998;background:rgba(30,22,12,.45);display:flex;align-items:flex-start;justify-content:center;padding:26px 14px;overflow:auto';
+  var kotakIn=function(f,k,v,ph,lebar){return '<input class="pin" data-k="'+k+'" data-f="'+f+'" value="'+esc(v)+'" placeholder="'+esc(ph)+'" style="'+(lebar||'')+'">';};
+  function baris(v,k){
+    return '<div style="border:1px solid var(--line);border-radius:9px;padding:8px 9px;margin-bottom:7px;background:var(--bg)">'+
+      '<div style="display:flex;gap:6px;align-items:center">'+
+        '<span style="font-size:9px;color:var(--muted);width:14px;text-align:right">'+(k+1)+'</span>'+
+        kotakIn('w',k,v.w,'Warna / artikel — mis. Biru · Pull Up Navy','flex:1;min-width:0')+
+        '<input class="pin n" type="number" min="0" data-k="'+k+'" data-f="q" value="'+(v.q||'')+'" placeholder="qty" style="width:66px">'+
+        '<button type="button" class="btn ghost sm" data-act="spec" data-k="'+k+'" title="spec varian ini berbeda (benang / finishing / catatan)" style="padding:4px 8px'+(v._open||varianRingkas(v)?';border-color:var(--brand);color:var(--brand)':'')+'">⚙</button>'+
+        '<button type="button" class="btn ghost sm" data-act="pisah" data-k="'+k+'" title="pisahkan jadi baris pricing sendiri — untuk varian yang HARGANYA beda" style="padding:4px 8px">⇄</button>'+
+        '<button type="button" class="xrow" data-act="hapus" data-k="'+k+'">✕</button>'+
+      '</div>'+
+      (v._open?('<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;padding-left:20px">'+
+        kotakIn('benang',k,v.benang,'benang — kosong = ikut order','flex:1;min-width:120px')+
+        kotakIn('finishing',k,v.finishing,'finishing — kosong = ikut order','flex:1;min-width:120px')+
+        kotakIn('cat',k,v.cat,'catatan lain','flex:2;min-width:160px')+'</div>'):'')+
+      '</div>';}
+  function gambar(){
+    var tot=V.reduce(function(a,v){return a+(+v.q||0);},0),q=+l.qty||0;
+    ov.innerHTML='<div style="background:var(--card,#fff);color:var(--ink,#222);border-radius:14px;max-width:600px;width:100%;padding:17px 19px;box-shadow:0 18px 50px rgba(0,0,0,.35)" onclick="event.stopPropagation()">'+
+      '<div style="font-weight:800;font-size:14px">Bagi per warna / artikel — '+esc(l.produk||'item')+'</div>'+
+      '<div style="font-size:10.5px;color:var(--muted);margin:3px 0 11px">Qty baris <b>'+q+' pcs</b> · total varian <b style="color:'+(q&&tot!==q?'var(--warn)':'var(--ok)')+'">'+tot+' pcs</b>. '+
+        'Tambah varian sebanyak perlunya; ⚙ untuk spec yang menyimpang; ⇄ memisahkan varian berharga beda jadi baris sendiri.</div>'+
+      V.map(baris).join('')+
+      '<button type="button" class="btn ghost sm" data-act="tambah">＋ Tambah varian</button>'+
+      '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:13px">'+
+        '<button type="button" class="btn ghost" data-act="batal">Batal</button>'+
+        '<button type="button" class="btn" data-act="simpan">Simpan</button></div>'+
+      '</div>';}
+  function tutup(){ov.remove();document.removeEventListener('keydown',esc1);}
+  function esc1(e){if(e.key==='Escape')tutup();}
+  ov.addEventListener('input',function(e){
+    var t=e.target,k=+t.getAttribute('data-k'),f=t.getAttribute('data-f');
+    if(!f||isNaN(k)||!V[k])return;
+    V[k][f]=(f==='q')?Math.max(0,parseInt(t.value,10)||0):t.value;});
+  ov.addEventListener('click',function(e){
+    if(e.target===ov){tutup();return;}
+    var b=e.target.closest?e.target.closest('[data-act]'):null;if(!b)return;
+    var act=b.getAttribute('data-act'),k=+b.getAttribute('data-k');
+    if(act==='tambah'){V.push({w:'',q:0,_open:false});gambar();}
+    else if(act==='hapus'){V.splice(k,1);gambar();}
+    else if(act==='spec'){V[k]._open=!V[k]._open;gambar();}
+    else if(act==='pisah'){
+      if(!((+V[k].q||0)>0)){alert('Isi qty varian ini dulu.');return;}
+      if(!confirm('Pisahkan '+V[k].q+' pcs '+(V[k].w||'?')+' jadi baris pricing sendiri?'+String.fromCharCode(10)+'Qty baris induk ikut berkurang.'))return;
+      /* indeks di daftar TERSIMPAN bisa bergeser: baris kosong di atasnya
+         ikut terbuang saat disimpan */
+      var kB=V.slice(0,k).filter(function(x){return (x.q>0||x.w);}).length;
+      varianSimpan(o,i,V);
+      varianPisah(o,i,kB);
+      tutup();}
+    else if(act==='simpan'){varianSimpan(o,i,V);tutup();}
+    else if(act==='batal')tutup();});
+  document.addEventListener('keydown',esc1);
+  gambar();document.body.appendChild(ov);}
 /* Jawaban vendor untuk baris berharga master: harganya boleh berubah (Radja
    update) — dicatat di sini, baris langsung terhitung dikonfirmasi. */
 function konfJawab(id,i){
@@ -12086,6 +12178,7 @@ function rfqPanel(o){
                     ? ('<div style="font-size:9px;color:var(--muted)">teknik: <b>'+esc(l.perso)+'</b></div>')
                     : ('<div style="font-size:9px;color:var(--warn);font-weight:700">tanpa teknik — isi di Master Product → Jasa</div>'))
                 : (l.bahan?('<div style="font-size:9px;color:var(--muted)">'+esc(l.bahan)+'</div>'):''))+
+              varianChips(l)+
               '<div style="margin-top:4px;max-width:230px">'+rfqVendorSel(o,l,x.i)+'</div>'+
               /* pembagian warna urusan Inquiry (Brief & tabel Pricing) —
                  panel ini fokus ke harganya saja */
@@ -12185,9 +12278,10 @@ function briefProduk(o){
          produk membawa tombol baginya, tak perlu menunggu fase harga vendor */
       var idxAsli=(((o.pricing||{}).lines)||[]).indexOf(l);
       var bagi=(lineJenis(l)==='produk'&&(l.qty||0)>1&&idxAsli>=0)
-        ?('<div style="text-align:center;margin-top:2px"><button class="btn ghost sm" style="padding:1px 8px;font-size:9px" '+
-          'title="mis. 25 biru + 25 merah — tiap bagian jadi baris sendiri" '+
-          'onclick="bagiWarna('+jsArg(o.id)+','+idxAsli+')">⑂ bagi warna</button></div>')
+        ?(varianChips(l,o.id,idxAsli)+
+          '<div style="text-align:center;margin-top:2px"><button class="btn ghost sm" style="padding:1px 8px;font-size:9px" '+
+          'title="mis. 25 biru + 25 merah — boleh banyak varian, spec per varian boleh beda" '+
+          'onclick="bagiWarna('+jsArg(o.id)+','+idxAsli+')">'+(lineVarian(l).length?'✎ varian ('+lineVarian(l).length+')':'⑂ bagi warna')+'</button></div>')
         :'';
       return '<div>'+imgKotak(lineImg(l),l.produk||'(tanpa nama)',det)+bagi+'</div>';}).join(''))+
     '<div style="font-size:9.5px;color:var(--muted);margin:-4px 0 11px">Gambar ikut dari Master Product / baris pricing. '+
@@ -14525,7 +14619,7 @@ function pricingPanel(o){
       <td></td></tr>`;
     return `<tr>
       ${lineImgCell(o,l,i)}
-      <td><div style="display:flex;align-items:center;gap:3px"><input class="pin" list="vp${i}" value="${esc(l.produk)}" onchange="lineProdPick('${o.id}',${i},this.value)" placeholder="Produk"><button type="button" class="xrow" onclick="toggleFixed('${o.id}',${i})" title="${l.fixed?'Katalog: harga pas (margin diabaikan)':'Custom: kena margin'}" style="font-size:11px">${l.fixed?'🔒':'📈'}</button></div><datalist id="vp${i}">${vendorProducts(l.sumber).map(function(p){return '<option value="'+esc(p.name)+'">';}).join('')}</datalist></td>
+      <td><div style="display:flex;align-items:center;gap:3px"><input class="pin" list="vp${i}" value="${esc(l.produk)}" onchange="lineProdPick('${o.id}',${i},this.value)" placeholder="Produk"><button type="button" class="xrow" onclick="toggleFixed('${o.id}',${i})" title="${l.fixed?'Katalog: harga pas (margin diabaikan)':'Custom: kena margin'}" style="font-size:11px">${l.fixed?'🔒':'📈'}</button></div><datalist id="vp${i}">${vendorProducts(l.sumber).map(function(p){return '<option value="'+esc(p.name)+'">';}).join('')}</datalist>${varianChips(l,o.id,i)}</td>
       <td><input class="pin" list="vb${i}" data-id="${o.id}" data-idx="${i}" data-field="bahan" value="${esc(l.bahan)}" oninput="priceInput(this)" placeholder="Bahan"><datalist id="vb${i}">${vendorMaterials(l.sumber).map(function(m){return '<option value="'+esc(m)+'">';}).join('')}</datalist></td>
       <td><select class="pin" data-id="${o.id}" data-idx="${i}" data-field="perso" onchange="priceInput(this)">${persoOpts(o,l.sumber,l.perso,l).map(function(s){return '<option '+(l.perso===s?'selected':'')+'>'+esc(s)+'</option>';}).join('')}</select></td>
       ${showTali?`<td>${vendorTali(l.sumber).length?`<select class="pin" data-id="${o.id}" data-idx="${i}" data-field="tali" onchange="priceInput(this)">${selOpts(vendorTali(l.sumber),l.tali)}</select>`:'<span style="color:var(--muted)">—</span>'}</td>`:''}
@@ -14798,7 +14892,7 @@ function rfqDocHTML(o,vendor){
       '<td>'+imgTag(lineImg(l),'width:34px;height:34px;object-fit:cover;border-radius:4px;vertical-align:middle;margin-right:7px')+
         '<b>'+esc(l.produk||'(tanpa nama)')+'</b>'+
         (jenis==='live'?'<div style="font-size:9px;color:#888;margin-top:2px">dikerjakan di lokasi acara</div>':'')+
-        (jenis==='addon'?'<div style="font-size:9px;color:#888;margin-top:2px">dikerjakan di workshop</div>':'')+'</td>'+
+        (jenis==='addon'?'<div style="font-size:9px;color:#888;margin-top:2px">dikerjakan di workshop</div>':'')+varianHTML(l)+'</td>'+
       '<td class="num">'+esc(jenis==='live'?'1 event':((l.qty||0)+' pcs'))+'</td>'+
       '<td>'+(T&&T.lewat?'<span style="color:#b00">jadwalnya sudah lewat — mohon dikonfirmasi</span>'
              :(T&&T.tgl?esc(tglID(T.tgl)):'-'))+'</td></tr>';}).join('');
@@ -14852,7 +14946,8 @@ function rfqSerahTeks(o,vendor,untuk){
   L.forEach(function(l){
     var T=rfqTanggal(o,l),jenis=rfqJenisBaris(l);
     P.push('• '+(l.produk||'-')+' · '+(jenis==='live'?'1 event':((l.qty||0)+' pcs'))+
-      ((T&&T.tgl&&!T.lewat)?(' · dibutuhkan '+tglID(T.tgl)):''));});
+      ((T&&T.tgl&&!T.lewat)?(' · dibutuhkan '+tglID(T.tgl)):''));
+    var vt=varianTeks(l);if(vt)P.push(vt);});
   if(untuk==='vendor'){
     P.push('','Spesifikasi lengkapnya (gambar, ukuran, teknik) kami kirim menyusul sebagai PDF.',
       'Mohon dibalas: harga per pcs, minimum order, dan paling lambat kapan PO harus turun.');
@@ -15163,7 +15258,7 @@ function vpoPanel(o){
           '<span class="badge" style="margin-left:auto;background:'+(ready?'var(--ok-bg)':'var(--warn-bg)')+';color:'+(ready?'var(--ok)':'var(--warn)')+'">'+(ready?'siap ✓':miss.join(', ')+' kurang')+'</span></div>'+
         '<div class="xscroll"><table class="ptable" style="min-width:420px"><thead><tr><th>Item</th><th>Bahan</th><th>Finishing</th><th style="width:52px">Qty</th><th class="num" style="width:96px">HPP</th></tr></thead><tbody>'+
           ls.map(function(l){var ex=[l.tali&&l.tali!=='-'?'Tali: '+l.tali:'',l.ukuran&&l.ukuran!=='-'?'Uk: '+l.ukuran:''].filter(Boolean).join(' · ');
-            return '<tr><td>'+esc(l.produk)+(ex?'<div style="font-size:9px;color:var(--muted)">'+esc(ex)+'</div>':'')+'</td><td>'+(esc(l.bahan)||'-')+'</td><td>'+(esc(l.perso)||'-')+'</td><td>'+poQtyTeks(l)+(lineSpare(l)?(' <span style="font-size:8.5px;color:var(--warn)">+'+lineSpare(l)+'</span>'):'')+'</td><td class="num">'+fmt0((l.hpp||0)*poQty(l))+'</td></tr>';}).join('')+
+            return '<tr><td>'+esc(l.produk)+(ex?'<div style="font-size:9px;color:var(--muted)">'+esc(ex)+'</div>':'')+varianChips(l)+'</td><td>'+(esc(l.bahan)||'-')+'</td><td>'+(esc(l.perso)||'-')+'</td><td>'+poQtyTeks(l)+(lineSpare(l)?(' <span style="font-size:8.5px;color:var(--warn)">+'+lineSpare(l)+'</span>'):'')+'</td><td class="num">'+fmt0((l.hpp||0)*poQty(l))+'</td></tr>';}).join('')+
           '</tbody></table></div>'+
         '<div style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;margin-top:10px">'+
           '<label style="font-size:11px;font-weight:700;color:var(--muted)">Deadline *<br><input type="date" class="pin" style="margin-top:3px" value="'+esc(p.deadline)+'" onchange="vpoSet('+jsArg(o.id)+','+jsArg(v)+','+'deadline'+',this.value)"></label>'+
@@ -15205,7 +15300,7 @@ function showVPODoc(o,v){
    '<div class="dsec">Item Pesanan</div>'+
    '<table class="dtable"><thead><tr><th class="num">No</th><th>Item</th><th>Bahan</th><th>Finishing</th><th class="num">Qty</th></tr></thead><tbody>'+
      ls.map(function(l,i){var ex=[l.tali&&l.tali!=='-'?'Tali: '+l.tali:'',l.ukuran&&l.ukuran!=='-'?'Ukuran: '+l.ukuran:''].filter(Boolean).join(' · ');
-       return '<tr><td class="num">'+(i+1)+'</td><td>'+(lineImg(l)?imgTag(lineImg(l),'width:34px;height:34px;object-fit:cover;border-radius:4px;vertical-align:middle;margin-right:7px'):'')+esc(l.produk)+(ex?'<div style="font-size:9px;color:#888;margin-top:2px">'+esc(ex)+'</div>':'')+'</td><td>'+(esc(l.bahan)||'-')+'</td><td>'+(esc(l.perso)||'-')+'</td><td class="num">'+poQtyTeks(l)+(lineSpare(l)?('<div style="font-size:9px;color:#888">client '+(l.qty||0)+' + spare '+lineSpare(l)+'</div>'):'')+'</td></tr>';}).join('')+
+       return '<tr><td class="num">'+(i+1)+'</td><td>'+(lineImg(l)?imgTag(lineImg(l),'width:34px;height:34px;object-fit:cover;border-radius:4px;vertical-align:middle;margin-right:7px'):'')+esc(l.produk)+(ex?'<div style="font-size:9px;color:#888;margin-top:2px">'+esc(ex)+'</div>':'')+varianHTML(l)+'</td><td>'+(esc(l.bahan)||'-')+'</td><td>'+(esc(l.perso)||'-')+'</td><td class="num">'+poQtyTeks(l)+(lineSpare(l)?('<div style="font-size:9px;color:#888">client '+(l.qty||0)+' + spare '+lineSpare(l)+'</div>'):'')+'</td></tr>';}).join('')+
    '</tbody></table>'+
    ((p.packing||p.note)?('<div class="dsec">Packing &amp; Catatan</div><table class="dinfotbl">'+(p.packing?info('Packing',p.packing):'')+(p.note?info('Catatan',p.note):'')+'</table>'):'')+
    (ls.some(function(l){return lineImg(l);})?('<div class="dsec">Referensi Gambar</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:8px">'+ls.filter(function(l){return lineImg(l);}).map(function(l){return '<div style="text-align:center">'+imgTag(lineImg(l),'width:100%;max-height:240px;object-fit:contain;border:1px solid #ddd;border-radius:8px')+'<div style="font-size:11px;color:#333;margin-top:6px">'+esc(l.produk)+'</div></div>';}).join('')+'</div>'):'')+
