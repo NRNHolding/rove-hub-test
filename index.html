@@ -504,7 +504,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20260902-141107';
+const VERSI='20260902-142501';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -14425,8 +14425,11 @@ function briefPanel(o){
             '<span style="font-size:9.5px;color:var(--muted)">'+(l.qty||0)+' pcs'+(lineVarian(l).length?(' · '+lineVarian(l).length+' varian'):'')+'</span>'+
             ((l.qty||0)>1?('<button type="button" class="btn ghost sm" style="margin-left:auto;padding:1px 8px;font-size:9px" onclick="varTambah('+jsArg(o.id)+','+li+')">＋ Tambah varian</button>'):'')+
           '</div>'+
+          /* ada varian? grid spec produk menyingkir — seluruh spec hidup di
+             baris variannya; dua-duanya tampil = kolom yang tak berguna */
+          (lineVarian(l).length?'':(
           grid(mat+warnaUtama+selS('lining','Lining',listArr('lining'))+inp('liningWarna','Warna lining','spekDlWr')+selS('filler','Filler',listArr('filler')),170)+
-          grid(selS('stitch','Stitch technique',listArr('stitch'))+inp('benangWarna','Warna benang','spekDlWr')+selS('finishing','Finishing request',listArr('finreq'))+(dyeL?inp('finishWarna','Warna dye','spekDlWr'):'')+'',170)+
+          grid(selS('stitch','Stitch technique',listArr('stitch'))+inp('benangWarna','Warna benang','spekDlWr')+selS('finishing','Finishing request',listArr('finreq'))+(dyeL?inp('finishWarna','Warna dye','spekDlWr'):'')+'',170)))+
           /* ---- varian inline: baris-baris di dalam kartunya ---- */
           (function(){
             var VR=lineVarian(l);if(!VR.length)return '';
@@ -14438,7 +14441,7 @@ function briefPanel(o){
               '<div style="display:flex;gap:9px;align-items:baseline;margin-bottom:6px">'+
                 '<span style="font-size:9.5px;font-weight:800;color:var(--muted);letter-spacing:.03em">VARIAN ('+VR.length+')</span>'+
                 '<span style="font-size:9.5px;font-weight:700;color:'+(q2&&tot!==q2?'var(--warn)':'var(--ok)')+'">total '+tot+' / '+q2+' pcs</span>'+
-                '<span style="font-size:9px;color:var(--muted)">kolom kosong = ikut spec produk di atas</span></div>'+
+                '<span style="font-size:9px;color:var(--muted)">tiap varian membawa spec-nya sendiri — kolom kosong = standar Rove</span></div>'+
               VR.map(function(v,k){
                 return '<div style="border:1px solid var(--line);border-radius:9px;padding:7px 9px;margin-bottom:7px">'+
                   '<div style="display:flex;gap:6px;align-items:center">'+
