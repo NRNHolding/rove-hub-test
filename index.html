@@ -504,7 +504,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20260902-111215';
+const VERSI='20260902-111459';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -6734,21 +6734,26 @@ function renderMaster(){
          ['-'].concat(c[2]).map(function(op){return '<option '+((r[c[0]]||'-')===op?'selected':'')+'>'+op+'</option>';}).join('')+'</select>';
        return '<input class="pin" value="'+esc(r[c[0]])+'" onchange="mEdit(\'customers\','+i+',\''+c[0]+'\',this.value)" placeholder="'+esc(c[1])+'">';};
      var lebarBawah={alamat:'2 1 210px',alamatKantor:'2 1 210px',catatan:'2 1 190px'};
-     var baris=idx.map(function(i){var r=all[i];
-       var redup=r._del?' style="opacity:.55;background:var(--warn-bg)"':'';
-       var atas='<tr'+redup+'>'+
-         colsAtas.map(function(c){return '<td>'+kotak(c,i,r)+'</td>';}).join('')+
+     /* Satu client = dua baris tabel. Tanpa pemisah, empat client terbaca
+        seperti satu daftar kolom yang mengalir. Tiap client kini "berkartu":
+        baris atasnya berpita warna + latar, ada jarak kosong antar client. */
+     var sep='<tr aria-hidden="true"><td colspan="'+(colsAtas.length+3)+'" style="border:none;height:16px;padding:0;background:transparent"></td></tr>';
+     var baris=idx.map(function(i,n){var r=all[i];
+       var redup=r._del?';opacity:.55':'';
+       var latar=r._del?'var(--warn-bg)':'var(--bg)';
+       var atas='<tr style="background:'+latar+redup+'">'+
+         colsAtas.map(function(c,ci){return '<td'+(ci===0?' style="border-left:3px solid var(--brand)"':'')+'>'+kotak(c,i,r)+'</td>';}).join('')+
          '<td>'+klienSel(i)+'</td>'+
          '<td style="font-size:9px;color:var(--muted)">'+fmtStamp(r)+'</td>'+actCell('customers',i,r)+'</tr>';
        var bawahCols=(r.tipe==='Wedding'?colsWed:[]).concat(colsBawah);
-       var bawah='<tr'+redup+'><td colspan="'+(colsAtas.length+3)+'" style="padding-top:0;border-bottom:2px solid var(--line)">'+
+       var bawah='<tr'+(r._del?' style="opacity:.55;background:var(--warn-bg)"':'')+'><td colspan="'+(colsAtas.length+3)+'" style="padding-top:6px;border-left:3px solid var(--brand);border-bottom:2px solid var(--brand)">'+
          '<div style="display:flex;flex-wrap:wrap;gap:7px 10px">'+
          bawahCols.map(function(c){
            return '<div style="flex:'+(lebarBawah[c[0]]||'1 1 130px')+';min-width:0">'+
              '<div style="font-size:8.5px;color:var(--muted);font-weight:700;letter-spacing:.02em;margin-bottom:2px">'+esc(c[1])+'</div>'+
              kotak(c,i,r)+'</div>';}).join('')+
          '</div></td></tr>';
-       return atas+bawah;}).join('');
+       return (n?sep:'')+atas+bawah;}).join('');
      return `<div class="rcard"><h3>Customers (${all.length})</h3>
      <div style="font-size:10.5px;color:var(--muted);margin-bottom:9px"><b>Terisi otomatis</b> tiap Sales membuat inquiry baru. <b>Alamat kirim</b> = tujuan paket; <b>Alamat client/kantor</b> = alamat penagihan/kantor. <b>Lokasi</b> memisahkan client HQ (Indonesia) dan AU (Australia).<br>Jenis <b>Wedding</b> punya kolom <b>Bride</b> &amp; <b>Groom</b> terpisah — kolom <b>Nama/akun</b> terisi otomatis “Bride &amp; Groom”.</div>
      <div style="margin-bottom:11px">${CT.map(tab).join('')}</div>
