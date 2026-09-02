@@ -504,7 +504,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20260903-061602';
+const VERSI='20260903-062819';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -11533,6 +11533,42 @@ function profitHapus(id,i){
   var l=o.pricing.lines[i];if(!l)return;
   if(!confirm('Hapus item "'+(l.produk||'-')+'" dari order ini?'))return;
   o.pricing.lines.splice(i,1);o._m=Date.now();logHist(o,'Item dihapus: '+(l.produk||'-'));save();render();}
+/* ================= KEMBALI KE PRICING VENDOR =================
+   Menambah item (katalog, custom, collateral) atau membuka nego harga di
+   fase Penentuan harga jual berarti ada harga vendor yang belum ada / harus
+   ditanyakan ulang. Itu pekerjaan PM di fase Pricing Vendor — jadi kartunya
+   otomatis kembali ke sana, PM dikabari, dan persetujuan harga jual /
+   Direktur yang terlanjur ada gugur (angkanya sudah berubah). Panel
+   Penentuan harga jual dibiarkan tetap terbuka supaya Sales bisa
+   meneruskan inputnya. */
+function kembaliKePricingVendor(o,sebab){
+  var f=o.phase||0;
+  if(o.status==='Cancel'||f<2||f>3)return false;      // hanya dari Penentuan harga jual / Profitability
+  var dari=f,ke=1;
+  var gugur=revisiBatalkanAcc(o,ke);
+  revisiAll(o).push({tgl:nowStr(),oleh:(ST.userName||ST.user||''),
+    sebab:'Harga vendor perlu ditanyakan',catatan:sebab,dari:dari,ke:ke,poRev:false});
+  o.phase=ke;o._faseSejak=Date.now();o.ingatOtomatis={};
+  o._kembaliPV={t:Date.now(),sebab:sebab,dari:PH[dari].n};
+  try{var L=bukaAwalSet(o);if(L.indexOf('profit')<0)L.push('profit');}catch(e){}
+  logHist(o,'↩ '+sebab+' — kembali ke '+PH[ke].n+' dari '+PH[dari].n+
+    (gugur.length?(' · gugur: '+gugur.join(', ')):''));
+  notifyOrder(o,'↩ **'+o.customer+' kembali ke '+PH[ke].n+'**'+String.fromCharCode(10)+sebab+String.fromCharCode(10)+
+    picMention(PH[ke].pic)+' — tolong tanyakan harganya ke vendor.');
+  /* who = kunci TEAM (avatar). Nama pengguna bebas bukan kunci — dulu
+     merender avatar undefined dan mematikan seluruh layar detail */
+  (o.disc=o.disc||[]).push({cat:['radja','PRICING → PRICING DONE'],who:(typeof TEAM==='object'&&TEAM[ST.user])?ST.user:'Sales',
+    txt:'↩ Kembali ke <b>'+esc(PH[ke].n)+'</b> — '+esc(sebab)});
+  return true;}
+/* spanduk di panel Penentuan harga jual selagi kartunya ada di Pricing Vendor */
+function kembaliPVBlok(o){
+  if((o.phase||0)!==1)return '';
+  var k=o._kembaliPV;
+  return '<div style="border:1px solid var(--warn);background:var(--bg);border-radius:9px;padding:8px 11px;margin-bottom:10px;font-size:10.5px">'+
+    '<b style="color:var(--warn)">↩ Kartu ada di fase Pricing Vendor</b>'+
+    (k?(' — '+esc(k.sebab)+'.'):'.')+' '+
+    esc(PH[1].pic)+' menanyakan harga vendor untuk item yang baru; harga jual dilanjutkan sesudah harganya masuk. '+
+    'Item masih bisa ditambah di sini — semuanya ikut ditanyakan.</div>';}
 function profitTambahCustom(id){
   var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
   askForm({judul:'Tambah item custom',sub:o.customer,
@@ -11546,7 +11582,9 @@ function profitTambahCustom(id){
       if(!o.pricing)o.pricing={lines:[],margin:30};
       o.pricing.lines.push({produk:v.nama,bahan:v.bahan||'',sumber:v.sumber,qty:+v.qty||0,
         hpp:+v.hpp||0,jual:+v.jual||0,perso:'-',fixed:false,imgs:[]});
-      o._m=Date.now();logHist(o,'Item ditambah: '+v.nama);save();render();}});}
+      o._m=Date.now();logHist(o,'Item ditambah: '+v.nama);
+      kembaliKePricingVendor(o,'Item custom ditambah: '+v.nama+' × '+(+v.qty||0)+' pcs');
+      save();render();}});}
 /* Dulu form kecil ber-dropdown nama produk. Yang diharapkan orang: picker
    katalog yang sama seperti di panel Pricing (gambar, material, harga tier).
    Sejak panel Pricing tak lagi dibuka di fase ini, pickernya digambar di
@@ -11571,7 +11609,9 @@ function profitTambahKatalogForm(id){
       o.pricing.lines.push({produk:c.name,bahan:c.material||'',sumber:'Radja Leather',qty:q,
         hpp:hppKat,jual:Math.round(hppKat*(1+((o.pricing.margin||30)/100))),
         perso:'-',fixed:true,img:c.img||'',imgs:[],tiers:c.t||null});
-      o._m=Date.now();logHist(o,'Item katalog ditambah: '+c.name);save();render();}});}
+      o._m=Date.now();logHist(o,'Item katalog ditambah: '+c.name);
+      kembaliKePricingVendor(o,'Item katalog ditambah: '+c.name+' × '+q+' pcs');
+      save();render();}});}
 
 /* ---- info yang harus dikorek PM dari Radja ---- */
 function radjaSet(id,f,v){
@@ -12189,6 +12229,9 @@ function negoBuka(id,i){
         notifyOrder(o,pesan+(tuj.keVendor?'':(NL+picMention('Purchasing')+' — tolong sampaikan ke vendornya.')));}
       logHist(o,'⚖ Nego '+(l.produk||'item')+' ke '+(l.sumber||'vendor')+' — dari '+fmt0(kini)+
         (t>0?(' minta '+fmt0(t)):'')+(l.nego.alasan?(' ('+l.nego.alasan+')'):''));
+      /* jawaban vendor atas nego dicatat PM di fase Pricing Vendor */
+      kembaliKePricingVendor(o,'Nego harga '+(l.produk||'item')+' ke '+(l.sumber||'vendor')+
+        (t>0?(' — target '+fmt0(t)+'/pcs'):''));
       o._m=Date.now();save();render();}});}
 /* dipanggil tiap kali harga vendor sebuah baris berubah — nego yang sedang
    berjalan ditutup dan selisihnya disimpan */
@@ -12262,7 +12305,7 @@ function profitPanel(o){
     '<div><div class="t">Penentuan harga jual</div><div class="s">HPP VENDOR VS HARGA JUAL</div></div>'+
     '<span style="margin-left:auto;font-size:12px;font-weight:800;color:'+profitWarna(P.pct)+'">'+
       (P.jual?('Profit '+fmt0(P.profit)+' · '+P.pct+'%'):'belum ada angka')+'</span></div><div class="body">'+awas+
-    radjaBlok(o)+
+    radjaBlok(o)+kembaliPVBlok(o)+
     '<div style="font-size:10.5px;color:var(--muted);margin-bottom:10px">Angka di sini bisa langsung diubah — qty, HPP dari vendor, dan harga jual ke client. '+
       'Yang dipakai quotation adalah <b>harga jual</b>; HPP hanya untuk menghitung profit.</div>'+
     (P.kurang?('<div style="font-size:10.5px;color:var(--warn);font-weight:700;margin-bottom:9px">⚠ '+P.kurang+' item belum ada HPP vendor — profitnya belum bisa dihitung penuh.</div>'):'')+
@@ -12273,7 +12316,10 @@ function profitPanel(o){
           (((ST._catBuka||{})[o.id])?'✕ Tutup katalog':'＋ Item katalog')+'</button>')+
       '<button class="btn ghost sm" onclick="profitTambahCustom(\u0027'+o.id+'\u0027)">＋ Item custom</button>'+
       '<button class="btn ghost sm" onclick="spareSemua(\u0027'+o.id+'\u0027)">＋% Spare vendor</button>'+
-      '<span style="font-size:9.5px;color:var(--muted);align-self:center">item masih bisa ditambah/dikurangi di sini — setelah Quotation sudah terkunci</span>'+
+      '<span style="font-size:9.5px;color:var(--muted);align-self:center">'+
+        (((o.phase||0)>=2&&(o.phase||0)<=3)
+          ?'menambah item / nego harga = kartu kembali ke Pricing Vendor, PM menanyakan harganya'
+          :'item masih bisa ditambah/dikurangi di sini — setelah Quotation sudah terkunci')+'</span>'+
     '</div>'+
     (((ST._catBuka||{})[o.id])?catalogPicker(o,'profit'):'')+
     (L.length?'<div class="xscroll"><table class="rtable mstack"><thead><tr>'+
@@ -13844,7 +13890,9 @@ function addFromCatalog(id,i){
   o.pricing.lines.push({produk:item.name,bahan:item.material||'Katalog',sumber:'Radja Leather',qty:qty,
     hpp:hppKat,jual:Math.round(hppKat*(1+(((o.pricing||{}).margin)||30)/100)),
     perso:'',img:(item&&item.img)||'',fixed:true,tiers:(item&&item.t)||null});
-  save();render();
+  logHist(o,'Item katalog ditambah: '+item.name+' × '+qty+' pcs');
+  kembaliKePricingVendor(o,'Item katalog ditambah: '+item.name+' × '+qty+' pcs');
+  o._m=Date.now();save();render();
 }
 function catMaterials(){var s={};catalog().forEach(function(c){if(c.material)s[c.material]=1;});return Object.keys(s).sort();}
 function catRowsHTML(o){
@@ -13945,7 +13993,9 @@ function addCollaterals(id){
   });
   if(c.others&&!has('Others')){o.pricing.lines.push({produk:c.others,bahan:'Collateral',sumber:'Others',qty:o.qty||0,hpp:0,perso:''});added++;}
   if(!added){alert('Tidak ada collateral baru — semua pilihan sudah jadi baris, atau order ini tak punya collateral.');return;}
-  save();render();
+  logHist(o,'Collateral ditambah: '+added+' baris');
+  kembaliKePricingVendor(o,'Collateral ditambah ('+added+' baris) — harganya perlu ditanyakan ke vendornya');
+  o._m=Date.now();save();render();
 }
 /* ================= BRIEF INQUIRY (form A–E yang biasa dipakai) ================= */
 
