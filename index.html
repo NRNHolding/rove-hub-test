@@ -504,7 +504,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20260902-144600';
+const VERSI='20260902-145040';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -10750,7 +10750,13 @@ function rfqKulit(l){if(!l.rfq)l.rfq={};if(!l.rfq.kulit)l.rfq.kulit={tanya:'',sa
    kalau ia menulis l.rfq={} sekadar untuk membaca, baris itu jadi terlihat
    "sudah pernah ditanyakan" selamanya dan tak pernah dihitung ulang lagi. */
 function rfqKulitBaca(l){return (l&&l.rfq&&l.rfq.kulit)||{tanya:'',saran:[],jawab:[],pilih:''};}
-function lineKulit(l){return (l.sumber&&vendorTipe(l.sumber)==='Kulit');}
+/* Baris ini PEMBELIAN kulit? Hanya baris produk. Add-on yang dikerjakan
+   Radja juga bervendor kulit, tapi yang dibeli di situ pekerjaannya —
+   menanyainya 'kulit apa yang ready' cuma membingungkan. */
+function lineKulit(l){return !!(l&&l.sumber&&vendorTipe(l.sumber)==='Kulit'&&lineJenis(l)==='produk');}
+/* Baris ini dikerjakan pembuat produknya (Radja)? Produk maupun add-on —
+   dua-duanya menentukan kapan PO paling lambat harus turun. */
+function keVendorProduksi(l){return !!(l&&l.sumber&&vendorTipe(l.sumber)==='Kulit');}
 
 /* --- 1. tanya ketersediaan --- */
 
@@ -11035,11 +11041,13 @@ function rfqJawab(id,i){
     ph:'Pull Up | Coklat tua | Ready | stok banyak\nButtero | Cognac | Terbatas | sisa 2 lembar',
     hint:'Format: <b>nama | warna | Ready/Terbatas/Indent/Habis | catatan</b>. Warna &amp; catatan boleh kosong.'});
   var jasaBrs=(lineJenis(l)==='jasa');
-  if(jasaBrs)F.push({k:'satuan',label:'Vendor menghitungnya per apa?',type:'select',
+  /* satuan hanya jadi pertanyaan untuk live service — add-on selalu per pcs */
+  var liveBrs=jasaBrs&&(l.jasa==='Live service'||jasaSatuan(l)==='event');
+  if(liveBrs)F.push({k:'satuan',label:'Vendor menghitungnya per apa?',type:'select',
     opts:JASA_SATUAN.map(function(x){return {v:x[0],l:x[1]};}),val:jasaSatuan(l),
     hint:'Salah satuan membuat harga satu event dikali jumlah barang — itu selisih puluhan juta.'});
   var Vv=lineVarian(l);
-  if(Vv.length&&!jasaBrs){
+  if(Vv.length&&!liveBrs){
     /* baris ber-varian: harga dicatat PER VARIAN; harga baris = rata-rata
        tertimbang supaya total biayanya tetap benar */
     Vv.forEach(function(vr,k2){F.push({k:'hv'+k2,type:'money',
@@ -11047,16 +11055,17 @@ function rfqJawab(id,i){
       val:(+vr.hpp||0)||l.hpp||0,
       hint:k2===0?'Kosongkan semua kalau harganya menyusul.':''});});
   } else {
-    F.push({k:'hpp',label:jasaBrs?'Harga vendor (HPP)':'Harga vendor per pcs (HPP)',type:'money',val:l.hpp||0,
-      hint:jasaBrs?'Angka apa adanya dari vendor, sesuai satuan di atas.'
-                  :'Kosongkan kalau vendor baru menjawab soal kulit, harganya menyusul.'});
+    F.push({k:'hpp',label:liveBrs?'Harga vendor (HPP)':'Harga vendor per pcs (HPP)',type:'money',val:l.hpp||0,
+      hint:liveBrs?'Angka apa adanya dari vendor, sesuai satuan di atas.'
+                  :(kulit?'Kosongkan kalau vendor baru menjawab soal kulit, harganya menyusul.'
+                        :'Harga yang dijawab vendor untuk baris ini.')});
   }
   F.push({k:'tgl',label:'Tanggal jawaban diterima',type:'date',val:hariIni(),req:true});
   F.push({k:'note',label:'Catatan vendor',type:'text',val:(l.rfq&&l.rfq.note)||'',ph:'mis. berlaku 30 hari, MOQ 100 pcs'});
   /* Jawabannya datang bersamaan dengan harga, jadi dicatat di sini juga —
      item "tanggal paling lambat PO" di fase Penentuan harga jual membaca
      kolom yang sama dan tercentang sendiri. */
-  if(kulit)F.push({k:'tglPOMax',label:'Paling lambat PO boleh turun — jawaban vendor',type:'date',
+  if(keVendorProduksi(l))F.push({k:'tglPOMax',label:'Paling lambat PO boleh turun — jawaban vendor',type:'date',
     val:(o.po||{}).tglPOMax||'',
     hint:'Lewat tanggal ini vendor tak lagi menjamin barangnya sampai sebelum acara. Boleh kosong kalau belum dijawab.'});
   if(kulit)F.push({k:'keMaster',label:'Simpan kulit ke Master Kulit?',type:'checkbox',val:true,
@@ -11074,8 +11083,8 @@ function rfqJawab(id,i){
         k.jawab=baru;k.terima=v.tgl;
         if(k.pilih&&!baru.some(function(d){return d.nama===k.pilih;}))k.pilih='';
         if(v.keMaster)baru.forEach(function(d){kulitKeMaster(d,l.sumber);});}
-      if(jasaBrs&&v.satuan)l.satuan=v.satuan;
-      if(Vv.length&&!jasaBrs){
+      if(liveBrs&&v.satuan)l.satuan=v.satuan;
+      if(Vv.length&&!liveBrs){
         Vv.forEach(function(vr,k2){var hv=moneyVal(v['hv'+k2]);if(hv>0)vr.hpp=hv;});
         var rata=varianHppRata(l);
         if(rata>0){l.hpp=rata;l._hppManual=true;}
