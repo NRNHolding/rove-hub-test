@@ -504,7 +504,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20260902-113916';
+const VERSI='20260902-114127';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -10499,7 +10499,7 @@ function bagiWarna(id,i){
       '</div>';}
   function gambar(){
     var tot=V.reduce(function(a,v){return a+(+v.q||0);},0),q=+l.qty||0;
-    ov.innerHTML='<div style="background:var(--card,#fff);color:var(--ink,#222);border-radius:14px;max-width:600px;width:100%;padding:17px 19px;box-shadow:0 18px 50px rgba(0,0,0,.35)" onclick="event.stopPropagation()">'+
+    ov.innerHTML='<div style="background:var(--card,#fff);color:var(--ink,#222);border-radius:14px;max-width:600px;width:100%;padding:17px 19px;box-shadow:0 18px 50px rgba(0,0,0,.35)">'+
       '<div style="font-weight:800;font-size:14px">Bagi per warna / artikel — '+esc(l.produk||'item')+'</div>'+
       '<div style="font-size:10.5px;color:var(--muted);margin:3px 0 11px">Qty baris <b>'+q+' pcs</b> · total varian <b style="color:'+(q&&tot!==q?'var(--warn)':'var(--ok)')+'">'+tot+' pcs</b>. '+
         'Tambah varian sebanyak perlunya; ⚙ untuk spec yang menyimpang; ⇄ memisahkan varian berharga beda jadi baris sendiri.</div>'+
