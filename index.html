@@ -504,7 +504,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20260902-134722';
+const VERSI='20260902-135953';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -8602,13 +8602,22 @@ const PH_CHECK=[
   {auto:function(o){var b=(o.brief||{});var isi=function(x){x=String(x||'').trim();return !!x&&x!=='-';};
      /* lining & benang menyusul pasangannya: warna lining wajib hanya kalau
         pakai lining, warna benang hanya kalau jahitannya sudah dipilih */
-     /* order ber-varian: warnanya hidup di variannya — dianggap terisi
-        bila SEMUA varian bernama warna/artikel */
-     var V=orderVarian(o),varLengkap=V.length>0&&V.every(function(x){
-       return lineVarian(x.l).every(function(v){return !!String(v.w||'').trim();});});
-     return isi(b.mainMat)&&(isi(b.mainMatWarna)||varLengkap)
-       &&(!isi(b.lining)||isi(b.liningWarna))
-       &&(!isi(b.stitch)||isi(b.benangWarna));},
+     /* spec menempel per produk: TIAP baris produk dinilai sendiri; order
+        lama tanpa baris produk dinilai dari brief seperti dulu */
+     var P=[];try{P=lineProduk(o);}catch(e){}
+     if(!P.length){
+       return isi(b.mainMat)&&isi(b.mainMatWarna)
+         &&(!isi(b.lining)||isi(b.liningWarna))
+         &&(!isi(b.stitch)||isi(b.benangWarna));}
+     return P.every(function(x){var l=x.l;
+       var g=function(f){var v2=l.spek?l.spek[f]:undefined;
+         if(v2!==undefined&&String(v2)!=='')return v2;return b[f]||'';};
+       var mm=l.bahan||b.mainMat||'';
+       var V=lineVarian(l);
+       var warnaOk=isi(g('mainMatWarna'))||(V.length>0&&V.every(function(v2){return !!String(v2.w||'').trim();}));
+       return isi(mm)&&warnaOk
+         &&(!isi(g('lining'))||isi(g('liningWarna')))
+         &&(!isi(g('stitch'))||isi(g('benangWarna')));});},
    k:'bahanWarna', t:'Pilih bahan & warnanya: main material + warna, warna lining (kalau pakai), warna benang',
    en:'Pick the materials & colours: main material + colour, lining colour (if used), thread colour',
    guna:'warnanya pilihan client — kalau tak ditanyakan sekarang, produksi jalan dengan tebakan',
@@ -9085,11 +9094,11 @@ function chkSumber(fase,k){return CHK_SUMBER[fase+'.'+k]||'';}
    itu; menambah barisnya di sini yang membuatnya tepat. */
 const CHK_FIELD={
   kontak:'picNama', acara:'tglAcara', kota:'venue', hpWo:'woHp',
-  ref:'refFiles', terjemah:'mainMat',
+  ref:'refFiles', terjemah:'mainMat_*,mainMat',
   /* logo & letaknya kini menempel di jasanya (slot svcF_..., kolom letak
      per baris) — slot logoFiles/persoFiles lama hanya tampil untuk warisan */
   logoCl:'svcF_*,logoFiles,sekPerso', logoLetak:'svcLetak_*,persoFiles,sekPerso',
-  bahanWarna:'mainMat',
+  bahanWarna:'mainMat_*,mainMat',
   logoPch:'logoPouchFiles', logoBox:'logoBoxFiles', logoCard:'logoCardFiles',
   preview:'previewFiles', qc:'qcFiles', pack:'packFiles',
   alamat:'addr', alamatKantor:'addrKantor', email:'email',
@@ -9329,8 +9338,8 @@ const FASE_HASIL=[
     ['Tanggal acara → kirim', function(o){var b=briefGet(o);
       return [tglID(o.eventDate),tglID(b.tglKirim)].filter(Boolean).join(' → ');}],
     ['Kota & venue', function(o){return briefGet(o).venue;}],
-    ['Material utama', function(o){var b=briefGet(o);
-      return [b.mainMat,b.mainMatWarna].filter(Boolean).join(' · ');}],
+    ['Material utama', function(o){var SU=spekUtama(o),n=lineProduk(o).length;
+      return [SU.mainMat,SU.mainMatWarna].filter(Boolean).join(' · ')+(n>1?(' (+'+(n-1)+' produk lain)'):'');}],
     ['Teknik personalisasi', function(o){return briefGet(o).perso;}],
     ['Referensi gambar', function(o){var n=((briefGet(o).refFiles)||[]).length;
       return n?(n+' lampiran'):'';}]],
@@ -10422,6 +10431,37 @@ function konfDitanya(g){return g.baris.every(function(x){return !!(x.l.konfTanya
    PO & RFQ mencetak tabel varian; varian yang HARGANYA beda barulah
    dipisah jadi baris sendiri lewat tombol ⇄ di editornya. */
 function lineVarian(l){return (l&&Array.isArray(l.varian))?l.varian:[];}
+/* ================= SPEC PER PRODUK =================
+   Satu order bisa berisi beberapa produk utama; spec milik produknya.
+   Main material disimpan di l.bahan (kolom Bahan pricing — satu sumber),
+   kolom lainnya di l.spek. Order lama tanpa l.spek terbaca lewat fallback
+   ke brief — tak ada migrasi destruktif. */
+function lineProduk(o){
+  return ((((o||{}).pricing||{}).lines)||[]).map(function(l,i){return {l:l,i:i};})
+    .filter(function(x){return lineJenis(x.l)==='produk';});}
+function lineSpek(l){if(!l.spek)l.spek={};return l.spek;}
+const SPEK_F=['mainMatWarna','lining','liningWarna','filler','stitch','benangWarna','finishing','finishWarna'];
+function spekVal(o,l,f){
+  if(f==='mainMat')return (l&&l.bahan)||((briefGet(o).mainMat)||'');
+  var v=(l&&l.spek)?l.spek[f]:undefined;
+  if(v!==undefined&&String(v)!=='')return v;
+  return (briefGet(o)[f])||'';}
+/* spec 'utama' order = produk pertama — untuk pembaca satu-spec (Form PO,
+   ringkasan). Order multi-produk: pembaca per-baris yang memakai detailnya. */
+function spekUtama(o){
+  var P=lineProduk(o),out={};
+  ['mainMat'].concat(SPEK_F).forEach(function(f){
+    out[f]=P.length?spekVal(o,P[0].l,f):((briefGet(o)[f])||'');});
+  return out;}
+function spekSet(id,li,f,v){
+  var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
+  var l=(((o.pricing||{}).lines)||[])[li];if(!l)return;
+  v=(typeof v==='string')?v.trim():v;if(v==='-')v='';
+  if(f==='mainMat')l.bahan=v;else lineSpek(l)[f]=v;
+  o._m=Date.now();save();render();}
+function spekMatSet(id,li,v){
+  if(v===MAT_BARU){kulitBaru(id,li);return;}
+  spekSet(id,li,'mainMat',v);}
 /* baris-baris produk ber-varian di order ini (dipakai grid spec & checklist) */
 function orderVarian(o){
   var out=[];
@@ -11057,12 +11097,12 @@ function rfqSpekBaris(o,l){
   var b=briefGet(o),S=[];
   var tambah=function(k,v){if(v&&String(v).trim()&&String(v)!=='-')S.push('• '+k+': '+v);};
   tambah('Qty',(l.qty||0)+' pcs');
-  tambah('Material utama',l.bahan||b.mainMat);
-  tambah('Warna material',b.mainMatWarna);
-  tambah('Lining',b.lining);tambah('Warna lining',b.liningWarna);
-  tambah('Stitch technique',b.stitch);
-  tambah('Warna benang',b.benangWarna);
-  tambah('Finishing',b.finishing);tambah('Warna dye',b.finishWarna);
+  tambah('Material utama',spekVal(o,l,'mainMat'));
+  tambah('Warna material',lineVarian(l).length?'per varian (lihat rinciannya)':spekVal(o,l,'mainMatWarna'));
+  tambah('Lining',spekVal(o,l,'lining'));tambah('Warna lining',spekVal(o,l,'liningWarna'));
+  tambah('Stitch technique',spekVal(o,l,'stitch'));
+  tambah('Warna benang',spekVal(o,l,'benangWarna'));
+  tambah('Finishing',spekVal(o,l,'finishing'));tambah('Warna dye',spekVal(o,l,'finishWarna'));
   tambah('Personalization',l.perso||b.perso);
   tambah('Tali',l.tali);tambah('Ukuran',l.ukuran);
   tambah('Fungsi / fitur diminta',b.fiturLain);
@@ -13695,7 +13735,7 @@ function salesBelum(o){
          menitipkan maunya (mis. "warna earth tone") yang harus diterjemahkan */
       if((d.items||[]).length&&!(d.spec&&d.spec.produk&&d.spec.produk.ada)
          &&!(d.items||[]).some(function(it){return it.note;}))return true;
-      return !!b.mainMat;},
+      return !!(b.mainMat||lineProduk(o).some(function(x){return !!(x.l.bahan||'').trim();}));},
     box:function(){return !!(o.coll&&o.coll.box)&&!!packRingkas('box',packSpec(o,'box'));},
     pouch:function(){return !!(o.coll&&o.coll.pouch)&&!!packRingkas('pouch',packSpec(o,'pouch'));},
     card:function(){return !!(o.coll&&o.coll.card)&&!!packRingkas('card',packSpec(o,'card'));},
@@ -13777,12 +13817,15 @@ function salinBriefKePO(o,timpa){
     if(String(o.po[k]||'')===String(v))return;
     o.po[k]=v;isi.push(label||k);
     if(o.po._dariBrief.indexOf(k)<0)o.po._dariBrief.push(k);};
-  taruh('mainMaterial',b.mainMat?(b.mainMat+(b.mainMatWarna?(' — '+b.mainMatWarna):'')):'','Main material');
-  taruh('materialPendukung',b.lining?(('Lining: '+b.lining)+(b.liningWarna?(' '+b.liningWarna):'')):'','Material pendukung');
-  taruh('stitch',b.stitch?(/hand|saddle/i.test(b.stitch)?'Handmade':'Machine'):'','Stitch');
-  taruh('warnaBenang',b.benangWarna,'Warna benang');
-  taruh('finishing',(b.finishing&&['Burnish','Dye'].indexOf(b.finishing)>=0)
-    ?((b.finishing==='Dye'?'Dying':'Burnish')+(b.finishWarna?(' — '+b.finishWarna):'')):'','Finishing');
+  /* spec per produk: Form PO memakai produk pertama; produk lain terbaca
+     lengkap di dokumen RFQ/PO per barisnya */
+  var SU=spekUtama(o);
+  taruh('mainMaterial',SU.mainMat?(SU.mainMat+(SU.mainMatWarna?(' — '+SU.mainMatWarna):'')):'','Main material');
+  taruh('materialPendukung',SU.lining?(('Lining: '+SU.lining)+(SU.liningWarna?(' '+SU.liningWarna):'')):'','Material pendukung');
+  taruh('stitch',SU.stitch?(/hand|saddle/i.test(SU.stitch)?'Handmade':'Machine'):'','Stitch');
+  taruh('warnaBenang',SU.benangWarna,'Warna benang');
+  taruh('finishing',(SU.finishing&&['Burnish','Dye'].indexOf(SU.finishing)>=0)
+    ?((SU.finishing==='Dye'?'Dying':'Burnish')+(SU.finishWarna?(' — '+SU.finishWarna):'')):'','Finishing');
   taruh('deadline',b.tglKirim,'Deadline produksi');
   return isi;}
 /* briefKeProd dihapus — salinannya kini otomatis tiap Brief diubah. */
@@ -14235,7 +14278,7 @@ function briefMatSet(id,v){
   if(v===MAT_BARU){kulitBaru(id);return;}
   briefSet(id,'mainMat',v);}
 /* Artikel baru dari Radja: dicatat ke master supaya order berikutnya tinggal memilih. */
-function kulitBaru(id){
+function kulitBaru(id,li){
   var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
   askForm({judul:'Artikel kulit baru dari Radja',
     sub:'Masuk ke Master data → Kulit, dan langsung dipasang di order '+o.customer,
@@ -14255,7 +14298,10 @@ function kulitBaru(id){
       if(!sudah)ST.master.kulit.push({nama:nama,warna:v.warna||'',stok:v.stok||'Ready',
         minOrder:v.minOrder||'',vendor:'Radja Leather',catatan:v.catatan||''});
       saveMaster();
-      var b=briefGet(o);b.mainMat=nama;if(v.warna)b.mainMatWarna=v.warna;
+      if(li!==undefined&&li!==null&&(((o.pricing||{}).lines)||[])[li]){
+        var lB=o.pricing.lines[li];lB.bahan=nama;
+        if(v.warna&&!lineVarian(lB).length)lineSpek(lB).mainMatWarna=v.warna;
+      }else{var b=briefGet(o);b.mainMat=nama;if(v.warna)b.mainMatWarna=v.warna;}
       logHist(o,'Artikel kulit baru dari Radja ditambahkan ke master: '+nama+(v.warna?(' — '+v.warna):''));
       o._m=Date.now();save();render();
       alert('"'+nama+'" masuk Master data → Kulit'+(sudah?' (sudah ada, tak digandakan)':'')+
@@ -14335,36 +14381,92 @@ function briefPanel(o){
     grid(txt('woNama','WO / EO — nama','kosongkan kalau tak ada')+
       txt('woHp','WO / EO — phone','+62 812-…'),170)+
 
-    sub('SPESIFIKASI PRODUK','spec UTAMA — berlaku untuk semua pcs; varian yang menyimpang diisi lewat ⚙ di "bagi warna"')+
+    sub('SPESIFIKASI PRODUK','menempel di tiap produknya — varian yang menyimpang diatur di "bagi warna"')+
     salesPita(o,'produk')+
     briefProduk(o)+
-    grid(selMat()+
-      /* warnanya sudah dirinci per varian? kolom warna utama menyingkir —
-         diisi satu warna pun bohong, karena tiap varian punya warnanya */
-      (orderVarian(o).length
-        ?(function(){var OV=orderVarian(o),x=OV[0];
-          var nm=[];OV.forEach(function(y){lineVarian(y.l).forEach(function(v){if(v.w)nm.push(v.w);});});
-          var n=nm.length,teks=nm.slice(0,3).join(', ')+(n>3?(' +'+(n-3)):'');
-          return '<label class="nlbl">Warna main material'+
-            '<button type="button" class="btn ghost sm" style="width:100%;margin-top:3px;text-align:left;font-size:10.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" '+
-            'title="diatur per varian — klik untuk mengubah" onclick="bagiWarna('+jsArg(o.id)+','+x.i+')">⑂ '+n+' varian — '+esc(teks)+'</button></label>';})()
-        :briefWarna(o,'mainMatWarna','Warna main material'))+
-      sel('lining','Lining',listArr('lining'))+
-      briefWarna(o,'liningWarna','Warna lining')+
-      sel('filler','Filler',listArr('filler')),170)+
-    grid(sel('stitch','Stitch technique',listArr('stitch'))+
-      briefWarna(o,'benangWarna','Warna benang')+
-      sel('finishing','Finishing request',listArr('finreq'))+
-      (dye?briefWarna(o,'finishWarna','Warna dye'):'')+
-      (orderVarian(o).length
-        ?('<div style="grid-column:1/-1;font-size:9px;color:var(--muted);margin-top:-3px">'+
-          'Semua kolom di atas = bawaan untuk semua varian; tiap varian bisa menyimpang di kolom mana pun lewat ⚙ di "bagi warna".</div>')
-        :'')+
-      /* Personalization tak punya kolom di grid ini — bagiannya sendiri ada
-         tepat di bawah grid, jadi kotak ringkasan di sini cuma fungsi ganda
-         yang membingungkan. */
-      '',170)+
-    (dye?'':'<div style="font-size:9.5px;color:var(--muted);margin:-6px 0 10px">Kolom warna dye muncul otomatis kalau Finishing request dipilih <b>Dye</b>.</div>')+
+    (function(){
+      var P=lineProduk(o);
+      /* order belum dirinci jadi baris produk — form lama tingkat-order
+         tetap dipakai supaya selalu ada tempat mengisi */
+      if(!P.length)return (
+          grid(selMat()+
+            /* warnanya sudah dirinci per varian? kolom warna utama menyingkir —
+               diisi satu warna pun bohong, karena tiap varian punya warnanya */
+            (orderVarian(o).length
+              ?(function(){var OV=orderVarian(o),x=OV[0];
+                var nm=[];OV.forEach(function(y){lineVarian(y.l).forEach(function(v){if(v.w)nm.push(v.w);});});
+                var n=nm.length,teks=nm.slice(0,3).join(', ')+(n>3?(' +'+(n-3)):'');
+                return '<label class="nlbl">Warna main material'+
+                  '<button type="button" class="btn ghost sm" style="width:100%;margin-top:3px;text-align:left;font-size:10.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" '+
+                  'title="diatur per varian — klik untuk mengubah" onclick="bagiWarna('+jsArg(o.id)+','+x.i+')">⑂ '+n+' varian — '+esc(teks)+'</button></label>';})()
+              :briefWarna(o,'mainMatWarna','Warna main material'))+
+            sel('lining','Lining',listArr('lining'))+
+            briefWarna(o,'liningWarna','Warna lining')+
+            sel('filler','Filler',listArr('filler')),170)+
+          grid(sel('stitch','Stitch technique',listArr('stitch'))+
+            briefWarna(o,'benangWarna','Warna benang')+
+            sel('finishing','Finishing request',listArr('finreq'))+
+            (dye?briefWarna(o,'finishWarna','Warna dye'):'')+
+            (orderVarian(o).length
+              ?('<div style="grid-column:1/-1;font-size:9px;color:var(--muted);margin-top:-3px">'+
+                'Semua kolom di atas = bawaan untuk semua varian; tiap varian bisa menyimpang di kolom mana pun lewat ⚙ di "bagi warna".</div>')
+              :'')+
+            /* Personalization tak punya kolom di grid ini — bagiannya sendiri ada
+               tepat di bawah grid, jadi kotak ringkasan di sini cuma fungsi ganda
+               yang membingungkan. */
+            '',170)
+      );
+      /* SPEC MENEMPEL DI TIAP PRODUK — satu kartu per produk utama */
+      var dlH='<datalist id="spekDlW">'+(function(){var w=[];
+          try{kulitAll().forEach(function(x){var n2=(x.nama||'')+(x.warna?(' '+x.warna):'');if(n2&&w.indexOf(n2)<0)w.push(n2);});}catch(e){}
+          try{listArr('warna').forEach(function(x){if(w.indexOf(x)<0)w.push(x);});}catch(e){}
+          return w.map(function(x){return '<option value="'+esc(x)+'">';}).join('');})()+'</datalist>'+
+        '<datalist id="spekDlWr">'+listArr('warna').map(function(x){return '<option value="'+esc(x)+'">';}).join('')+'</datalist>';
+      return P.map(function(x){
+        var l=x.l,li=x.i;
+        var g=function(f){return spekVal(o,l,f);};
+        var inp=function(f,label,dl){return '<label class="nlbl">'+label+
+          '<input class="pin" '+(dl?('list="'+dl+'" '):'')+'data-f="'+f+'_'+li+'" style="width:100%;margin-top:3px" value="'+esc(g(f))+'" '+
+          'onchange="spekSet('+jsArg(o.id)+','+li+',\''+f+'\',this.value)"></label>';};
+        var selS=function(f,label,list){var kini=g(f)||'-';
+          var opts=['-'].concat(list);if(kini!=='-'&&opts.indexOf(kini)<0)opts.push(kini);
+          return '<label class="nlbl">'+label+'<select class="pin" data-f="'+f+'_'+li+'" style="width:100%;margin-top:3px" '+
+            'onchange="spekSet('+jsArg(o.id)+','+li+',\''+f+'\',this.value)">'+
+            opts.map(function(op2){return '<option '+(kini===op2?'selected':'')+'>'+esc(op2)+'</option>';}).join('')+'</select></label>';};
+        var mat=(function(){
+          var radja=kulitNama(),umum=listArr('mainmat').filter(function(m2){return radja.indexOf(m2)<0;});
+          var kini=g('mainMat')||'-';
+          var lain=(kini!=='-'&&radja.indexOf(kini)<0&&umum.indexOf(kini)<0)?[kini]:[];
+          var info=kulitInfo(kini);
+          var pil=function(m2){return '<option value="'+esc(m2)+'" '+(kini===m2?'selected':'')+'>'+esc(m2)+'</option>';};
+          return '<label class="nlbl">Main material'+
+            '<select class="pin" data-f="mainMat_'+li+'" style="width:100%;margin-top:3px" onchange="spekMatSet('+jsArg(o.id)+','+li+',this.value)">'+
+              '<option value="-" '+(kini==='-'?'selected':'')+'>— belum dipilih —</option>'+
+              (radja.length?('<optgroup label="Artikel kulit Radja — sudah pasti ada">'+radja.map(pil).join('')+'</optgroup>'):'')+
+              (umum.length?('<optgroup label="Bahan umum — belum menunjuk artikel tertentu">'+umum.map(pil).join('')+'</optgroup>'):'')+
+              (lain.length?('<optgroup label="Tertulis di order ini">'+lain.map(pil).join('')+'</optgroup>'):'')+
+              '<optgroup label="Kalau belum ada di daftar"><option value="'+MAT_BARU+'">＋ Daftarkan artikel baru dari Radja…</option></optgroup>'+
+            '</select>'+
+            (info?('<div style="font-size:9px;color:var(--muted);margin-top:3px;line-height:1.4">'+esc(info)+'</div>'):'')+'</label>';})();
+        var warnaUtama=lineVarian(l).length
+          ?(function(){var V=lineVarian(l),nm=V.filter(function(v){return v.w;}).map(function(v){return v.w;});
+            var teks=nm.slice(0,3).join(', ')+(nm.length>3?(' +'+(nm.length-3)):'');
+            return '<label class="nlbl">Warna main material'+
+              '<button type="button" class="btn ghost sm" style="width:100%;margin-top:3px;text-align:left;font-size:10.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" '+
+              'title="diatur per varian — klik untuk mengubah" onclick="bagiWarna('+jsArg(o.id)+','+li+')">⑂ '+V.length+' varian — '+esc(teks)+'</button></label>';})()
+          :inp('mainMatWarna','Warna main material','spekDlW');
+        var dyeL=/dye|celup/i.test(g('finishing')||'');
+        return '<div style="border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:10px;background:var(--bg)">'+
+          '<div style="display:flex;gap:8px;align-items:baseline;margin-bottom:7px">'+
+            '<b style="font-size:11.5px">'+esc(l.produk||'Produk')+'</b>'+
+            '<span style="font-size:9.5px;color:var(--muted)">'+(l.qty||0)+' pcs'+(lineVarian(l).length?(' · '+lineVarian(l).length+' varian'):'')+'</span>'+
+            ((l.qty||0)>1?('<button type="button" class="btn ghost sm" style="margin-left:auto;padding:1px 8px;font-size:9px" onclick="bagiWarna('+jsArg(o.id)+','+li+')">'+(lineVarian(l).length?'✎ varian':'⑂ bagi warna')+'</button>'):'')+
+          '</div>'+
+          grid(mat+warnaUtama+selS('lining','Lining',listArr('lining'))+inp('liningWarna','Warna lining','spekDlWr')+selS('filler','Filler',listArr('filler')),170)+
+          grid(selS('stitch','Stitch technique',listArr('stitch'))+inp('benangWarna','Warna benang','spekDlWr')+selS('finishing','Finishing request',listArr('finreq'))+(dyeL?inp('finishWarna','Warna dye','spekDlWr'):'')+'',170)+
+          '</div>';}).join('')+dlH+
+        '<div style="font-size:9px;color:var(--muted);margin:-4px 0 10px">Kolom warna dye muncul otomatis kalau Finishing dipilih Dye. Varian yang menyimpang mengatur spec-nya di "bagi warna".</div>';})()+
+    (lineProduk(o).length?'':(dye?'':'<div style="font-size:9.5px;color:var(--muted);margin:-6px 0 10px">Kolom warna dye muncul otomatis kalau Finishing request dipilih <b>Dye</b>.</div>'))+
     grid(txt('fiturLain','Fungsi / fitur yang diminta client','mis. muat 6 kartu + slot koin','grid-column:1/-1'),300)+
 
     /* Personalisasi menempel pada spesifikasi produk — ia memang bagian dari
