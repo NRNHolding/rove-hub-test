@@ -504,7 +504,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20260904-104458';
+const VERSI='20260904-105456';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -5585,6 +5585,14 @@ function defKardus(){return [
   {size:'XS',L:20,W:20,H:16,wg:200},{size:'S',L:35,W:32,H:20,wg:350},
   {size:'M',L:54,W:34,H:26,wg:500},{size:'L',L:74,W:50,H:46,wg:800}];}
 function kardusAll(){return (ST.master&&ST.master.kardus)||[];}
+/* Ukuran & berat collateral per tipe — dulu hanya dari konfigurasi Estimator
+   + tabel kombinasi (sering kosong, jadi berat kiriman tak bisa dihitung). */
+const COLL_DIM_TIPE=['Hardbox','Softbox','Soft Pouch','Thank You Card'];
+function defCollDim(){return COLL_DIM_TIPE.map(function(t){return {tipe:t,L:0,W:0,H:0,wg:0};});}
+function collDimAll(){return (ST.master&&ST.master.collDim)||[];}
+function collDimCari(tipe){
+  var t=String(tipe||'').toLowerCase();
+  return collDimAll().find(function(r){return String(r.tipe||'').toLowerCase()===t&&(+r.wg||0)>0&&(+r.L||0)>0&&(+r.W||0)>0;})||null;}
 function defKurs(){return [{kode:'USD',nilai:16400},{kode:'AUD',nilai:10800}];}
 function kursAll(){return (ST.master&&ST.master.kurs)||[];}
 function kursNilai(k){var x=kursAll().find(function(v){return v.kode===k;});return x?(+x.nilai||0):0;}
@@ -5773,7 +5781,7 @@ function custStats(){
     ks.slice(0,15).map(function(k){var s=st[k];return '<tr><td>'+esc(k)+'</td><td class="num">'+s.n+'</td><td class="num">'+fmt0(s.nilai)+'</td><td>'+(s.akhir||'-')+'</td></tr>';}).join('')+
     '</tbody></table></div>'+(ks.length>15?'<div style="font-size:9.5px;color:var(--muted);margin-top:5px">…dan '+(ks.length-15)+' customer lain</div>':'')+'</div>';}
 function fmtStamp(r){return r&&r._u?(esc(r._u)+(r._by?(' · '+esc(r._by)):'')):'—';}
-const DEL_SECS=['users','customers','vendors','coll','catalog','operator','tools','kardus','kurs','jasa','shipping','bank','vtipe','cogs','mainmat','filler','lining','finreq','stitch','warna','kulit','jenis','perso'];
+const DEL_SECS=['users','customers','vendors','coll','catalog','operator','tools','kardus','collDim','kurs','jasa','shipping','bank','vtipe','cogs','mainmat','filler','lining','finreq','stitch','warna','kulit','jenis','perso'];
 function pendingDel(){var n=0;DEL_SECS.forEach(function(s){var a=ST.master&&ST.master[s];if(!Array.isArray(a))return;
   a.forEach(function(r){if(r&&r._del)n++;});});return n;}
 function delRow(sec,i){var r=ST.master[sec][i];if(!r)return;
@@ -6566,6 +6574,7 @@ function loadMaster(){try{ST.master=JSON.parse(localStorage.getItem('rovehub_mas
    if(!ST.master.operator){ST.master.operator=defOperators();saveMaster();}
    if(!ST.master.tools){ST.master.tools=defTools();saveMaster();}
    if(!ST.master.kardus){ST.master.kardus=defKardus();saveMaster();}
+   if(!ST.master.collDim){ST.master.collDim=defCollDim();saveMaster();}
    if(!ST.master.kurs){ST.master.kurs=defKurs();saveMaster();}
    if(!ST.master.jasa){ST.master.jasa=defJasa();saveMaster();}
    if(!ST.master.volDiv){ST.master.volDiv=5000;ST.master.packFactor=1.05;saveMaster();}
@@ -6635,7 +6644,7 @@ function mAdd(sec){var r=(sec==='users'?{username:'',password:'',jabatan:'Sales'
     tipe:((ST._custTab&&ST._custTab!=='ALL')?ST._custTab:'Corporate'),lokasi:'HQ',catatan:''}:sec==='coll'?{type:'Hardbox',kind:'Material',value:''}:sec==='catalog'?{name:'',material:'',jenis:'Katalog',t:[0,0,0,0,0,0,0]}:sec==='operator'?(function(){
     var t=ST._opTab||'',v=svcVendors().filter(function(x){return x.nama===t;})[0];
     /* dibuat dari chip grup \u2192 langsung masuk grup itu, lokasinya ikut kota grup */
-    return {nama:'',grup:v?v.nama:'',lokasi:(v&&v.kota)||'',hp:'',tarif:0,stamper:true,assist:true,aktif:true};})():sec==='tools'?{nama:'',qty:1}:sec==='kardus'?{size:'',L:0,W:0,H:0,wg:0}:sec==='kurs'?{kode:'',nilai:0}:sec==='kulit'?{nama:'',warna:'',stok:'Ready',minOrder:'',vendor:'Radja Leather',catatan:''}:sec==='jasa'?(function(){var t=ST._jasaTab;
+    return {nama:'',grup:v?v.nama:'',lokasi:(v&&v.kota)||'',hp:'',tarif:0,stamper:true,assist:true,aktif:true};})():sec==='tools'?{nama:'',qty:1}:sec==='kardus'?{size:'',L:0,W:0,H:0,wg:0}:sec==='collDim'?{tipe:'',L:0,W:0,H:0,wg:0}:sec==='kurs'?{kode:'',nilai:0}:sec==='kulit'?{nama:'',warna:'',stok:'Ready',minOrder:'',vendor:'Radja Leather',catatan:''}:sec==='jasa'?(function(){var t=ST._jasaTab;
     if(t==='TeknikLive')return {nama:'',jenis:'Teknik',untuk:'Live service',teknik:'-',tekList:'',fix:0,harga:0,vendor:''};
     if(t==='TeknikAddon'||t==='Teknik')return {nama:'',jenis:'Teknik',untuk:'Service',teknik:'-',tekList:'',fix:0,harga:0,vendor:''};
     return {nama:'',jenis:(['Live service','Service'].indexOf(t)>=0?t:'Live service'),teknik:'-',tekList:'',fix:0,harga:0,vendor:''};})():{nama:'',tipe:tabAktif('_venTab',''),cogs:'Main Product',kontak:'',hp:'',bank:'',rek:'',alamat:''});
@@ -6965,7 +6974,7 @@ function renderMaster(){
      var eks=Object.keys(n).sort(function(a,b){
        if(a==='Tanpa ekspedisi')return 1;if(b==='Tanpa ekspedisi')return -1;
        return n[b]-n[a]||a.localeCompare(b);});
-     if(['ALL','kardus','kurs'].indexOf(f)<0&&eks.indexOf(f)<0)f='ALL';
+     if(['ALL','kardus','collDim','kurs'].indexOf(f)<0&&eks.indexOf(f)<0)f='ALL';
      /* tabelnya juga dikelompokkan per ekspedisi, bukan urutan input */
      var idx=[];eks.forEach(function(e){S.forEach(function(r,i){
        if(nama(r)===e&&(f==='ALL'||nama(r)===f))idx.push(i);});});
@@ -6975,7 +6984,9 @@ function renderMaster(){
        chip('ALL','Semua',S.length)+
        eks.map(function(e){return chip(e,e,n[e]);}).join('')+
        '<span style="width:1px;background:var(--line);margin:0 3px"></span>'+
-       chip('kardus','Ukuran kardus',(M.kardus||[]).length)+chip('kurs','Kurs',(M.kurs||[]).length)+'</div>';
+       chip('kardus','Ukuran kardus',(M.kardus||[]).length)+
+       chip('collDim','Ukuran & berat collateral',collDimAll().filter(function(r){return (+r.wg||0)>0;}).length+'/'+collDimAll().length)+
+       chip('kurs','Kurs',(M.kurs||[]).length)+'</div>';
      var isi;
      if(f==='kardus')isi=
        '<div style="font-size:10.5px;color:var(--muted);margin-bottom:9px">HUB memilih kardus <b>paling hemat</b> berdasarkan ukuran &amp; berat produk (mencoba 6 arah putar), lalu menghitung berat tertagih = yang lebih besar antara <b>berat asli</b> dan <b>berat volume</b>.</div>'+
@@ -6985,6 +6996,10 @@ function renderMaster(){
          '<label class="nlbl">Pembagi berat volume<input class="pin n" type="number" style="width:88px;margin-top:3px" value="'+(M.volDiv||5000)+'" onchange="mSet(\'volDiv\',+this.value||5000)"></label>'+
          '<label class="nlbl">Faktor packing<input class="pin n" type="number" step="0.05" style="width:88px;margin-top:3px" value="'+(M.packFactor||1.05)+'" onchange="mSet(\'packFactor\',+this.value||1)"></label>'+
          '<span style="font-size:9.5px;color:var(--muted);flex:1;min-width:190px">Berat volume = (P×L×T) ÷ pembagi. Umumnya <b>5000</b> untuk ekspres, <b>6000</b> untuk ekonomi. Faktor packing menambah berat untuk bungkus &amp; pengisi.</span></div>';
+     else if(f==='collDim')isi=
+       '<div style="font-size:10.5px;color:var(--muted);margin-bottom:9px">Ukuran (cm) &amp; berat (g) <b>satu</b> kemasan per tipe. Dipakai menghitung berat kiriman &amp; pilihan kardus untuk baris collateral di tiap order — tanpa ini blok Ongkir menyebut "belum ada ukuran/berat". Thank You Card: tinggi boleh 0 (dianggap tipis).</div>'+
+       '<div class="xscroll">'+tbl('collDim',[['tipe','Tipe kemasan'],['L','Panjang cm','number'],['W','Lebar cm','number'],['H','Tinggi cm','number'],['wg','Berat g','number']],M.collDim||[])+'</div>'+
+       '<button class="btn ghost sm" style="margin-top:9px" onclick="mAdd(\'collDim\')">＋ Tambah tipe</button>';
      else if(f==='kurs')isi=
        '<div style="font-size:10.5px;color:var(--muted);margin-bottom:9px">Dipakai untuk order <b>Australia (AU)</b> dan tampilan mata uang asing.</div>'+
        '<div class="xscroll">'+tbl('kurs',[['kode','Mata uang'],['nilai','Nilai (Rp)','money']],M.kurs||[])+'</div>'+
@@ -10161,6 +10176,65 @@ function bolehMundur(o){
   if(!o||o.status==='Cancel')return false;
   if(hubDipakai())return false;
   return (o.phase||0)>0;}
+/* Data yang LAHIR di sebuah fase — dikosongkan waktu order dimundurkan ke
+   fase itu (alat coba-coba). Yang dihapus hanya isian fasenya; identitas
+   order (client, produk, qty, baris pricing) tetap. Petanya mengikuti
+   kolom yang dibaca checklist tiap fase. */
+function faseKosongkan(o,f){
+  var b=o.brief||(o.brief={}),P=o.pricing||(o.pricing={lines:[],margin:30}),L=P.lines||[];
+  var hapus=function(obj,k){if(obj&&Object.prototype.hasOwnProperty.call(obj,k))delete obj[k];};
+  switch(f){
+  case 0: /* Inquiry: keterangan client yang ditanyakan di brief */
+    o.phone='';o.eventDate='';b.tglKirim='';b.venue='';o.venue='';b.woHp='';b.refFiles=[];
+    b.logoFiles=[];b.persoFiles=[];b.logoLetak='';o.svcLetak={};
+    ['mainMatWarna','liningWarna','benangWarna'].forEach(function(k){b[k]='';});
+    L.forEach(function(l){if(l.spek){delete l.spek.mainMatWarna;delete l.spek.liningWarna;delete l.spek.benangWarna;}
+      lineVarian(l).forEach(function(v){v.w='';});});
+    break;
+  case 1: /* Pricing Vendor: jawaban vendor */
+    L.forEach(function(l){
+      var otomatis='';try{otomatis=hargaOtomatis(l);}catch(e){}
+      if(!otomatis&&!l.svcFee){l.hpp=0;lineVarian(l).forEach(function(v){delete v.hpp;});}
+      hapus(l,'rfq');hapus(l,'konf');hapus(l,'konfTanya');hapus(l,'nego');hapus(l,'negoHasil');hapus(l,'_hppManual');});
+    o.rfqDoc={};if(o.po){o.po.tglPOMax='';}
+    break;
+  case 2: /* Penentuan harga jual */
+    if(o.po){o.po.deadline='';o.po.tglPOMax='';}
+    L.forEach(function(l){if(!l.svcFee){l.jual=0;hapus(l,'mg');}});
+    P.biaya=[];hapus(P,'biayaLainNol');hapus(P,'jualAppr');P.ship=0;
+    o.jasaHarga={};if(o.event)o.event.ops=[];
+    o.shipEksp='';o.shipKota='';o.shipKg=0;o.shipTarif=0;hapus(o,'_shipKgAuto');hapus(o,'_shipKotaAuto');hapus(o,'_shipKotaDari');
+    break;
+  case 3: hapus(P,'dirAppr');break;
+  case 4: /* Quotation */
+    if(o.docs)hapus(o.docs,'quotation');hapus(o,'quo');
+    if(P.pajak)P.pajak.status='';
+    o.shipEksp='';o.shipKota='';o.shipKg=0;o.shipTarif=0;P.ship=0;
+    break;
+  case 5: hapus(o,'quo');break;
+  case 6: /* Sketch */
+    b.previewFiles=[];b.logoPouchFiles=[];b.logoBoxFiles=[];b.logoCardFiles=[];
+    Object.keys(o.persoNama||{}).forEach(function(k){o.persoNama[k].daftar=[];});
+    break;
+  case 7: hapus(o,'sketch');break;
+  case 8: /* Invoice */
+    if(o.docs)hapus(o.docs,'invoice');hapus(o,'inv');if(P.pajak){P.pajak.noFaktur='';P.pajak.tglFaktur='';}
+    break;
+  case 9: /* DP / PO client */
+    if(o.pay){o.pay.dp=0;o.pay.dpDate='';}hapus(o,'poClient');
+    break;
+  case 10: /* Spec & PO */
+    if(o.po){hapus(o.po,'generated');o.po.poNo='';}o.vpo={};hapus(o,'trello');hapus(o,'poRevOk');
+    hapus(P,'marginAppr');hapus(P,'spareTgl');hapus(P,'spare');
+    ((o.event||{}).ops||[]).forEach(function(x){hapus(x,'fix');hapus(x,'status');hapus(x,'konfirm');});
+    break;
+  case 11: o.prod={};break;
+  case 12: b.qcFiles=[];b.packFiles=[];if(o.prod)o.prod.collTgl='';break;
+  case 13: /* Pelunasan & Shipping */
+    if(o.docs)hapus(o.docs,'invoicePel');if(o.pay){o.pay.pel=0;o.pay.pelDate='';}o.kirim={};
+    break;
+  case 14: if(o.kirim){o.kirim.tglTerima='';o.kirim.bukti=[];}b.kirimFiles=[];hapus(o,'cs');o.done=false;break;
+  }}
 function mundurFase(id){
   var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
   if(!bolehMundur(o)){alert('HUB sudah ditandai dipakai sungguhan — alat coba-coba dimatikan.'+
@@ -10169,10 +10243,15 @@ function mundurFase(id){
   var dari=o.phase,ke=dari-1;
   if(!confirm('Mundurkan order ini dari "'+PH[dari].n+'" ke "'+PH[ke].n+'"?'+
     String.fromCharCode(10)+String.fromCharCode(10)+
-    'Ini alat untuk mencoba-coba. Datanya TIDAK dihapus — yang berubah cuma fasenya, '+
-    'jadi kelengkapan fase sebelumnya akan tampak sudah tercentang.'))return;
+    'Ini alat untuk mencoba-coba. Isian fase "'+PH[ke].n+'" dan "'+PH[dari].n+'" DIKOSONGKAN '+
+    '(jawaban vendor, harga jual, approval, dokumen — sesuai fasenya) supaya perubahannya kelihatan; '+
+    'client, produk, qty, dan baris pricing tetap.'))return;
+  /* isian fase yang dimundurkan + fase sekarang dikosongkan; persetujuan
+     yang bergantung padanya gugur lewat jalur revisi */
+  for(var f=ke;f<=dari;f++){try{faseKosongkan(o,f);}catch(e){}}
+  try{revisiBatalkanAcc(o,ke);}catch(e){}
   o.phase=ke;o._faseSejak=Date.now();o.ingatOtomatis={};
-  logHist(o,'↩ Dimundurkan dari '+PH[dari].n+' ke '+PH[ke].n+' (alat coba-coba) oleh '+(ST.userName||ST.user||''));
+  logHist(o,'↩ Dimundurkan dari '+PH[dari].n+' ke '+PH[ke].n+' (alat coba-coba, isian kedua fase dikosongkan) oleh '+(ST.userName||ST.user||''));
   o._m=Date.now();save();render();}
 function trigger(id){if(playing)return;const o=ST.orders.find(x=>x.id===id);const pre=o.phase,gate=PH[pre].gate;
   /* cuma pemilik fase yang boleh menutupnya — lihat catatan di KUNCI RINGAN */
@@ -12310,7 +12389,8 @@ function ongkirBlok(o){
   var ket='';
   if(e.kg>0)ket='estimasi <b>'+e.kg+' kg</b> dari '+(e.dari==='kardus'?('ukuran &amp; berat produk ('+e.kardus+' kardus)'):'berat produk × qty')+
     ((o.shipKg>0&&Math.abs(o.shipKg-e.kg)>0.005)?(' — <button class="btn ghost sm" style="padding:0 7px;font-size:9px" onclick="shipSet('+jsArg(o.id)+',\'kg\','+e.kg+')">pakai '+e.kg+' kg</button>'):'');
-  if(e.kurang.length)ket+=(ket?' · ':'')+'<span style="color:var(--warn);font-weight:700">'+esc(e.kurang.slice(0,3).join(', '))+(e.kurang.length>3?(' +'+(e.kurang.length-3)):'')+' belum ada ukuran/berat di Master Product</span>';
+  if(e.kurang.length)ket+=(ket?' · ':'')+'<span style="color:var(--warn);font-weight:700">'+esc(e.kurang.slice(0,3).join(', '))+(e.kurang.length>3?(' +'+(e.kurang.length-3)):'')+' belum ada ukuran/berat (Master Product; collateral di Master → Pengiriman)</span>';
+  if((e.takMuat||[]).length)ket+=(ket?' · ':'')+'<span style="color:var(--warn);font-weight:700">'+esc(e.takMuat.slice(0,3).join(', '))+(e.takMuat.length>3?(' +'+(e.takMuat.length-3)):'')+' tak muat kardus mana pun — tambah ukuran kardus di Master → Pengiriman</span>';
   if(o.shipEksp&&o.shipKota&&!(o.shipTarif>0))ket+=(ket?' · ':'')+'<span style="color:var(--warn);font-weight:700">tarif '+esc(o.shipEksp)+' ke '+esc(o.shipKota)+' belum ada — isi sekali, tersimpan ke master</span>';
   if(!det.kota&&!o.shipKota)ket+=(ket?' · ':'')+'<span style="color:var(--warn);font-weight:700">'+
     (String(o.addr||'').trim()?'kota tak terbaca dari Alamat kirim — sebut kotanya di alamat (Brief) atau ketik di sini':'Alamat kirim di Brief masih kosong — kota tujuan dibaca dari situ')+'</span>';
@@ -13143,11 +13223,18 @@ function prodInfo(nama,l){var c=(ST.master&&ST.master.catalog)||[];
 /* Collateral tak ada di Master Product — ukurannya ada di tabel Kombinasi harga
    (kolom Ukuran, mis. "13,3 x 18,5 x 3,3") dan beratnya di konfigurasi Estimator. */
 function collInfo(nama,l){
-  var C=estCfg();if(!C||!C.wgHardbox)return null;
   var tipe=l?vendorTipe(l.sumber):'';
   var k=kombTipe2Key(tipe);
   if(!k&&tipe==='Box')k=/soft/i.test(nama||'')?'sb':'hb';
+  if(!k&&/soft pouch|pouch/i.test(nama||''))k='sp';
+  if(!k&&/thank you card|card/i.test(nama||''))k='cd';
+  if(!k&&/box/i.test(nama||''))k=/soft/i.test(nama||'')?'sb':'hb';
   if(!k)return null;
+  /* 1) master: Pengiriman → Ukuran & berat collateral */
+  var M=collDimCari({sp:'Soft Pouch',hb:'Hardbox',sb:'Softbox',cd:'Thank You Card'}[k]);
+  if(M)return {name:nama,pjg:+M.L,lbr:+M.W,tgi:(+M.H)||((k==='cd')?0.05:(k==='sp'?0.4:1)),berat:+M.wg,_dari:'master collateral'};
+  /* 2) cadangan: konfigurasi Estimator + ukuran dari tabel kombinasi */
+  var C=estCfg();if(!C||!C.wgHardbox)return null;
   var berat={sp:C.wgPouch,hb:C.wgHardbox,sb:C.wgSoftbox,cd:C.wgCard}[k]||0;
   if(!berat)return null;
   var teks=(l&&l.ukuran)||'';
@@ -13237,7 +13324,10 @@ function shipEstimasi(o){
   var out={kg:0,dari:'',kurang:[],kardus:0};
   try{var K=hitungKardus(o);
     if(K.paket.length&&K.tagih>0){out.kg=K.tagih;out.dari='kardus';out.kardus=K.paket.reduce(function(a,p){return a+p.nb;},0);}
-    out.kurang=K.kurang||[];}catch(e){}
+    /* dua sebab beda: tak punya ukuran/berat (Master Product / collateral) vs
+       tak muat kardus mana pun (Master → Pengiriman → Ukuran kardus) */
+    out.kurang=(K.kurang||[]).filter(function(x){return !/tak muat kardus/.test(x);});
+    out.takMuat=(K.kurang||[]).filter(function(x){return /tak muat kardus/.test(x);}).map(function(x){return x.replace(/ \(tak muat kardus mana pun\)$/,'');});}catch(e){}
   if(!(out.kg>0)){try{var B=orderBerat(o);if(B.kg>0){out.kg=B.kg;out.dari='berat';}}catch(e){}}
   return out;}
 function shipSet(id,f,v){var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
