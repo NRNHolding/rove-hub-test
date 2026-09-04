@@ -504,7 +504,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20260904-141541';
+const VERSI='20260904-142024';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -10273,6 +10273,31 @@ function mundurFase(id){
   o.phase=ke;o._faseSejak=Date.now();o.ingatOtomatis={};
   logHist(o,'↩ Dimundurkan dari '+PH[dari].n+' ke '+PH[ke].n+' (alat coba-coba, isian kedua fase dikosongkan) oleh '+(ST.userName||ST.user||''));
   o._m=Date.now();save();render();}
+/* Pesan kilat di bawah layar — kabar singkat sesudah suatu tindakan, hilang
+   sendiri; bukan alert yang harus di-OK. */
+function kilat(pesan,warna){
+  try{
+    var d=document.getElementById('kilat');
+    if(!d){d=document.createElement('div');d.id='kilat';document.body.appendChild(d);}
+    d.style.cssText='position:fixed;left:50%;transform:translateX(-50%);bottom:22px;z-index:9998;max-width:min(92vw,560px);'+
+      'background:'+(warna||'#2b1d0e')+';color:#fff;padding:11px 16px;border-radius:12px;font-size:12.5px;line-height:1.5;'+
+      'box-shadow:0 8px 24px rgba(0,0,0,.28);opacity:0;transition:opacity .18s';
+    d.innerHTML=pesan;
+    clearTimeout(d._t1);clearTimeout(d._t2);
+    requestAnimationFrame(function(){d.style.opacity='1';});
+    d._t1=setTimeout(function(){d.style.opacity='0';},4200);
+    d._t2=setTimeout(function(){if(d.parentNode)d.parentNode.removeChild(d);},4600);
+  }catch(e){}}
+/* Ringkasan yang diterima PIC berikutnya — dibaca dari FASE_HASIL fase ini. */
+function faseHasilRingkas(o,f){
+  var H=FASE_HASIL[f]||[],out=[];
+  H.forEach(function(p){
+    if(out.length>=4)return;
+    var v='';try{v=p[1](o);}catch(e){v='';}
+    if(v&&typeof v==='object'&&v.ringkas)v=v.ringkas;
+    v=String(v==null?'':v).trim();
+    if(v)out.push(p[0]+': '+v);});
+  return out;}
 function trigger(id){if(playing)return;const o=ST.orders.find(x=>x.id===id);const pre=o.phase,gate=PH[pre].gate;
   /* cuma pemilik fase yang boleh menutupnya — lihat catatan di KUNCI RINGAN */
   if(!faseMilikku(o)){tolakBukanMilikku(o,'Fase '+PH[pre].n);return;}
@@ -10285,6 +10310,16 @@ function trigger(id){if(playing)return;const o=ST.orders.find(x=>x.id===id);cons
     if(!confirm(pesan+'\n\nKamu Holding — tetap lanjutkan?'))return;
     logHist(o,'Fase dilanjutkan Holding walau belum lengkap: '+w.join(', '));
   }
+  /* konfirmasi: apa yang ditutup, ke mana, siapa yang menerima & apa yang
+     diterimanya — dulu kartu tiba-tiba pindah tanpa kabar */
+  var nx=PH[pre+1],NL=String.fromCharCode(10);
+  var hasil=[];try{hasil=faseHasilRingkas(o,pre);}catch(e){}
+  var tanya=(nx
+    ? ('Tutup fase "'+PH[pre].n+'" dan lanjut ke "'+nx.n+'"?'+NL+NL+
+       'PIC berikutnya: '+nx.pic+' — dikabari lewat Discord order ini.'+
+       (hasil.length?(NL+NL+'Yang diterima '+nx.pic+':'+NL+hasil.map(function(x){return '• '+x;}).join(NL)):''))
+    : ('Tutup fase "'+PH[pre].n+'" dan selesaikan order ini?'+NL+NL+'Order ditandai selesai; angkanya masuk laporan.'));
+  if(!confirm(tanya))return;
   applyTrigger(o);
   /* masuk Quotation: dokumennya akan memakai nama client, jadi namanya
      disamakan sekarang — termasuk nama channel Discord-nya */
@@ -10295,7 +10330,11 @@ function trigger(id){if(playing)return;const o=ST.orders.find(x=>x.id===id);cons
   if(pre===5)pushBackend('channel.move',{name:chName(o),catName:dealCat(o)});
   else if(pre===10)pushBackend('channel.move',{name:chName(o),catName:'ARCHIVED'});
   try{notifSerahTerima(o,pre,gate);}catch(e){}
-  render();}
+  render();
+  var live=!!((ST.cfg||{}).live&&(ST.cfg||{}).url);
+  kilat(nx
+    ? ('✓ Fase <b>'+esc(PH[pre].n)+'</b> ditutup → sekarang <b>'+esc(nx.n)+'</b> · PIC '+esc(nx.pic)+(live?' dikabari lewat Discord':' (mode uji: Discord tak dikirim)'))
+    : ('✓ Order <b>'+esc(o.customer)+'</b> selesai'));}
 function dLeft(dstr){if(!dstr)return null;var d=new Date(dstr);if(isNaN(d))return null;return Math.ceil((d-new Date().setHours(0,0,0,0))/864e5);}
 function prodSet(id,f,v){const o=ST.orders.find(x=>x.id===id);if(!o)return;if(!o.prod)o.prod={stage:'',note:'',updated:''};
   o.prod[f]=v;o.prod.updated=nowStr();o.prod.updatedTs=Date.now();
