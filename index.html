@@ -504,7 +504,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20260904-114649';
+const VERSI='20260904-115851';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -11065,12 +11065,39 @@ function isiKemasan(o,ck){
   var C=(o&&o.coll)||{};
   var tambah=function(k,nama,tipe){
     if(!C[k])return;
-    var d=null;try{d=collDimCari(tipe);}catch(e){}
-    out.push({jenis:k,nama:nama,qty:0,
-      ukuran:d?(fmtCm(d.L)+' × '+fmtCm(d.W)+((+d.H)?(' × '+fmtCm(d.H)):'')+' cm'):''});};
+    out.push({jenis:k,nama:nama,qty:0,ukuran:ukuranKemasan(o,k,tipe)});};
   if(ck==='box'){tambah('pouch','Soft Pouch','Soft Pouch');tambah('card','Thank You Card','Thank You Card');}
   else if(ck==='pouch')tambah('card','Thank You Card','Thank You Card');
   return out;}
+/* Ukuran satu kemasan (pouch / kartu / box) — berlapis: master collateral,
+   lalu spec kemasan order (kind Ukuran / Size), lalu tabel kombinasi harga
+   (kalau spec-nya mengarah ke satu ukuran), lalu baris pricing-nya. */
+function ukuranRapi(t){
+  t=String(t||'').trim();if(!t)return '';
+  t=t.replace(/\s*[x×X]\s*/g,' × ');
+  if(!/cm|mm/i.test(t))t+=' cm';
+  return t;}
+function ukuranKemasan(o,k,tipe){
+  var d=null;try{d=collDimCari(tipe);}catch(e){}
+  if(d)return fmtCm(d.L)+' × '+fmtCm(d.W)+((+d.H)?(' × '+fmtCm(d.H)):'')+' cm';
+  var spec={};try{spec=packSpec(o,k)||{};}catch(e){}
+  var kindUk=Object.keys(spec).filter(function(x){return /^(ukuran|size|sise)$/i.test(x)&&String(spec[x]||'').trim();})[0];
+  if(kindUk)return ukuranRapi(spec[kindUk]);
+  /* tabel kombinasi: cocokkan atribut spec yang ada; dipakai hanya kalau
+     semua kandidat berukuran sama */
+  try{
+    var kk={pouch:'sp',card:'cd',box:(/soft/i.test(spec.Jenis||'')?'sb':'hb')}[k];
+    var peta={Model:'model',Material:'material',Tali:'tali',Finishing:'finishing',Konstruksi:'construction',Coating:'coat',Potongan:'cut'};
+    var norm=function(v){return String(v==null?'':v).toLowerCase().replace(/\s+/g,' ').trim();};
+    var syarat=[];Object.keys(peta).forEach(function(kind){if(String(spec[kind]||'').trim())syarat.push([peta[kind],spec[kind]]);});
+    if(kk&&syarat.length){
+      var kand=kombRows(kk).filter(function(r){return syarat.every(function(sy){return norm(r[sy[0]])===norm(sy[1]);});});
+      var uk=kand.map(function(r){return String(r.sise||r.ukuran||'').trim();}).filter(Boolean);
+      if(uk.length&&uk.every(function(u){return u===uk[0];}))return ukuranRapi(uk[0]);}
+  }catch(e){}
+  var l=(((o.pricing||{}).lines)||[]).find(function(x){return kemasanKey(x)===k;});
+  if(l&&l.ukuran)return ukuranRapi(l.ukuran);
+  return '';}
 function kemasanKey(l){return (l&&l.coll)||({'Box':'box','Soft Pouch':'pouch','Thank You Card':'card'}[vendorTipe((l&&l.sumber)||'')]||'');}
 function fmtCm(n){var x=Math.round((+n||0)*10)/10;return String(x).replace('.',',');}
 
@@ -14263,19 +14290,17 @@ function salesNote(o,k){
   var bagian=[];
   var s=(d.spec||{})[k];
   if(s)bagian.push([(s.nada||[]).join(', '),s.note].filter(Boolean).join(' — '));
-  /* Produk katalog membawa catatan collateral sendiri-sendiri. Nama bagiannya
-     ikut disebut: tanpa itu "Denmark Luggage Tag: yang cakep" terbaca seolah
-     nama produknya sepanjang itu, padahal "yang cakep" catatan untuk boxnya. */
-  var namaSek=(LEAD_SEK.find(function(x){return x[0]===k;})||[])[1]||k;
+  /* Catatan client = catatannya saja. Dulu tiap catatan collateral per produk
+     katalog diberi awalan "produk X, catatan box —": di lembar vendor kartu
+     ucapan pun jadi menyebut produk. Catatan yang sama dari beberapa produk
+     cukup sekali. */
   (d.items||[]).forEach(function(it){
-    if(k==='produk'){if(it.note)bagian.push('produk '+it.nama+' — '+it.note);return;}
-    /* personalisasi disimpan di barisnya sendiri, bukan di coll */
-    if(k==='perso'){
-      var pp=it.perso||{};
-      if(pp.ada&&pp.note)bagian.push('produk '+it.nama+' — '+pp.note);
-      return;}
-    var c=(it.coll||{})[k];
-    if(c&&c.ada&&c.note)bagian.push('produk '+it.nama+', catatan '+namaSek.toLowerCase()+' — '+c.note);});
+    var n='';
+    if(k==='produk')n=it.note||'';
+    else if(k==='perso')n=((it.perso||{}).ada&&(it.perso||{}).note)||'';   // personalisasi di barisnya sendiri
+    else{var c=(it.coll||{})[k];n=(c&&c.ada&&c.note)||'';}
+    n=String(n||'').trim();
+    if(n&&bagian.indexOf(n)<0)bagian.push(n);});
   return bagian.filter(Boolean).join(' · ');}
 function salesMau(o,k){var d=salesGet(o);if(!d)return false;
   if(d.spec&&d.spec[k]&&d.spec[k].ada)return true;
@@ -14608,7 +14633,11 @@ const PACK_TIPE=[['box','Box','Hardbox'],['pouch','Soft Pouch','Soft Pouch'],['c
 function packMode(o){return (briefGet(o).packMode==='perProduk')?'perProduk':'sama';}
 function packLines(o){return (((o.pricing||{}).lines)||[]).filter(function(l){return (l.qty||0)>0||l.produk;});}
 function packSpecBawaan(k){var s={};collKinds(k).forEach(function(kind){s[kind]=collNilai(k,kind)[0]||'';});return s;}
-function packRingkas(k,spec){return collKinds(k).map(function(kind){return spec[kind];}).filter(Boolean).join(' · ');}
+function packRingkas(k,spec){
+  spec=spec||{};
+  var out=collKinds(k).map(function(kind){return spec[kind];}).filter(Boolean);
+  if(String(spec.Warna||'').trim())out.push('warna '+String(spec.Warna).trim());   // ikut ke vendor, PO, catatan produksi
+  return out.join(' · ');}
 
 /* --- mode seragam (order-level) --- */
 function packSpec(o,k){var b=briefGet(o);if(!b[k+'Spec'])b[k+'Spec']={};return b[k+'Spec'];}
@@ -14757,6 +14786,11 @@ function packBaris(o,p,on,spec,desc,i){
     (salesNote(o,k)?('<div style="margin-top:8px">'+salesPita(o,k)+'</div>'):'')+
     (on?('<div style="display:flex;flex-wrap:wrap;gap:7px;margin-top:9px">'+
       collKinds(k).map(function(kind){return packSpecSel(o,k,kind,spec,i);}).join('')+
+      /* warna kemasan — dulu tak ada tempatnya; vendor box/pouch menanyakannya */
+      '<label style="font-size:10px;color:var(--muted)">Warna<br>'+
+        '<input class="pin" list="warnalist_'+k+'_'+(idx<0?'s':idx)+'" style="margin-top:2px;width:120px" value="'+esc(spec.Warna||'')+'" placeholder="mis. Navy" '+
+        'onchange="packSet(\u0027'+o.id+'\u0027,\u0027'+k+'\u0027,\u0027Warna\u0027,this.value,'+idx+')">'+
+        '<datalist id="warnalist_'+k+'_'+(idx<0?'s':idx)+'">'+((ST.master&&ST.master.warna)||[]).map(function(w){return '<option value="'+esc(w.v)+'">';}).join('')+'</datalist></label>'+
       '<label style="font-size:10px;color:var(--muted);flex:1;min-width:170px">Catatan tambahan<br>'+
         '<input class="pin" style="margin-top:2px;width:100%" value="'+esc(desc||'')+'" placeholder="mis. logo di tutup, max 20×15 cm" '+
         'onchange="packNote(\u0027'+o.id+'\u0027,\u0027'+k+'\u0027,this.value,'+idx+')"></label>'+
