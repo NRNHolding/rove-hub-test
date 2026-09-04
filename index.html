@@ -504,7 +504,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20260904-144116';
+const VERSI='20260904-150138';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -4498,6 +4498,194 @@ const MONTHS=['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus'
 function preCat(o){return orderAU(o)?'PRE-DEAL ROVE AU':'PRE-DEAL';}
 function dealCat(o){if(!o.eventDate)return 'PRE-DEAL';var d=new Date(o.eventDate);if(isNaN(d))return 'PRE-DEAL';return 'Deal Bulan '+MONTHS[d.getMonth()]+' '+d.getFullYear();}
 
+/* ================= CONTOH ORDER — satu client wedding, satu kartu per fase =================
+   Data uji karangan. Satu customer dengan data PERSIS sama di 15 kartu: kartu
+   fase N berisi semua isian fase 0..N-1 dan dibuat lewat jalur yang sama
+   dengan yang dipakai orang (prospek → Inquiry → isi → tutup fase), supaya
+   tombol tiap fase bisa dicek dengan data yang nyambung dari fase sebelumnya.
+   Isian fase N sendiri sengaja dibiarkan kosong — itulah yang dicek tombolnya.
+   Dimuat dari Pengaturan → Data uji; kartu contoh lama diganti, order lain
+   tak disentuh. */
+const CONTOH_W={
+  klien:'Sarah & Kevin',bride:'Sarah Halim',groom:'Kevin Wijaya',
+  pic:'Sarah Halim',hp:'+62 812-3300-9911',email:'sarah.halim@gmail.com',
+  wo:'Bhumi Ceremony',woHp:'+62 813-5500-2211',
+  produk:'Irvine Card Wallet',qty:100,
+  venue:'Grand Ballroom Shangri-La, Surabaya',
+  alamat:'Jl. Raya Darmo 88, Surabaya 60265',alamatKantor:'Jl. Raya Darmo 88, Surabaya 60265',
+  warna:'Coklat tua',stitch:'Machine Stitch',benang:'#402 coklat',finishing:'Burnish',
+  /* engrave hanya untuk 3 pcs — keluarga inti; tamu lain tanpa nama */
+  nama:[{nama:'Bapak Hartono Halim',catatan:'ayah mempelai wanita'},
+        {nama:'Ibu Lie Mei Ling',catatan:'ibu mempelai wanita'},
+        {nama:'Bapak Surya Wijaya',catatan:'ayah mempelai pria'}]};
+function contohHari(geser){var d=new Date(Date.now()+geser*864e5);return ymd(d.getFullYear(),d.getMonth()+1,d.getDate());}
+/* gambar kecil buatan sendiri supaya lampiran contoh benar-benar tampil */
+function contohSvg(teks,latar,tinta){
+  var s='<svg xmlns="http://www.w3.org/2000/svg" width="240" height="240"><rect width="240" height="240" rx="24" fill="'+latar+'"/>'+
+    '<text x="120" y="150" text-anchor="middle" font-family="Georgia,serif" font-size="'+(teks.length>4?40:84)+'" fill="'+tinta+'">'+teks+'</text></svg>';
+  return 'data:image/svg+xml;utf8,'+encodeURIComponent(s);}   // tanpa btoa: jalan di browser maupun harness uji
+function contohFile(nama,data){return {nama:nama,tipe:'image/svg+xml',kb:1,data:data,t:nowStr(),by:'contoh'};}
+function contohLogo(){return contohSvg('S&amp;K','#2b1d0e','#c8a24a');}
+
+/* Kartu dasar: prospek Sales → dikirim ke Inquiry (jalur asli), lalu jasa,
+   live service, teknik, letak, dan daftar nama yang diminta client. */
+function contohBuatDasar(n){
+  var K=CONTOH_W,lid='LCW'+n,t=hariIni();
+  /* produk harus benar-benar ada di katalog yang aktif (harga master ketemu,
+     alur 'harga naik dari katalog' terlihat) — Irvine kalau ada, kalau tidak
+     wallet pertama, kalau tidak produk katalog pertama */
+  var C=[];try{C=catalog()||[];}catch(e){}
+  var P=C.find(function(c){return c.name===K.produk;})||C.find(function(c){return /wallet/i.test(c.name||'');})||C[0];
+  var produk=P?P.name:K.produk;
+  leadsAll().unshift({id:lid,nama:K.klien,kontak:K.hp,channel:'WhatsApp',produk:produk,qty:K.qty,estimasi:K.qty*150000,
+    status:'Baru',masuk:t,pic:'cika',touch:t,log:[],items:[],_m:Date.now(),jenis:'Katalog',
+    catatan:'souvenir wedding, warna coklat tua, ada monogram S&K di depan; 3 pcs untuk orang tua diberi nama; ada kaligrafi di acara',
+    tglAcara:contohHari(60),tglKirim:contohHari(53),woNama:K.wo,woHp:K.woHp,brideNama:K.bride,groomNama:K.groom});
+  var l=leadsAll()[0];
+  l.items.push({nama:produk,img:'',qty:K.qty,note:'warna coklat tua, monogram S&K di depan',
+    coll:{box:{ada:true,note:'hardbox coklat tua, logo di tutup'},pouch:{ada:true,note:'krem, logo di tengah'},card:{ada:true,note:'putih tulang, monogram di pojok'}}});
+  kirimKeInquiry(lid);
+  /* order barunya dicari lewat penanda yang ditulis kirimKeInquiry sendiri —
+     bukan 'yang paling atas', supaya order lain tak pernah tertimpa */
+  var o=ST.orders.find(function(x){return x.id===l.orderId;});
+  if(!o||o.phase!==0)throw new Error('contoh: order dari prospek tak terbentuk (aktif='+leadAktif(l)+', jenis='+l.jenis+', orderId='+JSON.stringify(l.orderId)+' ('+typeof l.orderId+'), o='+(o?('fase '+o.phase):'null')+', orders='+ST.orders.length+')');
+  o.id='cw'+String(n).padStart(2,'0');o._contoh='cw';l.orderId=o.id;
+  o.svc=['Add-on Logo','Add-on Full Name'];o.liveSvc=['Live calligraphy'];
+  o.svcTeknik={'Add-on Logo':'Foil Logo Deboss','Add-on Full Name':'Engrave'};
+  o.svcLetak={'Add-on Logo':'Depan — tengah','Add-on Full Name':'Bagian dalam (interior)'};
+  try{barisVendorLengkapi(o);}catch(e){}
+  try{jasaTerapkanTeknik(o);}catch(e){}
+  try{persoSinkron(o);}catch(e){}
+  (o.pricing.lines||[]).forEach(function(x){if(x.jasa&&namaJasaBaris(x)==='Add-on Full Name')x.qty=K.nama.length;});
+  var N=persoGet(o,'Add-on Full Name');N.perPcs=true;
+  N.daftar=K.nama.map(function(d){return {nama:d.nama,catatan:d.catatan};});
+  return o;}
+
+/* Isian tiap fase — indeksnya fase yang dikerjakan. Dipanggil berurutan,
+   lalu fasenya ditutup dengan applyTrigger seperti tombol "Selesai". */
+const CONTOH_ISI=[
+ /* 0 Inquiry — PM merinci; Sales menjawab warna, logo, dan letaknya */
+ function(o){var K=CONTOH_W,b=briefGet(o),logo=contohLogo();
+   b.picNama=K.pic;o.phone=K.hp;
+   o.eventDate=contohHari(60);b.tglAcara=o.eventDate;b.tglKirim=contohHari(53);
+   b.venue=K.venue;o.venue=K.venue;o.addr=K.alamat;
+   b.woNama=K.wo;b.woHp=K.woHp;b.brideNama=K.bride;b.groomNama=K.groom;b.jenisProject='Wedding '+K.klien;
+   b.refFiles=[contohFile('referensi-client.svg',contohSvg('REF','#efe6d8','#6b4a2b'))];
+   /* logo yang SAMA di produk (add-on logo), box, soft pouch, thank you card */
+   b.logoFiles=[contohFile('monogram-SK.svg',logo)];
+   b.logoBoxFiles=[contohFile('monogram-SK.svg',logo)];
+   b.logoPouchFiles=[contohFile('monogram-SK.svg',logo)];
+   b.logoCardFiles=[contohFile('monogram-SK.svg',logo)];
+   b[svcSlot('Add-on Logo')]=[contohFile('monogram-SK.svg',logo)];
+   b.logoLetak='box: tutup tengah 40mm · pouch: tengah 30mm · kartu: pojok kanan bawah 15mm';
+   lineProduk(o).forEach(function(x){if(!String(x.l.bahan||'').trim())x.l.bahan='Chromium-Tanned Leather';});
+   b.mainMat=((lineProduk(o)[0]||{}).l||{}).bahan||'Chromium-Tanned Leather';
+   b.mainMatWarna=K.warna;b.stitch=K.stitch;b.benangWarna=K.benang;b.finishing=K.finishing;
+   lineProduk(o).forEach(function(x){var s=lineSpek(x.l);s.mainMatWarna=K.warna;s.stitch=K.stitch;s.benangWarna=K.benang;s.finishing=K.finishing;});
+   var warnaK={box:'Coklat tua',pouch:'Krem',card:'Putih tulang'};
+   ['box','pouch','card'].forEach(function(k){var s=packSpec(o,k);Object.assign(s,packSpecBawaan(k));s.Warna=warnaK[k];});},
+ /* 1 Pricing Vendor — semua vendor menjawab; harga NAIK dari katalog */
+ function(o){var K=CONTOH_W,t=hariIni();
+   (o.pricing.lines||[]).forEach(function(l){
+     var baru=null;
+     if(lineJenis(l)==='produk'){var dasar=(+l.hpp||0)||95000;baru=Math.round(dasar*1.06/500)*500+500;}   // beda dari katalog
+     else if(l.coll==='box')baru=18500;else if(l.coll==='pouch')baru=7500;else if(l.coll==='card')baru=2750;
+     else if(l.jasa&&namaJasaBaris(l)==='Add-on Logo'){baru=27500;l.hppFix=150000;}
+     else if(l.jasa&&namaJasaBaris(l)==='Add-on Full Name')baru=35000;
+     else if(l.jasa==='Live service'){baru=0;l.hppFix=2250000;}
+     if(baru!=null){l.hpp=baru;l._hppManual=true;}
+     if(l.fixed)l.konf={tgl:t,oleh:'PM',hpp:(+l.hpp||0),fix:(+l.hppFix||0),catatan:'naik dari katalog — harga baru dipakai order ini'};
+     else l.rfq=Object.assign({},l.rfq||{},{minta:t,jawab:t,terima:t,note:'MOQ 50 pcs · lead time 14 hari kerja'});
+     if(lineKulit(l)){var k=rfqKulit(l),nm=l.bahan||'Chromium-Tanned Leather';
+       k.tanya=t;k.terima=t;k.saran=[nm];k.catatan='warna coklat tua';
+       k.jawab=[{nama:nm,warna:K.warna,stok:'Ready',minOrder:'',catatan:'stok aman untuk 100 pcs',t:t}];k.pilih=nm;}});
+   o.po=o.po||{};o.po.tglPOMax=contohHari(10);
+   var T=liveTanyaGet(o,'Live calligraphy');T.minta=t;T.tim='Mercia Calligraphy';
+   T.jawab={ada:'ya',orang:1,fee:2250000,tgl:t,catatan:'tinta emas, 1 kaligrafer + meja',oleh:'eve'};},
+ /* 2 Penentuan harga jual — Sales: tanggal Radja, biaya lain, ongkir, margin, harga jasa, setuju */
+ function(o){var K=CONTOH_W,t=hariIni();
+   o.po=o.po||{};o.po.deadline=contohHari(45);if(!o.po.tglPOMax)o.po.tglPOMax=contohHari(10);
+   biayaList(o).push({kat:BIAYA_KAT[0],nama:'Ongkir alat kaligrafi PP Surabaya',nominal:150000});
+   o.pricing.margin=35;
+   (o.pricing.lines||[]).forEach(function(l){var d=(+l.hpp||0);if(d>0)l.jual=Math.round(d*1.35/500)*500;});
+   o.jasaHarga={'Add-on Logo':{fix:200000,harga:35000},'Add-on Full Name':{fix:0,harga:50000},'Live calligraphy':{fix:3000000,harga:0}};
+   try{shipSet(o.id,'eksp','JNE');}catch(e){}
+   if(!(o.shipKg>0)){o.shipKg=6;}
+   if(!(o.shipTarif>0))o.shipTarif=11000;
+   o.pricing.ship=Math.round((+o.shipKg||0)*(+o.shipTarif||0));
+   o.pricing.jualAppr={tgl:t,tglBy:'cika'};},
+ /* 3 Profitability — Direktur setuju */
+ function(o){o.pricing.dirAppr={tgl:hariIni(),tglBy:'dirut',tolak:false,alasan:'',catatan:'margin 35%, aman'};},
+ /* 4 Quotation — Finance */
+ function(o){var K=CONTOH_W,t=hariIni(),b=briefGet(o);
+   o.email=K.email;b.addrKantor=K.alamatKantor;o.addrKantor=K.alamatKantor;
+   o.pricing.pajak={status:'Tidak kena',kena:false,pct:0};
+   o.docs=o.docs||{};o.docs.quotation=true;o.docs.quotationDate=t;try{docNo(o,'quotation');}catch(e){}
+   o.quo={status:'Terkirim',rev:0,log:[]};},
+ /* 5 Menunggu approval quotation */
+ function(o){o.quo=o.quo||{};o.quo.status='Approved';},
+ /* 6 Sketch — Creative */
+ function(o){briefGet(o).previewFiles=[contohFile('preview-sketsa.svg',contohSvg('SKETSA','#f3ede4','#2b1d0e'))];},
+ /* 7 Menunggu approval sketsa */
+ function(o){o.sketch={tgl:hariIni(),by:'cika'};},
+ /* 8 Invoice DP */
+ function(o){var t=hariIni();o.docs=o.docs||{};o.docs.invoice=true;o.docs.invoiceDate=t;try{docNo(o,'invoice');}catch(e){}o.inv={status:'Terkirim'};},
+ /* 9 DP masuk */
+ function(o){var t=hariIni();
+   o.bukti={teks:'transfer DP 50% via BCA a.n. Sarah Halim',files:[contohFile('bukti-dp.svg',contohSvg('DP','#e8f1e8','#1f6b3a'))],oleh:'cika',tgl:nowStr()};
+   o.pay=o.pay||{};o.pay.dp=Math.round(orderTotals(o).grand*0.5);o.pay.dpDate=t;},
+ /* 10 Spec & PO — Purchasing + Direktur */
+ function(o){var K=CONTOH_W,t=hariIni(),p=o.po=o.po||{};
+   p.tim='Tim A';p.warna=K.warna;
+   if(!p.mainMaterial)p.mainMaterial=((lineProduk(o)[0]||{}).l||{}).bahan||'Chromium-Tanned Leather';
+   if(!p.deadline)p.deadline=contohHari(45);
+   p.deboss='Ya';p.groover='1,5mm';p.stitch='Machine';p.prong='Diamond';p.ukProng='3,5mm';p.jangka='3,5mm';
+   p.benang='Galaces';p.ukBenang='0,45';p.warnaBenang=K.benang;p.finishing='Burnish';p.chemical='Tokonole';
+   p.logos=[{milik:'Client',jenis:'Foil',warna:'Emas',rgb:'#c8a24a'}];
+   p.packing='Per 25 pcs / kardus';p.note='Wedding '+K.klien+' — 3 pcs engrave nama (daftar terlampir)';
+   o.pricing.spare=5;o.pricing.spareTgl=t;o.pricing.marginAppr={tgl:t,tglBy:'dirut'};
+   p.generated=true;p.poNo='ROVE/PO/'+(new Date().getFullYear())+'/0101';
+   try{poVendors(o).forEach(function(v){var x=vpoGet(o,v);x.generated=true;x.deadline=contohHari(40);x.packing='Flat pack';});}catch(e){}},
+ /* 11 Produksi — sample disetujui, progres berjalan */
+ function(o){var t=hariIni();o.prod={stage:'Jahit / stitch',note:'sample disetujui; 40 dari 100 pcs',updated:t,updatedTs:Date.now(),sampleTgl:t};},
+ /* 12 QC & Packing */
+ function(o){var t=hariIni(),b=briefGet(o);
+   b.qcFiles=[contohFile('qc-retur.svg',contohSvg('QC','#fdf1e2','#a3541b'))];
+   b.packFiles=[contohFile('packing.svg',contohSvg('PACK','#e9eef7','#27408b'))];
+   o.prod=o.prod||{};o.prod.collTgl=t;o.prod.stage='Packing';o.prod.note='packing + dokumentasi foto';},
+ /* 13 Pelunasan & Shipping */
+ function(o){var K=CONTOH_W,t=hariIni();
+   o.pay=o.pay||{};o.pay.pel=orderTotals(o).grand-(+o.pay.dp||0);o.pay.pelDate=t;
+   o.docs=o.docs||{};o.docs.invoicePel=true;o.docs.invoicePelDate=t;try{docNo(o,'invoicePel');}catch(e){}
+   o.addr=K.alamat;o.kirim={nama:K.pic,hp:K.hp,resi:'JNE 8823 4471 0092',tgl:t};},
+ /* 14 Konfirmasi & Selesai — diterima; arsip dibiarkan untuk tombolnya */
+ function(o){var t=hariIni();o.kirim=o.kirim||{};o.kirim.tglTerima=t;
+   briefGet(o).kirimFiles=[contohFile('serah-terima.svg',contohSvg('OK','#e8f1e8','#1f6b3a'))];
+   o.cs={puas:true,catatan:'client kirim foto meja souvenir'};}
+];
+function seedContohHapus(diam){
+  ST.orders=(ST.orders||[]).filter(function(o){return !o._contoh;});
+  ST.leads=(ST.leads||[]).filter(function(l){return !/^LCW/.test(String(l.id||''));});
+  if(!diam){save();saveLeads();render();}}
+/* 15 kartu: fase tinggi dibuat lebih dulu supaya kartu fase 0 tampil paling
+   atas. render/alert/confirm dibungkam selama membangun, digambar sekali. */
+function seedContoh(){
+  var Rn=render,Al=alert,Cf=confirm,S={user:ST.user,roles:ST._roles,nama:ST.userName,cur:ST.cur,view:ST.view};
+  render=function(){};alert=function(){};confirm=function(){return true;};
+  try{
+    seedContohHapus(true);
+    for(var f=PH.length-1;f>=0;f--){
+      var o=contohBuatDasar(f);
+      for(var i=0;i<f;i++){CONTOH_ISI[i](o);applyTrigger(o,true);}
+      o._m=Date.now();}
+  }finally{render=Rn;alert=Al;confirm=Cf;ST.user=S.user;ST._roles=S.roles;ST.userName=S.nama;ST.cur=S.cur;ST.view=S.view;}
+  save();saveLeads();
+  return ST.orders.filter(function(o){return o._contoh;}).length;}
+function seedContohMuat(){
+  if(!confirm('Muat 15 kartu contoh "Sarah & Kevin" — satu kartu per fase, data persis sama?\n\nKartu contoh yang lama diganti. Order lain tidak disentuh.'))return;
+  var n=seedContoh();
+  ST.view='board';ST.cur=null;render();
+  kilat('✓ '+n+' kartu contoh <b>Sarah &amp; Kevin</b> dimuat — satu per fase; kartu fase N sudah berisi isian fase sebelumnya');}
 function seed(){
   /* 33 contoh = 3 client × 11 fase (0..10 = Selesai).
      Tiap client dipakai dari langkah awal sampai akhir dengan produk yang sama,
@@ -5848,6 +6036,12 @@ function adaLogoFile(o){
   var b=(o||{}).brief||{};
   if(((b.logoFiles)||[]).length)return true;
   try{return liveList(o.svc).some(function(n){return ((b[svcSlot(n)])||[]).length;});}catch(e){return false;}}
+/* Daftar milik satu jasa dicocokkan dengan qty BARIS jasa itu — add-on nama
+   bisa untuk sebagian pcs saja (mis. 3 nama untuk keluarga inti). */
+function persoQtyUntuk(o,nama){
+  if(nama){try{var l=(((o||{}).pricing||{}).lines||[]).find(function(x){return x.jasa&&namaJasaBaris(x)===nama;});
+    if(l&&(+l.qty||0)>0)return +l.qty;}catch(e){}}
+  return persoQty(o);}
 function persoQty(o){
   var q=0;(((o.pricing||{}).lines)||[]).forEach(function(l){if(!l.coll&&(l.qty||0)>q)q=l.qty||0;});
   return q||o.qty||0;}
@@ -6173,7 +6367,7 @@ function persoKotakImpor(o,nama,lembar,berkas){
     ov.remove();});}
 
 function persoBlok(o,nama){
-  var N=persoGet(o,nama),q=persoQty(o),n=N.daftar.length;
+  var N=persoGet(o,nama),q=persoQtyUntuk(o,nama),n=N.daftar.length;
   var beda=n-q, warna=(!n?'var(--muted)':beda===0?'var(--ok)':'var(--warn)');
   var hit={},dupK={};N.daftar.forEach(function(d){var k=d.nama.toLowerCase();if(hit[k])dupK[k]=1;hit[k]=1;});
   var dobel=[];N.daftar.forEach(function(d){if(dupK[d.nama.toLowerCase()]&&dobel.indexOf(d.nama)<0)dobel.push(d.nama);});
@@ -7324,6 +7518,10 @@ function renderTasks(){
          <button class="btn ghost" onclick="ST.view='board';ST.cur=null;render()">▦ Lihat Pipeline</button>
        </div>
        <div style="font-size:10.5px;color:var(--muted);margin-top:12px">Admin database &amp; edit master data menyusul di Tahap 7 (app admin Holding).</div>
+     </div>
+     <div class="rcard" style="max-width:660px"><h3>Data uji — contoh order</h3>
+       <div style="font-size:11.5px;color:var(--muted);margin-bottom:9px;line-height:1.6">Satu client wedding (<b>Sarah &amp; Kevin</b> — 100 pcs produk katalog (Irvine Card Wallet kalau ada di katalog), box + soft pouch + thank you card dengan logo yang sama, add-on logo, engrave 3 nama, live calligraphy) dengan data <b>persis sama</b> di 15 kartu: satu kartu per fase, kartu fase N sudah berisi semua isian fase sebelumnya; isian fase N sendiri dibiarkan untuk dicek tombolnya. Harga vendor sengaja beda dari katalog. Isinya karangan; kartu contoh lama diganti, order lain tak disentuh.</div>
+       <button class="btn sm" onclick="seedContohMuat()">＋ Muat contoh order — 1 client × 15 fase</button> <button class="btn ghost sm" onclick="if(confirm('Hapus semua kartu contoh Sarah & Kevin?'))seedContohHapus()">Hapus kartu contoh</button>
      </div>
      <div class="rcard" style="max-width:660px"><h3>Integrasi backend (Discord / Trello)</h3>
        <div style="font-size:11.5px;color:var(--muted);margin-bottom:11px;line-height:1.6">Tempel URL Apps Script Web App (yang meneruskan ke relay Discord/Trello). Saat <b>mode live</b> aktif, aksi <b>Generate PO</b> &amp; <b>trigger fase</b> dikirim ke backend. Kosong = tetap simulasi lokal.</div>
@@ -8764,7 +8962,13 @@ const PH_CHECK=[
   {auto:function(o){return !!((o.pricing||{}).ship)||!!o.shipTarif;},
    k:'ongkir', t:'Hitung estimasi ongkir dan qty spare', en:'Work out the shipping estimate and spare quantity', guna:'supaya ongkir tak menggerus margin diam-diam', gunaEn:'so freight does not quietly eat the margin', pic:'Purchasing'},
   {auto:function(o){var L=(((o.pricing||{}).lines)||[]).filter(function(l){return (l.qty||0)>0;});
-     return L.length>0&&L.every(function(l){return lineJual(l,((o.pricing||{}).margin||0)/100)>0;});},
+     /* harga jual baris jasa hidup di jasaHarga order (kolom Harga jual baris
+        jasa menulis ke sana), bukan di l.jual — baris live service yang cuma
+        berbiaya tetap dulu tak pernah bisa memenuhi item ini */
+     return L.length>0&&L.every(function(l){
+       var J=null;try{J=jasaJualBaris(o,l);}catch(e){}
+       if(J&&(+J.jual||0)>0)return true;
+       return lineJual(l,((o.pricing||{}).margin||0)/100)>0;});},
    k:'margin', t:'Tetapkan margin dan harga jual tiap item', en:'Set the margin and selling price for every item', guna:'supaya angka yang masuk quotation sudah diputuskan, bukan bawaan', gunaEn:'so the numbers reaching the quotation are decided, not defaults', pic:'Sales', w:true},
   /* Harga jual jasa hidup di Master Product → Jasa, bukan di baris pricing.
      Kalau di sana masih 0, client tak ditagih apa pun untuk pekerjaan yang
@@ -8816,9 +9020,9 @@ const PH_CHECK=[
   {auto:function(o){return !(o.coll||{}).pouch||kemasanAdaGambar(o,'pouch');}, k:'logoPch', t:'Siapkan logo untuk soft pouch', en:'Prepare the logo for the soft pouch', guna:'supaya pouch tak dicetak polos', gunaEn:'so the pouch is not printed blank',            pic:'Creative', w:true},
   {auto:function(o){return !(o.coll||{}).box||kemasanAdaGambar(o,'box');}, k:'logoBox', t:'Siapkan logo untuk box', en:'Prepare the logo for the box', guna:'supaya box tak dicetak polos', gunaEn:'so the box is not printed blank',                   pic:'Creative', w:true},
   {auto:function(o){return !(o.coll||{}).card||kemasanAdaGambar(o,'card');}, k:'logoCard', t:'Siapkan logo untuk thank you card', en:'Prepare the logo for the thank you card', guna:'supaya kartu tak dicetak tanpa logo', gunaEn:'so the card is not printed without a logo',        pic:'Creative'},
-  {auto:function(o){var q=persoQty(o);
+  {auto:function(o){
      var L=persoSemua(o).filter(function(x){return x.N.perPcs;});
-     return L.length>0&&L.every(function(x){return x.N.daftar.length===q;});}, k:'daftarNama', t:'Minta daftar nama tamu, cocokkan jumlahnya dengan qty', en:'Ask for the guest name list, match the count against the qty', guna:'supaya tak ada pcs yang tercetak tanpa nama', gunaEn:'so no piece is produced without a name', pic:'Sales', w:true, jika:'perPcs'},
+     return L.length>0&&L.every(function(x){return x.N.daftar.length===persoQtyUntuk(o,x.nama);});}, k:'daftarNama', t:'Minta daftar nama tamu, cocokkan jumlahnya dengan qty', en:'Ask for the guest name list, match the count against the qty', guna:'supaya tak ada pcs yang tercetak tanpa nama', gunaEn:'so no piece is produced without a name', pic:'Sales', w:true, jika:'perPcs'},
   {auto:function(o){return (((o.brief||{}).previewFiles)||[]).length>0;}, k:'preview', t:'Buat preview desain lalu kirim ke client', en:'Make the design preview and send it to the client', guna:'supaya client melihat hasilnya sebelum produksi jalan', gunaEn:'so the client sees it before production starts',  pic:'Creative', w:true}
  ],
  [ // 7 Menunggu approval sketsa
