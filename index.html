@@ -504,7 +504,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20260904-150347';
+const VERSI='20260904-150743';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -4538,7 +4538,7 @@ function contohBuatDasar(n){
   var P=C.find(function(c){return c.name===K.produk;})||C.find(function(c){return /wallet/i.test(c.name||'');})||C[0];
   var produk=P?P.name:K.produk;
   leadsAll().unshift({id:lid,nama:K.klien,kontak:K.hp,channel:'WhatsApp',produk:produk,qty:K.qty,estimasi:K.qty*150000,
-    status:'Baru',masuk:t,pic:'cika',touch:t,log:[],items:[],_m:Date.now(),jenis:'Katalog',
+    status:'Baru',masuk:t,pic:'cika',touch:t,log:[],items:[],_m:Date.now(),jenis:'Katalog',kategori:'Wedding',
     catatan:'souvenir wedding, warna coklat tua, ada monogram S&K di depan; 3 pcs untuk orang tua diberi nama; ada kaligrafi di acara',
     tglAcara:contohHari(60),tglKirim:contohHari(53),woNama:K.wo,woHp:K.woHp,brideNama:K.bride,groomNama:K.groom});
   var l=leadsAll()[0];
