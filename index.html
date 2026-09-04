@@ -504,7 +504,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20260904-150138';
+const VERSI='20260904-150347';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -4670,15 +4670,18 @@ function seedContohHapus(diam){
 /* 15 kartu: fase tinggi dibuat lebih dulu supaya kartu fase 0 tampil paling
    atas. render/alert/confirm dibungkam selama membangun, digambar sekali. */
 function seedContoh(){
-  var Rn=render,Al=alert,Cf=confirm,S={user:ST.user,roles:ST._roles,nama:ST.userName,cur:ST.cur,view:ST.view};
+  var Rn=render,Al=alert,Cf=confirm,Pb=pushBackend,No=notifyOrder,S={user:ST.user,roles:ST._roles,nama:ST.userName,cur:ST.cur,view:ST.view};
   render=function(){};alert=function(){};confirm=function(){return true;};
+  /* data uji tak boleh menyentuh Discord/Trello walau mode live sedang menyala:
+     15 channel + 15 kabar order baru bukan sesuatu yang ingin dilihat tim */
+  pushBackend=function(){};notifyOrder=function(){};
   try{
     seedContohHapus(true);
     for(var f=PH.length-1;f>=0;f--){
       var o=contohBuatDasar(f);
       for(var i=0;i<f;i++){CONTOH_ISI[i](o);applyTrigger(o,true);}
       o._m=Date.now();}
-  }finally{render=Rn;alert=Al;confirm=Cf;ST.user=S.user;ST._roles=S.roles;ST.userName=S.nama;ST.cur=S.cur;ST.view=S.view;}
+  }finally{render=Rn;alert=Al;confirm=Cf;pushBackend=Pb;notifyOrder=No;ST.user=S.user;ST._roles=S.roles;ST.userName=S.nama;ST.cur=S.cur;ST.view=S.view;}
   save();saveLeads();
   return ST.orders.filter(function(o){return o._contoh;}).length;}
 function seedContohMuat(){
