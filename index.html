@@ -504,7 +504,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20260904-135823';
+const VERSI='20260904-140635';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -2645,7 +2645,7 @@ function vipTombolKartu(jenis,x){
        :(bolehAturVip()?'jadikan order VIP':'ajukan jadi client VIP ke Direktur'));
   var aksi=bolehAturVip()
     ? (m?('vipPutus(\''+jenis+'\',\''+x.id+'\',true)'):('vipToggle(\''+jenis+'\',\''+x.id+'\')'))
-    : (on?'':('vipAjukan(\''+jenis+'\',\''+x.id+'\')'));
+    : ((on||!akuSales())?'':('vipAjukan(\''+jenis+'\',\''+x.id+'\')'));   // mengajukan: Sales saja
   if(!aksi)return '';
   return '<span style="margin-left:auto" onclick="event.stopPropagation()">'+
     '<button class="xrow" style="color:'+warna+';font-size:13px;line-height:1" title="'+esc(judul)+
@@ -2656,9 +2656,14 @@ function vipTombol(x,jenis){
   var on=isVip(x),m=vipMinta(x);
   if(!bolehAturVip()){
     if(on)return vipLencana();
-    if(m)return '<button class="btn ghost sm" style="font-size:9.5px;color:var(--warn);border-color:var(--warn)" '+
-      'title="diajukan '+esc(m.oleh)+' — menunggu Direktur" '+
-      'onclick="vipAjukan(\''+jenis+'\',\''+x.id+'\')">⧗ Menunggu Direktur</button>';
+    /* yang mengajukan VIP hanya Sales — PM & jabatan lain tak diberi tombolnya;
+       pengajuan yang sedang menunggu tetap terlihat sebagai keterangan */
+    if(m)return akuSales()
+      ? ('<button class="btn ghost sm" style="font-size:9.5px;color:var(--warn);border-color:var(--warn)" '+
+         'title="diajukan '+esc(m.oleh)+' — menunggu Direktur" '+
+         'onclick="vipAjukan(\''+jenis+'\',\''+x.id+'\')">⧗ Menunggu Direktur</button>')
+      : ('<span style="font-size:9.5px;color:var(--warn);font-weight:700" title="diajukan '+esc(m.oleh)+'">⧗ VIP diajukan, menunggu Direktur</span>');
+    if(!akuSales())return '';
     return '<button class="btn ghost sm" style="font-size:9.5px" '+
       'onclick="vipAjukan(\''+jenis+'\',\''+x.id+'\')">☆ Ajukan VIP</button>';}
   if(m)return '<span style="display:inline-flex;gap:5px;align-items:center">'+
@@ -9158,7 +9163,7 @@ const CHK_FIELD={
   rfq:'rfqSerah', kulit:'rfqKulit', harga:'rfqJawab_*,rfqSerah',
   konfKatalog:'rfqJawab_*,rfqSerah', moq:'rfqJawab_*,rfqSerah',
   ongkir:'ongkirBlok',
-  liveTanya:'liveTanya_*',
+  liveTanya:'liveSerah,liveTanya_*',
 };
 /* Sebagian kecil item tempat mengisinya di luar order — di Master data.
    Diantar ke sana, bukan dijawab "item ini tak punya panel". */
@@ -10948,7 +10953,8 @@ function liveTanyaPesan(o,nama){
     '• Acara: '+(acara?tglID(acara):'**tanggal belum pasti**')+(E.time?(' · '+E.time):'')+(tempat?(' · '+tempat):' · **venue/kota belum diisi**'),
     '• Barang: '+barang.join(' | '),
     '• Pekerjaan: '+nama+(teknik&&teknik!=='-'?(' · teknik '+teknik):'')+(letak?(' · letak: '+letak):' · letak: **belum ditentukan**'),'',
-    'Mohon dijawab: kosong di tanggal itu? berapa orang? fee per event?'].join(NL);}
+    'Mohon dijawab: kosong di tanggal itu? berapa orang? fee per event?',
+    'Lembarnya (dengan gambar produk) ada di HUB — panel Minta harga vendor, kartu '+nama+', tombol 📄 Dokumen.'].join(NL);}
 function liveTanyaKirim(id,nama){
   var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
   var T=liveTanyaGet(o,nama),tim=liveTimSaran(o,nama);
@@ -10956,8 +10962,11 @@ function liveTanyaKirim(id,nama){
   var teks=liveTanyaPesan(o,nama);
   /* tujuannya Event Management di channel order — bukan vendornya; mereka
      yang menghubungi timnya (tim di sini cuma saran dari kota acara) */
+  /* gambar produknya ikut — tim perlu melihat barang yang dikerjakan di lokasi */
+  var barisProduk=[];try{barisProduk=lineProduk(o).map(function(x){return x.l;});}catch(e){}
   askForm({judul:'Serahkan ke Event Management — '+nama,draf:'livetanya|'+o.id+'|'+nama,drafDasar:teks,
     sub:'Event Management mengatur timnya · saran tim: '+(tim||'belum ada tim di kota acara'),
+    info:vendorGambarBlok(o,null,'live'+o.id+'-'+nama,barisProduk),
     fields:[{k:'pesan',label:'Isi pesan — boleh diedit sebelum dikirim',type:'textarea',tinggi:200,val:teks,req:true,
       hint:live?('Terkirim ke channel order <b>#'+esc(chName(o))+'</b> dengan mention Event Management.')
                :'Mode live belum menyala — pesannya tersalin ke clipboard untuk ditempel ke channel order.'}],
@@ -10987,28 +10996,113 @@ function liveTanyaRingkas(o){
     if(J)return n+': '+(J.ada==='ya'?'kosong':'BENTROK')+(J.orang?(' · '+J.orang+' orang'):'')+((+J.fee||0)>0?(' · fee '+fmt0(J.fee)):'')+(T.tim?(' ('+T.tim+')'):'');
     if(T.minta)return n+': ditanya '+tglID(T.minta)+', menunggu jawaban';
     return n+': belum ditanya';}).join(' · ');}
+/* Kartu live service — sebangun dengan kartu vendor: baris item + status +
+   tombol jawaban, lalu deret aksi Dokumen / Serahkan. Event Management yang
+   mengatur timnya; tim di kota acara cuma saran. */
+function liveStatus(T){
+  var J=T&&T.jawab;
+  if(J)return J.ada==='ya'?'Jawaban diterima':'Bentrok';
+  return (T&&T.minta)?'Menunggu jawaban':'Belum diserahkan';}
+function liveWarna(st){return {'Jawaban diterima':'var(--ok)','Bentrok':'var(--warn)','Menunggu jawaban':'var(--warn)','Belum diserahkan':'var(--muted)'}[st]||'var(--muted)';}
 function liveTanyaBlok(o){
   var L=[];try{L=liveList(o.liveSvc);}catch(e){}
   if(!L.length)return '';
   var b=briefGet(o),acara=o.eventDate||b.tglAcara||'';
   var tempat='';try{tempat=[(o.event&&o.event.venue),b.venue,o.venue,o.shipKota].filter(Boolean).filter(function(x,i,a){return a.indexOf(x)===i;}).join(', ');}catch(e){}
+  var qty=0;try{qty=persoQty(o)||o.qty||0;}catch(e){qty=o.qty||0;}
   return L.map(function(n,i){
-    var T=liveTanyaBaca(o,n),J=T.jawab,tim=T.tim||liveTimSaran(o,n);
-    var st=J?(J.ada==='ya'?'<span style="color:var(--ok);font-weight:800">● Kosong '+tglID(J.tgl)+(J.orang?(' · '+J.orang+' orang'):'')+((+J.fee||0)>0?(' · fee '+fmt0(J.fee)+'/event'):'')+'</span>'
-                :'<span style="color:var(--warn);font-weight:800">● BENTROK — cari tim lain</span>')
-      :(T.minta?'<span style="color:var(--warn);font-weight:800">● Diserahkan ke Event Management '+tglID(T.minta)+' — menunggu jawaban tim</span>'
-               :'<span style="color:var(--muted);font-weight:800">● Belum ditanya</span>');
+    var T=liveTanyaBaca(o,n),J=T.jawab,tim=T.tim||liveTimSaran(o,n),st=liveStatus(T);
+    var teknik='',letak='';try{teknik=jasaTeknikOrder(o,n)||jasaTeknik(n)||'';}catch(e){}try{letak=svcLetak(o,n)||'';}catch(e){}
+    var dok=((o.liveDoc||{})[n])||'';
     return '<div data-f="liveTanya_'+i+'" style="border:1px solid '+(J&&J.ada==='ya'?'var(--ok)':'var(--line)')+';border-radius:10px;padding:11px 13px;margin-bottom:11px;background:var(--bg)">'+
-      '<div style="display:flex;gap:9px;align-items:baseline;flex-wrap:wrap;margin-bottom:6px">'+
-        '<b style="font-size:12.5px">🎪 '+esc(n)+'</b><span style="font-size:9.5px;color:var(--muted)">tim live service'+(tim?(' · '+esc(tim)):' · tim belum ditentukan')+'</span>'+
-        '<span style="margin-left:auto;font-size:9.5px">'+st+'</span></div>'+
-      '<div style="font-size:10.5px;color:var(--ink-soft);line-height:1.6">Serahkan ke Event Management — mereka yang mengatur timnya: kosong di <b>'+(acara?esc(tglID(acara)):'<span style="color:var(--warn)">tanggal acara belum diisi</span>')+'</b> di <b>'+(tempat?esc(tempat):'<span style="color:var(--warn)">kota/venue belum diisi</span>')+'</b>? berapa orang &amp; feenya?'+
-        (J&&J.catatan?(' <span style="color:var(--muted)">— '+esc(J.catatan)+'</span>'):'')+'</div>'+
+      '<div style="display:flex;gap:9px;align-items:baseline;flex-wrap:wrap;margin-bottom:8px">'+
+        '<b style="font-size:12.5px">🎪 '+esc(n)+'</b>'+
+        '<span style="font-size:9.5px;color:var(--muted)">tim live service'+(tim?(' · saran: '+esc(tim)):' · tim belum ada di kota acara')+'</span>'+
+        '<span style="margin-left:auto;font-size:9.5px;color:var(--muted)">lewat Event Management</span></div>'+
+      '<table class="rtable" style="table-layout:fixed;width:100%"><tbody><tr>'+
+        '<td style="vertical-align:top;border-bottom:none;padding-left:0"><b style="font-size:11.5px">'+esc(n)+'</b>'+
+          '<div style="font-size:9px;color:var(--muted)">'+(acara?esc(tglID(acara)):'<span style="color:var(--warn);font-weight:700">tanggal acara belum diisi</span>')+(tempat?(' · '+esc(tempat)):' · <span style="color:var(--warn);font-weight:700">kota/venue belum diisi</span>')+'</div>'+
+          ((teknik&&teknik!=='-')?('<div style="font-size:9px;color:var(--muted)">teknik: <b>'+esc(teknik)+'</b>'+(letak?(' · letak: '+esc(letak)):'')+'</div>'):(letak?('<div style="font-size:9px;color:var(--muted)">letak: '+esc(letak)+'</div>'):''))+
+          (J&&J.catatan?('<div style="font-size:9px;color:var(--muted);margin-top:3px">catatan tim: '+esc(J.catatan)+'</div>'):'')+'</td>'+
+        '<td class="num" style="width:52px;vertical-align:top;border-bottom:none;font-size:10.5px">'+qty+'<br>pcs</td>'+
+        '<td style="width:150px;vertical-align:top;border-bottom:none">'+
+          '<span style="font-size:10px;font-weight:800;color:'+liveWarna(st)+'">● '+esc(st)+'</span>'+
+          (J?('<div style="font-size:11px;font-weight:800;margin-top:2px">'+(J.ada==='ya'?'kosong':'bentrok')+(J.orang?(' · '+J.orang+' orang'):'')+'</div>'+
+              ((+J.fee||0)>0?('<div style="font-size:9px;color:var(--muted)">fee '+fmt0(J.fee)+' / event</div>'):'')):'')+'</td>'+
+        '<td style="width:118px;vertical-align:top;border-bottom:none;padding-right:0">'+
+          (T.minta?('<button class="btn sm" style="width:100%" data-f="liveJawab_'+i+'" onclick="liveTanyaJawab('+jsArg(o.id)+','+jsArg(n)+')">✓ Catat jawaban</button>'):'')+'</td>'+
+      '</tr></tbody></table>'+
       '<div style="display:flex;gap:7px;flex-wrap:wrap;align-items:center;border-top:1px dashed var(--line);margin-top:8px;padding-top:9px">'+
-        '<button class="btn '+(T.minta?'ghost ':'')+'sm" data-f="liveSerah" onclick="liveTanyaKirim('+jsArg(o.id)+','+jsArg(n)+')">✋ '+(T.minta?'Serahkan ulang ke Event Management':'Serahkan ke Event Management')+'</button>'+
-        '<button class="btn '+(T.minta&&!J?'':'ghost ')+'sm" onclick="liveTanyaJawab('+jsArg(o.id)+','+jsArg(n)+')">✓ Catat jawaban</button>'+
-        '<button class="btn ghost sm" onclick="liveBuka('+jsArg(o.id)+')">→ Pilih operator (tab Live service)</button>'+
+        '<button class="btn ghost sm" data-f="liveDok" onclick="genLiveDoc('+jsArg(o.id)+','+jsArg(n)+')">📄 Dokumen</button>'+
+        (T.minta
+          ? ('<span style="font-size:9.5px;color:var(--muted)">✋ diserahkan ke Event Management '+tglID(T.minta)+' — catat jawabannya lewat tombol ✓ di barisnya</span>'+
+             '<button class="btn ghost sm" data-f="liveSerah" onclick="liveTanyaKirim('+jsArg(o.id)+','+jsArg(n)+')">✋ Serahkan ulang</button>')
+          : ('<button class="btn sm" data-f="liveSerah" onclick="liveTanyaKirim('+jsArg(o.id)+','+jsArg(n)+')">✋ Serahkan ke Event Management</button>'))+
+        (dok?('<span style="font-size:9.5px;color:var(--muted)">📄 dokumen '+esc(dok)+'</span>'):'')+
       '</div></div>';}).join('');}
+/* ---- lembar live service untuk Event Management & tim ---- */
+function liveNo(o,nama){
+  if(!o.liveNo)o.liveNo={};
+  if(o.liveNo[nama])return o.liveNo[nama];
+  var n=(+localStorage.getItem('rovehub_seq_live')||0)+1;
+  try{localStorage.setItem('rovehub_seq_live',String(n));}catch(e){}
+  var d=new Date();
+  o.liveNo[nama]='ROVE / LIVE / '+d.getFullYear()+' / '+String(d.getMonth()+1).padStart(2,'0')+' / '+String(n).padStart(4,'0');
+  return o.liveNo[nama];}
+function liveDocHTML(o,nama){
+  var b=briefGet(o),E=o.event||{},no=liveNo(o,nama);
+  var tgl=new Date().toLocaleDateString('id-ID',{day:'2-digit',month:'long',year:'numeric'});
+  var info=function(k,x){return '<tr><td class="k">'+esc(k)+'</td><td>'+(x||'-')+'</td></tr>';};
+  var acara=o.eventDate||b.tglAcara||'';
+  var tempat=[E.venue,b.venue,o.venue,o.shipKota].filter(Boolean).filter(function(x,i,a){return a.indexOf(x)===i;}).join(', ');
+  var tim=liveTimSaran(o,nama),teknik='',letak='';
+  try{teknik=jasaTeknikOrder(o,nama)||jasaTeknik(nama)||'';}catch(e){}try{letak=svcLetak(o,nama)||'';}catch(e){}
+  var P=[];try{P=lineProduk(o);}catch(e){}
+  var rows=P.map(function(x,k){var l=x.l,V=lineVarian(l);
+    var warna=V.length?V.map(function(v){return (+v.q||0)+' '+(v.w||'?');}).join(' / '):(spekVal(o,l,'mainMatWarna')||'');
+    var bahan=l.bahan||spekVal(o,l,'mainMat')||'';
+    return '<tr><td class="num">'+(k+1)+'</td><td>'+imgTag(lineImg(l),'width:34px;height:34px;object-fit:cover;border-radius:4px;vertical-align:middle;margin-right:7px')+'<b>'+esc(l.produk||'(tanpa nama)')+'</b></td>'+
+      '<td class="num">'+(l.qty||0)+' pcs</td><td>'+esc([bahan,warna].filter(Boolean).join(' · ')||'-')+'</td></tr>';}).join('');
+  if(!rows)rows='<tr><td class="num">1</td><td><b>'+esc(o.product||'produk')+'</b></td><td class="num">'+(o.qty||0)+' pcs</td><td>-</td></tr>';
+  var G=[],ada={};
+  P.forEach(function(x){(vendorGambar(o,x.l)||[]).forEach(function(g){
+    var src=g.drive?String(g.f.data||'').replace(/^.*[?&]id=/,'').replace(/&.*$/,''):g.f.data;
+    if(!src||ada[src])return;ada[src]=1;G.push({src:src,cap:g.cap||g.f.nama||''});});});
+  var gbr=G.length?('<div class="dsec">Gambar produk</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:10px">'+
+    G.map(function(x){return '<div style="text-align:center">'+imgTag(x.src,'width:100%;max-height:300px;object-fit:contain;border:1px solid #ddd;border-radius:8px')+
+      '<div style="font-size:11px;color:#333;margin-top:6px">'+esc(x.cap)+'</div></div>';}).join('')+'</div>'):'';
+  var tanya=[['Tim kosong di tanggal & kota acara itu?','ya / tidak'],['Berapa orang yang bisa datang?',''],['Fee per event (sekali datang)','Rp'],['Yang perlu kami siapkan di lokasi (meja, listrik, dsb.)','']]
+    .map(function(r,n){return '<tr><td class="num">'+(n+1)+'</td><td>'+esc(r[0])+'</td><td style="border-bottom:1px solid #bbb;min-width:150px;color:#999">'+esc(r[1])+'</td></tr>';}).join('');
+  return '<div class="dhrow">'+
+     '<div><div class="dbrand">ROVE</div><div class="dbsub">Favors and Gifts</div>'+
+       '<div style="font-size:10px;color:#666;margin-top:6px;line-height:1.5">Jl. Tenggilis Barat I No.21, Kel. Kendangsari,<br>Kec. Tenggilis Mejoyo, Surabaya 60292<br>+62 812-9965-1010 · @rovegift · www.rovegift.com</div></div>'+
+     '<div class="dtitle">LEMBAR LIVE SERVICE<div class="dno">'+esc(no)+'<br>'+esc(tgl)+'</div></div></div>'+
+   '<div style="border:1px solid #c9a227;background:#fdf8e8;border-radius:6px;padding:9px 12px;margin:12px 0;font-size:11px;line-height:1.6;color:#5a4a10">'+
+     '<b>Permintaan ketersediaan tim, bukan pesanan.</b> Tanggal dan jumlahnya masih bisa berubah sampai penawaran disetujui client.</div>'+
+   '<div class="dsec">Ditujukan kepada</div>'+
+   '<table class="dinfotbl">'+info('Event Management','mengatur tim live service')+info('Saran tim',esc(tim)||'belum ada tim di kota acara')+'</table>'+
+   '<div class="dsec">Acara</div>'+
+   '<table class="dinfotbl">'+info('Tanggal',acara?esc(tglID(acara)):'<span style="color:#b00">belum pasti</span>')+(E.time?info('Jam',esc(E.time)):'')+info('Venue / kota',esc(tempat)||'<span style="color:#b00">belum diisi</span>')+info('Client',esc(o.customer))+'</table>'+
+   '<div class="dsec">Barang yang dikerjakan di lokasi</div>'+
+   '<table class="dtable"><thead><tr><th class="num wno">No</th><th>Item</th><th class="num wqty">Qty</th><th class="wmat">Kulit &amp; warna</th></tr></thead><tbody>'+rows+'</tbody></table>'+
+   '<div class="dsec">Pekerjaan</div>'+
+   '<table class="dinfotbl">'+info('Jasa',esc(nama))+info('Teknik',esc(teknik&&teknik!=='-'?teknik:'')||'belum ditentukan')+info('Letak',esc(letak)||'belum ditentukan')+'</table>'+
+   gbr+
+   '<div class="dsec">Mohon dijawab</div>'+
+   '<table class="dtable"><thead><tr><th class="num wno">No</th><th>Pertanyaan</th><th class="wperso">Jawaban</th></tr></thead><tbody>'+tanya+'</tbody></table>'+
+   '<div class="dsign">Hormat kami,<div class="nm">Project Manager · ROVE Favors and Gifts</div></div>';}
+function genLiveDoc(id,nama){
+  var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
+  var baru=!((o.liveNo||{})[nama]);
+  var html=liveDocHTML(o,nama);
+  document.getElementById('docbody').innerHTML=html;
+  if(baru)logHist(o,'📄 Lembar live service dibuat — '+nama+' ('+o.liveNo[nama]+')');
+  if(!o.liveDoc)o.liveDoc={};
+  o.liveDoc[nama]=new Date().toLocaleDateString('id-ID',{day:'2-digit',month:'long',year:'numeric'});
+  ST._doc={type:'live',no:o.liveNo[nama],grand:0};
+  o._m=Date.now();save();trDOM(document.getElementById('docbody'));
+  document.getElementById('docov').classList.add('show');
+  try{loadImages();}catch(e){}}
 function rfqLines(o){
   var L=((o.pricing||{}).lines)||[],out=[];
   L.forEach(function(l,i){if(perluHargaVendor(l))out.push({l:l,i:i});});
@@ -12782,6 +12876,9 @@ function sketchSelesai(id){
   o._m=Date.now();save();render();}
 function sketchBar(o){
   var r=o.sketchReq,bar='border-top:1px dashed var(--line);margin-top:11px;padding-top:10px;display:flex;flex-wrap:wrap;gap:9px;align-items:center';
+  /* ajakan mengajukan VIP hanya untuk Sales (dan Direktur yang memutuskan);
+     PM tak perlu melihatnya */
+  if(!r&&!sketchBoleh(o)&&!(akuSales()||bolehAturVip()))return '';
   if(!r&&!sketchBoleh(o))return '<div style="'+bar+'">'+
     '<span style="font-size:10.5px;color:var(--muted)">Client minta dilihat sketsanya dulu? '+
       '<b>Sketsa sebelum fasenya cuma untuk order VIP</b> — selama penawaran belum disetujui, gambarnya belum tentu dibayar.</span>'+
