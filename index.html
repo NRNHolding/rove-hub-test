@@ -504,7 +504,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20260904-142145';
+const VERSI='20260904-142601';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -10819,24 +10819,28 @@ function konfJawab(id,i){
   /* baris pembelian kulit: sekalian tanya kulit apa yang ready — sama
      seperti form RFQ; tanpa ini baris harga-master tak pernah ditanyai */
   var kulit=lineKulit(l),k=kulit?rfqKulit(l):null;
+  /* sudah pernah dijawab: tampilkan jawaban terakhir (harga bisa berubah lagi);
+     jawaban PERTAMA harga master sengaja kosong — wajib diisi lagi */
+  var sudah=!!(l.konf&&l.konf.tgl);
   askForm({judul:'Catat jawaban '+(l.sumber||'vendor'),
     sub:(l.produk||'item')+' \u00b7 '+(l.qty||0)+' pcs \u00b7 kami pegang '+hargaPeganganTeks(l)+
       (kulit?' \u00b7 sekalian catat kulit yang ready':''),
     fields:(kulit?[kulitJawabField(k)]:[]).concat((function(){
       var V=lineVarian(l);
       if(!V.length)return [
-        {k:'harga',label:'Harga/pcs jawaban vendor',type:'money',val:'',req:!(lineJenis(l)==='jasa'&&adaBiayaTetap(l)),
-         hint:'Harga yang kami pegang <b>'+fmt0(konfHargaBaris(l))+'</b> — isi harga yang dijawab vendor SEKARANG (sengaja kosong: bisa saja sudah berubah). Sama = masih berlaku; beda = harga baru dipakai order ini.'},
+        {k:'harga',label:'Harga/pcs jawaban vendor',type:'money',val:sudah?((+l.hpp||0)||''):'',req:!(lineJenis(l)==='jasa'&&adaBiayaTetap(l)),
+         hint:sudah?('Jawaban terakhir <b>'+fmt0(+l.hpp||0)+'</b> ('+tglID(l.konf.tgl)+') — ubah kalau vendor memberi harga baru.')
+                   :('Harga yang kami pegang <b>'+fmt0(konfHargaBaris(l))+'</b> — isi harga yang dijawab vendor SEKARANG (sengaja kosong: bisa saja sudah berubah). Sama = masih berlaku; beda = harga baru dipakai order ini.')},
         {k:'note',label:'Catatan vendor',type:'text',val:(l.rfq&&l.rfq.note)||'',ph:'mis. naik per Oktober'}];
       /* harga PER VARIAN — warnanya beda, harganya boleh beda */
       var F2=V.map(function(v,k2){
-        return {k:'hv'+k2,label:'Harga/pcs — '+(v.q||0)+' pcs '+(v.w||('varian '+(k2+1)))+' (kami pegang '+fmt0(konfHargaBaris(l))+')',type:'money',
-          val:''};});
+        return {k:'hv'+k2,label:'Harga/pcs — '+(v.q||0)+' pcs '+(v.w||('varian '+(k2+1)))+(sudah?'':(' (kami pegang '+fmt0(konfHargaBaris(l))+')')),type:'money',
+          val:sudah?((+v.hpp||0)||''):''};});
       F2.push({k:'note',label:'Catatan vendor',type:'text',val:(l.rfq&&l.rfq.note)||'',ph:'mis. naik per Oktober'});
       return F2;})()).concat((lineJenis(l)==='jasa'&&adaBiayaTetap(l))
       /* hanya add-on yang memang berbiaya tetap (plat logo deboss) */
-      ?[{k:'fix',label:'Biaya tetap per order — jawaban vendor (mis. plat logo)',type:'money',val:'',
-         hint:'Kami pegang <b>'+fmt0(+l.hppFix||0)+'</b> per order — sekali per order, BUKAN per pcs. Isi angka yang dijawab vendor sekarang; kosong = tetap '+fmt0(+l.hppFix||0)+'.'}]:[])
+      ?[{k:'fix',label:'Biaya tetap per order — jawaban vendor (mis. plat logo)',type:'money',val:sudah?((+l.hppFix||0)||''):'',
+         hint:(sudah?('Jawaban terakhir <b>'+fmt0(+l.hppFix||0)+'</b> per order. '):('Kami pegang <b>'+fmt0(+l.hppFix||0)+'</b> per order — '))+'Sekali per order, BUKAN per pcs. Kosong = tetap '+fmt0(+l.hppFix||0)+'.'}]:[])
       .concat((keVendorProduksi(l)&&rfqJenisBaris(l)==='addon')
       /* add-on: batas kasih informasi (data / desain), bukan batas turun PO */
       ?[{k:'tglInfoMax',label:'Paling lambat kapan informasi (data / desain) harus kami kirim — jawaban vendor',type:'date',
@@ -13096,7 +13100,8 @@ function rfqPanel(o){
                           '<button class="btn ghost sm" style="margin-top:3px;font-size:9px" onclick="pakaiHargaLama('+jsArg(o.id)+','+x.i+')">Pakai harga ini</button>';})())))+'</td>'+
             '<td style="width:118px;vertical-align:top;border-bottom:none;padding-right:0">'+
               ((!otomatis&&l.rfq&&l.rfq.minta)
-                ? '<button class="btn sm" style="width:100%" data-f="rfqJawab_'+x.i+'" onclick="rfqJawab('+jsArg(o.id)+','+x.i+')">✓ Catat jawaban</button>'
+                /* seragam dengan baris harga master: sesudah ada jawaban, tombolnya ghost */
+                ? '<button class="btn '+(st==='Harga diterima'?'ghost ':'')+'sm" style="width:100%" data-f="rfqJawab_'+x.i+'" onclick="rfqJawab('+jsArg(o.id)+','+x.i+')">✓ Catat jawaban</button>'
                 : (otomatis
                 /* harga master pun bisa berubah — jawaban vendor dicatat di
                    sini, sekaligus jalan mengedit harganya; tombolnya TETAP ada
