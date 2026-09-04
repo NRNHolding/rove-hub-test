@@ -504,7 +504,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20260904-113433';
+const VERSI='20260904-114649';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -8714,7 +8714,7 @@ const PH_CHECK=[
    pic:'PM', w:true},
   {auto:function(o){var L=(((o.pricing||{}).lines)||[]).filter(function(l){return (l.qty||0)>0;});return L.length>0&&L.every(function(l){return lineHppVendor(l)>0;});}, k:'harga', t:'Catat jawaban harga dari tiap vendor', en:'Record the price each vendor replies with', guna:'supaya profit bisa dihitung sebelum quotation keluar', gunaEn:'so profit can be worked out before the quotation goes out',               pic:'PM', w:true},
   {auto:function(o){return konfBelum(o).length===0;},
-   k:'konfKatalog', t:'Pastikan harga katalog masih berlaku ke tiap vendor',
+   k:'konfKatalog', t:'Tanyakan lagi harga master ke vendornya, lalu isi jawabannya',
    en:'Confirm the catalogue price still stands with each vendor',
    guna:'vendor bisa menaikkan harga tanpa memberi tahu — yang ketahuan belakangan cuma marginnya yang tipis',
    gunaEn:'vendors raise prices without telling — you only find out later, from a thin margin',
@@ -9094,7 +9094,7 @@ const CHK_SUMBER={'0.logoCl':'Brief → lampiran Logo client',
   '5.quoAcc':'panel Pricing → status quotation','7.sketsaAcc':'panel Referensi gambar → tombol approval sketsa','9.dpMasuk':'panel Pembayaran → Catat DP masuk',
   '3.dirAcc':'panel Ringkasan untuk Direktur',
   '0.terjemah':'Brief → Material utama, Personalization, dan spesifikasi tiap collateral',
-  '0.brief':'form order baru / panel Pricing','0.kontak':'Brief Inquiry','0.acara':'Brief Inquiry','0.ref':'Brief → lampiran Referensi client','0.kota':'Brief → Venue / kota tujuan','0.hpWo':'Brief → WO / EO phone','1.rfq':'panel Minta harga vendor','1.kulit':'panel Minta harga vendor → ketersediaan kulit','1.harga':'panel Minta harga vendor → Catat jawaban','1.konfKatalog':'panel Minta harga vendor → Harga dari master → tombol Harga masih berlaku','1.moq':'panel Minta harga vendor → catatan vendor','2.hpp':'panel Penentuan harga jual','2.margin':'panel Penentuan harga jual','2.ongkir':'panel Penentuan harga jual → Ongkir','2.biayaLain':'panel Penentuan harga jual → Biaya di luar HPP','2.deadlineProd':'panel Penentuan harga jual → Info dari Radja','2.tglPOMax':'panel Penentuan harga jual → Info dari Radja','2.operator':'tab Live service → order ini → Operator','10.opFix':'tab Live service → order ini → Operator → ✓ Sudah fix',
+  '0.brief':'form order baru / panel Pricing','0.kontak':'Brief Inquiry','0.acara':'Brief Inquiry','0.ref':'Brief → lampiran Referensi client','0.kota':'Brief → Venue / kota tujuan','0.hpWo':'Brief → WO / EO phone','1.rfq':'panel Minta harga vendor','1.kulit':'panel Minta harga vendor → ketersediaan kulit','1.harga':'panel Minta harga vendor → Catat jawaban','1.konfKatalog':'panel Minta harga vendor → baris harga master → tombol ✓ Catat jawaban','1.moq':'panel Minta harga vendor → catatan vendor','2.hpp':'panel Penentuan harga jual','2.margin':'panel Penentuan harga jual','2.ongkir':'panel Penentuan harga jual → Ongkir','2.biayaLain':'panel Penentuan harga jual → Biaya di luar HPP','2.deadlineProd':'panel Penentuan harga jual → Info dari Radja','2.tglPOMax':'panel Penentuan harga jual → Info dari Radja','2.operator':'tab Live service → order ini → Operator','10.opFix':'tab Live service → order ini → Operator → ✓ Sudah fix',
 '2.jualJasa':'panel Penentuan harga jual → kolom Harga jual baris jasa (atau Master Product → Jasa)','2.accJual':'panel Penentuan harga jual → Persetujuan harga jual','4.gen':'panel Pricing → Generate Quotation','4.kirim':'panel Pricing → status quotation','4.follow':'panel Pricing → tandai Approved','4.email':'Master data → Customers (atau Brief → Email client kalau order ini beda)','4.kirimData':'panel Pricing → Ekspedisi (kota dari Alamat kirim di Brief)','4.alamatKantor':'Brief → Alamat client / kantor','4.ppn':'panel Pricing → Status PPN','6.logoCl':'Brief → lampiran Logo client','6.logoPch':'Brief → lampiran Logo soft pouch','6.logoBox':'Brief → lampiran Logo box','6.logoCard':'Brief → lampiran Logo thank you card','6.daftarNama':'Brief → daftar nama tamu','6.preview':'panel Referensi gambar → lampiran preview','6.approve':'panel Referensi gambar → tombol approval sketsa','8.inv':'panel Pricing → Generate Invoice','8.kirim':'panel Pricing → status invoice','8.dp':'panel Pembayaran → Catat DP masuk','8.faktur':'panel Pricing → No. faktur pajak','10.spec':'Form PO Radja','10.appr':'Form PO Radja → approval margin','10.poR':'Form PO Radja → Generate PO','10.poV':'panel PO vendor lain','10.trello':'otomatis saat fase Spec & PO dilewati','10.spare':'Form PO Radja → Qty spare produksi','10.warnaLogo':'Form PO Radja → warna logo','11.sample':'panel Produksi → sample disetujui','11.progres':'panel Produksi → catatan progres','12.qc':'panel Produksi → lampiran foto QC & retur','12.pack':'panel Produksi → lampiran foto packing','12.coll':'panel Produksi → collateral lengkap','13.invP':'panel Pricing → Generate Invoice','13.lunas':'panel Pembayaran → Catat pelunasan','13.alamat':'Brief → Alamat kirim','13.penerima':'panel Pengiriman barang','13.resi':'panel Pengiriman barang','14.tglTerima':'panel Pengiriman barang → Tanggal diterima','14.bukti':'panel Pengiriman barang → foto serah terima','14.testi':'panel Komplain & kepuasan','14.arsip':'otomatis saat order ditutup'};
 
 /* "Brief → lampiran Logo client" diterjemahkan per potong, bukan sebagai satu
@@ -9148,7 +9148,7 @@ const CHK_FIELD={
   alamat:'addr', alamatKantor:'addrKantor', email:'email',
   /* fase Minta harga vendor: tiap item menyorot tombol/blok tempat aksinya */
   rfq:'rfqSerah', kulit:'rfqKulit', harga:'rfqJawab_*,rfqSerah',
-  konfKatalog:'konfBerlaku', moq:'rfqJawab_*,rfqSerah',
+  konfKatalog:'rfqJawab_*,rfqSerah', moq:'rfqJawab_*,rfqSerah',
   ongkir:'ongkirBlok',
 };
 /* Sebagian kecil item tempat mengisinya di luar order — di Master data.
@@ -10754,13 +10754,13 @@ function konfJawab(id,i){
     fields:(kulit?[kulitJawabField(k)]:[]).concat((function(){
       var V=lineVarian(l);
       if(!V.length)return [
-        {k:'harga',label:'Harga/pcs jawaban vendor',type:'money',val:konfHargaBaris(l),req:true,
-         hint:'Sama dengan master = harga masih berlaku. Beda = harga baru dipakai order ini.'},
+        {k:'harga',label:'Harga/pcs jawaban vendor',type:'money',val:'',req:true,
+         hint:'Harga yang kami pegang <b>'+fmt0(konfHargaBaris(l))+'</b> — isi harga yang dijawab vendor SEKARANG (sengaja kosong: bisa saja sudah berubah). Sama = masih berlaku; beda = harga baru dipakai order ini.'},
         {k:'note',label:'Catatan vendor',type:'text',val:(l.rfq&&l.rfq.note)||'',ph:'mis. naik per Oktober'}];
       /* harga PER VARIAN — warnanya beda, harganya boleh beda */
       var F2=V.map(function(v,k2){
-        return {k:'hv'+k2,label:'Harga/pcs — '+(v.q||0)+' pcs '+(v.w||('varian '+(k2+1))),type:'money',
-          val:(+v.hpp||0)||konfHargaBaris(l)};});
+        return {k:'hv'+k2,label:'Harga/pcs — '+(v.q||0)+' pcs '+(v.w||('varian '+(k2+1)))+' (kami pegang '+fmt0(konfHargaBaris(l))+')',type:'money',
+          val:''};});
       F2.push({k:'note',label:'Catatan vendor',type:'text',val:(l.rfq&&l.rfq.note)||'',ph:'mis. naik per Oktober'});
       return F2;})()).concat(keVendorProduksi(l)
       /* dijawab bersamaan dengan harganya — sama seperti form RFQ */
@@ -12670,7 +12670,7 @@ function rfqPanel(o){
     isi='<div style="font-size:10.5px;color:var(--ink-soft);line-height:1.7;margin-bottom:11px">'+
       'Tiap vendor satu kartu. Yang <b>belum ada harganya</b>: buat <b>Dokumen</b>-nya lalu '+
       '<b>Serahkan</b> — Purchasing yang menyimpan PDF-nya dan meneruskan. Yang <b>harganya dari '+
-      'master</b>: tetap dipastikan dulu, karena vendor bisa menaikkannya tanpa memberi tahu.</div>'+
+      'master</b> ikut ditanyakan dan <b>wajib diisi lagi</b> dari jawaban vendor — bisa saja sudah berubah.</div>'+
     urut.map(function(v){
       var X=G[v];
       var perlu=X.filter(function(x){return !hargaOtomatis(x.l);});
@@ -12678,7 +12678,9 @@ function rfqPanel(o){
          dari katalog dulu ikut dihitung di sini tapi tak pernah bisa
          dikonfirmasi, jadi kartunya tak pernah bisa selesai */
       var master=X.filter(function(x){return hargaOtomatis(x.l)&&(x.l.qty||0)>0;});
-      var diserah=perlu.length&&perlu.every(function(x){return x.l.rfq&&x.l.rfq.minta;});
+      /* yang diminta ke vendor: baris tanpa harga + baris harga master (ditanya lagi) */
+      var minta=perlu.concat(master);
+      var diserah=minta.length&&minta.every(function(x){return x.l.rfq&&x.l.rfq.minta;});
       var konfBeres=master.length&&master.every(function(x){return konfSah(x.l);});
       var ditanya=master.length&&master.every(function(x){return x.l.konfTanya&&x.l.konfTanya.tgl;});
       var beres=(!perlu.length||perlu.every(function(x){return (x.l.hpp||0)>0;}))&&(!master.length||konfBeres);
@@ -12743,22 +12745,20 @@ function rfqPanel(o){
            Tanya lagi, dan Tanyakan harga dibuang — membingungkan dan semua
            jalannya sudah terwakili. */
         (v?('<div style="display:flex;gap:7px;flex-wrap:wrap;align-items:center;border-top:1px dashed var(--line);margin-top:8px;padding-top:9px">'+
-          (perlu.length
+          (minta.length
             ? (diserah
-                ? ('<span style="font-size:9.5px;color:var(--muted)">'+(vendorLewatDiscord(o,v)?(MAILX+' dikirim ke Discord '):'✋ diserahkan ')+tglID(perlu[0].l.rfq.minta)+' — catat jawabannya lewat tombol ✓ di barisnya</span>')
+                ? ('<span style="font-size:9.5px;color:var(--muted)">'+(vendorLewatDiscord(o,v)?(MAILX+' dikirim ke Discord '):'✋ diserahkan ')+tglID(minta[0].l.rfq.minta)+' — catat jawabannya lewat tombol ✓ di barisnya</span>')
                 : ('<button class="btn ghost sm" onclick="genRfqDoc('+jsArg(o.id)+','+jsArg(v)+')">📄 Dokumen'+
-                   (perlu.length>1?(' ('+perlu.length+' item)'):'')+'</button>'+
+                   (minta.length>1?(' ('+minta.length+' item)'):'')+'</button>'+
                    '<button class="btn sm" data-f="rfqSerah" onclick="rfqSerah('+jsArg(o.id)+','+jsArg(v)+')">'+
                    (vendorLewatDiscord(o,v)?(MAILX+' Kirim ke Discord'):'✋ Serahkan ke Purchasing')+'</button>'))
             : '')+
           (((o.rfqDoc||{})[v])?('<span style="font-size:9.5px;color:var(--muted)">📄 dokumen '+esc(o.rfqDoc[v])+'</span>'):'')+
-          (master.length
-            ? (konfBeres
-                ? ('<span style="font-size:9.5px;color:var(--ok);font-weight:700">✓ harga dipastikan '+tglID((master[0].l.konf||{}).tgl)+'</span>'+
-                   '<button class="btn ghost sm" onclick="konfSet('+jsArg(o.id)+','+jsArg(v)+')">↺ Batalkan</button>')
-                : ('<button class="btn sm" data-f="konfBerlaku" onclick="konfSet('+jsArg(o.id)+','+jsArg(v)+')">✓ Harga masih berlaku'+
-                   (master.length>1?(' ('+master.length+')'):'')+'</button>'))
-            : '')+
+          /* Tombol "Harga masih berlaku" dibuang: harga master wajib ditanya
+             lagi dan diisi lagi lewat ✓ Catat jawaban di barisnya. */
+          (master.length&&konfBeres
+            ? ('<span style="font-size:9.5px;color:var(--ok);font-weight:700">✓ harga master diisi lagi dari jawaban vendor '+tglID((master[0].l.konf||{}).tgl)+'</span>')
+            : (master.length?('<span style="font-size:9.5px;color:var(--muted)">harga master ('+master.length+') wajib diisi lagi dari jawaban vendor — tombol ✓ di barisnya</span>'):''))+
           '</div>'):'')+
         '</div>';}).join('')+
       /* Dulu ada tombol "→ Lanjut ke Quotation" di sini — salah alamat
@@ -13478,6 +13478,9 @@ function vendorGambar(o,l){
     var n=(urut[x.slot]||0);urut[x.slot]=n+1;
     var t=gambarLabel(x.slot,n,hitung[x.slot]);
     if(t&&x.nama&&(x.slot==='_isi'||x.slot==='_isiDrive'))t=GBR_LABEL[x.slot]+' — '+x.nama;
+    /* gambar kemasannya sendiri: sebut namanya — lembar thank you card tak
+       perlu menyebut "produk" sama sekali */
+    if(t&&(x.slot==='_line'||x.slot==='_drive')&&jenis==='kemasan')t='Gambar '+(l.produk||'kemasan')+(hitung[x.slot]>1?(' '+(n+1)):'');
     if(t)x.cap=t;});
   return out;}
 /* Simpan satu berkas ke komputer — dari data URI, tanpa perlu server. */
@@ -15618,16 +15621,19 @@ function rfqDocTanya(o,L){
     ['Lama pengerjaan untuk jumlah di atas',''],
     ['Paling lambat kapan data/desain harus kami kirim',''],
   ];
-  return [
+  var adaMaster=L.some(function(l){return !!hargaOtomatis(l);});
+  return (adaMaster?[['Harga yang kami pegang di atas masih berlaku? Kalau berubah, tulis harga barunya','Rp']]:[]).concat([
     ['Harga per pcs untuk tiap item di atas','Rp'],
     ['Jenis material & warna yang ready — beserta minimum ordernya',''],
     ['Desain di atas bisa dikerjakan apa adanya? Kalau perlu diubah, apa saja',''],
     ['Paling lambat kapan PO harus turun',''],
-  ];}
+  ]);}
 function rfqDocHTML(o,vendor){
   /* himpunan yang sama dengan angka di tombolnya — dulu tombol bilang 2 item
      dan lembarnya berisi 3 */
-  var L=rfqBarisVendor(o,vendor,{hanyaPerlu:true});
+  /* SEMUA baris ke vendor ini — yang harganya dari master pun ikut: vendor
+     melihat harga yang kami pegang dan diminta mengonfirmasi / memperbarui */
+  var L=rfqBarisVendor(o,vendor);
   if(!L.length)return '';
   var no=rfqNo(o,vendor),tgl=new Date().toLocaleDateString('id-ID',{day:'2-digit',month:'long',year:'numeric'});
   var v=vendorData(vendor)||{};
@@ -15639,7 +15645,9 @@ function rfqDocHTML(o,vendor){
       '<td>'+imgTag(lineImg(l),'width:34px;height:34px;object-fit:cover;border-radius:4px;vertical-align:middle;margin-right:7px')+
         '<b>'+esc(l.produk||'(tanpa nama)')+'</b>'+
         (jenis==='live'?'<div style="font-size:9px;color:#888;margin-top:2px">dikerjakan di lokasi acara</div>':'')+
-        (jenis==='addon'?'<div style="font-size:9px;color:#888;margin-top:2px">dikerjakan di workshop</div>':'')+varianHTML(l)+'</td>'+
+        (jenis==='addon'?'<div style="font-size:9px;color:#888;margin-top:2px">dikerjakan di workshop</div>':'')+
+        (hargaOtomatis(l)?('<div style="font-size:9px;color:#8a5a2b;margin-top:2px">harga yang kami pegang: <b>'+fmt0(konfHargaBaris(l))+'/pcs</b> — mohon dikonfirmasi, atau tulis harga barunya</div>'):'')+
+        varianHTML(l)+'</td>'+
       '<td class="num">'+esc(jenis==='live'?'1 event':((l.qty||0)+' pcs'))+'</td>'+
       '<td>'+(T&&T.lewat?'<span style="color:#b00">jadwalnya sudah lewat — mohon dikonfirmasi</span>'
              :(T&&T.tgl?esc(tglID(T.tgl)):'-'))+'</td></tr>';}).join('');
@@ -15688,12 +15696,13 @@ function rfqDocHTML(o,vendor){
    jalan kirim dan letak dokumennya. Dulu satu teks dipakai dua-duanya, dan
    vendor disuruh membuka HUB yang tak dia punya. */
 function rfqSerahTeks(o,vendor,untuk){
-  var L=rfqBarisVendor(o,vendor,{hanyaPerlu:true}),P=[];
+  var L=rfqBarisVendor(o,vendor),P=[];
   P.push('📄 **PERMINTAAN HARGA — '+vendor+'**','',rfqNo(o,vendor));
   L.forEach(function(l){
     var T=rfqTanggal(o,l),jenis=rfqJenisBaris(l);
     P.push('• '+(l.produk||'-')+' · '+(jenis==='live'?'1 event':((l.qty||0)+' pcs'))+
-      ((T&&T.tgl&&!T.lewat)?(' · dibutuhkan '+tglID(T.tgl)):''));
+      ((T&&T.tgl&&!T.lewat)?(' · dibutuhkan '+tglID(T.tgl)):'')+
+      (hargaOtomatis(l)?(' · harga yang kami pegang '+fmt0(konfHargaBaris(l))+'/pcs — mohon dikonfirmasi / diperbarui'):''));
     var vt=varianTeks(l);if(vt)P.push(vt);});
   if(untuk==='vendor'){
     P.push('','Spesifikasi lengkapnya (gambar, ukuran, teknik) kami kirim menyusul sebagai PDF.',
@@ -15707,11 +15716,9 @@ function rfqSerahTeks(o,vendor,untuk){
 function rfqSerah(id,vendor){
   var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
   if(!vendor){alert('Baris ini belum punya vendor — pilih dulu di kolom Vendor.');return;}
-  var L=rfqBarisVendor(o,vendor,{hanyaPerlu:true});
-  if(!L.length){alert('Tak ada baris yang perlu ditanyakan harganya ke "'+vendor+'".'+
-    String.fromCharCode(10)+String.fromCharCode(10)+
-    'Baris yang harganya sudah ada dari master tak ikut ditanyakan — untuk itu pakai '+
-    'tombol "✓ Harga masih berlaku".');return;}
+  /* semua baris ke vendor ini — harga master pun ditanyakan lagi */
+  var L=rfqBarisVendor(o,vendor);
+  if(!L.length){alert('Tak ada baris untuk vendor "'+vendor+'" di order ini.');return;}
   var ulang=L.every(function(l){return l.rfq&&l.rfq.minta;});
   var langsung=vendorLewatDiscord(o,vendor);
   if(!confirm(langsung
