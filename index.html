@@ -504,7 +504,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20260904-120354';
+const VERSI='20260904-131713';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -14608,30 +14608,42 @@ function kemasanAdaGambar(o,k){return kemasanGambar(o,k).length>0;}
 function logoSlotKemasan(o){
   return [['pouch','logoPouchFiles','soft pouch'],['box','logoBoxFiles','box'],['card','logoCardFiles','thank you card']]
     .filter(function(x){return (o.coll||{})[x[0]];});}
-function logoSamaBisa(o){
+/* Sumber logo untuk disamakan: logo client (seksi LOGO), lampiran jasa,
+   atau logo yang sudah dilampirkan di salah satu kemasan. */
+function logoSumberSama(o){
   var b=briefGet(o);
-  if(!((b.logoFiles||[]).length))return false;
+  if((b.logoFiles||[]).length)return {src:b.logoFiles,dari:'logo client',slot:'logoFiles'};
+  var out=null;
+  try{liveList(o.svc).some(function(n){var f=b[svcSlot(n)]||[];if(f.length){out={src:f,dari:'lampiran '+n,slot:svcSlot(n)};return true;}return false;});}catch(e){}
+  if(out)return out;
+  var k=logoSlotKemasan(o).filter(function(x){return (b[x[1]]||[]).length;})[0];
+  if(k)return {src:b[k[1]],dari:'logo di '+k[2],slot:k[1]};
+  return null;}
+function logoSamaBisa(o){
+  if(!logoSumberSama(o))return false;
   return logoSlotKemasan(o).some(function(x){return !kemasanAdaGambar(o,x[0]);});}
 /* Satu logo untuk semua kemasan — keadaan yang paling sering. Yang beda
    tinggal diganti satu-satu sesudahnya. */
 function logoSamakan(id){
   var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
-  var b=briefGet(o),src=b.logoFiles||[];
-  if(!src.length){
-    /* sumber barunya lampiran per jasa - ambil yang pertama berisi */
-    try{liveList(o.svc).some(function(n){var f=b[svcSlot(n)]||[];if(f.length){src=f;return true;}return false;});}catch(e){}
-  }
-  if(!src.length){alert('Lampirkan dulu logonya di salah satu personalisasi - itu yang akan disalin ke tiap kemasan.');return;}
+  var b=briefGet(o),S=logoSumberSama(o);
+  if(!S){alert('Lampirkan dulu logonya — di seksi LOGO, di salah satu personalisasi, atau di salah satu kemasan. Itu yang akan disalin ke tiap kemasan.');return;}
+  var src=S.src;
   var slot=logoSlotKemasan(o);
   if(!slot.length){alert('Order ini tak memesan kemasan, jadi tak ada logo kemasan yang perlu disamakan.');return;}
-  var isi=slot.filter(function(x){return (b[x[1]]||[]).length;});
+  /* kemasan sumbernya sendiri dibiarkan; yang sudah punya logo LAIN ditanya dulu */
+  var tujuan=slot.filter(function(x){return x[1]!==S.slot;});
+  var isi=tujuan.filter(function(x){return (b[x[1]]||[]).length;});
   if(isi.length&&!confirm(isi.length+' kemasan sudah punya logo sendiri ('+
     isi.map(function(x){return x[2];}).join(', ')+').'+String.fromCharCode(10)+String.fromCharCode(10)+
-    'Timpa dengan logo client?'))return;
-  slot.forEach(function(x){b[x[1]]=JSON.parse(JSON.stringify(src));});
-  logHist(o,'Logo client disamakan ke '+slot.length+' kemasan: '+slot.map(function(x){return x[2];}).join(', '));
+    'Timpa dengan '+S.dari+'?'))return;
+  tujuan.forEach(function(x){b[x[1]]=JSON.parse(JSON.stringify(src));});
+  /* logo yang dipakai kemasan adalah logo client-nya juga — seksi LOGO ikut
+     terisi supaya checklist "logo siap" dan vendor lain membacanya */
+  if(!(b.logoFiles||[]).length)b.logoFiles=JSON.parse(JSON.stringify(src));
+  logHist(o,'Logo disamakan ('+S.dari+') ke '+tujuan.length+' kemasan: '+tujuan.map(function(x){return x[2];}).join(', '));
   o._m=Date.now();save();render();
-  alert('✓ Logo client dipakai untuk '+slot.map(function(x){return x[2];}).join(', ')+'.'+
+  alert('✓ '+S.dari.charAt(0).toUpperCase()+S.dari.slice(1)+' dipakai untuk '+tujuan.map(function(x){return x[2];}).join(', ')+'.'+
     String.fromCharCode(10)+String.fromCharCode(10)+'Kalau ada yang seharusnya beda, ganti lampirannya satu-satu.');}
 function logoSamaTombol(o){
   var slot=logoSlotKemasan(o);
@@ -14641,7 +14653,8 @@ function logoSamaTombol(o){
   return '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:2px 0 10px">'+
     '<button class="btn ghost sm" onclick="logoSamakan(\''+o.id+'\')">⧉ Samakan logo untuk semua kemasan</button>'+
     '<span style="font-size:9.5px;color:'+(belum.length?'var(--warn)':'var(--muted)')+'">'+
-      (belum.length?(belum.length+' kemasan belum ada logonya: '+belum.map(function(x){return esc(x[2]);}).join(', '))
+      (belum.length?(belum.length+' kemasan belum ada logonya: '+belum.map(function(x){return esc(x[2]);}).join(', ')+
+                     (function(){var S=logoSumberSama(o);return S?(' — disalin dari '+esc(S.dari)):'';})())
                   :'tiap kemasan sudah ada logonya')+'</span></div>';}
 function lampiranBlok(o,slot,judul){
   var a=(briefGet(o)[slot])||[];
