@@ -504,7 +504,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20260904-131713';
+const VERSI='20260904-133212';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -12809,8 +12809,12 @@ function rfqPanel(o){
         (v?('<div style="display:flex;gap:7px;flex-wrap:wrap;align-items:center;border-top:1px dashed var(--line);margin-top:8px;padding-top:9px">'+
           (minta.length
             ? (diserah
-                ? ('<span style="font-size:9.5px;color:var(--muted)">'+(vendorLewatDiscord(o,v)?(MAILX+' dikirim ke Discord '):'✋ diserahkan ')+tglID(minta[0].l.rfq.minta)+' — catat jawabannya lewat tombol ✓ di barisnya</span>')
-                : ('<button class="btn ghost sm" onclick="genRfqDoc('+jsArg(o.id)+','+jsArg(v)+')">📄 Dokumen'+
+                /* sesudah diserahkan tombol dokumennya tetap ada — Purchasing
+                   menyimpan PDF-nya justru di tahap ini */
+                ? ('<button class="btn ghost sm" data-f="rfqDok" onclick="genRfqDoc('+jsArg(o.id)+','+jsArg(v)+')">📄 Dokumen'+
+                   (minta.length>1?(' ('+minta.length+' item)'):'')+'</button>'+
+                   '<span style="font-size:9.5px;color:var(--muted)">'+(vendorLewatDiscord(o,v)?(MAILX+' dikirim ke Discord '):'✋ diserahkan ')+tglID(minta[0].l.rfq.minta)+' — catat jawabannya lewat tombol ✓ di barisnya</span>')
+                : ('<button class="btn ghost sm" data-f="rfqDok" onclick="genRfqDoc('+jsArg(o.id)+','+jsArg(v)+')">📄 Dokumen'+
                    (minta.length>1?(' ('+minta.length+' item)'):'')+'</button>'+
                    '<button class="btn sm" data-f="rfqSerah" onclick="rfqSerah('+jsArg(o.id)+','+jsArg(v)+')">'+
                    (vendorLewatDiscord(o,v)?(MAILX+' Kirim ke Discord'):'✋ Serahkan ke Purchasing')+'</button>'))
