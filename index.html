@@ -504,7 +504,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20260904-105456';
+const VERSI='20260904-111233';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -562,10 +562,10 @@ function cfgBawaan(c){
   if(!String(c.url||'').trim()){
     c.url=BACKEND_BAWAAN;
     c.dbUrl=BACKEND_BAWAAN+'?db=1';
-    /* kotak Katalog ikut terisi dari backend bawaan (endpoint ?est=1) —
-       tanpa ini kotaknya kosong dan orang mengira harus mencari URL sendiri.
-       Saat produksi tinggal ditimpa URL Worker /estimator sungguhan. */
-    if(!(c.catalogUrl||'').trim())c.catalogUrl=BACKEND_BAWAAN+'?est=1';
+    /* kotak Katalog sengaja dibiarkan kosong: backend uji tak berisi katalog.
+       Teks bantuan di Integrasi menyebut dari mana URL Rove Backend &
+       token bacanya didapat. URL lama ?est=1 (kosong) dibersihkan. */
+    if(/[?&]est=1/.test(String(c.catalogUrl||'')))c.catalogUrl='';
     /* sinkron dinyalakan sendiri - tanpa itu URL-nya ada tapi tak dipakai, dan
        orangnya tetap melihat HUB kosong tanpa tahu kenapa */
     if(c.live===undefined||c.live===false)c.live=true;
@@ -2018,12 +2018,12 @@ if(r){ST.orders=JSON.parse(r);}else{ST.orders=[];} ST.user=sesiGet('rovehub_user
 function cfgSerap(){
   var C=ST.cfg=ST.cfg||{};
   var ambil=function(id,f){var e=document.getElementById(id);if(e)C[f]=(e.value||'').trim();};
-  ambil('cfgurl','url');ambil('cfgcatalog','catalogUrl');ambil('cfgdb','dbUrl');ambil('cfgklien','klienUrl');
+  ambil('cfgurl','url');ambil('cfgcatalog','catalogUrl');ambil('cfgcattoken','catalogToken');ambil('cfgdb','dbUrl');ambil('cfgklien','klienUrl');
   var lv=document.getElementById('cfglive');if(lv)C.live=!!lv.checked;
   try{localStorage.setItem('rovehub_cfg',JSON.stringify(C));}catch(e){}
   return C;}
 function saveCfg(){ST.cfg.url=(document.getElementById('cfgurl').value||'').trim();ST.cfg.live=document.getElementById('cfglive').checked;
-  var dp=document.getElementById('cfgdipakai');if(dp)ST.cfg.dipakai=dp.checked;ST.cfg.catalogUrl=(document.getElementById('cfgcatalog').value||'').trim();var db=document.getElementById('cfgdb');ST.cfg.dbUrl=db?(db.value||'').trim():(ST.cfg.dbUrl||'');var kl=document.getElementById('cfgklien');ST.cfg.klienUrl=kl?(kl.value||'').trim():(ST.cfg.klienUrl||'');localStorage.setItem('rovehub_cfg',JSON.stringify(ST.cfg));fetchCatalog();render();}
+  var dp=document.getElementById('cfgdipakai');if(dp)ST.cfg.dipakai=dp.checked;ST.cfg.catalogUrl=(document.getElementById('cfgcatalog').value||'').trim();var tk=document.getElementById('cfgcattoken');if(tk)ST.cfg.catalogToken=(tk.value||'').trim();var db=document.getElementById('cfgdb');ST.cfg.dbUrl=db?(db.value||'').trim():(ST.cfg.dbUrl||'');var kl=document.getElementById('cfgklien');ST.cfg.klienUrl=kl?(kl.value||'').trim():(ST.cfg.klienUrl||'');localStorage.setItem('rovehub_cfg',JSON.stringify(ST.cfg));fetchCatalog();render();}
 function pushBackend(action,payload){
   const c=ST.cfg||{};if(!c.live||!c.url)return; // mode simulasi kalau belum dikonfigurasi
   try{fetch(c.url,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action:action,payload:payload})});}
@@ -7327,8 +7327,12 @@ function renderTasks(){
        ${BACKEND_BAWAAN?`<div style="font-size:10px;color:var(--ink-soft);line-height:1.6;margin:-7px 0 11px;border-left:3px solid var(--brand);padding:6px 10px;background:var(--bg);border-radius:0 7px 7px 0">Salinan ini punya <b>backend bawaan</b>, jadi siapa pun yang membuka linknya langsung ikut sinkron tanpa menyetel apa-apa. ${(ST.cfg&&ST.cfg._bawaan)?'Kotak di atas terisi dari sana.':'Kotak di atas kamu isi sendiri, dan itu yang dipakai.'}<br>Backend uji ini <b>tanpa kata sandi</b> — isinya data karangan saja, jangan data client sungguhan.</div>`:''}
        <label style="font-size:12px;display:flex;align-items:center;gap:8px;margin-bottom:11px"><input type="checkbox" id="cfglive" ${(ST.cfg&&ST.cfg.live)?'checked':''} style="width:auto;accent-color:var(--brand)"> Mode live (kirim ke backend)</label>
        <label style="font-size:12px;display:flex;align-items:flex-start;gap:8px;margin-bottom:4px"><input type="checkbox" id="cfgdipakai" ${(ST.cfg&&ST.cfg.dipakai)?'checked':''} style="width:auto;accent-color:var(--brand);margin-top:2px"> <span>HUB sudah dipakai order sungguhan<div style="font-size:10px;color:var(--muted);font-weight:400;line-height:1.55">Nyalakan sekali waktu HUB mulai mengurus order betulan. Sejak itu alat coba-coba — seperti tombol <b>mundur ke fase sebelumnya</b> — hilang, supaya order yang berjalan tak bisa dimundurkan sampai channel dan dokumennya tak cocok lagi.</div></span></label>
-       <label class="nlbl">Katalog Cost Estimator (Worker /estimator URL)</label>
-       <input class="pin" id="cfgcatalog" value="${esc(ST.cfg&&ST.cfg.catalogUrl)}" placeholder="https://rove-discord.xxx.workers.dev/estimator" style="margin:4px 0 4px">
+       <label class="nlbl">Katalog Cost Estimator — URL Apps Script <b>Rove Backend</b> (…/exec)</label>
+       <input class="pin" id="cfgcatalog" value="${esc(ST.cfg&&ST.cfg.catalogUrl)}" placeholder="https://script.google.com/macros/s/…/exec" style="margin:4px 0 4px">
+       <label class="nlbl" style="margin-top:6px;display:block">Token baca Cost Estimator</label>
+       <input class="pin" id="cfgcattoken" value="${esc(ST.cfg&&ST.cfg.catalogToken)}" placeholder="password Cost Estimator (TOKEN_READ di Code.gs)" style="margin:4px 0 4px;max-width:320px">
+       <div style="font-size:10px;color:var(--ink-soft);line-height:1.6;margin:2px 0 6px;border-left:3px solid var(--brand);padding:6px 10px;background:var(--bg);border-radius:0 7px 7px 0">
+         <b>Dari mana linknya:</b> script.google.com → proyek <b>Rove Backend</b> (backend Cost Estimator) → Deploy → Manage deployments → <b>Web app URL</b> (…/exec). Link yang sama dipakai app Cost Estimator &amp; Admin-nya — ada juga di <i>1. Cost Estimator APP Indo → 4. Backend Prototype → PANDUAN DEPLOY.md</i>.<br>         <b>Token baca</b> = password Cost Estimator (baris <code>TOKEN_READ</code> di Code.gs) — bukan password admin. HUB menyusun <code>?t=TOKEN&amp;data=1</code> sendiri; boleh juga tempel URL lengkapnya. Backend uji HUB tak punya katalog — tanpa link ini pakai <b>Impor dari file JSON</b> di Master Product.</div>
        <div style="font-size:10px;color:${(CATALOG_LIVE&&CATALOG_LIVE.length)?'var(--ok)':'var(--warn)'};word-break:break-word">${(CATALOG_LIVE&&CATALOG_LIVE.length)?'● katalog live: '+CATALOG_LIVE.length+' produk':(ST.catStatus?('… '+esc(ST.catStatus)):'○ pakai katalog mock (belum tersambung)')}</div>
        <button class="btn ghost sm" style="margin-top:8px" onclick="syncEstMaster()">↻ Muat ulang katalog</button> <span style="font-size:9px;color:var(--muted)">tarik produk + collateral ke master HUB</span>
        <label class="nlbl" style="margin-top:13px;display:block">Cloud DB (Worker /db URL) — simpan semua order & master</label>
@@ -13898,12 +13902,39 @@ function imporStatus(){
 
 function hasEstColl(){return ((ST.master&&ST.master.coll)||[]).some(function(r){return r.src==='est';});}
 function mEditTier(i,ti,v){var r=ST.master.catalog[i];if(!r)return;if(!r.t)r.t=[0,0,0,0,0,0,0];r.t[ti]=moneyVal(v);saveMaster();}
-function syncEstMaster(){var u=cfgSerap().catalogUrl;
+/* URL data Cost Estimator. Kotaknya boleh diisi URL Apps Script Rove Backend
+   (…/exec) — HUB menambahkan ?t=TOKEN&data=1 sendiri; URL lengkap atau URL
+   Worker lama tetap dipakai apa adanya. Tokennya token BACA (TOKEN_READ di
+   Code.gs), disimpan di cfg peramban, bukan di kode. */
+function estAppsScript(u){return /script\.google\.com\/macros\/s\/[^\/]+\/exec/.test(String(u||''));}
+function estUrlData(){
+  var C=ST.cfg||{},u=String(C.catalogUrl||'').trim(),t=String(C.catalogToken||'').trim();
+  if(!u)return '';
+  if(!estAppsScript(u))return u;
+  var out=u;
+  if(!/[?&]t=/.test(out)&&t)out+=(out.indexOf('?')>=0?'&':'?')+'t='+encodeURIComponent(t);
+  if(!/[?&](data|est)=1/.test(out))out+=(out.indexOf('?')>=0?'&':'?')+'data=1';
+  return out;}
+function estUrlImg(id){
+  var C=ST.cfg||{},u=String(C.catalogUrl||'').trim(),t=String(C.catalogToken||'').trim();
+  if(!u)return '';
+  if(estAppsScript(u)){
+    var base=u.split('?')[0],mt=u.match(/[?&]t=([^&]+)/),tok=t||(mt?decodeURIComponent(mt[1]):'');
+    return base+'?'+(tok?('t='+encodeURIComponent(tok)+'&'):'')+'img='+encodeURIComponent(id);}
+  return u.replace(/\/estimator\/?$/,'/img')+'?id='+encodeURIComponent(id);}
+/* pesan gagal yang menyebut sebabnya, bukan cuma "bukan JSON" */
+function estPesanGagal(d){
+  if(d&&d.ok===false&&/token/i.test(String(d.error||'')))return 'Token baca salah atau kosong — isi kotak "Token baca Cost Estimator" (TOKEN_READ di Code.gs Rove Backend).';
+  if(d&&d.hint&&!(d.products||[]).length)return 'URL ini backend uji HUB, bukan Cost Estimator — isi URL Apps Script Rove Backend (…/exec) + token bacanya.';
+  if(d&&!(d.products||[]).length)return 'Data terbaca tapi tanpa produk — pastikan URL-nya Rove Backend Cost Estimator.';
+  return '';}
+function syncEstMaster(){cfgSerap();var u=estUrlData();
   if(!u){alert('Kotak "Katalog Cost Estimator" di Holding → Integrasi masih kosong.\n\nIsi URL-nya dulu, atau pakai "⭳ Impor dari file JSON" — hasilnya sama.');return;}
   ST.catStatus='menarik master…';render();
   fetch(u).then(function(r){return r.text();}).then(function(txt){
     var d;try{d=JSON.parse(txt);}
     catch(e){throw new Error('URL membalas halaman web, bukan data JSON. Biasanya URL salah atau Apps Script minta login. Pakai impor file JSON sebagai gantinya.');}
+    var sebab=estPesanGagal(d);if(sebab)throw new Error(sebab);
     var lap=imporEstimator(d);
     ST.catStatus='impor: '+lap.produk+' produk · '+lap.komb+' kombinasi harga · '+lap.jasa+' jasa';render();
   }).catch(function(e){ST.catStatus='GAGAL: '+((e&&e.message)||e);render();});}
@@ -13915,7 +13946,7 @@ function lineProdPick(id,i,name){var o=ST.orders.find(function(x){return x.id===
 function catalog(){ var mc=ST.master&&ST.master.catalog; if(mc&&mc.length)return mc; return (CATALOG_LIVE&&CATALOG_LIVE.length)?CATALOG_LIVE:CATALOG; }
 function driveId(u){if(!u)return'';var m=String(u).match(/[-\w]{25,}/);return m?m[0]:'';}
 var IMGCACHE={};
-function imgUrlBase(){var u=ST.cfg&&ST.cfg.catalogUrl;return u?u.replace(/\/estimator\/?$/,'/img'):'';}
+function imgUrlBase(){var u=ST.cfg&&ST.cfg.catalogUrl;return u?String(u):'';}   // ada/tidak; URL gambarnya estUrlImg(id)
 function imgTag(id,style,attr){attr=attr||'';if(!id)return'';if(String(id).slice(0,5)==='data:')return '<img src="'+id+'" alt="" '+attr+' style="background:#eee;'+style+'">';return '<img class="lazyimg" data-imgid="'+id+'" src="data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw==" alt="" '+attr+' style="background:#eee;'+style+'">';}
 function openLB(src){if(!src||src.indexOf('data:image/gif')===0)return;var lb=document.getElementById('lightbox');lb.querySelector('img').src=src;lb.style.display='flex';}
 function closeLB(){var lb=document.getElementById('lightbox');if(lb)lb.style.display='none';}
@@ -14016,7 +14047,7 @@ function loadImages(){var base=imgUrlBase();if(!base)return;
   document.querySelectorAll('img.lazyimg[data-imgid]').forEach(function(el){
     var id=el.getAttribute('data-imgid');el.removeAttribute('data-imgid');if(!id)return;
     if(IMGCACHE[id]){el.src=IMGCACHE[id];return;}
-    fetch(base+'?id='+encodeURIComponent(id)).then(function(r){return r.json();}).then(function(j){
+    fetch(estUrlImg(id)).then(function(r){return r.json();}).then(function(j){
       if(j&&j.ok&&j.b64){var uri='data:'+(j.mime||'image/jpeg')+';base64,'+j.b64;IMGCACHE[id]=uri;el.src=uri;}else imgGagal(el,(j&&j.error)||'ditolak server');
     }).catch(function(e){imgGagal(el,(e&&e.message)||'jaringan');});
   });}
@@ -14049,7 +14080,7 @@ function loadCatalogCache(){ try{var c=JSON.parse(localStorage.getItem('rovehub_
   try{var cd=JSON.parse(localStorage.getItem('rovehub_colldata')||'null'); if(cd)COLLAT_DATA=cd;}catch(e){}
   if(!COLLAT_IMG)COLLAT_IMG={box:'1GAPUFOItQ0r3aB1tHCXWkJIJYfDO8P5-',pouch:'18yMwa-5MGQfKFQGXVbC4gIwZTANWgjOk',card:'1U7Q1CL-fsbSWwcP7s6YsxkP0vEiHlJNp'}; }
 function fetchCatalog(){
-  var u=ST.cfg&&ST.cfg.catalogUrl; if(!u)return;
+  var u=estUrlData(); if(!u)return;
   ST.catStatus='memuat katalog…';
   fetch(u).then(function(r){return r.json();}).then(function(d){
     var n=0;
@@ -14114,7 +14145,7 @@ function catRowsHTML(o){
 var _catIO=null;
 function catImgLoad(el){var base=imgUrlBase();if(!base)return;var id=el.getAttribute('data-imgid');if(!id)return;el.removeAttribute('data-imgid');
   if(IMGCACHE[id]){el.src=IMGCACHE[id];return;}
-  fetch(base+'?id='+encodeURIComponent(id)).then(function(r){return r.json();}).then(function(j){if(j&&j.ok&&j.b64){var uri='data:'+(j.mime||'image/jpeg')+';base64,'+j.b64;IMGCACHE[id]=uri;el.src=uri;}else imgGagal(el,(j&&j.error)||'ditolak server');}).catch(function(e){imgGagal(el,(e&&e.message)||'jaringan');});}
+  fetch(estUrlImg(id)).then(function(r){return r.json();}).then(function(j){if(j&&j.ok&&j.b64){var uri='data:'+(j.mime||'image/jpeg')+';base64,'+j.b64;IMGCACHE[id]=uri;el.src=uri;}else imgGagal(el,(j&&j.error)||'ditolak server');}).catch(function(e){imgGagal(el,(e&&e.message)||'jaringan');});}
 function catLazyLoad(contId){var cont=document.getElementById(contId||'cat_list');if(!cont)return;var base=imgUrlBase();if(!base)return;
   if(_catIO)_catIO.disconnect();
   _catIO=new IntersectionObserver(function(ents){ents.forEach(function(en){if(!en.isIntersecting)return;_catIO.unobserve(en.target);catImgLoad(en.target);});},{root:cont,rootMargin:'200px'});
