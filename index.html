@@ -504,7 +504,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20260904-115851';
+const VERSI='20260904-120354';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -11099,6 +11099,40 @@ function ukuranKemasan(o,k,tipe){
   if(l&&l.ukuran)return ukuranRapi(l.ukuran);
   return '';}
 function kemasanKey(l){return (l&&l.coll)||({'Box':'box','Soft Pouch':'pouch','Thank You Card':'card'}[vendorTipe((l&&l.sumber)||'')]||'');}
+/* Rekomendasi ukuran kemasan dari ISInya — supaya vendor tak menebak.
+   Isi diletakkan rata: tapak = P & L terbesar di antara isi, tinggi = jumlah
+   tebal isi. Box: + toleransi 1 cm tapak & 0,5 cm tinggi (ukuran DALAM).
+   Soft pouch (rata, ditarik tali): lebar = P terbesar + 2 cm, tinggi = L
+   terbesar + 3 cm untuk tutupnya. Tebal pouch 0,4 cm & kartu 0,05 cm dipakai
+   kalau tak diketahui. Angka dibulatkan ke atas per 0,5 cm. */
+function dimDariTeks(t){
+  var u=null;try{u=parseUkuran(String(t||'').replace(/×/g,'x'));}catch(e){}
+  return (u&&u.pjg&&u.lbr)?{p:+u.pjg,l:+u.lbr,t:+u.tgi||0}:null;}
+function rekomendasiKemasan(o,ck){
+  var isi=[];try{isi=isiKemasan(o,ck);}catch(e){}
+  if(!isi.length||ck==='card')return null;
+  var kurang=[],dims=[];
+  isi.forEach(function(u){
+    var d=null;
+    if(u.jenis==='produk'&&u.l){var pi=null;try{pi=prodInfo(u.l.produk,u.l);}catch(e){}
+      if(pi&&pi.pjg&&pi.lbr)d={p:+pi.pjg,l:+pi.lbr,t:+pi.tgi||0};}
+    if(!d)d=dimDariTeks(u.ukuran);
+    if(!d){kurang.push(u.nama);return;}
+    if(!d.t)d.t=(u.jenis==='card')?0.05:(u.jenis==='pouch'?0.4:0.5);
+    dims.push({nama:u.nama,d:d});});
+  if(!dims.length)return {teks:'',kurang:kurang,dari:[]};
+  var maxP=0,maxL=0,sumT=0;
+  dims.forEach(function(x){var a=Math.max(x.d.p,x.d.l),b=Math.min(x.d.p,x.d.l);   // orientasi disamakan
+    if(a>maxP)maxP=a;if(b>maxL)maxL=b;sumT+=x.d.t;});
+  var bulat=function(n){return Math.ceil(n*2)/2;};
+  var teks='';
+  if(ck==='box')teks='± '+fmtCm(bulat(maxP+1))+' × '+fmtCm(bulat(maxL+1))+' × '+fmtCm(bulat(sumT+0.5))+' cm (ukuran dalam)';
+  else if(ck==='pouch')teks='± '+fmtCm(bulat(maxP+2))+' × '+fmtCm(bulat(maxL+3))+' cm (rata, sudah termasuk ruang tutup)';
+  return {teks:teks,kurang:kurang,dari:dims.map(function(x){return x.nama+' '+fmtCm(x.d.p)+'×'+fmtCm(x.d.l)+(x.d.t?('×'+fmtCm(x.d.t)):'');})};}
+function rekomendasiTeks(o,ck){
+  var r=rekomendasiKemasan(o,ck);if(!r)return '';
+  if(!r.teks)return 'rekomendasi ukuran menunggu ukuran isi: '+r.kurang.join(', ');
+  return r.teks+(r.kurang.length?(' — belum menghitung '+r.kurang.join(', ')+' (ukurannya belum ada)'):'');}
 function fmtCm(n){var x=Math.round((+n||0)*10)/10;return String(x).replace('.',',');}
 
 function rfqPesanGabung(o,l){
@@ -11118,6 +11152,7 @@ function rfqPesanGabung(o,l){
       else U.forEach(function(u){
         P.push('• '+u.nama+((u.jenis==='produk'&&u.qty)?(' ('+u.qty+' pcs)'):'')+' — '+(u.ukuran||'**ukuran belum ada di data kami, akan kami susulkan**'));});}
     var spek='';try{if(ck)spek=packRingkas(ck,packSpec(o,ck));}catch(e){}
+    if(ck!=='card'&&rekomendasiTeks(o,ck))P.push('Rekomendasi ukuran dari isinya: **'+rekomendasiTeks(o,ck)+'** — vendor boleh menyesuaikan.');
     P.push('','**Spesifikasi '+(l.produk||'kemasan')+' yang diminta**',
       spek||'_Belum ditentukan — mohon disarankan yang cocok untuk ukuran di atas._');
     var cat='';try{if(ck)cat=salesNote(o,ck);}catch(e){}
@@ -14794,7 +14829,9 @@ function packBaris(o,p,on,spec,desc,i){
       '<label style="font-size:10px;color:var(--muted);flex:1;min-width:170px">Catatan tambahan<br>'+
         '<input class="pin" style="margin-top:2px;width:100%" value="'+esc(desc||'')+'" placeholder="mis. logo di tutup, max 20×15 cm" '+
         'onchange="packNote(\u0027'+o.id+'\u0027,\u0027'+k+'\u0027,this.value,'+idx+')"></label>'+
-      '</div>'+packRefBlok(o,k,i)):'')+
+      '</div>'+
+      ((k!=='card'&&rekomendasiTeks(o,k))?('<div style="font-size:9.5px;color:var(--muted);margin-top:6px">Rekomendasi ukuran dari isinya: <b>'+esc(rekomendasiTeks(o,k))+'</b></div>'):'')+
+      packRefBlok(o,k,i)):'')+
   '</div>';}
 /* Dropdown menampilkan pilihan pertama kalau spec kosong — tapi nilainya harus
    ikut tersimpan, kalau tidak catatan produksi jadi tak lengkap. */
@@ -15615,6 +15652,7 @@ function rfqDocSpek(o,l){
     if(ck!=='card'&&!isi.length)t('Isi kemasan','belum ada produk berukuran di order ini — akan kami susulkan');
     isi.forEach(function(u){
       t('Isi: '+u.nama+((u.jenis==='produk'&&u.qty)?(' · '+u.qty+' pcs'):''),u.ukuran||'ukuran BELUM ADA — mohon kami susulkan sebelum produksi');});
+    if(ck!=='card')t('Rekomendasi ukuran '+(l.produk||'kemasan'),rekomendasiTeks(o,ck)||'');
     var spek='';try{if(ck)spek=packRingkas(ck,packSpec(o,ck));}catch(e){}
     t('Spesifikasi yang diminta',spek||'belum ditentukan — mohon disarankan');
     var cat='';try{if(ck)cat=salesNote(o,ck);}catch(e){}
@@ -15681,6 +15719,8 @@ function rfqDocHTML(o,vendor){
         (jenis==='live'?'<div style="font-size:9px;color:#888;margin-top:2px">dikerjakan di lokasi acara</div>':'')+
         (jenis==='addon'?'<div style="font-size:9px;color:#888;margin-top:2px">dikerjakan di workshop</div>':'')+
         (hargaOtomatis(l)?('<div style="font-size:9px;color:#8a5a2b;margin-top:2px">harga yang kami pegang: <b>'+fmt0(konfHargaBaris(l))+'/pcs</b> — mohon dikonfirmasi, atau tulis harga barunya</div>'):'')+
+        /* kemasan: rekomendasi ukuran dari isinya, langsung di barisnya */
+        ((jenis==='kemasan'&&rekomendasiTeks(o,kemasanKey(l)))?('<div style="font-size:9.5px;color:#333;margin-top:3px">Rekomendasi ukuran: <b>'+esc(rekomendasiTeks(o,kemasanKey(l)))+'</b><div style="font-size:8.5px;color:#888">dihitung dari isinya — vendor boleh menyesuaikan</div></div>'):'')+
         varianHTML(l)+'</td>'+
       '<td class="num">'+esc(jenis==='live'?'1 event':((l.qty||0)+' pcs'))+'</td>'+
       '<td>'+(T&&T.lewat?'<span style="color:#b00">jadwalnya sudah lewat — mohon dikonfirmasi</span>'
