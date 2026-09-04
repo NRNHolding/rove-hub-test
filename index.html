@@ -504,7 +504,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20260903-064441';
+const VERSI='20260904-104458';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -8759,7 +8759,7 @@ const PH_CHECK=[
    guna:'dokumen tak dikirim lewat email — ini untuk arsip dan keperluan pajak, jadi tak menahan fase',
    gunaEn:'documents are not emailed — this is for filing and tax purposes, so it does not hold the phase', pic:'Sales'},
   {auto:function(o){return !!(o.shipEksp&&o.shipKota&&(o.shipKg||0)>0);},
-   k:'kirimData', t:'Pilih ekspedisi & kota tujuan, lalu isi berat kirim', en:'Pick the courier and destination city, then fill in the shipping weight', guna:'supaya ongkir terhitung dan tak jadi tanggungan Rove', gunaEn:'so shipping is calculated and not absorbed by Rove', pic:'Finance', w:true},
+   k:'kirimData', t:'Pilih ekspedisi — kota dari Alamat kirim, tarif & berat terhitung sendiri', en:'Pick the courier and destination city, then fill in the shipping weight', guna:'supaya ongkir terhitung dan tak jadi tanggungan Rove', gunaEn:'so shipping is calculated and not absorbed by Rove', pic:'Finance', w:true},
   {auto:function(o){return !!clientAlamatKantor(o);},
    k:'alamatKantor', t:'Minta alamat penagihan client', en:'Ask for the client billing address', guna:'supaya invoice tak ditolak bagian keuangan client', gunaEn:'so the invoice is not rejected by the client finance team', pic:'Sales'},
   {auto:function(o){return !!(((o.pricing||{}).pajak||{}).status);},
@@ -9076,7 +9076,7 @@ const CHK_SUMBER={'0.logoCl':'Brief → lampiran Logo client',
   '3.dirAcc':'panel Ringkasan untuk Direktur',
   '0.terjemah':'Brief → Material utama, Personalization, dan spesifikasi tiap collateral',
   '0.brief':'form order baru / panel Pricing','0.kontak':'Brief Inquiry','0.acara':'Brief Inquiry','0.ref':'Brief → lampiran Referensi client','0.kota':'Brief → Venue / kota tujuan','0.hpWo':'Brief → WO / EO phone','1.rfq':'panel Minta harga vendor','1.kulit':'panel Minta harga vendor → ketersediaan kulit','1.harga':'panel Minta harga vendor → Catat jawaban','1.konfKatalog':'panel Minta harga vendor → Harga dari master → tombol Harga masih berlaku','1.moq':'panel Minta harga vendor → catatan vendor','2.hpp':'panel Penentuan harga jual','2.margin':'panel Penentuan harga jual','2.ongkir':'panel Penentuan harga jual → Ongkir','2.biayaLain':'panel Penentuan harga jual → Biaya di luar HPP','2.deadlineProd':'panel Penentuan harga jual → Info dari Radja','2.tglPOMax':'panel Penentuan harga jual → Info dari Radja','2.operator':'tab Live service → order ini → Operator','10.opFix':'tab Live service → order ini → Operator → ✓ Sudah fix',
-'2.jualJasa':'panel Penentuan harga jual → kolom Harga jual baris jasa (atau Master Product → Jasa)','2.accJual':'panel Penentuan harga jual → Persetujuan harga jual','4.gen':'panel Pricing → Generate Quotation','4.kirim':'panel Pricing → status quotation','4.follow':'panel Pricing → tandai Approved','4.email':'Master data → Customers (atau Brief → Email client kalau order ini beda)','4.kirimData':'panel Pricing → Ekspedisi, Kota, Berat','4.alamatKantor':'Brief → Alamat client / kantor','4.ppn':'panel Pricing → Status PPN','6.logoCl':'Brief → lampiran Logo client','6.logoPch':'Brief → lampiran Logo soft pouch','6.logoBox':'Brief → lampiran Logo box','6.logoCard':'Brief → lampiran Logo thank you card','6.daftarNama':'Brief → daftar nama tamu','6.preview':'panel Referensi gambar → lampiran preview','6.approve':'panel Referensi gambar → tombol approval sketsa','8.inv':'panel Pricing → Generate Invoice','8.kirim':'panel Pricing → status invoice','8.dp':'panel Pembayaran → Catat DP masuk','8.faktur':'panel Pricing → No. faktur pajak','10.spec':'Form PO Radja','10.appr':'Form PO Radja → approval margin','10.poR':'Form PO Radja → Generate PO','10.poV':'panel PO vendor lain','10.trello':'otomatis saat fase Spec & PO dilewati','10.spare':'Form PO Radja → Qty spare produksi','10.warnaLogo':'Form PO Radja → warna logo','11.sample':'panel Produksi → sample disetujui','11.progres':'panel Produksi → catatan progres','12.qc':'panel Produksi → lampiran foto QC & retur','12.pack':'panel Produksi → lampiran foto packing','12.coll':'panel Produksi → collateral lengkap','13.invP':'panel Pricing → Generate Invoice','13.lunas':'panel Pembayaran → Catat pelunasan','13.alamat':'Brief → Alamat kirim','13.penerima':'panel Pengiriman barang','13.resi':'panel Pengiriman barang','14.tglTerima':'panel Pengiriman barang → Tanggal diterima','14.bukti':'panel Pengiriman barang → foto serah terima','14.testi':'panel Komplain & kepuasan','14.arsip':'otomatis saat order ditutup'};
+'2.jualJasa':'panel Penentuan harga jual → kolom Harga jual baris jasa (atau Master Product → Jasa)','2.accJual':'panel Penentuan harga jual → Persetujuan harga jual','4.gen':'panel Pricing → Generate Quotation','4.kirim':'panel Pricing → status quotation','4.follow':'panel Pricing → tandai Approved','4.email':'Master data → Customers (atau Brief → Email client kalau order ini beda)','4.kirimData':'panel Pricing → Ekspedisi (kota dari Alamat kirim di Brief)','4.alamatKantor':'Brief → Alamat client / kantor','4.ppn':'panel Pricing → Status PPN','6.logoCl':'Brief → lampiran Logo client','6.logoPch':'Brief → lampiran Logo soft pouch','6.logoBox':'Brief → lampiran Logo box','6.logoCard':'Brief → lampiran Logo thank you card','6.daftarNama':'Brief → daftar nama tamu','6.preview':'panel Referensi gambar → lampiran preview','6.approve':'panel Referensi gambar → tombol approval sketsa','8.inv':'panel Pricing → Generate Invoice','8.kirim':'panel Pricing → status invoice','8.dp':'panel Pembayaran → Catat DP masuk','8.faktur':'panel Pricing → No. faktur pajak','10.spec':'Form PO Radja','10.appr':'Form PO Radja → approval margin','10.poR':'Form PO Radja → Generate PO','10.poV':'panel PO vendor lain','10.trello':'otomatis saat fase Spec & PO dilewati','10.spare':'Form PO Radja → Qty spare produksi','10.warnaLogo':'Form PO Radja → warna logo','11.sample':'panel Produksi → sample disetujui','11.progres':'panel Produksi → catatan progres','12.qc':'panel Produksi → lampiran foto QC & retur','12.pack':'panel Produksi → lampiran foto packing','12.coll':'panel Produksi → collateral lengkap','13.invP':'panel Pricing → Generate Invoice','13.lunas':'panel Pembayaran → Catat pelunasan','13.alamat':'Brief → Alamat kirim','13.penerima':'panel Pengiriman barang','13.resi':'panel Pengiriman barang','14.tglTerima':'panel Pengiriman barang → Tanggal diterima','14.bukti':'panel Pengiriman barang → foto serah terima','14.testi':'panel Komplain & kepuasan','14.arsip':'otomatis saat order ditutup'};
 
 /* "Brief → lampiran Logo client" diterjemahkan per potong, bukan sebagai satu
    entri kamus — tempatnya berkombinasi jadi puluhan kemungkinan. */
@@ -12295,6 +12295,11 @@ function negoTutup(o,l,hppBaru){
    belum butuh quotation. */
 function ongkirBlok(o){
   var P=o.pricing||{};
+  /* kota mengikuti Alamat kirim (juga saat alamatnya baru diisi belakangan) */
+  var kotaBaru=false;try{kotaBaru=shipKotaIkutAlamat(o);}catch(x){}
+  if(kotaBaru){if(!o.pricing)o.pricing={lines:[],margin:30};P=o.pricing;
+    P.ship=Math.round((o.shipKg||0)*(o.shipTarif||0));try{save();}catch(x){}}
+  var det=kotaDariAlamat(o);
   var e=shipEstimasi(o);
   /* order lama: ekspedisi & kota sudah terisi tapi berat belum — diisi
      sekali di sini supaya ongkirnya langsung kelihatan */
@@ -12307,17 +12312,29 @@ function ongkirBlok(o){
     ((o.shipKg>0&&Math.abs(o.shipKg-e.kg)>0.005)?(' — <button class="btn ghost sm" style="padding:0 7px;font-size:9px" onclick="shipSet('+jsArg(o.id)+',\'kg\','+e.kg+')">pakai '+e.kg+' kg</button>'):'');
   if(e.kurang.length)ket+=(ket?' · ':'')+'<span style="color:var(--warn);font-weight:700">'+esc(e.kurang.slice(0,3).join(', '))+(e.kurang.length>3?(' +'+(e.kurang.length-3)):'')+' belum ada ukuran/berat di Master Product</span>';
   if(o.shipEksp&&o.shipKota&&!(o.shipTarif>0))ket+=(ket?' · ':'')+'<span style="color:var(--warn);font-weight:700">tarif '+esc(o.shipEksp)+' ke '+esc(o.shipKota)+' belum ada — isi sekali, tersimpan ke master</span>';
+  if(!det.kota&&!o.shipKota)ket+=(ket?' · ':'')+'<span style="color:var(--warn);font-weight:700">'+
+    (String(o.addr||'').trim()?'kota tak terbaca dari Alamat kirim — sebut kotanya di alamat (Brief) atau ketik di sini':'Alamat kirim di Brief masih kosong — kota tujuan dibaca dari situ')+'</span>';
   return '<div data-f="ongkirBlok" style="border:1px dashed var(--line);border-radius:9px;padding:9px 11px;margin-top:12px">'+
     '<div style="font-size:10px;font-weight:800;color:var(--muted);margin-bottom:6px">ONGKIR '+
-      '<span style="font-weight:400">— ditagih terpisah ke client; dihitung di sini supaya profitnya kelihatan utuh</span></div>'+
+      '<span style="font-weight:400">— pilih ekspedisinya saja; kota dari Alamat kirim, tarif dari master ongkir, berat dari Master Product</span></div>'+
     '<div style="display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end">'+
       '<label style="font-size:11px;font-weight:700;color:var(--muted)">Ekspedisi'+
         '<select class="pin" style="min-width:84px;margin-top:3px" onchange="shipSet('+jsArg(o.id)+',\'eksp\',this.value)"><option value="">—</option>'+
         ekspSemua().map(function(e){return '<option '+(o.shipEksp===e?'selected':'')+'>'+esc(e)+'</option>';}).join('')+'</select></label>'+
-      '<label style="font-size:11px;font-weight:700;color:var(--muted)">Kota'+
-        '<input class="pin" list="kotalist2" style="width:116px;margin-top:3px" value="'+esc(o.shipKota||'')+'" onchange="shipSet('+jsArg(o.id)+',\'kota\',this.value)" placeholder="Jakarta"></label>'+
-      '<datalist id="kotalist2">'+[].concat.apply([],[(ST.master.shipping||[]).map(function(x){return x.kota;})])
-        .filter(function(k,i,a){return k&&a.indexOf(k)===i;}).map(function(k){return '<option value="'+esc(k)+'">';}).join('')+'</datalist>'+
+      /* kota: dari alamat kirim — diketik hanya kalau alamatnya tak terbaca */
+      ((o.shipKota&&(o._shipKotaAuto!==false||!det.kota))
+        ? ('<div style="font-size:11px;font-weight:700;color:var(--muted)">Kota'+
+            '<div style="margin-top:3px;font-size:12px;font-weight:800;color:var(--ink)">'+esc(o.shipKota)+
+            '<span style="font-size:9px;font-weight:400;color:var(--muted);margin-left:6px">'+
+              (o._shipKotaAuto===false?'diketik':('dari '+esc(o._shipKotaDari||det.dari||'alamat kirim')))+'</span></div></div>')
+        : (o.shipKota
+          ? ('<div style="font-size:11px;font-weight:700;color:var(--muted)">Kota'+
+              '<div style="margin-top:3px;font-size:12px;font-weight:800;color:var(--ink)">'+esc(o.shipKota)+
+              '<span style="font-size:9px;font-weight:400;color:var(--muted);margin-left:6px">diketik · <a href="#" onclick="shipSet('+jsArg(o.id)+',\'kota\',\'\');return false;">ikuti alamat ('+esc(det.kota)+')</a></span></div></div>')
+          : ('<label style="font-size:11px;font-weight:700;color:var(--muted)">Kota'+
+              '<input class="pin" list="kotalist2" style="width:116px;margin-top:3px" value="" onchange="shipSet('+jsArg(o.id)+',\'kota\',this.value)" placeholder="tak terbaca — ketik"></label>'+
+             '<datalist id="kotalist2">'+[].concat.apply([],[(ST.master.shipping||[]).map(function(x){return x.kota;})])
+               .filter(function(k,i,a){return k&&a.indexOf(k)===i;}).map(function(k){return '<option value="'+esc(k)+'">';}).join('')+'</datalist>')))+
       '<label style="font-size:11px;font-weight:700;color:var(--muted)">Tarif/kg'+
         '<input class="pin n money" style="width:92px;margin-top:3px" inputmode="numeric" value="'+moneyInp(o.shipTarif)+'" onchange="shipSet('+jsArg(o.id)+',\'tarif\',this.value)"></label>'+
       '<label style="font-size:11px;font-weight:700;color:var(--muted)">Berat kg'+
@@ -13190,6 +13207,32 @@ function dpSet(id,v){var o=ST.orders.find(function(x){return x.id===id;});if(!o)
    (dan berat kemasan dari konfigurasi Estimator). Kalau kardusnya terdaftar,
    yang dipakai berat tagih per kardus (maks berat vs volumetrik); kalau
    tidak, cukup berat produk × qty × faktor packing. */
+/* Kota tujuan dibaca dari Alamat kirim di Inquiry — bukan diketik lagi di
+   sini. Dicocokkan ke kota di master ongkir (alias ikut: Sidoarjo →
+   Surabaya, Nusa Dua → Bali). Cadangan: venue / kota tujuan acara. */
+function kotaDariAlamat(o){
+  var sumber=[[String((o||{}).addr||''),'alamat kirim'],
+              [String(((o||{}).brief||{}).venue||(o||{}).venue||''),'venue / kota tujuan']];
+  var master=[];((ST.master&&ST.master.shipping)||[]).forEach(function(r){
+    var k=String(r.kota||'').trim();if(k&&master.indexOf(k)<0)master.push(k);});
+  for(var i=0;i<sumber.length;i++){
+    var teks=sumber[i][0].trim();if(!teks)continue;
+    /* 1) kota master yang disebut di teks (per kata / alias) */
+    var cocok=master.filter(function(k){return kotaCocok(teks,k);})[0];
+    if(cocok)return {kota:cocok,dari:sumber[i][1]};
+    /* 2) induk yang dikenal walau belum ada di master (Jakarta / Surabaya / Bali) */
+    var induk=kotaInduk(teks);
+    if(induk)return {kota:induk.charAt(0).toUpperCase()+induk.slice(1),dari:sumber[i][1]};}
+  return {kota:'',dari:''};}
+/* Kota ikut alamat selama belum pernah diketik orang; tarif master menyusul. */
+function shipKotaIkutAlamat(o){
+  if(o.shipKota&&o._shipKotaAuto===false)return false;   // diketik sendiri
+  var d=kotaDariAlamat(o);if(!d.kota)return false;
+  if(o.shipKota===d.kota&&o._shipKotaAuto)return false;
+  o.shipKota=d.kota;o._shipKotaAuto=true;o._shipKotaDari=d.dari;
+  var z=((ST.master&&ST.master.shipping)||[]).find(function(r){return r.ekspedisi===o.shipEksp&&r.kota===o.shipKota;});
+  if(z)o.shipTarif=+z.tarif||0;
+  return true;}
 function shipEstimasi(o){
   var out={kg:0,dari:'',kurang:[],kardus:0};
   try{var K=hitungKardus(o);
@@ -13198,7 +13241,8 @@ function shipEstimasi(o){
   if(!(out.kg>0)){try{var B=orderBerat(o);if(B.kg>0){out.kg=B.kg;out.dari='berat';}}catch(e){}}
   return out;}
 function shipSet(id,f,v){var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
-  if(f==='eksp')o.shipEksp=v;else if(f==='kota')o.shipKota=v;
+  if(f==='eksp'){o.shipEksp=v;try{shipKotaIkutAlamat(o);}catch(e){}}
+  else if(f==='kota'){o.shipKota=v;o._shipKotaAuto=!v;delete o._shipKotaDari;}   // diketik sendiri (kosong = ikut alamat lagi)
   else if(f==='kg'){o.shipKg=Math.max(0,+v||0);o._shipKgAuto=false;}   // diketik sendiri — jangan ditimpa estimasi
   else if(f==='tarif'){o.shipTarif=Math.max(0,moneyVal(v));upsertShip(o.shipEksp,o.shipKota,o.shipTarif);}
   if(f==='eksp'||f==='kota'){
