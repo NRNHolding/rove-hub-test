@@ -504,7 +504,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20260904-142024';
+const VERSI='20260904-142145';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -13097,10 +13097,11 @@ function rfqPanel(o){
             '<td style="width:118px;vertical-align:top;border-bottom:none;padding-right:0">'+
               ((!otomatis&&l.rfq&&l.rfq.minta)
                 ? '<button class="btn sm" style="width:100%" data-f="rfqJawab_'+x.i+'" onclick="rfqJawab('+jsArg(o.id)+','+x.i+')">✓ Catat jawaban</button>'
-                : (otomatis&&!konfSah(l)
+                : (otomatis
                 /* harga master pun bisa berubah — jawaban vendor dicatat di
-                   sini, sekaligus jalan mengedit harganya */
-                ? '<button class="btn sm" style="width:100%" data-f="rfqJawab_'+x.i+'" onclick="konfJawab('+jsArg(o.id)+','+x.i+')">✓ Catat jawaban</button>'
+                   sini, sekaligus jalan mengedit harganya; tombolnya TETAP ada
+                   sesudah dipastikan (ghost) karena harga bisa berubah lagi */
+                ? '<button class="btn '+(konfSah(l)?'ghost ':'')+'sm" style="width:100%" data-f="rfqJawab_'+x.i+'" onclick="konfJawab('+jsArg(o.id)+','+x.i+')">✓ Catat jawaban</button>'
                 : ''))+'</td></tr>'+
             (lineKulit(l)?('<tr><td colspan="4" style="border-bottom:none;padding:0 0 6px">'+kulitBlok(o,l,x.i)+'</td></tr>'):'');}).join('')+
         '</tbody></table>'+
