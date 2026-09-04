@@ -504,7 +504,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20260904-142601';
+const VERSI='20260904-144116';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -9150,7 +9150,7 @@ function chkSumber(fase,k){return CHK_SUMBER[fase+'.'+k]||'';}
    ada di panel yang sama. Yang tak terdaftar di sini tetap memakai tebakan
    itu; menambah barisnya di sini yang membuatnya tepat. */
 const CHK_FIELD={
-  kontak:'picNama', acara:'tglAcara', kota:'venue', hpWo:'woHp',
+  kontak:'picNama', acara:'tglAcara,tglKirim', kota:'venue', hpWo:'woHp',
   ref:'refFiles', terjemah:'mainMat_*,mainMat',
   /* logo & letaknya kini menempel di jasanya (slot svcF_..., kolom letak
      per baris) — slot logoFiles/persoFiles lama hanya tampil untuk warisan */
@@ -9848,12 +9848,18 @@ function sorotPanel(pk,kunci){
       /* daftar sasaran dipisah koma, dicoba berurutan; akhiran * berarti
          nama dinamis (mis. svcF_<jasa>). Tanpa ini, item menebak 'kolom
          kosong pertama' dan mendarat di Email client. */
-      var t=null;
-      String(f).split(',').some(function(satu){
-        satu=satu.trim();if(!satu)return false;
-        t=(satu.slice(-1)==='*')?e.querySelector('[data-f^="'+satu.slice(0,-1)+'"]')
-                                :e.querySelector('[data-f="'+satu+'"]');
-        return !!t;});
+      /* semua sasaran yang ada dikumpulkan; yang dipilih sasaran pertama
+         yang kolomnya masih KOSONG (mis. tanggal acara sudah terisi → lompat
+         ke tanggal kirim), kalau semua terisi baru yang pertama */
+      var ada=[];
+      String(f).split(',').forEach(function(satu){
+        satu=satu.trim();if(!satu)return;
+        var x=(satu.slice(-1)==='*')?e.querySelector('[data-f^="'+satu.slice(0,-1)+'"]')
+                                    :e.querySelector('[data-f="'+satu+'"]');
+        if(x)ada.push(x);});
+      var kosong=function(x){var i=(x.tagName==='INPUT'||x.tagName==='SELECT'||x.tagName==='TEXTAREA')?x:x.querySelector('input,select,textarea');
+        return !!i&&('value' in i)&&!String(i.value||'').trim();};
+      var t=ada.filter(kosong)[0]||ada[0]||null;
       if(t)kol=(t.tagName==='INPUT'||t.tagName==='SELECT'||t.tagName==='TEXTAREA')
         ?t:(t.querySelector('input,select,textarea,button')||t);}
     /* item yang PUNYA sasaran terdaftar tapi kolomnya belum dirender (mis.
@@ -10330,7 +10336,12 @@ function trigger(id){if(playing)return;const o=ST.orders.find(x=>x.id===id);cons
   if(pre===5)pushBackend('channel.move',{name:chName(o),catName:dealCat(o)});
   else if(pre===10)pushBackend('channel.move',{name:chName(o),catName:'ARCHIVED'});
   try{notifSerahTerima(o,pre,gate);}catch(e){}
+  /* menu fase barunya langsung terlihat: panel yang dibuka lebih awal ditutup,
+     langkah dilipat ulang, layar ke atas kartu */
+  ST._stepOpen={};try{ST._bukaAwal={};ST._bukaAwalFor='';}catch(e){}
   render();
+  try{var m=document.getElementById('main');if(m&&m.scrollTo)m.scrollTo({top:0,behavior:'smooth'});else if(m)m.scrollTop=0;}catch(e){}
+  try{window.scrollTo(0,0);}catch(e){}
   var live=!!((ST.cfg||{}).live&&(ST.cfg||{}).url);
   kilat(nx
     ? ('✓ Fase <b>'+esc(PH[pre].n)+'</b> ditutup → sekarang <b>'+esc(nx.n)+'</b> · PIC '+esc(nx.pic)+(live?' dikabari lewat Discord':' (mode uji: Discord tak dikirim)'))
@@ -10728,6 +10739,10 @@ function varianChips(l,klikId,klikIdx){
       return '<span style="display:inline-block;border:1px solid var(--line);border-radius:12px;padding:0 8px;margin:0 3px 2px 0;background:var(--bg)" '+
         (ket?('title="'+esc(ket)+'"'):'')+'>'+(+v.q||0)+' '+esc(v.w||'?')+((+v.hpp||0)>0?(' <span style="color:var(--muted)">@'+fmt0(v.hpp)+'</span>'):'')+(ket?' <span style="color:var(--brand)">⚙</span>':'')+'</span>';}).join('')+
     (q&&tot!==q?('<span style="color:var(--warn);font-weight:700"> ⚠ total varian '+tot+' ≠ '+q+' pcs</span>'):'')+
+    /* spec yang menyimpang ditulis langsung — dulu cuma tooltip yang tak
+       terbaca tanpa menyorot chip-nya */
+    V.filter(function(v){return !!varianRingkas(v);}).map(function(v){
+      return '<div style="font-size:9px;color:var(--muted);line-height:1.5">'+(+v.q||0)+' '+esc(v.w||'?')+' — '+esc(varianRingkas(v))+'</div>';}).join('')+
     '</div>';}
 /* tabel varian untuk dokumen RFQ / PO — vendor membaca satu tabel rapi */
 function varianHTML(l){
@@ -14923,17 +14938,18 @@ function kemasanAdaGambar(o,k){return kemasanGambar(o,k).length>0;}
 function logoSlotKemasan(o){
   return [['pouch','logoPouchFiles','soft pouch'],['box','logoBoxFiles','box'],['card','logoCardFiles','thank you card']]
     .filter(function(x){return (o.coll||{})[x[0]];});}
-/* Sumber logo untuk disamakan: logo client (seksi LOGO), lampiran jasa,
-   atau logo yang sudah dilampirkan di salah satu kemasan. */
+/* Sumber logo untuk disamakan: logo yang sudah dilampirkan di salah satu
+   kemasan, lalu logo client (seksi LOGO), lalu lampiran jasa. */
 function logoSumberSama(o){
   var b=briefGet(o);
+  /* logo yang sudah dipasang di salah satu kemasan = niat paling jelas untuk
+     kemasan lain; baru logo client di seksi LOGO, lalu lampiran jasa */
+  var k=logoSlotKemasan(o).filter(function(x){return (b[x[1]]||[]).length;})[0];
+  if(k)return {src:b[k[1]],dari:'logo di '+k[2],slot:k[1]};
   if((b.logoFiles||[]).length)return {src:b.logoFiles,dari:'logo client',slot:'logoFiles'};
   var out=null;
   try{liveList(o.svc).some(function(n){var f=b[svcSlot(n)]||[];if(f.length){out={src:f,dari:'lampiran '+n,slot:svcSlot(n)};return true;}return false;});}catch(e){}
-  if(out)return out;
-  var k=logoSlotKemasan(o).filter(function(x){return (b[x[1]]||[]).length;})[0];
-  if(k)return {src:b[k[1]],dari:'logo di '+k[2],slot:k[1]};
-  return null;}
+  return out;}
 function logoSamaBisa(o){
   if(!logoSumberSama(o))return false;
   return logoSlotKemasan(o).some(function(x){return !kemasanAdaGambar(o,x[0]);});}
