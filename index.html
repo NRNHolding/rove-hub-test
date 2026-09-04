@@ -504,7 +504,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20260904-150743';
+const VERSI='20260904-151843';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -4550,6 +4550,9 @@ function contohBuatDasar(n){
   var o=ST.orders.find(function(x){return x.id===l.orderId;});
   if(!o||o.phase!==0)throw new Error('contoh: order dari prospek tak terbentuk (aktif='+leadAktif(l)+', jenis='+l.jenis+', orderId='+JSON.stringify(l.orderId)+' ('+typeof l.orderId+'), o='+(o?('fase '+o.phase):'null')+', orders='+ST.orders.length+')');
   o.id='cw'+String(n).padStart(2,'0');o._contoh='cw';l.orderId=o.id;
+  /* alamat kirim & venue sudah disebut client sejak prospek — terisi di semua
+     kartu, termasuk kartu Inquiry yang isian fasenya sendiri dibiarkan */
+  o.addr=K.alamat;briefGet(o).venue=K.venue;o.venue=K.venue;
   o.svc=['Add-on Logo','Add-on Full Name'];o.liveSvc=['Live calligraphy'];
   o.svcTeknik={'Add-on Logo':'Foil Logo Deboss','Add-on Full Name':'Engrave'};
   o.svcLetak={'Add-on Logo':'Depan — tengah','Add-on Full Name':'Bagian dalam (interior)'};
@@ -4568,7 +4571,7 @@ const CONTOH_ISI=[
  function(o){var K=CONTOH_W,b=briefGet(o),logo=contohLogo();
    b.picNama=K.pic;o.phone=K.hp;
    o.eventDate=contohHari(60);b.tglAcara=o.eventDate;b.tglKirim=contohHari(53);
-   b.venue=K.venue;o.venue=K.venue;o.addr=K.alamat;
+   b.venue=K.venue;o.venue=K.venue;o.addr=K.alamat;   // sudah dari kartu dasar; ditegaskan lagi
    b.woNama=K.wo;b.woHp=K.woHp;b.brideNama=K.bride;b.groomNama=K.groom;b.jenisProject='Wedding '+K.klien;
    b.refFiles=[contohFile('referensi-client.svg',contohSvg('REF','#efe6d8','#6b4a2b'))];
    /* logo yang SAMA di produk (add-on logo), box, soft pouch, thank you card */
