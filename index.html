@@ -504,7 +504,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20260904-111233';
+const VERSI='20260904-113433';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -11052,8 +11052,26 @@ function rfqUkuranProduk(o){
     var p=null;try{p=prodInfo(l.produk,l);}catch(e){}
     var d=(p&&p.pjg&&p.lbr)?(fmtCm(p.pjg)+' × '+fmtCm(p.lbr)+(p.tgi?(' × '+fmtCm(p.tgi)):'')+' cm'):'';
     if(!d&&l.ukuran)d=String(l.ukuran);
-    out.push({nama:l.produk||'produk',ukuran:d,qty:l.qty||0});});
+    out.push({nama:l.produk||'produk',ukuran:d,qty:l.qty||0,l:l});});
   return out;}
+/* Yang dimasukkan ke kemasan ini — vendor kemasan menghargai dari ISInya.
+   Box: produk + soft pouch + thank you card (yang dipakai order); soft
+   pouch: produk + thank you card; thank you card: tak berisi apa-apa.
+   Ukuran pouch/kartu dari Master → Pengiriman → Ukuran & berat collateral. */
+function isiKemasan(o,ck){
+  var out=[];
+  if(!ck||ck==='card')return out;
+  rfqUkuranProduk(o).forEach(function(u){out.push({jenis:'produk',nama:u.nama,ukuran:u.ukuran,qty:u.qty,l:u.l});});
+  var C=(o&&o.coll)||{};
+  var tambah=function(k,nama,tipe){
+    if(!C[k])return;
+    var d=null;try{d=collDimCari(tipe);}catch(e){}
+    out.push({jenis:k,nama:nama,qty:0,
+      ukuran:d?(fmtCm(d.L)+' × '+fmtCm(d.W)+((+d.H)?(' × '+fmtCm(d.H)):'')+' cm'):''});};
+  if(ck==='box'){tambah('pouch','Soft Pouch','Soft Pouch');tambah('card','Thank You Card','Thank You Card');}
+  else if(ck==='pouch')tambah('card','Thank You Card','Thank You Card');
+  return out;}
+function kemasanKey(l){return (l&&l.coll)||({'Box':'box','Soft Pouch':'pouch','Thank You Card':'card'}[vendorTipe((l&&l.sumber)||'')]||'');}
 function fmtCm(n){var x=Math.round((+n||0)*10)/10;return String(x).replace('.',',');}
 
 function rfqPesanGabung(o,l){
@@ -11065,12 +11083,13 @@ function rfqPesanGabung(o,l){
 
   /* ---- ukuran & spesifikasi, hanya yang jadi urusan vendor ini ---- */
   if(jenis==='kemasan'){
-    var U=rfqUkuranProduk(o);
-    P.push('','**Ukuran barang yang harus masuk**');
-    if(!U.length)P.push('_Belum ada produk berukuran di order ini — mohon tunggu, akan kami susulkan._');
-    else U.forEach(function(u){
-      P.push('• '+u.nama+' — '+(u.ukuran||'**ukuran belum ada di data kami, akan kami susulkan**'));});
-    var ck=l.coll||({'Box':'box','Soft Pouch':'pouch','Thank You Card':'card'}[vendorTipe(l.sumber||'')]||'');
+    var ck=kemasanKey(l);
+    var U=isiKemasan(o,ck);
+    if(ck!=='card'){
+      P.push('','**Isi yang harus masuk ke '+(l.produk||'kemasan')+'**');
+      if(!U.length)P.push('_Belum ada produk berukuran di order ini — mohon tunggu, akan kami susulkan._');
+      else U.forEach(function(u){
+        P.push('• '+u.nama+((u.jenis==='produk'&&u.qty)?(' ('+u.qty+' pcs)'):'')+' — '+(u.ukuran||'**ukuran belum ada di data kami, akan kami susulkan**'));});}
     var spek='';try{if(ck)spek=packRingkas(ck,packSpec(o,ck));}catch(e){}
     P.push('','**Spesifikasi '+(l.produk||'kemasan')+' yang diminta**',
       spek||'_Belum ditentukan — mohon disarankan yang cocok untuk ukuran di atas._');
@@ -13406,7 +13425,7 @@ const GBR_LABEL={refFiles:'Referensi dari client',logoFiles:'Logo client',
   logoBoxFiles:'Logo client',logoPouchFiles:'Logo client',logoCardFiles:'Logo client',
   persoFiles:'Acuan personalisasi',
   /* tanpa dua ini, yang tercetak di lembar vendor nama berkas karangan */
-  _line:'Gambar produk',_drive:'Gambar produk'};
+  _line:'Gambar produk',_drive:'Gambar produk',_isi:'Isi kemasan',_isiDrive:'Isi kemasan'};
 function gambarLabel(slot,n,total){
   var t=GBR_LABEL[slot];
   if(!t&&String(slot).slice(0,5)==='svcF_')t='Logo / acuan jasa ini';
@@ -13415,25 +13434,33 @@ function gambarLabel(slot,n,total){
 function vendorGambar(o,l){
   var b=briefGet(o),out=[];
   var tambah=function(slot,f,i){if(fileGambar(f))out.push({slot:slot,i:i,f:f});};
+  var jenis=rfqJenisBaris(l);
+  /* gambar milik sebuah baris — data URI ikut sebagai berkas; gambar Cost
+     Estimator (id Drive) ditampilkan lewat tautannya */
+  var gambarBaris=function(lx,slotData,slotDrive,nama){
+    try{lineImgs(lx).forEach(function(src,i){
+      if(String(src||'').slice(0,11)==='data:image/'){
+        out.push({slot:slotData,i:i,nama:nama||'',f:{nama:(nama||lx.produk||'gambar')+'-'+(i+1)+'.png',tipe:'image/png',data:src}});return;}
+      var url='';try{url=driveLink(src);}catch(e){}
+      if(url)out.push({slot:slotDrive,i:i,drive:true,nama:nama||'',
+        f:{nama:(nama||lx.produk||'gambar')+' (Drive)',tipe:'image/*',data:url}});});}catch(e){}};
+  /* 1) yang dihargai vendor adalah PRODUKNYA — gambar produk lebih dulu.
+     Vendor kemasan menghargai dari isinya: produk (+ pouch / kartu untuk box). */
+  if(jenis==='kemasan'){
+    isiKemasan(o,kemasanKey(l)).forEach(function(u){if(u.l)gambarBaris(u.l,'_isi','_isiDrive',u.nama);});
+    gambarBaris(l,'_line','_drive');
+  } else gambarBaris(l,'_line','_drive');
   /* Logo client hanya ke vendor yang memang mencetaknya. Baris produk polos
      tak perlu logonya sama sekali — dan logo mengenali client jauh lebih pasti
      daripada namanya, jadi menyebarkannya ke setiap vendor bukan hal kecil. */
   var perluLogo=!!(l&&(l.coll||l.jasa||(l.perso&&l.perso!=='-')));
   if(perluLogo)(b.logoFiles||[]).forEach(function(f,i){tambah('logoFiles',f,i);});
-  (b.refFiles||[]).forEach(function(f,i){tambah('refFiles',f,i);});
-  /* gambar milik barisnya sendiri — kemasan punya gambarnya di master, dari
-     Cost Estimator. Yang berupa data URI bisa disalin & diunduh seperti yang
-     lain; yang berupa id Drive sudah ikut sebagai tautan di dalam pesannya. */
-  try{lineImgs(l).forEach(function(src,i){
-    if(String(src||'').slice(0,11)==='data:image/'){
-      out.push({slot:'_line',i:i,f:{nama:(l.produk||'gambar')+'-'+(i+1)+'.png',tipe:'image/png',data:src}});
-      return;}
-    /* gambar dari Cost Estimator: yang tersimpan cuma id Drive-nya. Tetap
-       ditampilkan — dulu ia cuma jadi tautan di dalam teks, tak pernah
-       terlihat oleh yang mengirim pesannya. */
-    var url='';try{url=driveLink(src);}catch(e){}
-    if(url)out.push({slot:'_drive',i:i,drive:true,
-      f:{nama:(l.produk||'gambar')+' (Drive)',tipe:'image/*',data:url}});});}catch(e){}
+  /* 2) referensi client hanya untuk produk CUSTOM (tak ada di katalog) dan
+     jasa — produk katalog & kemasan sudah punya gambar produknya sendiri;
+     dulu referensi client dicetak untuk semua vendor */
+  var katalog=false;try{katalog=!!(l&&(l.fixed||((ST.master&&ST.master.catalog)||[]).some(function(x){return x.name===l.produk;})));}catch(e){}
+  if((jenis==='produk'&&!katalog)||jenis==='addon'||jenis==='live')
+    (b.refFiles||[]).forEach(function(f,i){tambah('refFiles',f,i);});
   if(l&&l.coll){
     var slot={box:'logoBoxFiles',pouch:'logoPouchFiles',card:'logoCardFiles'}[l.coll];
     if(slot)(b[slot]||[]).forEach(function(f,i){tambah(slot,f,i);});}
@@ -13450,6 +13477,7 @@ function vendorGambar(o,l){
   out.forEach(function(x){
     var n=(urut[x.slot]||0);urut[x.slot]=n+1;
     var t=gambarLabel(x.slot,n,hitung[x.slot]);
+    if(t&&x.nama&&(x.slot==='_isi'||x.slot==='_isiDrive'))t=GBR_LABEL[x.slot]+' — '+x.nama;
     if(t)x.cap=t;});
   return out;}
 /* Simpan satu berkas ke komputer — dari data URI, tanpa perlu server. */
@@ -13527,8 +13555,8 @@ function vendorGambarBlok(o,l,kunci,baris){
      bisa terambil. */
   ST._gmb={};ST._gmb[kunci]=G;
   if(!G.length)return '<div style="border:1px dashed var(--line);border-radius:9px;padding:9px 11px;margin-bottom:12px;'+
-    'font-size:10px;color:var(--muted);line-height:1.55">Belum ada gambar referensi di order ini. '+
-    'Vendor kemasan menghargai dari gambar — lampirkan dulu di <b>Brief → Referensi client</b> kalau ada.</div>';
+    'font-size:10px;color:var(--muted);line-height:1.55">Belum ada gambar produk untuk baris ini. '+
+    'Vendor menghargai dari gambar produknya — muat katalog Cost Estimator (foto produk ikut) atau unggah gambar di baris pricing (📷).</div>';
   return '<div style="border:1px solid var(--line);border-radius:9px;padding:9px 11px;margin-bottom:12px;background:var(--bg)">'+
     '<div style="display:flex;gap:9px;align-items:center;flex-wrap:wrap;margin-bottom:7px">'+
       '<b style="font-size:10.5px">Gambar yang perlu ikut</b>'+
@@ -15544,9 +15572,12 @@ function rfqDocSpek(o,l){
   var jenis=rfqJenisBaris(l),b=briefGet(o),R=[];
   var t=function(k,v){if(v&&String(v).trim()&&String(v)!=='-')R.push([k,String(v)]);};
   if(jenis==='kemasan'){
-    var ck=l.coll||({'Box':'box','Soft Pouch':'pouch','Thank You Card':'card'}[vendorTipe(l.sumber||'')]||'');
-    rfqUkuranProduk(o).forEach(function(u){
-      t('Ukuran '+u.nama,u.ukuran||'BELUM ADA — mohon kami susulkan sebelum produksi');});
+    var ck=kemasanKey(l);
+    /* yang harus muat di dalamnya — produk, plus pouch/kartu untuk box */
+    var isi=isiKemasan(o,ck);
+    if(ck!=='card'&&!isi.length)t('Isi kemasan','belum ada produk berukuran di order ini — akan kami susulkan');
+    isi.forEach(function(u){
+      t('Isi: '+u.nama+((u.jenis==='produk'&&u.qty)?(' · '+u.qty+' pcs'):''),u.ukuran||'ukuran BELUM ADA — mohon kami susulkan sebelum produksi');});
     var spek='';try{if(ck)spek=packRingkas(ck,packSpec(o,ck));}catch(e){}
     t('Spesifikasi yang diminta',spek||'belum ditentukan — mohon disarankan');
     var cat='';try{if(ck)cat=salesNote(o,ck);}catch(e){}
