@@ -504,7 +504,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20260904-140635';
+const VERSI='20260904-141131';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -10817,7 +10817,9 @@ function konfJawab(id,i){
         if(fx!==null)l.hppFix=fx;
       }
       var lama=konfHargaBaris(l);
-      l.hpp=h;try{negoTutup(o,l,h);}catch(e){}
+      /* jawaban vendor menang: penanda ini menahan sinkronisasi harga teknik
+         dari master (jasaTerapkanTeknik) agar tak menimpanya lagi */
+      l.hpp=h;l._hppManual=true;try{negoTutup(o,l,h);}catch(e){}
       if(v.note){if(!l.rfq)l.rfq={};l.rfq.note=v.note;}
       if(kulit)kulitJawabSimpan(l,k,v.kulit,hariIni(),v.keMaster);
       l.konf={hpp:h,fix:(+l.hppFix||0),tgl:hariIni(),oleh:(ST.userName||ST.user||'')};
@@ -11585,7 +11587,7 @@ function rfqJawab(id,i){
         var rata=varianHppRata(l);
         if(rata>0){l.hpp=rata;l._hppManual=true;try{negoTutup(o,l,rata);}catch(e){}}
       } else if(v.hpp>0){l.hpp=v.hpp;l._hppManual=true;try{negoTutup(o,l,v.hpp);}catch(e){}}
-      if(v.fix!==undefined){var fxr=moneyVal(v.fix);if(fxr>=0)l.hppFix=fxr;}
+      if(v.fix!==undefined){var fxr=moneyVal(v.fix);if(fxr>=0){l.hppFix=fxr;l._hppManual=true;}}
       if(v.tglPOMax){o.po=o.po||{};o.po.tglPOMax=v.tglPOMax;
         logHist(o,'Radja: PO paling lambat turun '+tglID(v.tglPOMax));}
       if(v.tglInfoMax){l.tglInfoMax=v.tglInfoMax;
