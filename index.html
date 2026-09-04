@@ -504,7 +504,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20260904-141131';
+const VERSI='20260904-141541';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -10595,6 +10595,15 @@ function konfSet(id,vendor){
    masih harus dihitung dari tabel master. Urutannya sama dengan hargaOtomatis. */
 /* Harga yang kami pegang untuk baris ini, apa adanya: per pcs dan/atau biaya
    tetap per order (add-on logo: plat Rp 150.000 sekali per order, bukan per pcs). */
+/* Baris ini punya biaya tetap per order? Hanya kalau barisnya / teknik di
+   master memang memasangnya (add-on logo deboss: plat) — Full Name, Initial
+   dsb. tak perlu ditanyai biaya tetap. */
+function adaBiayaTetap(l){
+  if(!l)return false;
+  if((+l.hppFix||0)>0)return true;
+  try{var tk=teknikBaris(l)||'';if(tk&&tk!=='-'){var H=teknikHarga(tk,l.qty||0);if(H&&(+H.fix||0)>0)return true;}}catch(e){}
+  try{var j=jasaAll().find(function(x){return x.nama===jasaNamaAsli(namaJasaBaris(l));});if(j&&(+j.fix||0)>0)return true;}catch(e){}
+  return false;}
 function hargaPeganganTeks(l){
   var h=konfHargaBaris(l),f=+((l&&l.hppFix)||0),t=[];
   if(h>0)t.push(fmt0(h)+'/pcs');
@@ -10777,7 +10786,7 @@ function konfJawab(id,i){
     fields:(kulit?[kulitJawabField(k)]:[]).concat((function(){
       var V=lineVarian(l);
       if(!V.length)return [
-        {k:'harga',label:'Harga/pcs jawaban vendor',type:'money',val:'',req:lineJenis(l)!=='jasa',
+        {k:'harga',label:'Harga/pcs jawaban vendor',type:'money',val:'',req:!(lineJenis(l)==='jasa'&&adaBiayaTetap(l)),
          hint:'Harga yang kami pegang <b>'+fmt0(konfHargaBaris(l))+'</b> — isi harga yang dijawab vendor SEKARANG (sengaja kosong: bisa saja sudah berubah). Sama = masih berlaku; beda = harga baru dipakai order ini.'},
         {k:'note',label:'Catatan vendor',type:'text',val:(l.rfq&&l.rfq.note)||'',ph:'mis. naik per Oktober'}];
       /* harga PER VARIAN — warnanya beda, harganya boleh beda */
@@ -10785,8 +10794,8 @@ function konfJawab(id,i){
         return {k:'hv'+k2,label:'Harga/pcs — '+(v.q||0)+' pcs '+(v.w||('varian '+(k2+1)))+' (kami pegang '+fmt0(konfHargaBaris(l))+')',type:'money',
           val:''};});
       F2.push({k:'note',label:'Catatan vendor',type:'text',val:(l.rfq&&l.rfq.note)||'',ph:'mis. naik per Oktober'});
-      return F2;})()).concat(lineJenis(l)==='jasa'
-      /* add-on / jasa: biaya tetap per order (plat logo dsb.) ditanyakan sendiri */
+      return F2;})()).concat((lineJenis(l)==='jasa'&&adaBiayaTetap(l))
+      /* hanya add-on yang memang berbiaya tetap (plat logo deboss) */
       ?[{k:'fix',label:'Biaya tetap per order — jawaban vendor (mis. plat logo)',type:'money',val:'',
          hint:'Kami pegang <b>'+fmt0(+l.hppFix||0)+'</b> per order — sekali per order, BUKAN per pcs. Isi angka yang dijawab vendor sekarang; kosong = tetap '+fmt0(+l.hppFix||0)+'.'}]:[])
       .concat((keVendorProduksi(l)&&rfqJenisBaris(l)==='addon')
@@ -11558,7 +11567,7 @@ function rfqJawab(id,i){
                   :(kulit?'Kosongkan kalau vendor baru menjawab soal kulit, harganya menyusul.'
                         :'Harga yang dijawab vendor untuk baris ini.')});
   }
-  if(jasaBrs&&!liveBrs)F.push({k:'fix',label:'Biaya tetap per order — jawaban vendor (mis. plat logo)',type:'money',val:(+l.hppFix||0)||'',
+  if(jasaBrs&&!liveBrs&&adaBiayaTetap(l))F.push({k:'fix',label:'Biaya tetap per order — jawaban vendor (mis. plat logo)',type:'money',val:(+l.hppFix||0)||'',
     hint:'Sekali per order, BUKAN per pcs. Kosong = 0.'});
   F.push({k:'tgl',label:'Tanggal jawaban diterima',type:'date',val:hariIni(),req:true});
   F.push({k:'note',label:'Catatan vendor',type:'text',val:(l.rfq&&l.rfq.note)||'',ph:'mis. berlaku 30 hari, MOQ 100 pcs'});
