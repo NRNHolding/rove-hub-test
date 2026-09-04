@@ -504,7 +504,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20260904-134307';
+const VERSI='20260904-135046';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -10910,36 +10910,48 @@ function liveTanyaBaca(o,nama){return ((o&&o.liveTanya)||{})[nama]||{minta:'',ti
 function liveTimSaran(o,nama){
   var t='';try{t=jasaVendor(nama)||vendorJasaKota(o,jasaVendorList(nama));}catch(e){}
   return t||'';}
+/* Pesan ke EVENT MANAGEMENT — merekalah yang menghubungi timnya. Ringkas,
+   dan hanya yang menyangkut pekerjaan di lokasi: acara, barang & jumlah,
+   warna kulit, letak, teknik. */
 function liveTanyaPesan(o,nama){
-  var b=briefGet(o),NL=String.fromCharCode(10);
+  var b=briefGet(o),NL=String.fromCharCode(10),E=o.event||{};
   var acara=o.eventDate||b.tglAcara||'';
-  var tempat=[(o.event&&o.event.venue),b.venue,o.venue,o.shipKota].filter(Boolean).filter(function(x,i,a){return a.indexOf(x)===i;}).join(', ');
-  var qty=0;try{qty=persoQty(o)||o.qty||0;}catch(e){qty=o.qty||0;}
-  return ['🎪 **TANYA TIM LIVE SERVICE — '+nama+'**','Order: '+chName(o)+' · client '+o.customer,'',
-    '• Tanggal acara: '+(acara?tglID(acara):'**belum pasti**'),
-    '• Kota / venue: '+(tempat||'**belum diisi**'),
-    '• Jasa: '+nama+' · ± '+qty+' pcs dikerjakan di lokasi','',
-    'Mohon dijawab:','1. Tim kosong di tanggal itu?','2. Berapa orang yang bisa datang?','3. Fee per event (sekali datang)?'].join(NL);}
+  var tempat=[E.venue,b.venue,o.venue,o.shipKota].filter(Boolean).filter(function(x,i,a){return a.indexOf(x)===i;}).join(', ');
+  var tim=liveTimSaran(o,nama);
+  /* barang yang dikerjakan di lokasi: tiap produk, jumlah, warna kulitnya */
+  var barang=[];
+  try{lineProduk(o).forEach(function(x){var l=x.l,V=lineVarian(l);
+    var warna=V.length?V.map(function(v){return (+v.q||0)+' '+(v.w||'?');}).join(' / '):(spekVal(o,l,'mainMatWarna')||'');
+    var bahan=l.bahan||spekVal(o,l,'mainMat')||'';
+    barang.push((l.produk||'produk')+' · '+(l.qty||0)+' pcs'+(bahan||warna?(' · kulit '+[bahan,warna].filter(Boolean).join(' ')):''));});}catch(e){}
+  if(!barang.length)barang.push((o.product||'produk')+' · '+(o.qty||0)+' pcs');
+  var letak='',teknik='';
+  try{letak=svcLetak(o,nama)||'';}catch(e){}
+  try{teknik=jasaTeknikOrder(o,nama)||jasaTeknik(nama)||'';}catch(e){}
+  return ['🎪 **TANYA TIM LIVE SERVICE — '+nama+'**',
+    picMention('Event Management')+' — tolong tanyakan ke tim'+(tim?(' (saran: '+tim+')'):'')+', client '+o.customer,'',
+    '• Acara: '+(acara?tglID(acara):'**tanggal belum pasti**')+(E.time?(' · '+E.time):'')+(tempat?(' · '+tempat):' · **venue/kota belum diisi**'),
+    '• Barang: '+barang.join(' | '),
+    '• Pekerjaan: '+nama+(teknik&&teknik!=='-'?(' · teknik '+teknik):'')+(letak?(' · letak: '+letak):' · letak: **belum ditentukan**'),'',
+    'Mohon dijawab: kosong di tanggal itu? berapa orang? fee per event?'].join(NL);}
 function liveTanyaKirim(id,nama){
   var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
-  var T=liveTanyaGet(o,nama),tim=T.tim||liveTimSaran(o,nama);
+  var T=liveTanyaGet(o,nama),tim=liveTimSaran(o,nama);
   var live=!!((ST.cfg||{}).live&&(ST.cfg||{}).url);
-  var tuj=tim?vendorTujuan(o,tim):{ch:chName(o),keVendor:false};
   var teks=liveTanyaPesan(o,nama);
+  /* tujuannya Event Management di channel order — bukan vendornya; mereka
+     yang menghubungi timnya (tim di sini cuma saran dari kota acara) */
   askForm({judul:'Tanya tim live service — '+nama,draf:'livetanya|'+o.id+'|'+nama,drafDasar:teks,
-    sub:(tim?('tim: '+tim):'tim belum ditentukan — pesan masuk ke channel order'),
-    fields:[{k:'tim',label:'Tim yang ditanya',type:'select',val:tim,
-        opts:[''].concat(svcVendors().map(function(v){return v.nama;})).filter(function(x,i,a){return a.indexOf(x)===i;}),
-        hint:'Disarankan dari kota acara. Kosong = tanya lewat channel order.'},
-      {k:'pesan',label:'Isi pesan — boleh diedit sebelum dikirim',type:'textarea',tinggi:220,val:teks,req:true,hint:tim?tujuanTeks(tuj,live,tim):''}],
+    sub:'ke Event Management · saran tim: '+(tim||'belum ada tim di kota acara'),
+    fields:[{k:'pesan',label:'Isi pesan — boleh diedit sebelum dikirim',type:'textarea',tinggi:200,val:teks,req:true,
+      hint:live?('Terkirim ke channel order <b>#'+esc(chName(o))+'</b> dengan mention Event Management.')
+               :'Mode live belum menyala — pesannya tersalin ke clipboard untuk ditempel ke channel order.'}],
     ok:function(v){
-      T.minta=hariIni();T.tim=v.tim||tim||'';T.pesan=v.pesan;
-      var tj=T.tim?vendorTujuan(o,T.tim):{ch:chName(o),keVendor:false};
-      if(tj.keVendor){notifyChannel(tj.ch,v.pesan);notifyOrder(o,'🎪 Tim live service **'+nama+'** ditanya di #'+tj.ch);}
-      else notifyOrder(o,v.pesan+String.fromCharCode(10)+picMention('Event Management')+' — tolong teruskan ke timnya.');
-      logHist(o,'🎪 Tim live service ditanya — '+nama+(T.tim?(' ('+T.tim+')'):''));
+      T.minta=hariIni();T.tim=tim||'';T.pesan=v.pesan;
+      notifyOrder(o,v.pesan);
+      logHist(o,'🎪 Event Management diminta menanyakan tim live service — '+nama+(tim?(' (saran: '+tim+')'):''));
       o._m=Date.now();save();render();
-      evSalin(v.pesan,'✓ Pertanyaan ke tim live service tercatat — teksnya tersalin.');}});}
+      evSalin(v.pesan,'✓ Pertanyaan tercatat & dikirim ke Event Management — teksnya tersalin.');}});}
 function liveTanyaJawab(id,nama){
   var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
   var T=liveTanyaGet(o,nama),J=T.jawab||{};
@@ -10969,13 +10981,13 @@ function liveTanyaBlok(o){
     var T=liveTanyaBaca(o,n),J=T.jawab,tim=T.tim||liveTimSaran(o,n);
     var st=J?(J.ada==='ya'?'<span style="color:var(--ok);font-weight:800">● Kosong '+tglID(J.tgl)+(J.orang?(' · '+J.orang+' orang'):'')+((+J.fee||0)>0?(' · fee '+fmt0(J.fee)+'/event'):'')+'</span>'
                 :'<span style="color:var(--warn);font-weight:800">● BENTROK — cari tim lain</span>')
-      :(T.minta?'<span style="color:var(--warn);font-weight:800">● Ditanya '+tglID(T.minta)+' — menunggu jawaban</span>'
+      :(T.minta?'<span style="color:var(--warn);font-weight:800">● Ditanya lewat Event Management '+tglID(T.minta)+' — menunggu jawaban</span>'
                :'<span style="color:var(--muted);font-weight:800">● Belum ditanya</span>');
     return '<div data-f="liveTanya_'+i+'" style="border:1px solid '+(J&&J.ada==='ya'?'var(--ok)':'var(--line)')+';border-radius:10px;padding:11px 13px;margin-bottom:11px;background:var(--bg)">'+
       '<div style="display:flex;gap:9px;align-items:baseline;flex-wrap:wrap;margin-bottom:6px">'+
         '<b style="font-size:12.5px">🎪 '+esc(n)+'</b><span style="font-size:9.5px;color:var(--muted)">tim live service'+(tim?(' · '+esc(tim)):' · tim belum ditentukan')+'</span>'+
         '<span style="margin-left:auto;font-size:9.5px">'+st+'</span></div>'+
-      '<div style="font-size:10.5px;color:var(--ink-soft);line-height:1.6">Tanya timnya: kosong di <b>'+(acara?esc(tglID(acara)):'<span style="color:var(--warn)">tanggal acara belum diisi</span>')+'</b> di <b>'+(tempat?esc(tempat):'<span style="color:var(--warn)">kota/venue belum diisi</span>')+'</b>? berapa orang &amp; feenya?'+
+      '<div style="font-size:10.5px;color:var(--ink-soft);line-height:1.6">Lewat Event Management, tanya timnya: kosong di <b>'+(acara?esc(tglID(acara)):'<span style="color:var(--warn)">tanggal acara belum diisi</span>')+'</b> di <b>'+(tempat?esc(tempat):'<span style="color:var(--warn)">kota/venue belum diisi</span>')+'</b>? berapa orang &amp; feenya?'+
         (J&&J.catatan?(' <span style="color:var(--muted)">— '+esc(J.catatan)+'</span>'):'')+'</div>'+
       '<div style="display:flex;gap:7px;flex-wrap:wrap;align-items:center;border-top:1px dashed var(--line);margin-top:8px;padding-top:9px">'+
         '<button class="btn '+(T.minta?'ghost ':'')+'sm" onclick="liveTanyaKirim('+jsArg(o.id)+','+jsArg(n)+')">'+MAILX+' '+(T.minta?'Tanya lagi':'Tanya tim')+'</button>'+
