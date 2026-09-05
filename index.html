@@ -526,7 +526,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20260905-134055';
+const VERSI='20260905-134353';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -4730,7 +4730,7 @@ const CONTOH_ISI=[
  /* 14 Konfirmasi & Selesai — diterima; arsip dibiarkan untuk tombolnya */
  function(o){var t=hariIni();o.kirim=o.kirim||{};o.kirim.tglTerima=t;
    briefGet(o).kirimFiles=[contohFile('serah-terima.svg',contohSvg('OK','#e8f1e8','#1f6b3a'))];
-   o.cs={puas:true,catatan:'client kirim foto meja souvenir'};}
+   o.cs={komplain:[],puas:{rating:5,catatan:'client kirim foto meja souvenir',tgl:t}};}   // bentuk yang dibaca panel CS (bintang) & laporan
 ];
 function seedContohHapus(diam){
   ST.orders=(ST.orders||[]).filter(function(o){return !o._contoh;});
