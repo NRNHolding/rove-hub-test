@@ -194,6 +194,7 @@
   /* lebar kolom angka dipatok supaya sisanya jatuh ke nama produk */
   .dtable th.wno{width:30px}.dtable th.wharga{width:96px}.dtable th.wqty{width:44px}.dtable th.wjml{width:112px}
   .dtable th.wmat{width:19%}.dtable th.wperso{width:15%}
+  .dtable th.wprod{width:34%}   /* kolom produk: nama + catatan spesifikasi butuh ruang, jangan terjepit */
   .dtot{display:flex;justify-content:space-between;font-size:12px;padding:4px 9px}
   .dtot.g{font-size:14px;font-weight:800;border-top:1px solid #ccc;margin-top:2px;padding-top:8px}
   .dnotes{background:#faf8f4;border:1px solid #ececec;border-radius:8px;padding:12px 14px;font-size:11px;margin-top:12px}
@@ -504,7 +505,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20260905-122136';
+const VERSI='20260905-122416';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -4811,9 +4812,9 @@ function dokMaterial(o,r){return (r.l&&(r.jenis==='produk'||r.jenis==='coll'))?(
 function dokPerso(o,r){
   if(r.jenis==='produk'){
     var T=[];
-    try{liveList(o.svc).forEach(function(n){var t=jasaTeknikOrder(o,n),lt=svcLetak(o,n);T.push((t||n)+(lt?(' ('+lt+')'):''));});}catch(e){}
+    try{liveList(o.svc).forEach(function(n){var t=jasaTeknikOrder(o,n),lt=svcLetak(o,n);T.push((t||n)+(lt?(' — '+lt):''));});}catch(e){}
     if(!T.length&&r.l&&r.l.perso&&r.l.perso!=='-')T.push(r.l.perso);
-    return T.join(', ');}
+    return T.join('; ');}
   if(r.jb)return (r.jb.teknik&&r.jb.teknik!=='-')?r.jb.teknik:'';
   return (r.l&&r.l.perso&&r.l.perso!=='-')?r.l.perso:'';}
 function tglDMY(s){if(!s)return '-';var d=new Date(s);if(isNaN(d))return String(s);
@@ -16598,7 +16599,7 @@ function genDoc(id,type){
    <table class="dinfotbl">${info('Name',o.customer)}${info('Type',(DOK_TIPE_EN[o.type]||o.type)+' · '+o.qty+' pcs')}${info('Phone',o.phone)}${clientEmail(o)?info('Email',clientEmail(o)):''}${info('Venue & City',o.venue)}${o.addr?info('Delivery Address',o.addr):''}${o.addrKantor?info('Client Address',o.addrKantor):''}${o.pic3?info('3rd Party PIC',o.pic3):''}${T.kena?info('NPWP',pajakGet(o).npwp||((custMaster(o)||{}).npwp)||'-'):''}${info('Event Date',o.eventDate?tglDMY(o.eventDate):'-')}</table>
 
    <div class="dsec">Product / Service List</div>
-   <table class="dtable"><thead><tr><th class="num wno">No</th><th>Product / Service</th><th class="wmat">Material</th><th class="wperso">Personalization</th><th class="num wharga">Price/Unit</th><th class="num wqty">Qty</th><th class="num wjml">Amount</th></tr></thead><tbody>${rowsHTML}</tbody></table>
+   <table class="dtable"><thead><tr><th class="num wno">No</th><th class="wprod">Product / Service</th><th class="wmat">Material</th><th class="wperso">Personalization</th><th class="num wharga">Price/Unit</th><th class="num wqty">Qty</th><th class="num wjml">Amount</th></tr></thead><tbody>${rowsHTML}</tbody></table>
    <div class="dtot"><span>Sub Total</span><span>${fmt0(sub)}</span></div>
    <div class="dtot"><span>Discount${P.discType==='pct'?(' ('+(P.disc||0)+'%)'):''}</span><span>${fmt0(disc)}</span></div>
    ${ship>0?`<div class="dtot"><span>Shipping Cost</span><span>${fmt0(ship)}</span></div>`:`<div class="dtot"><span>Shipping Cost (optional — quoted separately)</span><span>-</span></div>`}
