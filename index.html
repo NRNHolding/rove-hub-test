@@ -526,7 +526,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20260905-130918';
+const VERSI='20260905-134055';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -7142,6 +7142,8 @@ function poQtyTeks(l){
    berarti client tak ditagih apa pun untuk pekerjaan yang tetap kita bayar. */
 /* Harga jual jasa untuk BARIS pricing ini: per pcs (add-on) atau per event
    (live service), dari harga order kalau ada, kalau tidak dari master. */
+/* subtotal harga jual baris jasa untuk tampilan: per pcs × qty, atau sekali per event */
+function jasaJualSub(o,l){var J=jasaJualBaris(o,l);if(!J)return 0;return J.pcs?((+J.jual||0)*(l.qty||0)):(+J.jual||0);}
 function jasaJualBaris(o,l){
   if(!l||lineJenis(l)!=='jasa'||l.svcFee)return null;
   var nama=namaJasaBaris(l);if(!nama)return null;
@@ -16704,10 +16706,10 @@ function pricingPanel(o){
       ${showUk?`<td>${teks(l.ukuran)}</td>`:''}
       <td>${teks(l.sumber)}</td>
       <td class="num">${l.qty||0}</td>
-      ${H?`<td class="num">${fmt0(lineHppVendor(l))}</td>`:''}
+      ${H?`<td class="num">${fmt0(lineHppVendor(l))}${(+l.hppFix||0)?'<div style="font-size:8.5px;color:var(--muted)">+ tetap '+fmt0(l.hppFix)+'</div>':''}</td>`:''}
       <td class="num">${l.fixed?'—':((l.mg===''||l.mg===undefined)?((P.margin||0)+'%'):(l.mg+'%'))}</td>
       <td class="num">${l.dc?(l.dcT==='pct'?(l.dc+'%'):fmt0(l.dc)):'—'}</td>
-      <td class="num">${fmt0(sub)}${l.dc?`<div style="font-size:8.5px;color:var(--muted)">dari ${fmt0(lineJual(l,m)*(l.qty||0))}</div>`:''}</td>
+      <td class="num">${fmt0(lineJenis(l)==='jasa'?jasaJualSub(o,l):sub)}${(lineJenis(l)==='jasa')?'<div style="font-size:8.5px;color:var(--muted)">harga jual jasa'+(jasaSatuan(l)==='pcs'?'':' · per event')+'</div>':''}${l.dc?`<div style="font-size:8.5px;color:var(--muted)">dari ${fmt0(lineJual(l,m)*(l.qty||0))}</div>`:''}</td>
       <td></td></tr>`;
     return `<tr>
       ${lineImgCell(o,l,i)}
@@ -17368,14 +17370,14 @@ function vpoPanel(o){
   try{yatim=tanpaVendorSpanduk(o);}catch(e){}
   if(!vs.length)return '<div class="card actcard" style="margin-top:14px"><div class="ch"><span class="ico" style="background:#7a5cc4;font-size:10px">PO</span><div><div class="t">PO Vendor Lain</div><div class="s">COLLATERAL / NON-KULIT</div></div></div><div class="body">'+yatim+'<div style="font-size:11px;color:var(--muted)">Belum ada baris pricing dari vendor selain Radja. Tambahkan di <b>Pricing</b> (pilih vendor di kolom Sumber vendor) — vendor baru bisa didaftarkan di <b>Master data → Vendors</b>.</div></div></div>';
   return '<div class="card actcard" style="margin-top:14px"><div class="ch"><span class="ico" style="background:#7a5cc4;font-size:10px">PO</span><div><div class="t">PO Vendor Lain ('+vs.length+')</div><div class="s">ITEM OTOMATIS DARI PRICING · 1 PO PER VENDOR</div></div></div><div class="body">'+yatim+
-    vs.map(function(v){var p=vpoGet(o,v),ls=vendorLines(o,v),miss=vpoMissing(o,v),ready=!miss.length,tot=ls.reduce(function(s,l){return s+(l.hpp||0)*poQty(l);},0);
+    vs.map(function(v){var p=vpoGet(o,v),ls=vendorLines(o,v),miss=vpoMissing(o,v),ready=!miss.length,tot=ls.reduce(function(s,l){return s+(l.hpp||0)*poQty(l)+(+l.hppFix||0);},0);   // biaya tetap (fee per event, plat) ikut
       return '<div style="border:1px solid var(--line);border-radius:9px;padding:11px 12px;margin-bottom:11px">'+
         '<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:9px"><b style="font-size:12.5px">'+esc(v)+'</b>'+
           '<span style="font-size:9.5px;color:var(--muted)">'+esc(vendorTipe(v)||'—')+(vendorKontak(v)?(' · '+esc(vendorKontak(v))):'')+'</span>'+
           '<span class="badge" style="margin-left:auto;background:'+(ready?'var(--ok-bg)':'var(--warn-bg)')+';color:'+(ready?'var(--ok)':'var(--warn)')+'">'+(ready?'siap ✓':miss.join(', ')+' kurang')+'</span></div>'+
         '<div class="xscroll"><table class="ptable" style="min-width:420px"><thead><tr><th>Item</th><th>Bahan</th><th>Finishing</th><th style="width:52px">Qty</th><th class="num" style="width:96px">HPP</th></tr></thead><tbody>'+
           ls.map(function(l){var ex=[l.tali&&l.tali!=='-'?'Tali: '+l.tali:'',l.ukuran&&l.ukuran!=='-'?'Uk: '+l.ukuran:''].filter(Boolean).join(' · ');
-            return '<tr><td>'+esc(l.produk)+(ex?'<div style="font-size:9px;color:var(--muted)">'+esc(ex)+'</div>':'')+varianChips(l)+'</td><td>'+(esc(l.bahan)||'-')+'</td><td>'+(esc(l.perso)||'-')+'</td><td>'+poQtyTeks(l)+(lineSpare(l)?(' <span style="font-size:8.5px;color:var(--warn)">+'+lineSpare(l)+'</span>'):'')+'</td><td class="num">'+fmt0((l.hpp||0)*poQty(l))+'</td></tr>';}).join('')+
+            return '<tr><td>'+esc(l.produk)+(ex?'<div style="font-size:9px;color:var(--muted)">'+esc(ex)+'</div>':'')+varianChips(l)+'</td><td>'+(esc(l.bahan)||'-')+'</td><td>'+(esc(l.perso)||'-')+'</td><td>'+poQtyTeks(l)+(lineSpare(l)?(' <span style="font-size:8.5px;color:var(--warn)">+'+lineSpare(l)+'</span>'):'')+'</td><td class="num">'+fmt0((l.hpp||0)*poQty(l)+(+l.hppFix||0))+((+l.hppFix||0)?'<div style="font-size:8.5px;color:var(--muted)">termasuk biaya tetap '+fmt0(l.hppFix)+'</div>':'')+'</td></tr>';}).join('')+
           '</tbody></table></div>'+
         '<div style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;margin-top:10px">'+
           '<label style="font-size:11px;font-weight:700;color:var(--muted)">Deadline *<br><input type="date" class="pin" style="margin-top:3px" value="'+esc(p.deadline)+'" onchange="vpoSet('+jsArg(o.id)+','+jsArg(v)+','+'deadline'+',this.value)"></label>'+
