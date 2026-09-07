@@ -527,7 +527,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20260907-161945';
+const VERSI='20260907-170412';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -9758,13 +9758,47 @@ function statusWarna(s){
 /* Cancel dipindah ke tombol sendiri supaya status tak bisa diubah sembarangan. */
 function orderCancel(id){
   var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
-  var r=prompt('Alasan cancel (wajib diisi):',o.reason||'');
-  if(r===null)return;
-  if(!r.trim()){alert('Alasan wajib diisi — status tidak diubah.');return;}
-  o.reason=r.trim();o.status='Cancel';o._m=Date.now();
-  logHist(o,'Order dibatalkan ('+o.reason+')');
-  notifyOrder(o,'✕ **Order dibatalkan** — '+o.customer+'\n'+o.reason);
-  save();render();}
+  var dp=+((o.pay||{}).dp||0);
+  var F=[{k:'alasan',label:'Alasan cancel (wajib)',type:'textarea',tinggi:70,req:true,val:o.reason||'',ph:'mis. client batal menikah'}];
+  if(dp>0)F.push({k:'deposit',label:'Deposit '+fmt0(dp)+' sudah masuk — sesuai aturan tidak dikembalikan sebagai uang',type:'select',req:true,val:'barang',
+    opts:[{v:'barang',l:'Jadikan barang senilai deposit — order ini diubah jadi order barang'},{v:'hangus',l:'Batalkan saja — deposit tak dikembalikan'}],
+    hint:'Pilihan pertama: kartu tidak dibatalkan, tapi disusun ulang menjadi order barang senilai deposit; DP yang sudah masuk tetap tercatat sebagai pembayaran.'});
+  askForm({judul:'Cancel order',sub:o.customer+((o.product)?(' · '+o.product):''),tanpaDraf:true,fields:F,
+    ok:function(v){
+      var r=String(v.alasan||'').trim();if(!r){alert('Alasan wajib diisi — status tidak diubah.');return;}
+      if(dp>0&&v.deposit==='barang'){depositJadiBarang(o,r);return;}
+      o.reason=r;o.status='Cancel';o._m=Date.now();
+      logHist(o,'Order dibatalkan ('+o.reason+')'+(dp>0?' — deposit '+fmt0(dp)+' tidak dikembalikan':''));
+      notifyOrder(o,'✕ **Order dibatalkan** — '+o.customer+String.fromCharCode(10)+o.reason+(dp>0?(String.fromCharCode(10)+'Deposit '+fmt0(dp)+' tidak dikembalikan (aturan).'):''));
+      save();render();}});}
+/* Client batal (mis. batal menikah) sesudah deposit: uangnya tak kembali, tapi
+   jadi barang. Kartu yang sama diubah jadi order barang senilai deposit —
+   item disusun ulang sampai nilainya cocok, DP tetap tercatat. */
+function depositJadiBarang(o,alasan){
+  var dp=+((o.pay||{}).dp||0);
+  o.depositBarang={nilai:dp,tgl:hariIni(),alasan:alasan,oleh:(ST.userName||ST.user||''),dariFase:(o.phase||0),produkLama:o.product||''};
+  o.status='';o.reason='';
+  /* belum ada PO yang turun: kembali menyusun item & harga (fase Penentuan harga jual);
+     PO sudah turun: fasenya tetap, tinggal pengingat nilainya */
+  if(!poSudahTurun(o)&&(o.phase||0)>2){
+    var gugur=[];try{gugur=revisiBatalkanAcc(o,2);}catch(e){}
+    o.phase=2;o._faseSejak=Date.now();o.ingatOtomatis={};o.opsi=[];
+    if(gugur.length)logHist(o,'Persetujuan gugur karena order disusun ulang: '+gugur.join(', '));}
+  syncStatus(o);
+  logHist(o,'✕ Client batal ('+alasan+') — deposit '+fmt0(dp)+' dijadikan barang: order diubah jadi order barang senilai deposit');
+  notifyOrder(o,'🔁 **Client batal — deposit jadi barang** — '+o.customer+String.fromCharCode(10)+alasan+String.fromCharCode(10)+'Deposit '+fmt0(dp)+' tidak dikembalikan; order disusun ulang jadi order barang senilai itu.');
+  ST._stepOpen={};try{ST._bukaAwal={};ST._bukaAwalFor='';}catch(e){}
+  o._m=Date.now();save();render();
+  kilat('Order diubah jadi order barang senilai deposit <b>'+fmt0(dp)+'</b>');}
+function depositBlok(o){
+  var D=o.depositBarang;if(!D||!(D.nilai>0))return '';
+  var T=orderTotals(o),selisih=T.grand-D.nilai;
+  return '<div data-f="depositBarang" style="border:1px solid var(--accent);background:var(--warn-bg);border-radius:10px;padding:9px 12px;margin-top:10px;font-size:10.5px;line-height:1.6;color:var(--brand-dark)">'+
+    '<b>🔁 Order barang senilai deposit '+fmt0(D.nilai)+'</b> — client batal '+tglID(D.tgl)+(D.alasan?(' ('+esc(D.alasan)+')'):'')+'; deposit tidak dikembalikan sebagai uang.'+
+    (D.produkLama?(' Order semula: '+esc(D.produkLama)+'.'):'')+
+    '<br>Nilai order sekarang <b>'+fmt0(T.grand)+'</b> — '+(Math.abs(selisih)<=1?'<span style="color:var(--ok);font-weight:700">sudah sama dengan deposit</span>'
+      :(selisih>0?('<span style="color:var(--warn);font-weight:700">'+fmt0(selisih)+' lebih besar dari deposit</span> (client menambah pembayaran, atau kurangi item)')
+                 :('<span style="color:var(--warn);font-weight:700">'+fmt0(-selisih)+' di bawah deposit</span> (tambah item sampai nilainya pas)')))+'</div>';}
 function orderCancelBatal(id){
   var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
   if(!confirm('Aktifkan lagi order ini?\n\nStatus kembali mengikuti fase yang sedang jalan.'))return;
@@ -10796,7 +10830,7 @@ function ringkasSebelumBlok(o){
 /* Yang tak boleh terlewat: permintaan mengisikan dari orang lain, dan revisi
    yang sedang berjalan. Ditaruh tepat di bawah "Langkah saat ini". */
 function peringatanBlok(o){
-  return tautanBlok(o)+tungguRevisiBlok(o)+revisiBlok(o);}
+  return tautanBlok(o)+tungguRevisiBlok(o)+revisiBlok(o)+depositBlok(o);}
 function panelDef(o){
   var batal=(o.status==='Cancel');
   return [
@@ -13533,6 +13567,16 @@ function profitTambahKatalogForm(id){
       save();render();}});}
 
 /* ---- info yang harus dikorek PM dari Radja ---- */
+/* vendor collateral / jasa: deadline produksi & batas PO turun masing-masing */
+function kulitVendorNama(){var v=((ST.master&&ST.master.vendors)||[]).find(function(x){return x.tipe==='Kulit';});return (v&&v.nama)||'Radja Leather';}
+function vendorTglGet(o,v){if(!o.vendorTgl)o.vendorTgl={};if(!o.vendorTgl[v])o.vendorTgl[v]={deadline:'',tglPOMax:''};return o.vendorTgl[v];}
+function vendorTglSet(id,v,f,val){
+  var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
+  var T=vendorTglGet(o,v),lama=T[f]||'';T[f]=val;
+  if(lama!==val)logHist(o,(f==='deadline'?'Deadline produksi ':'Batas PO turun ')+v+': '+(val||'(dikosongkan)'));
+  /* PO vendor itu memakai deadline yang sama, selama belum diubah tangan */
+  if(f==='deadline'&&val){var p=vpoGet(o,v);if(!p.deadline||p._deadlineAuto){p.deadline=val;p._deadlineAuto=true;}}
+  o._m=Date.now();save();render();}
 function radjaSet(id,f,v){
   var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
   if(!o.po)o.po={};
@@ -13558,15 +13602,20 @@ function radjaBlok(o){
   var warna=(dn===null)?'var(--muted)':(dn<0?'#8f2a1e':(dn<=3?'var(--warn)':'var(--ok)'));
   var ket=(dn===null)?'':(dn<0?('PO sudah telat '+(-dn)+' hari dari batas'):(dn===0?'batas PO hari ini':(dn+' hari lagi batas PO turun')));
   return '<div style="border:1px solid var(--line);border-radius:10px;padding:11px 13px;margin:12px 0;background:var(--bg)">'+
-    '<div style="font-size:9.5px;font-weight:800;color:var(--brand);letter-spacing:.04em;margin-bottom:3px">INFO DARI RADJA</div>'+
-    '<div style="font-size:10px;color:var(--muted);margin-bottom:9px;line-height:1.55">Dikorek PM ke Radja sebelum harga jual ditetapkan. Tanpa ini, tanggal janji ke client cuma tebakan.</div>'+
-    '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:9px">'+
-      '<label class="nlbl">Deadline produksi<input type="date" class="pin" style="width:100%;margin-top:3px" value="'+esc(P.deadline||'')+
-        '" onchange="radjaSet(\''+o.id+'\',\'deadline\',this.value)"></label>'+
-      '<label class="nlbl">Paling lambat PO turun<input type="date" class="pin" style="width:100%;margin-top:3px" value="'+esc(P.tglPOMax||'')+
-        '" onchange="radjaSet(\''+o.id+'\',\'tglPOMax\',this.value)"></label>'+
-    '</div>'+
-    (ket?('<div style="margin-top:8px;font-size:10.5px;font-weight:800;color:'+warna+'">⏱ '+esc(ket)+'</div>'):'')+
+    '<div class="sj">Info dari vendor — deadline &amp; batas PO turun</div>'+
+    '<div style="font-size:10px;color:var(--muted);margin-bottom:9px;line-height:1.55">Dikorek PM ke tiap vendor sebelum harga jual ditetapkan: kapan produksi selesai, dan paling lambat kapan PO harus turun. Tanpa ini, tanggal janji ke client cuma tebakan.</div>'+
+    '<div class="xscroll"><table class="rtable mstack" data-f="tglVendor"><thead><tr><th>Vendor</th><th style="width:170px">Deadline produksi</th><th style="width:170px">Paling lambat PO turun</th><th style="width:150px"></th></tr></thead><tbody>'+
+      '<tr><td><b>'+esc(kulitVendorNama())+'</b><div style="font-size:9px;color:var(--muted)">produk utama</div></td>'+
+        '<td data-l="Deadline produksi"><input type="date" class="pin" style="width:100%" value="'+esc(P.deadline||'')+'" onchange="radjaSet(\''+o.id+'\',\'deadline\',this.value)"></td>'+
+        '<td data-l="Paling lambat PO turun"><input type="date" class="pin" style="width:100%" value="'+esc(P.tglPOMax||'')+'" onchange="radjaSet(\''+o.id+'\',\'tglPOMax\',this.value)"></td>'+
+        '<td style="font-size:10px;font-weight:800;color:'+warna+'">'+esc(ket)+'</td></tr>'+
+      poVendors(o).map(function(v){var T=vendorTglGet(o,v),dv=T.tglPOMax?dLeft(T.tglPOMax):null;
+        var kv=(dv===null)?'':(dv<0?('telat '+(-dv)+' hari'):(dv===0?'batas PO hari ini':(dv+' hari lagi')));
+        return '<tr><td><b>'+esc(v)+'</b><div style="font-size:9px;color:var(--muted)">'+esc(vendorTipe(v)||'collateral / jasa')+'</div></td>'+
+          '<td data-l="Deadline produksi"><input type="date" class="pin" style="width:100%" value="'+esc(T.deadline||'')+'" onchange="vendorTglSet('+jsArg(o.id)+','+jsArg(v)+',\'deadline\',this.value)"></td>'+
+          '<td data-l="Paling lambat PO turun"><input type="date" class="pin" style="width:100%" value="'+esc(T.tglPOMax||'')+'" onchange="vendorTglSet('+jsArg(o.id)+','+jsArg(v)+',\'tglPOMax\',this.value)"></td>'+
+          '<td style="font-size:10px;font-weight:800;color:'+((dv===null)?'var(--muted)':(dv<0?'#8f2a1e':(dv<=3?'var(--warn)':'var(--ok)')))+'">'+esc(kv)+'</td></tr>';}).join('')+
+    '</tbody></table></div>'+
     '<div style="margin-top:11px;border-top:1px dashed var(--line);padding-top:9px">'+
       '<div style="font-size:10.5px;font-weight:800">Persetujuan harga jual — Sales</div>'+
       '<div style="font-size:10px;color:var(--muted);line-height:1.55">Sales memeriksa HPP, kedua tanggal di atas, dan harga jual tiap item sebelum quotation dibuat.</div>'+
@@ -18184,8 +18233,11 @@ function vpoGet(o,v){if(!o.vpo)o.vpo={};if(!o.vpo[v])o.vpo[v]={deadline:'',note:
 function vpoSet(id,v,f,val){var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;var p=vpoGet(o,v);p[f]=val;if(f==='deadline')delete p._deadlineAuto;save();render();}
 /* deadline PO vendor lain: otomatis 3 hari sebelum tanggal kirim (boleh diubah) */
 function vpoDeadlineIsi(o){
-  var tk=briefGet(o).tglKirim;if(!tk)return false;var ubah=false;
-  poVendors(o).forEach(function(v){var p=vpoGet(o,v);if(!p.deadline){p.deadline=tglGeser(tk,-3);p._deadlineAuto=true;ubah=true;}});
+  var tk=briefGet(o).tglKirim;var ubah=false;
+  poVendors(o).forEach(function(v){var p=vpoGet(o,v);if(p.deadline)return;
+    /* deadline yang disebut vendor di Penentuan harga jual didahulukan; kalau tak ada, 3 hari sebelum tanggal kirim */
+    var T=((o.vendorTgl||{})[v])||{};var d=T.deadline||(tk?tglGeser(tk,-3):'');
+    if(d){p.deadline=d;p._deadlineAuto=true;ubah=true;}});
   return ubah;}
 function vpoSlot(v){return String(v||'').replace(/[^A-Za-z0-9]+/g,'_');}
 function vpoMissing(o,v){var p=vpoGet(o,v),m=[];if(!p.deadline)m.push('Deadline');if(!vendorLines(o,v).length)m.push('item di pricing');return m;}
@@ -18209,7 +18261,8 @@ function vpoPanel(o){
           '</tbody></table></div>'+
         '<div style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;margin-top:10px">'+
           '<label style="font-size:11px;font-weight:700;color:var(--muted)">Deadline *<br><input type="date" class="pin" style="margin-top:3px" value="'+esc(p.deadline)+'" onchange="vpoSet('+jsArg(o.id)+','+jsArg(v)+','+'deadline'+',this.value)">'+
-            (p._deadlineAuto?'<div style="font-size:9px;font-weight:400">otomatis 3 hari sebelum tanggal kirim — boleh diubah</div>':'')+'</label>'+
+            (p._deadlineAuto?('<div style="font-size:9px;font-weight:400">'+((((o.vendorTgl||{})[v])||{}).deadline?'dari deadline yang disebut vendor di Penentuan harga jual':'otomatis 3 hari sebelum tanggal kirim')+' — boleh diubah</div>'):'')+
+            ((((o.vendorTgl||{})[v])||{}).tglPOMax?('<div style="font-size:9px;font-weight:400;color:var(--warn)">batas PO turun: '+tglDMY((o.vendorTgl[v]).tglPOMax)+'</div>'):'')+'</label>'+
           '<label style="flex:1;min-width:150px;font-size:11px;font-weight:700;color:var(--muted)">Packing<br><input class="pin" style="width:100%;margin-top:3px" value="'+esc(p.packing)+'" onchange="vpoSet('+jsArg(o.id)+','+jsArg(v)+','+'packing'+',this.value)" placeholder="mis. per 50 pcs / kardus"></label>'+
           '<label style="flex:1;min-width:150px;font-size:11px;font-weight:700;color:var(--muted)">Catatan<br><input class="pin" style="width:100%;margin-top:3px" value="'+esc(p.note)+'" onchange="vpoSet('+jsArg(o.id)+','+jsArg(v)+','+'note'+',this.value)" placeholder="catatan khusus"></label>'+
           '<span style="font-size:11px;font-weight:700">Total HPP: <b style="color:var(--brand)">'+fmt0(tot)+'</b></span>'+
