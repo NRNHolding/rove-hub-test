@@ -526,7 +526,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20260907-111133';
+const VERSI='20260907-111951';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -4983,7 +4983,7 @@ function hargaJualTabelBaca(o){
       return '<tr><td><b>'+esc(l.produk||'-')+'</b>'+(l.bahan?('<div style="font-size:9px;color:var(--muted)">'+esc(l.bahan)+'</div>'):'')+(l.sumber?('<div style="font-size:9px;color:var(--muted)">'+esc(l.sumber)+'</div>'):'')+itemDetail(o,l)+'</td>'+
         '<td data-l="Qty client" class="num">'+(l.qty||0)+'</td>'+
         '<td data-l="Qty vendor" class="num">'+lineQtyPO(l)+(d.spare?('<div style="font-size:8.5px;color:var(--warn);font-weight:700">+'+d.spare+' spare</div>'):'')+'</td>'+
-        '<td data-l="HPP/pcs" class="num">'+fmt0(d.hpp)+((+l.hppFix||0)>0?('<div style="font-size:8.5px;color:var(--muted)">+ tetap '+fmt0(l.hppFix)+'</div>'):'')+'</td>'+
+        '<td data-l="HPP/pcs" class="num">'+fmt0(d.hpp)+((+l.hppFix||0)>0?('<div style="font-size:8.5px;color:var(--muted)" title="biaya tetap per order dari jawaban vendor (mis. plat logo) — dibayar sekali per order, bukan per pcs; sudah dikurangkan di Profit total">+ tetap '+fmt0(l.hppFix)+' /order</div>'):'')+'</td>'+
         '<td data-l="Margin %" class="num">'+((mg===null||mg===undefined||mg==='')?'—':(mg+'%'))+'</td>'+
         '<td data-l="Harga jual/pcs" class="num"><b>'+fmt0(d.jual)+'</b>'+((d.jasa&&jasaSatuan(l)!=='pcs')?'<div style="font-size:8.5px;color:var(--muted)">per event</div>':'')+'</td>'+
         '<td data-l="Profit/pcs" class="num" style="color:'+profitWarna(d.pct)+'">'+((d.adaHpp&&!l.svcFee)?fmt0(d.perPcs):'—')+'</td>'+
@@ -13849,7 +13849,11 @@ function profitPanel(o){
           '<td data-l="Qty client"><input class="pin n" type="number" style="width:64px" value="'+(l.qty||0)+'" onchange="profitSet(\''+o.id+'\','+i+',\'qty\',this.value)"></td>'+
           '<td data-l="Qty vendor"><input class="pin n" type="number" style="width:74px" value="'+lineQtyPO(l)+'" title="jumlah yang dipesan ke vendor — selisihnya jadi spare" onchange="spareSet(\''+o.id+'\','+i+',this.value)">'+
             (d.spare?('<div style="font-size:8.5px;color:var(--warn);font-weight:700">+'+d.spare+' spare</div>'):'')+'</td>'+
-          '<td data-l="HPP/pcs"><input class="pin n money" inputmode="numeric" style="width:110px" value="'+moneyInp(d.hpp)+'" onchange="profitSet(\''+o.id+'\','+i+',\'hpp\',this.value)"></td>'+
+          '<td data-l="HPP/pcs"><input class="pin n money" inputmode="numeric" style="width:110px" value="'+moneyInp(d.hpp)+'" onchange="profitSet(\''+o.id+'\','+i+',\'hpp\',this.value)">'+
+            /* biaya tetap vendor (plat logo, fee per event) dicatat saat RFQ dan
+               ikut dihitung di Profit total — ditulis juga di sini supaya sama
+               dengan tabel Profitability & Pricing terkunci */
+            ((+l.hppFix||0)>0?('<div style="font-size:8.5px;color:var(--muted)" title="biaya tetap per order dari jawaban vendor (mis. plat logo) — dibayar sekali per order, bukan per pcs; sudah dikurangkan di Profit total">+ tetap '+fmt0(l.hppFix)+' /order</div>'):'')+'</td>'+
           '<td data-l="Margin %"><input class="pin n" type="number" style="width:70px" value="'+(lineMarginEfektif(l,m,o)===null?'':lineMarginEfektif(l,m,o))+'" placeholder="—" title="'+(lineHppVendor(l)?'ubah margin → harga jual ikut dihitung':'isi HPP vendor dulu')+'" onchange="profitSet(\''+o.id+'\','+i+',\'mg\',this.value)"></td>'+
           (l.svcFee
             /* fee operator = biaya ke tim; harga jual live service-nya di
@@ -16750,7 +16754,7 @@ function pricingPanel(o){
       ${showUk?`<td>${teks(l.ukuran)}</td>`:''}
       <td>${teks(l.sumber)}</td>
       <td class="num">${l.qty||0}</td>
-      ${H?`<td class="num">${fmt0(lineHppVendor(l))}${(+l.hppFix||0)?'<div style="font-size:8.5px;color:var(--muted)">+ tetap '+fmt0(l.hppFix)+'</div>':''}</td>`:''}
+      ${H?`<td class="num">${fmt0(lineHppVendor(l))}${(+l.hppFix||0)?'<div style="font-size:8.5px;color:var(--muted)" title="biaya tetap per order dari jawaban vendor (mis. plat logo) — dibayar sekali per order, bukan per pcs; sudah dikurangkan di Profit total">+ tetap '+fmt0(l.hppFix)+' /order</div>':''}</td>`:''}
       <td class="num">${l.fixed?'—':((l.mg===''||l.mg===undefined)?((P.margin||0)+'%'):(l.mg+'%'))}</td>
       <td class="num">${l.dc?(l.dcT==='pct'?(l.dc+'%'):fmt0(l.dc)):'—'}</td>
       <td class="num">${fmt0(lineJenis(l)==='jasa'?jasaJualSub(o,l):sub)}${(lineJenis(l)==='jasa')?'<div style="font-size:8.5px;color:var(--muted)">harga jual jasa'+(jasaSatuan(l)==='pcs'?'':' · per event')+'</div>':''}${l.dc?`<div style="font-size:8.5px;color:var(--muted)">dari ${fmt0(lineJual(l,m)*(l.qty||0))}</div>`:''}</td>
