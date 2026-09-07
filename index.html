@@ -174,6 +174,7 @@
   .vchip{background:#efe7d8;color:var(--brand);padding:2px 9px;border-radius:20px;font-weight:700;font-size:10px}
   .notegrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
   .nlbl{font-size:10px;font-weight:800;color:var(--muted);display:block;margin-bottom:3px}
+  .sj{font-size:12.5px;font-weight:800;color:var(--brand);margin:0 0 5px;letter-spacing:.3px;text-transform:uppercase}
   .nta{width:100%;min-height:52px;padding:7px 9px;border:1px solid var(--line);border-radius:7px;font-size:11px;font-family:inherit;background:var(--bg);resize:vertical}
   .nta:focus{outline:none;border-color:var(--brand)}
   /* document (quotation/invoice) */
@@ -526,7 +527,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20260907-150255';
+const VERSI='20260907-160516';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -605,7 +606,7 @@ const PH=[
   desc:'Bandingkan HPP vendor dengan harga jual. Cek profit per item & total sebelum quotation dikirim.'},
  {n:'Profitability',cat:['rove','PRE-DEAL'],pic:'Direktur Utama',btn:'Approve — lanjut quotation',gate:'approval direktur',
   desc:'Ringkasan order sebelum quotation. Direktur menyetujui atau menolak. Ditolak karena harga → balik ke Pricing Vendor; di luar harga → balik ke Inquiry.'},
- {n:'Quotation',cat:['rove','PRE-DEAL'],pic:'Finance',btn:'Quotation terkirim — tunggu respon client',
+ {n:'Quotation',cat:['rove','PRE-DEAL'],pic:'Sales',btn:'Quotation terkirim — tunggu respon client',
   desc:'Generate quotation detail (artikel kulit, soft pouch, thankyou card), kirim ke client, tunggu approve.'},
  {n:'Menunggu approval quotation',cat:['rove','PRE-DEAL'],pic:'Sales',btn:'Client approve — lanjut sketch',gate:'approve client',
   desc:'Penawaran sudah di tangan client. Satu-satunya yang ditunggu di sini: jawabannya.'},
@@ -613,9 +614,9 @@ const PH=[
   desc:'Buat preview sketch, kirim ke client untuk approval desain (tombol ✅/❌ di Discord).'},
  {n:'Menunggu approval sketsa',cat:['rove','DEAL'],pic:'Sales',btn:'Sketsa disetujui — lanjut invoice',gate:'approve sketsa',
   desc:'Preview sudah dikirim ke client. Satu-satunya yang ditunggu di sini: persetujuannya.'},
- {n:'Invoice',cat:['rove','→ Deal Bulan'],pic:'Finance',btn:'Invoice terkirim — tunggu DP masuk',
+ {n:'Invoice',cat:['rove','→ Deal Bulan'],pic:'Sales',btn:'Invoice terkirim — tunggu DP masuk',
   desc:'Buat & tagih invoice DP. DP masuk (Billing 1) → channel pindah ke kategori Deal Bulan.'},
- {n:'Menunggu DP / PO resmi',cat:['rove','DEAL'],pic:'Finance',btn:'Uang muka atau surat PO beres — lanjut spec & PO',gate:'DP masuk / PO resmi',
+ {n:'Menunggu DP / PO resmi',cat:['rove','DEAL'],pic:'Sales',btn:'Uang muka atau surat PO beres — lanjut spec & PO',gate:'DP masuk / PO resmi',
   desc:'Invoice sudah dikirim. Satu-satunya yang ditunggu di sini: uangnya benar-benar masuk rekening.'},
  {n:'Spec & PO',cat:['rove','Deal Bulan'],pic:'Purchasing',btn:'Spesifikasi disetujui → PO turun',gate:'invoice terbayar',
   desc:'Approval margin (Direktur+Sales). Spec lengkap → GENERATE kartu Trello Production + turun PO ke Radja.'},
@@ -4891,7 +4892,7 @@ function dokItemBlok(o,baca){
         ' onchange="dokTampilSet('+jsArg(o.id)+','+jsArg(dok)+','+jsArg(it.key)+',this.checked)" style="width:auto;accent-color:var(--brand)"> '+(on?'tampil':'dilebur')+'</label>');};
   var total=D.reduce(function(s,x){return s+x.amount;},0),ship=+((o.pricing||{}).ship||0);
   return '<div data-f="dokItem" style="border-top:1px solid var(--line);margin-top:13px;padding-top:11px">'+
-    '<div style="font-weight:800;font-size:11px;margin-bottom:3px">Item yang tampil di Quotation / Invoice</div>'+
+    '<div class="sj">Tampilan Quotation / Invoice</div><div style="font-size:9.5px;color:var(--muted);margin:-3px 0 4px">Item yang tampil di Quotation / Invoice</div>'+
     '<div style="font-size:10px;color:var(--muted);margin-bottom:8px;line-height:1.55">Semua item tetap dihitung — total tak berubah. Yang <b>dilebur</b> masuk ke harga produk utama (dibagi menurut qty) dan disebut "Including …" di bawah nama produk. Quotation dan invoice diatur sendiri-sendiri. Urutan di dokumen: produk utama, collateral, lalu jasa.</div>'+
     '<div class="xscroll"><table class="rtable mstack"><thead><tr><th>Item</th><th style="width:100px">Jenis</th><th class="num" style="width:110px">Nilai</th><th style="width:110px">Quotation</th><th style="width:110px">Invoice</th></tr></thead><tbody>'+
     D.map(function(it){return '<tr><td><b>'+esc(it.nama)+'</b>'+(it.qty>1?('<div style="font-size:9px;color:var(--muted)">'+it.qty+' pcs</div>'):'')+'</td>'+
@@ -4917,6 +4918,30 @@ function diskonBarisSet(id,i,f,v){
   else l.dc=Math.max(0,(l.dcT==='pct')?(+v||0):moneyVal(v));
   logHist(o,'Diskon '+(l.produk||'item')+': '+(l.dc?((l.dcT==='pct')?(l.dc+'%'):(fmt0(l.dc)+'/pcs')):'dihapus'));
   o._m=Date.now();save();render();}
+/* kotak diskon per pcs di kolom tabel item (Rp atau %) */
+function diskonSel(o,l,i){
+  var m=((o.pricing||{}).margin||0)/100;
+  return '<div style="display:flex;gap:4px"><select class="pin" style="width:52px;padding:6px 2px" onchange="diskonBarisSet('+jsArg(o.id)+','+i+',\'dcT\',this.value)"><option value="rp"'+((l.dcT||'rp')==='rp'?' selected':'')+'>Rp</option><option value="pct"'+(l.dcT==='pct'?' selected':'')+'>%</option></select>'+
+    ((l.dcT==='pct')?('<input class="pin n" type="number" style="width:56px" value="'+(l.dc||'')+'" placeholder="0" onchange="diskonBarisSet('+jsArg(o.id)+','+i+',\'dc\',this.value)">')
+                    :('<input class="pin n money" inputmode="numeric" style="width:90px" value="'+(l.dc?moneyInp(l.dc):'')+'" placeholder="Rp 0" onchange="diskonBarisSet('+jsArg(o.id)+','+i+',\'dc\',this.value)">'))+'</div>'+
+    (l.dc?('<div style="font-size:8.5px;color:var(--muted)">jadi '+fmt0(lineNet(l,m))+'/pcs</div>'):'');}
+/* payment terms: DP % dan settlement — masuk syarat bayar quotation & invoice */
+function terminBlok(o){
+  var dp=(o.dpPct==null?50:o.dpPct),T=orderTotals(o),nDp=Math.round(T.grand*dp/100);
+  return '<div data-f="termin" style="border-top:1px solid var(--line);margin-top:13px;padding-top:11px"><div class="sj">Payment terms</div>'+
+    '<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:11px">'+
+      '<span class="pill" style="display:inline-flex;align-items:center;gap:6px;padding:4px 10px">DP <input class="pin n" type="number" min="0" max="100" style="width:58px" value="'+dp+'" onchange="dpSet('+jsArg(o.id)+',this.value)">% · <b>'+fmt0(nDp)+'</b></span>'+
+      '<span class="pill" style="padding:4px 10px">Settlement '+(100-dp)+'% · <b>'+fmt0(T.grand-nDp)+'</b></span>'+
+      '<span style="font-size:9.5px;color:var(--muted)">masuk syarat bayar quotation &amp; invoice; 100% = bayar penuh sebelum produksi</span></div></div>';}
+/* opsi quotation untuk pembaca (Profitability): angkanya saja, bukan editor */
+function opsiRingkasBaca(o){
+  var S=[];try{S=opsiSemua(o);}catch(e){}if(S.length<2)return '';
+  return '<div data-f="opsiRingkas" style="border-top:1px solid var(--line);margin-top:13px;padding-top:11px"><div class="sj">Opsi quotation</div>'+
+    '<div style="font-size:10px;color:var(--muted);margin-bottom:6px">Angka tiap opsi — client memilih satu saat Deal.</div>'+
+    '<div class="xscroll"><table class="rtable mstack"><thead><tr><th>Opsi</th><th class="num">Sub total</th><th class="num">HPP</th><th class="num">Profit</th><th class="num">Profit %</th></tr></thead><tbody>'+
+    S.map(function(s){var T=orderTotals(s.klon),P=profitTotals(s.klon);
+      return '<tr><td><b>'+esc(s.nama||'Utama')+'</b></td><td data-l="Sub total" class="num">'+fmt0(T.sub)+'</td><td data-l="HPP" class="num">'+fmt0(P.hpp)+'</td><td data-l="Profit" class="num" style="color:'+profitWarna(P.pct)+'">'+fmt0(P.profit)+'</td><td data-l="Profit %" class="num">'+P.pct+'%</td></tr>';}).join('')+
+    '</tbody></table></div></div>';}
 function diskonBlok(o,baca){
   var P=o.pricing||{},m=(P.margin||0)/100,T=orderTotals(o),pct=(P.discType==='pct'),R=o._revisiQuo;
   var L=(P.lines||[]).map(function(l,i){return {l:l,i:i};}).filter(function(x){return (x.l.qty||0)>0&&lineJenis(x.l)!=='jasa';});
@@ -4929,10 +4954,9 @@ function diskonBlok(o,baca){
       '<td data-l="Potongan" class="num">'+(d?('−'+fmt0(d*(l.qty||0))):'—')+'</td>'+
       '<td data-l="Jadi" class="num"><b>'+fmt0(lineNet(l,m)*(l.qty||0))+'</b></td></tr>';}).join('');
   return '<div data-f="diskon" style="border-top:1px solid var(--line);margin-top:13px;padding-top:11px">'+
-    '<div style="font-weight:800;font-size:11px;margin-bottom:3px">Diskon</div>'+
-    '<div style="font-size:10px;color:var(--muted);margin-bottom:8px;line-height:1.55">Biasanya diminta client sesudah quotation terkirim — kartunya kembali ke sini dari fase Menunggu approval quotation. Bisa per item, bisa dari total; keduanya masuk quotation revisi.</div>'+
+    '<div class="sj">Diskon total</div>'+
+    '<div style="font-size:10px;color:var(--muted);margin-bottom:8px;line-height:1.55">Diskon per item diisi di kolom Diskon/pcs pada tabel item. Diskon dari total diisi di sini — biasanya diminta client sesudah quotation terkirim (kartunya kembali ke sini dari fase Menunggu approval quotation); keduanya masuk quotation revisi.</div>'+
     (R?('<div style="border:1px solid var(--warn);background:var(--warn-bg);border-radius:9px;padding:8px 11px;margin-bottom:9px;font-size:10.5px;line-height:1.55"><b>✎ Client minta revisi</b> ('+esc(tglID(R.tgl)||'')+(R.oleh?(' · '+esc(R.oleh)):'')+'): '+esc(R.alasan||'')+'</div>'):'')+
-    (L.length?('<div class="xscroll"><table class="rtable mstack"><thead><tr><th>Item</th><th style="width:176px">Diskon per pcs</th><th class="num" style="width:110px">Potongan</th><th class="num" style="width:120px">Jadi</th></tr></thead><tbody>'+baris+'</tbody></table></div>'):'')+
     '<div style="display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;margin-top:10px">'+
       '<label style="font-size:11px;font-weight:700;color:var(--muted)">Diskon dari total'+
         (baca?('<div class="pin n" style="width:130px;margin-top:3px;background:var(--bg);color:var(--muted)">'+(pct?((P.disc||0)+'%'):fmt0(P.disc||0))+'</div>')
@@ -4985,19 +5009,21 @@ function liveJualBlok(o){
   var S=jasaLiveSendiri(o);
   if(!S.length)return '';
   var fee=0;try{fee=jasaBiayaTim(o);}catch(e){}
-  return '<div data-f="jualJasaLive" style="border:1px solid var(--line);border-radius:9px;padding:8px 11px;margin-top:10px;font-size:10.5px">'+
-    '<div style="font-weight:800;margin-bottom:2px">Live service (tim sendiri) — harga jual ke client</div>'+
-    '<div style="font-size:9.5px;color:var(--muted);margin-bottom:5px;line-height:1.5">Tak punya baris vendor di tabel; biayanya fee operator. '+
-      'Angka di sini yang masuk quotation & invoice — kosong = harga standar Master Product → Jasa.</div>'+
-    S.map(function(n){var H=jasaHargaOrder(o,n),pcs=((+H.perPc||0)>0)&&!((+H.fix||0)>0),jual=pcs?H.perPc:H.fix;
-      return '<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;padding:3px 0"><b style="min-width:120px">'+esc(n)+'</b>'+
-        '<span style="display:inline-flex;align-items:center;gap:6px">harga jual '+
-        '<input class="pin n money" inputmode="numeric" style="width:110px" data-f="jualLive_'+esc(n)+'" value="'+moneyInp(jual)+'" placeholder="Rp 0"'+
+  var qty=0;try{qty=jasaBaris(o)[0]?jasaBaris(o)[0].qty:0;}catch(e){}
+  var jualTotal=0;
+  var baris=S.map(function(n){var H=jasaHargaOrder(o,n),pcs=((+H.perPc||0)>0)&&!((+H.fix||0)>0),jual=pcs?H.perPc:H.fix,omset=pcs?jual*qty:jual;jualTotal+=omset;
+    return '<tr><td><b>'+esc(n)+'</b><div style="font-size:9px;color:var(--muted)">tim sendiri · '+(pcs?'per pcs':'per event')+(H.sendiri?' · harga order ini':(jual>0?' · standar master':''))+'</div></td>'+
+      '<td data-l="Harga jual" class="num"><input class="pin n money" inputmode="numeric" style="width:110px" data-f="jualLive_'+esc(n)+'" value="'+moneyInp(jual)+'" placeholder="Rp 0"'+
         ' title="harga jual ke client '+(pcs?'per pcs':'per event')+' — berlaku untuk order ini; kosong = harga standar master"'+
-        ' onchange="jasaJualLiveSet('+jsArg(o.id)+','+jsArg(n)+',this.value)">'+(pcs?'/pcs':'/event')+'</span>'+
-        (H.sendiri?'<span style="color:var(--muted)">harga order ini</span>'
-          :(jual>0?'<span style="color:var(--muted)">standar master</span>':'<span style="color:var(--warn);font-weight:700">belum ada harga</span>'))+'</div>';}).join('')+
-    '<div style="margin-top:4px">Biaya ke tim (fee operator): <b>'+fmt0(fee)+'</b> <span style="color:var(--muted)">— fee per orang diisi di tab Live service</span></div></div>';}
+        ' onchange="jasaJualLiveSet('+jsArg(o.id)+','+jsArg(n)+',this.value)">'+(jual>0?'':'<div style="font-size:8.5px;color:var(--warn);font-weight:700">belum ada harga</div>')+'</td>'+
+      '<td data-l="Omset" class="num">'+fmt0(omset)+'</td></tr>';}).join('');
+  var untung=jualTotal-fee,pct=jualTotal>0?Math.round(untung/jualTotal*100):0,mg=fee>0?Math.round(untung/fee*100):null;
+  return '<div data-f="jualJasaLive" style="border-top:1px solid var(--line);margin-top:13px;padding-top:11px">'+
+    '<div class="sj">Live service (tim sendiri)</div><div style="font-size:9.5px;color:var(--muted);margin:-3px 0 6px">Live service (tim sendiri) — harga jual ke client; biayanya fee operator (tab Live service), bukan vendor</div>'+
+    '<div class="xscroll"><table class="rtable mstack"><thead><tr><th>Live service</th><th class="num" style="width:130px">Harga jual</th><th class="num" style="width:120px">Omset</th></tr></thead><tbody>'+baris+
+    '<tr style="background:var(--bg)"><td><b>Biaya ke tim (fee operator)</b><div style="font-size:9px;color:var(--muted)">HPP live service tim sendiri</div></td><td data-l="HPP" class="num"><b>'+fmt0(fee)+'</b></td><td data-l="Margin" class="num">'+(mg===null?'<span style="color:var(--muted)">margin — (fee belum diisi)</span>':('margin <b>'+mg+'%</b>'))+'</td></tr>'+
+    '<tr><td><b>Profit live service</b></td><td class="num"></td><td data-l="Profit" class="num" style="font-weight:800;color:'+profitWarna(pct)+'">'+fmt0(untung)+' · '+pct+'%</td></tr>'+
+    '</tbody></table></div></div>';}
 
 /* tabel harga jual versi baca-saja — kolomnya sama dengan Penentuan harga jual */
 function hargaJualTabelBaca(o){
@@ -5006,7 +5032,7 @@ function hargaJualTabelBaca(o){
   if(!L.length)return '<div style="color:var(--muted);font-size:11px">Belum ada baris pricing.</div>';
   return '<div class="xscroll"><table class="rtable mstack"><thead><tr>'+
     '<th style="min-width:150px">Item</th><th class="num" style="width:70px">Qty client</th><th class="num" style="width:82px">Qty vendor</th>'+
-    '<th class="num" style="width:110px">HPP/pcs</th><th class="num" style="width:70px">Margin %</th><th class="num" style="width:110px">Harga jual/pcs</th>'+
+    '<th class="num" style="width:110px">HPP/pcs</th><th class="num" style="width:70px">Margin %</th><th class="num" style="width:110px">Harga jual/pcs</th><th class="num" style="width:96px">Diskon/pcs</th>'+
     '<th class="num" style="width:100px">Profit/pcs</th><th class="num" style="width:70px">Profit %</th><th class="num" style="width:116px">Profit total</th></tr></thead><tbody>'+
     L.map(function(l){
       var JJ=jasaJualBaris(o,l);l._jualJasa=JJ?JJ.jual:null;l._platJasa=JJ?JJ.plat:0;var d=lineProfit(l,m);delete l._jualJasa;delete l._platJasa;
@@ -5018,6 +5044,7 @@ function hargaJualTabelBaca(o){
         '<td data-l="Margin %" class="num">'+((mg===null||mg===undefined||mg==='')?'—':(mg+'%'))+'</td>'+
         '<td data-l="Harga jual/pcs" class="num"><b>'+fmt0(d.jual)+'</b>'+((d.jasa&&jasaSatuan(l)!=='pcs')?'<div style="font-size:8.5px;color:var(--muted)">per event</div>':'')+
           ((d.jasa&&(+d.plat||0)>0)?('<div style="font-size:8.5px;color:var(--muted)" title="harga plat yang ditagih ke client, sekali per order">+ plat '+fmt0(d.plat)+' /order</div>'):'')+'</td>'+
+        '<td data-l="Diskon/pcs" class="num">'+((lineJenis(l)!=='jasa'&&l.dc)?((l.dcT==='pct')?(l.dc+'%'):fmt0(l.dc)):'—')+'</td>'+
         '<td data-l="Profit/pcs" class="num" style="color:'+profitWarna(d.pct)+'">'+((d.adaHpp&&!l.svcFee)?fmt0(d.perPcs):'—')+'</td>'+
         '<td data-l="Profit %" class="num" style="font-weight:800;color:'+profitWarna(d.pct)+'">'+((d.adaHpp&&!l.svcFee)?(d.pct+'%'):'—')+'</td>'+
         '<td data-l="Profit total" class="num" style="font-weight:800">'+((d.adaHpp&&!l.svcFee)?fmt0(d.jasa?d.untungTotal:d.total):'—')+'</td></tr>';}).join('')+
@@ -5275,12 +5302,42 @@ function sketchPanel(o){
       '<div><div style="font-size:10px;font-weight:800;color:var(--muted);margin-bottom:5px">PRODUK</div>'+(prod||'<div style="font-size:10px;color:var(--muted)">—</div>')+
         '<div style="font-size:10px;font-weight:800;color:var(--muted);margin:10px 0 5px">COLLATERAL</div>'+(kem||'<div style="font-size:10px;color:var(--muted)">tanpa kemasan</div>')+'</div>'+
     '</div>'+
+    sketchTanyaBlok(o)+
     '<div style="border-top:1px solid var(--line);margin-top:13px;padding-top:11px">'+
       '<div style="font-size:10px;font-weight:800;color:var(--muted);margin-bottom:5px">HASIL SKETSA — unggah preview untuk client</div>'+
       lampiranBlok(o,'previewFiles','Preview desain yang dikirim ke client')+
       (PR.length?('<div style="font-size:10.5px;color:var(--ok);font-weight:700;margin-top:4px">✓ '+PR.length+' preview siap — tutup fase supaya Sales meminta approval client.</div>'):'')+
     '</div></div></div>';}
 
+/* Brief kurang jelas: Creative bertanya, Sales menjawab di panel yang sama; keduanya dikabari lewat Discord. */
+function sketchTanyaBlok(o){
+  var Q=Array.isArray(o.sketchTanya)?o.sketchTanya:[];var akuSales=(myRoles().indexOf('Sales')>=0||myRoles().indexOf('Holding')>=0);
+  return '<div data-f="sketchTanya" style="border-top:1px solid var(--line);margin-top:13px;padding-top:11px">'+
+    '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:6px"><div class="sj" style="margin:0">Brief kurang jelas?</div>'+
+      '<button class="btn ghost sm" data-f="sketchTanyaBtn" onclick="sketchTanya('+jsArg(o.id)+')">✎ Tanya Sales — bagian mana yang kurang jelas</button></div>'+
+    (Q.length?Q.map(function(q,i){return '<div style="border:1px solid '+(q.jawab?'var(--ok)':'var(--warn)')+';border-radius:9px;padding:8px 11px;margin-bottom:7px;font-size:10.5px;line-height:1.6">'+
+        '<b>'+esc(q.bagian)+'</b> · <span style="color:var(--muted)">'+esc(q.t)+' · '+esc(q.by)+'</span><br>'+esc(q.tanya)+
+        (q.jawab?('<div style="margin-top:4px;color:var(--ok)"><b>Jawaban Sales:</b> '+esc(q.jawab)+'</div>')
+          :(akuSales?('<div style="margin-top:6px"><input class="pin" style="width:100%" placeholder="jawaban untuk Creative — Enter / klik luar untuk kirim" onchange="sketchJawab('+jsArg(o.id)+','+i+',this.value)"></div>')
+                    :'<div style="margin-top:4px;color:var(--warn);font-weight:700">menunggu jawaban Sales</div>'))+'</div>';}).join('')
+      :'<div style="font-size:10px;color:var(--muted)">Belum ada pertanyaan.</div>')+'</div>';}
+function sketchTanya(id){
+  var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
+  askForm({judul:'Tanya Sales — brief kurang jelas',sub:o.customer,tanpaDraf:true,
+    fields:[{k:'bagian',label:'Bagian mana?',type:'select',req:true,val:'Produk',opts:['Produk','Kemasan','Personalization / logo','Live service','Lainnya']},
+      {k:'tanya',label:'Yang kurang jelas',type:'textarea',tinggi:80,req:true,ph:'mis. warna lining mana yang dipakai untuk 30 pcs varian hitam?'}],
+    ok:function(v){
+      var t=String(v.tanya||'').trim();
+      (o.sketchTanya=o.sketchTanya||[]).push({t:nowStr(),by:(ST.userName||ST.user||''),bagian:v.bagian,tanya:t,jawab:''});
+      logHist(o,'✎ Creative bertanya ke Sales ('+v.bagian+'): '+t);
+      notifyOrder(o,'❓ **Creative bertanya soal brief** — '+o.customer+String.fromCharCode(10)+'['+v.bagian+'] '+t+String.fromCharCode(10)+picMention('Sales')+' — jawab di panel Sketch.');
+      o._m=Date.now();save();render();kilat('Pertanyaan terkirim ke Sales');}});}
+function sketchJawab(id,i,v){
+  var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;var q=(o.sketchTanya||[])[i];if(!q)return;
+  q.jawab=String(v||'').trim();if(!q.jawab)return;q.jawabBy=(ST.userName||ST.user||'');q.jawabT=nowStr();
+  logHist(o,'Sales menjawab pertanyaan Creative ('+q.bagian+'): '+q.jawab);
+  notifyOrder(o,'💬 **Jawaban Sales untuk Creative** — '+o.customer+String.fromCharCode(10)+'['+q.bagian+'] '+q.jawab+String.fromCharCode(10)+picMention('Creative'));
+  o._m=Date.now();save();render();}
 /* ================= FASE MENUNGGU APPROVAL SKETSA — deal / revisi ================= */
 function sketsaJawabPanel(o){
   var b=briefGet(o),S=o.sketch||{},PR=b.previewFiles||[],bisa=faseMilikku(o);
@@ -5421,7 +5478,7 @@ function opsiBlok(o,baca){
           '<td data-l="Jumlah" class="num"><b>'+(jl===null?'—':fmt0(jl*q))+'</b></td></tr>';}).join('')+
       '</tbody></table></div></div>';}).join('');
   return '<div data-f="opsi" style="border-top:1px solid var(--line);margin-top:13px;padding-top:11px">'+
-    '<div style="font-weight:800;font-size:11px;margin-bottom:3px">Opsi quotation</div>'+
+    '<div class="sj">Opsi quotation</div>'+
     '<div style="font-size:10px;color:var(--muted);margin-bottom:8px;line-height:1.55">Untuk client yang minta beberapa pilihan dalam satu quotation — set barang berbeda (qty 0 = tidak ikut) atau qty berbeda (harga katalog ikut tier). Tabel di atas = <b>'+esc(S[0].nama)+'</b>. Selama ada lebih dari satu opsi, quotation tak memuat grand total; saat Deal client memilih satu, dan itulah yang berlaku.</div>'+
     (baca?'':('<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:6px">'+
       '<input class="pin" style="width:220px" value="'+esc(S[0].nama)+'" title="nama opsi utama di quotation" onchange="opsiSet('+jsArg(o.id)+',\'utama\',\'nama\',\'\',this.value)">'+
@@ -5472,7 +5529,7 @@ function shipTawarBlok(o){
   var e={kg:0};try{e=shipEstimasi(o);}catch(x){}
   var kg=(o.shipKg>0)?o.shipKg:(e.kg||0),D=shipTawarDaftar(o);
   return '<div data-f="shipTawar" style="margin-top:8px">'+
-    '<div style="font-size:10px;font-weight:800;color:var(--muted);margin-bottom:4px">PILIHAN ONGKIR DI QUOTATION <span style="font-weight:400">— semua layanan ke '+esc(o.shipKota)+' dari Master → Pengiriman; matikan yang tak ditawarkan. Client memilih saat Deal.</span></div>'+
+    '<div class="sj">Pilihan ongkir di quotation <span style="font-weight:400;font-size:10px;color:var(--muted);text-transform:none">— semua layanan ke '+esc(o.shipKota)+' dari Master → Pengiriman; matikan yang tak ditawarkan. Client memilih saat Deal.</span></div>'+
     (semua.length?semua.map(function(r){var lb=shipLayananLabel(r),on=tawar.indexOf(lb)>=0,dipakai=(o.shipEksp===r.ekspedisi&&(o.shipLayanan||'')===(r.layanan||''));
       return '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:10.5px;padding:2px 0">'+
         '<label style="display:inline-flex;gap:6px;align-items:center;cursor:pointer"><input type="checkbox" '+(on?'checked':'')+' onchange="shipTawarSet('+jsArg(o.id)+','+jsArg(lb)+',this.checked)" style="width:auto;accent-color:var(--brand)"><b>'+esc(lb)+'</b></label>'+
@@ -5698,16 +5755,16 @@ function applyTrigger(o,silent){
     push('Sales','Harga jual &amp; margin ditetapkan: jual '+fmt0(Pp.jual)+' − HPP '+fmt0(Pp.hpp)+' = <b>'+fmt0(Pp.profit)+'</b> ('+Pp.pct+'%).');
     push('Bot','Harga jual disetujui Sales. Menunggu keputusan <b>Direktur</b> di Profitability.');}
   else if(p===3){push('Direktur','Ringkasan dibaca — profit, deadline produksi, batas tanggal PO turun. <b>Approve.</b>');
-    push('Bot','Gerbang approval direktur lewat. Giliran <b>Finance</b> membuat quotation.');}
-  else if(p===4){push('Finance','Quotation '+o.customer+' di-generate lengkap lalu dikirim ke client.');
+    push('Bot','Gerbang approval direktur lewat. Giliran <b>Sales</b> membuat quotation.');}
+  else if(p===4){push('Sales','Quotation '+o.customer+' di-generate lengkap lalu dikirim ke client.');
     push('Bot','Quotation terkirim. Menunggu jawaban client — yang memegang <b>Sales</b>.');}
   else if(p===5){o.sketchMasuk=new Date().toISOString();push('Sales','Client menyetujui penawarannya.');
     push('Bot','Gerbang approve client lewat. Giliran <b>Creative</b> menyiapkan sketsa.');}
   else if(p===6){push('Creative','Preview sketsa beserta collateral-nya selesai dan dirapikan.');
     push('Bot','Preview siap dikirim. Menunggu approval sketsa dari client — yang memegang <b>Sales</b>.');}
   else if(p===7){push('Sales','Client menyetujui sketsanya.');
-    push('Bot','Gerbang approve sketsa lewat. Giliran <b>Finance</b> menerbitkan invoice.');}
-  else if(p===8){push('Finance','Invoice DP diterbitkan dan ditagihkan ke client.');
+    push('Bot','Gerbang approve sketsa lewat. Giliran <b>Sales</b> menerbitkan invoice.');}
+  else if(p===8){push('Sales','Invoice DP diterbitkan dan ditagihkan ke client.');
     push('Bot','Invoice terkirim. Menunggu uang masuk — atau surat PO resmi client.');}
   else if(p===9){push('Finance','Pembayaran masuk dicocokkan lalu dicatat.');
     /* Form PO diisi dari brief SEBELUM Purchasing membukanya — kolom yang
@@ -5748,7 +5805,14 @@ function catChip(cat){const cls=cat[0]==='rove'?'cc-rove':'cc-radja';return `<sp
 function av(who){const a=TEAM[who];return `<div class="av" style="background:${a[1]}">${a[0]}</div>`}
 function pfColor(p){return {w:'#8b5cf6',c:'#16a34a',o:'#e0912f',au:'#5865F2'}[p]||'#9a6a2f'}
 
+/* Prospek kini juga milik PM (untuk mengobrak) — matriks akses yang sudah
+   tersimpan digeser sekali, penandanya ikut di master supaya tak berulang */
+function migrasiLeadsPM(){
+  var M=ST.master;if(!M||!M.access||M._migLeadsPM)return;
+  if(M.access['Project Manager'])M.access['Project Manager'].leads=true;
+  M._migLeadsPM=true;try{saveMaster();}catch(e){}}
 function render(){
+  try{migrasiLeadsPM();}catch(e){}
   try{setTimeout(perbaruiTanda,0);}catch(e){}   // tanda di tab ikut keadaan terbaru
   try{pitaUji();}catch(e){}
   if(!ST.user){renderLogin();return;}
@@ -5888,7 +5952,7 @@ function defAccess(){var a={};ROLES.forEach(function(r){a[r]={board:true,tasks:t
   /* Order lahir dari prospek, bukan dari form. Holding & Direktur Utama tetap
      bisa membuat manual sebagai jalan darurat (order tak lewat prospek,
      pembetulan data). Ubah di Master data → Hak akses kalau perlu. */
-  ['Holding','Direktur Utama'].forEach(function(r){a[r].neworder=true;});['Holding','Direktur Utama','Finance'].forEach(function(r){a[r].report=true;});['Sales','Holding','Direktur Utama'].forEach(function(r){a[r].leads=true;});a['Holding'].master=true;a['Holding'].tax=true;['Marketing','Creative','Holding','Direktur Utama'].forEach(function(r){a[r].konten=true;});['Direktur Utama','Holding','Finance'].forEach(function(r){a[r].hr=true;});['Finance','Direktur Utama','Holding'].forEach(function(r){a[r].fin=true;a[r].aset=true;});['Warehouse','Packing & Shipping','Purchasing','Project Manager','Holding','Direktur Utama'].forEach(function(r){a[r].inv=true;});return a;}
+  ['Holding','Direktur Utama'].forEach(function(r){a[r].neworder=true;});['Holding','Direktur Utama','Finance'].forEach(function(r){a[r].report=true;});['Sales','Holding','Direktur Utama','Project Manager'].forEach(function(r){a[r].leads=true;});a['Holding'].master=true;a['Holding'].tax=true;['Marketing','Creative','Holding','Direktur Utama'].forEach(function(r){a[r].konten=true;});['Direktur Utama','Holding','Finance'].forEach(function(r){a[r].hr=true;});['Finance','Direktur Utama','Holding'].forEach(function(r){a[r].fin=true;a[r].aset=true;});['Warehouse','Packing & Shipping','Purchasing','Project Manager','Holding','Direktur Utama'].forEach(function(r){a[r].inv=true;});return a;}
 /* Kalau fitur belum tercatat di matriks (mis. menu baru pada data lama),
    ikuti bawaan jabatan — JANGAN otomatis "boleh", nanti menu bocor ke semua orang. */
 var _defAcc=null;
@@ -9720,13 +9784,13 @@ const PH_PANEL=[['chk','brief'],['chk','rfq'],
                 /* fase 9 Invoice: ringkasan baca-saja dari quotation yang disetujui +
                    Generate Invoice DP; DP yang masuk dicatat di fase berikutnya (Pembayaran) */
                 ['chk','inv'],['chk','pay','bukti','poclient'],
-                ['chk','po','vpo'],['chk','prod'],['chk','qc','retur'],
+                ['chk','po','vpo'],['chk','prod'],['chk','qc'],
                 /* fase 14 Pelunasan: ringkasan + generate invoice pelunasan;
                    fase 15 Menunggu pelunasan: tracking pembayaran (gerbang);
                    fase 16 Shipping: alamat & penerima final (Brief) + resi */
                 ['chk','pel'],
                 ['chk','pay','bukti','poclient'],
-                ['chk','kirim','brief','retur'],
+                ['chk','kirim','brief'],
                 ['chk','kirim','cs','retur']];
 
 /* ================= CHECKLIST PER FASE =================
@@ -9886,8 +9950,8 @@ const PH_CHECK=[
    k:'dirAcc', t:'Baca ringkasan order, lalu approve atau tolak', en:'Read the order summary, then approve or reject', guna:'supaya tak ada quotation terbit tanpa Direktur melihat profitnya', gunaEn:'so no quotation goes out without the Director seeing the profit', pic:'Direktur', w:true}
  ],
  [ // 4 Quotation
-  {auto:function(o){return !!(o.docs&&o.docs.quotation);}, k:'gen', t:'Generate quotation', en:'Generate the quotation', guna:'supaya ada dokumen resmi untuk dikirim ke client', gunaEn:'so there is a proper document to send the client',                        pic:'Finance', w:true},
-  {auto:function(o){var s=(o.quo||{}).status;return s==='Terkirim'||s==='Approved';}, k:'kirim', t:'Kirim quotation ke client, lalu tandai terkirim', en:'Send the quotation to the client, then mark it sent', guna:'lewat WhatsApp, email, atau apa pun — yang dicatat HUB adalah sudah terkirimnya', gunaEn:'by WhatsApp, email, or anything else — what HUB records is that it went out',            pic:'Finance', w:true},
+  {auto:function(o){return !!(o.docs&&o.docs.quotation);}, k:'gen', t:'Generate quotation', en:'Generate the quotation', guna:'supaya ada dokumen resmi untuk dikirim ke client', gunaEn:'so there is a proper document to send the client',                        pic:'Sales', w:true},
+  {auto:function(o){var s=(o.quo||{}).status;return s==='Terkirim'||s==='Approved';}, k:'kirim', t:'Kirim quotation ke client, lalu tandai terkirim', en:'Send the quotation to the client, then mark it sent', guna:'lewat WhatsApp, email, atau apa pun — yang dicatat HUB adalah sudah terkirimnya', gunaEn:'by WhatsApp, email, or anything else — what HUB records is that it went out',            pic:'Sales', w:true},
   {auto:function(o){return !!clientEmail(o);},
    k:'email', t:'Catat email client kalau ada', en:'Note the client email if there is one',
    guna:'dokumen tak dikirim lewat email — ini untuk arsip dan keperluan pajak, jadi tak menahan fase',
@@ -9928,14 +9992,14 @@ const PH_CHECK=[
    k:'sketsaAcc', t:'Catat approval sketsa dari client', en:'Record the client sketch approval', guna:'supaya produksi tak berjalan tanpa persetujuan', gunaEn:'so production does not run without sign-off', pic:'Sales', w:true}
  ],
  [ // 8 Invoice
-  {auto:function(o){return !!(o.docs&&o.docs.invoice);}, k:'inv', t:'Generate invoice DP', en:'Generate the down-payment invoice', guna:'supaya ada tagihan resmi untuk client', gunaEn:'so there is a proper bill for the client',                             pic:'Finance', w:true},
-  {auto:function(o){return (o.inv||{}).status==='Terkirim';}, k:'kirim', t:'Kirim invoice ke client', en:'Send the invoice to the client', guna:'supaya DP bisa segera masuk', gunaEn:'so the down payment can come in',                     pic:'Finance', w:true},
+  {auto:function(o){return !!(o.docs&&o.docs.invoice);}, k:'inv', t:'Generate invoice DP', en:'Generate the down-payment invoice', guna:'supaya ada tagihan resmi untuk client', gunaEn:'so there is a proper bill for the client',                             pic:'Sales', w:true},
+  {auto:function(o){return (o.inv||{}).status==='Terkirim';}, k:'kirim', t:'Kirim invoice ke client', en:'Send the invoice to the client', guna:'supaya DP bisa segera masuk', gunaEn:'so the down payment can come in',                     pic:'Sales', w:true},
   {auto:function(o){var j=(o.pricing||{}).pajak||{};return !!(j.noFaktur&&String(j.noFaktur).trim());},
    k:'faktur', t:'Terbitkan faktur pajak, isi nomor & tanggalnya', en:'Issue the tax invoice and fill in its number and date', guna:'supaya client bisa mengkreditkan pajaknya', gunaEn:'so the client can claim the tax back',                                pic:'Finance', w:true, jika:'ppn'}
  ],
  [ // 9 Menunggu DP masuk
   {auto:function(o){return dpTerpenuhi(o);},
-   k:'dpMasuk', t:'Catat DP yang masuk — atau surat PO resmi client yang sudah disetujui Direktur', en:'Record the incoming down payment and reconcile it against the bank', guna:'supaya produksi tak jalan tanpa uang muka', gunaEn:'so production does not start without money in', pic:'Finance', w:true}
+   k:'dpMasuk', t:'Catat DP yang masuk — atau surat PO resmi client yang sudah disetujui Direktur', en:'Record the incoming down payment and reconcile it against the bank', guna:'supaya produksi tak jalan tanpa uang muka', gunaEn:'so production does not start without money in', pic:'Sales', w:true}
  ],
  [ // 10 Spec & PO
   {auto:function(o){return !!((o.poRevOk||{}).radja);},
@@ -10548,8 +10612,12 @@ function rfqRingkasJawaban(o){
   return {ringkas:ringkas,rinci:rinci};}
 const FASE_HASIL=[
   /* 0 Inquiry */[
+    ['Client', function(o){return o.customer;}],
     ['PIC client', function(o){var b=briefGet(o);
       return [b.picNama,o.phone].filter(Boolean).join(' · ');}],
+    ['Email client', function(o){return clientEmail(o);}],
+    ['Alamat penagihan', function(o){return clientAlamatKantor(o);}],
+    ['Alamat kirim', function(o){return o.addr;}],
     ['Tanggal acara → kirim', function(o){var b=briefGet(o);
       return [tglID(o.eventDate),tglID(b.tglKirim)].filter(Boolean).join(' → ');}],
     ['Kota & venue', function(o){return briefGet(o).venue;}],
@@ -10668,36 +10736,44 @@ function leadSpecRingkasDari(d){
 function ringkasSebelumBlok(o){
   var f=o.phase||0;
   if(o.status==='Cancel'||f>=PH.length)return '';
-  var R;
+  var seksi=[],ada={},kosong=0;
+  var jadikan=function(p){var v='';try{v=p[1](o);}catch(e){v='';}
+    if(v&&typeof v==='object'&&v.rinci)return [p[0],String(v.ringkas||'').trim(),v.rinci,''];
+    return [p[0],String(v==null?'':v).trim(),null,''];};
   if(f===0){
-    R=ringkasProspek(o);
-    if(!R)R={judul:'Dibuat manual — bukan dari prospek',
-      baris:[['Catatan','Order ini tidak lahir dari kartu prospek, jadi tak ada ringkasan yang bisa dibawa.']]};
+    var R0=ringkasProspek(o);
+    seksi.push(R0?{judul:R0.judul,rows:R0.baris.filter(function(b){return b[1];}).map(function(b){return [b[0],b[1],b[2]||null,''];})}
+      :{judul:'Dibuat manual — bukan dari prospek',rows:[['Catatan','Order ini tidak lahir dari kartu prospek, jadi tak ada ringkasan yang bisa dibawa.',null,'']]});
   } else {
-    var H=FASE_HASIL[f-1]||[];
-    R={judul:'Hasil dari '+PH[f-1].n+' — PIC '+PH[f-1].pic,
-       baris:H.map(function(p){
-         var v='';try{v=p[1](o);}catch(e){v='';}
-         /* {ringkas,rinci}: satu baris ringkas + baris-baris rinci di bawahnya */
-         if(v&&typeof v==='object'&&v.rinci)return [p[0],String(v.ringkas||'').trim(),v.rinci];
-         return [p[0],String(v==null?'':v).trim()];})};
+    /* SEMUA tahap sebelumnya, urut dari awal. Label yang muncul lagi di tahap
+       berikutnya tak ditulis dua kali — isinya (statusnya) yang diperbarui,
+       dengan catatan tahap mana yang terakhir mengubahnya. */
+    for(var i=0;i<f;i++){
+      var H=FASE_HASIL[i]||[],rows=[];
+      H.forEach(function(p){var r=jadikan(p);
+        if(!r[1]){if(i===f-1)kosong++;return;}
+        if(ada[p[0]]){ada[p[0]][1]=r[1];ada[p[0]][2]=r[2];ada[p[0]][3]=PH[i].n;return;}
+        ada[p[0]]=r;rows.push(r);});
+      if(rows.length)seksi.push({judul:PH[i].n+' — PIC '+PH[i].pic,rows:rows});}
   }
-  var isi=R.baris.filter(function(b){return b[1];});
-  var kosong=R.baris.length-isi.length;
+  var judul=(f===0)?seksi[0].judul:('Semua tahap sebelumnya — terakhir '+PH[f-1].n+' (PIC '+PH[f-1].pic+')');
+  var adaIsi=seksi.some(function(s){return s.rows.length;});
   return '<div class="card actcard" style="margin-top:14px"><div class="ch">'+
     '<span class="ico" style="background:#6a6f8a">↩</span>'+
     '<div><div class="t">Ringkasan langkah sebelumnya</div>'+
-      '<div class="s">'+esc(R.judul)+'</div></div>'+
-    (kosong?('<span style="margin-left:auto;font-size:9.5px;color:var(--muted)">'+kosong+' belum terisi</span>'):'')+
+      '<div class="s">'+esc(judul)+'</div></div>'+
+    (kosong?('<span style="margin-left:auto;font-size:9.5px;color:var(--muted)">'+kosong+' belum terisi di tahap terakhir</span>'):'')+
     '</div><div class="body">'+
-    (isi.length
+    (adaIsi
       ? '<div class="xscroll"><table class="rtable"><tbody>'+
-        isi.map(function(b){
-          return '<tr><td style="width:210px;color:var(--muted);font-size:10.5px">'+esc(b[0])+'</td>'+
-            '<td style="font-weight:600">'+esc(b[1])+'</td></tr>'+
-            (b[2]||[]).map(function(r){
-              return '<tr><td style="padding-left:22px;font-size:10px;color:var(--muted)">↳ '+esc(r[0])+'</td>'+
-                '<td style="font-size:10.5px;font-weight:500'+(r[2]?(';color:'+r[2]):'')+'">'+esc(r[1])+'</td></tr>';}).join('');}).join('')+
+        seksi.map(function(s){
+          return (f===0?'':('<tr><td colspan="2" class="sj" style="padding-top:10px;font-size:11px">'+esc(s.judul)+'</td></tr>'))+
+            s.rows.map(function(b){
+              return '<tr><td style="width:210px;color:var(--muted);font-size:10.5px">'+esc(b[0])+'</td>'+
+                '<td style="font-weight:600">'+esc(b[1])+(b[3]?('<span style="font-size:9px;color:var(--muted);font-weight:400"> · diperbarui di '+esc(b[3])+'</span>'):'')+'</td></tr>'+
+                (b[2]||[]).map(function(r){
+                  return '<tr><td style="padding-left:22px;font-size:10px;color:var(--muted)">↳ '+esc(r[0])+'</td>'+
+                    '<td style="font-size:10.5px;font-weight:500'+(r[2]?(';color:'+r[2]):'')+'">'+esc(r[1])+'</td></tr>';}).join('');}).join('');}).join('')+
         '</tbody></table></div>'
       : '<div style="font-size:10.5px;color:var(--muted)">Langkah sebelumnya belum meninggalkan isian apa pun.</div>')+
     '</div></div>';}
@@ -13073,7 +13149,7 @@ function biayaBlok(o){
       '<td><button class="xrow" onclick="biayaDel(\'' + o.id + '\','+i+')">✕</button></td></tr>';}).join('');
   return '<div style="border:1px dashed var(--line);border-radius:9px;padding:11px 13px;margin-top:12px;background:var(--bg)">'+
     '<div style="display:flex;flex-wrap:wrap;gap:9px;align-items:center;margin-bottom:'+(L.length?'8px':'0')+'">'+
-      '<b style="font-size:11px;color:var(--brand)"><span>💸 </span><span>BIAYA DI LUAR HPP</span></b>'+
+      '<b style="font-size:12.5px;color:var(--brand)"><span>💸 </span><span>BIAYA DI LUAR HPP</span></b>'+
       '<span style="font-size:10px;color:var(--muted)">ongkir alat, akomodasi operator, sample — potong profit tapi bukan HPP vendor</span>'+
       '<span style="margin-left:auto;display:flex;gap:8px;align-items:center">'+
         (tot?('<b style="font-size:12px;color:var(--warn)">−'+fmt0(tot)+'</b>'):'')+
@@ -13231,16 +13307,22 @@ function jualBuka(id){
   L.forEach(function(l){delete l.jual;});
   logHist(o,'Harga jual '+L.length+' baris dikembalikan mengikuti margin');
   o._m=Date.now();save();render();}
+/* HPP vendor diubah PM / Purchasing; Sales menawar lewat tombol Nego harga */
+function hppBolehEdit(){return ['Project Manager','Purchasing','Holding','Direktur Utama'].some(function(r){return myRoles().indexOf(r)>=0;});}
 function profitSet(id,i,f,v){
   var o=ST.orders.find(function(x){return x.id===id;});if(!o||!o.pricing)return;
   var l=o.pricing.lines[i];if(!l)return;
+  if(f==='hpp'&&!hppBolehEdit()){alert('Sales tidak mengubah HPP langsung — pakai tombol Nego harga di baris itemnya.');render();return;}
   var hv=lineHppVendor(l);
   /* baris jasa: harga jualnya harga jasa order ini (bukan l.jual) */
   if(f==='plat'&&lineJenis(l)==='jasa'&&!l.svcFee){jasaPlatSet(id,i,v);return;}
   if((f==='jual'||f==='mg')&&lineJenis(l)==='jasa'&&!l.svcFee){
     if(f==='jual'){jasaJualSet(id,i,v);return;}
-    if(!hv){alert('Isi HPP vendor dulu — margin dihitung dari situ.');return;}
-    jasaJualSet(id,i,String(Math.round(hv*(1+Math.max(0,+v||0)/100))));return;}
+    var dasar=hv*jasaKali(l)+(+l.hppFix||0);
+    if(!dasar){alert('Isi HPP vendor (per pcs atau biaya tetap) dulu — margin dihitung dari situ.');return;}
+    /* target omset = dasar × (1+margin); plat yang ditagih ke client tetap, sisanya jadi harga per pcs / per event */
+    var target=dasar*(1+Math.max(0,+v||0)/100)-((jasaJualBaris(o,l)||{}).plat||0);
+    jasaJualSet(id,i,String(Math.max(0,Math.round(target/(jasaSatuan(l)==='pcs'?jasaKali(l):1)))));return;}
   if(f==='jual'){l.jual=Math.max(0,moneyVal(v));}
   else if(f==='mg'){                                  // margin → hitung ulang harga jual
     var mg=Math.max(0,+v||0);
@@ -13254,10 +13336,13 @@ function profitSet(id,i,f,v){
 /* Margin baris = selisih harga jual terhadap HPP vendor. */
 function lineMarginEfektif(l,m,o){
   var hv=lineHppVendor(l),d;
-  if(o&&lineJenis(l)==='jasa'){var JJ=jasaJualBaris(o,l);l._jualJasa=JJ?JJ.jual:null;l._platJasa=JJ?JJ.plat:0;d=lineProfit(l,m);delete l._jualJasa;delete l._platJasa;}
-  else d=lineProfit(l,m);
+  if(o&&lineJenis(l)==='jasa'){var JJ=jasaJualBaris(o,l);l._jualJasa=JJ?JJ.jual:null;l._platJasa=JJ?JJ.plat:0;d=lineProfit(l,m);delete l._jualJasa;delete l._platJasa;
+    /* jasa: dasar = HPP × kali + biaya tetap (fee per event / plat); omset = jual × kali + plat ke client */
+    var dasar=hv*jasaKali(l)+(+l.hppFix||0),omset=(+d.jual||0)*jasaKali(l)+(+d.plat||0);
+    if(!(dasar>0)||!(omset>0))return null;          // belum ada harga — bukan -100%
+    return Math.round((omset-dasar)/dasar*100);}
+  d=lineProfit(l,m);
   if(!(hv>0))return null;
-  if(d.jasa&&!(d.jual>0))return null;              // harga jual jasa belum ada — bukan -100%
   return Math.round((d.jual-hv)/hv*100);}
 function profitWarna(pct){return pct<0?'var(--red,#d9534f)':pct<15?'var(--warn)':'var(--ok)';}
 /* Tambah item dari panel Profitability — selama belum masuk Quotation. */
@@ -13605,7 +13690,31 @@ function poClientGet(o){
 function poClientAda(o){var P=poClientGet(o);return !!(String(P.no||'').trim()&&P.files.length);}
 function poClientSah(o){return poClientAda(o)&&!!poClientGet(o).apprTgl;}
 /* Gerbang fase Menunggu DP: uang masuk ATAU surat PO resmi yang disetujui. */
-function dpTerpenuhi(o){return ((o.pay||{}).dp||0)>0||poClientSah(o);}
+function dpTerpenuhi(o){return ((o.pay||{}).dp||0)>0||poClientSah(o)||(isVip(o)&&!!((o.vipDp||{}).tgl));}
+/* client VIP boleh jalan tanpa DP maupun PO resmi — asal Direktur menyetujui */
+function vipDpBlok(o){
+  if(!isVip(o)||(o.phase||0)!==9)return '';
+  var v=o.vipDp||{},akuDir=(myRoles().indexOf('Direktur Utama')>=0||myRoles().indexOf('Holding')>=0);
+  return '<div data-f="vipDp" style="border:1px solid var(--accent);border-radius:9px;padding:9px 11px;margin-bottom:11px;font-size:10.5px;line-height:1.6;background:var(--warn-bg)">'+
+    '<b>★ Client VIP</b> — boleh lanjut ke Spec &amp; PO tanpa DP maupun PO resmi, dengan approval Direktur.'+
+    (v.tgl?('<div style="color:var(--ok);font-weight:700;margin-top:4px">✓ Disetujui Direktur '+tglID(v.tgl)+(v.by?(' · '+esc(v.by)):'')+
+        (akuDir?(' <button class="btn ghost sm" onclick="vipDpSet('+jsArg(o.id)+')">↺ Batalkan</button>'):'')+'</div>')
+      :(akuDir?('<div style="margin-top:6px"><button class="btn sm" data-f="vipDpBtn" onclick="vipDpSet('+jsArg(o.id)+')">✓ Setujui jalan tanpa DP / PO</button></div>')
+              :'<div style="color:var(--muted);margin-top:3px">menunggu approval Direktur Utama</div>'))+'</div>';}
+function vipDpSet(id){
+  var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
+  if(!(myRoles().indexOf('Direktur Utama')>=0||myRoles().indexOf('Holding')>=0)){alert('Hanya Direktur Utama yang bisa menyetujui order VIP jalan tanpa DP / PO.');return;}
+  if(o.vipDp&&o.vipDp.tgl){if(!confirm('Batalkan approval jalan tanpa DP / PO?'))return;delete o.vipDp;logHist(o,'↺ Approval VIP jalan tanpa DP / PO dibatalkan');}
+  else{o.vipDp={tgl:hariIni(),by:(ST.userName||ST.user||'')};logHist(o,'✓ Direktur menyetujui order VIP jalan tanpa DP / PO');
+    notifyOrder(o,'★ **VIP — jalan tanpa DP / PO** disetujui Direktur — '+o.customer);}
+  o._m=Date.now();save();render();}
+/* client tak bisa melampirkan bukti: Sales minta Finance mengecek mutasi rekening */
+function mutasiMinta(id){
+  var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
+  var b=buktiGet(o);b.mintaCek={tgl:nowStr(),oleh:(ST.userName||ST.user||'')};
+  logHist(o,'Sales minta Finance cek mutasi rekening untuk DP');
+  notifyOrder(o,'🔎 **Minta cek mutasi** — '+o.customer+String.fromCharCode(10)+'Client tak bisa melampirkan bukti transfer. '+picMention('Finance')+' mohon cek mutasi rekening, screenshot, kirim ke Sales untuk diunggah.');
+  o._m=Date.now();save();render();kilat('Permintaan cek mutasi terkirim ke Finance');}
 
 function poClientCatat(id){
   var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
@@ -13750,6 +13859,10 @@ function buktiPanel(o){
       (b.files.length?('<span style="font-size:10px;color:var(--ink-soft)">'+b.files.length+' lampiran</span>'):
                       '<span style="font-size:10px;color:var(--muted)">belum ada lampiran</span>')+
     '</div>'+
+    (function(){var m=b.mintaCek,akuSales=(myRoles().indexOf('Sales')>=0||myRoles().indexOf('Holding')>=0);
+      return '<div data-f="mintaCek" style="margin-top:9px;font-size:10.5px;line-height:1.6">'+
+        (m?('<span style="color:var(--ok);font-weight:700">✓ Finance diminta cek mutasi '+esc(m.tgl)+' · '+esc(m.oleh)+'</span> — screenshot mutasi dari Finance dilampirkan Sales di atas.')
+          :('Client tak bisa melampirkan bukti? '+(akuSales?('<button class="btn ghost sm" data-f="mintaCekBtn" onclick="mutasiMinta('+jsArg(o.id)+')">Minta Finance cek mutasi</button>'):'Sales bisa meminta Finance mengecek mutasi rekening.')))+'</div>';})()+
     (b.files.length?('<div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:9px">'+
       b.files.map(function(x,i){return '<div style="border:1px solid var(--line);border-radius:8px;padding:5px 8px;font-size:10px;display:flex;gap:6px;align-items:center">'+
         esc(x.n)+'<button class="xrow" onclick="buktiHapus(\''+o.id+'\','+i+')">✕</button></div>';}).join('')+'</div>'):'')+
@@ -13830,7 +13943,7 @@ function ringkasPanel(o){
     tandaMarginDiskon(o)+
     '<div style="font-size:10.5px;color:var(--muted);margin-bottom:10px;line-height:1.6">Tak ada yang bisa diubah dari sini. Kalau ada angka yang salah, <b>tolak</b> ordernya — HUB mengembalikannya ke fase yang tepat sesuai alasanmu.</div>'+
     /* tabel yang sama persis dengan Penentuan harga jual — cuma tak bisa diubah */
-    hargaJualTabelBaca(o)+dokItemBlok(o,true)+diskonBlok(o,true)+opsiBlok(o,true)+
+    hargaJualTabelBaca(o)+diskonBlok(o,true)+opsiRingkasBaca(o)+dokItemBlok(o,true)+
     '<div style="margin-top:11px;border-top:1px solid var(--line);padding-top:9px">'+
       dirBaris('Omset (sebelum diskon &amp; ongkir)',fmt0(P.jual))+
       dirBaris('HPP vendor','− '+fmt0(P.hpp))+
@@ -14087,10 +14200,11 @@ function profitPanel(o){
           :'item masih bisa ditambah/dikurangi di sini — setelah Quotation sudah terkunci')+'</span>'+
     '</div>'+
     (((ST._catBuka||{})[o.id])?catalogPicker(o,'profit'):''))+
+    '<div class="sj" style="margin-top:8px">Item &amp; harga jual</div>'+
     (L.length?'<div class="xscroll"><table class="rtable mstack"><thead><tr>'+
       '<th style="min-width:150px">Item</th><th style="width:70px">Qty client</th><th style="width:82px">Qty vendor</th>'+
       '<th style="width:118px" class="num">HPP/pcs</th><th style="width:78px" class="num">Margin %</th>'+
-      '<th style="width:118px" class="num">Harga jual/pcs</th>'+
+      '<th style="width:118px" class="num">Harga jual/pcs</th><th style="width:150px">Diskon/pcs</th>'+
       '<th style="width:104px" class="num">Profit/pcs</th><th style="width:78px" class="num">Profit %</th>'+
       '<th style="width:120px" class="num">Profit total</th><th style="width:30px"></th></tr></thead><tbody>'+
       L.map(function(l){var i=o.pricing.lines.indexOf(l);
@@ -14106,7 +14220,10 @@ function profitPanel(o){
           '<td data-l="Qty client"><input class="pin n" type="number" style="width:64px" value="'+(l.qty||0)+'" onchange="profitSet(\''+o.id+'\','+i+',\'qty\',this.value)"></td>'+
           '<td data-l="Qty vendor"><input class="pin n" type="number" style="width:74px" value="'+lineQtyPO(l)+'" title="jumlah yang dipesan ke vendor — selisihnya jadi spare" onchange="spareSet(\''+o.id+'\','+i+',this.value)">'+
             (d.spare?('<div style="font-size:8.5px;color:var(--warn);font-weight:700">+'+d.spare+' spare</div>'):'')+'</td>'+
-          '<td data-l="HPP/pcs"><input class="pin n money" inputmode="numeric" style="width:110px" value="'+moneyInp(d.hpp)+'" onchange="profitSet(\''+o.id+'\','+i+',\'hpp\',this.value)">'+
+          '<td data-l="HPP/pcs">'+(hppBolehEdit()
+            ?('<input class="pin n money" inputmode="numeric" style="width:110px" value="'+moneyInp(d.hpp)+'" onchange="profitSet(\''+o.id+'\','+i+',\'hpp\',this.value)">')
+            :('<b style="font-size:11px">'+fmt0(d.hpp)+'</b><div style="font-size:8.5px;color:var(--muted)">nego lewat tombol Nego harga</div>'))+
+            ((lineJenis(l)==='jasa'&&jasaSatuan(l)!=='pcs')?('<div style="font-size:8.5px;color:var(--muted)">HPP per event: <b>'+fmt0(lineHppVendor(l)*jasaKali(l)+(+l.hppFix||0))+'</b></div>'):'')+
             /* biaya tetap vendor (plat logo, fee per event) dicatat saat RFQ dan
                ikut dihitung di Profit total — ditulis juga di sini supaya sama
                dengan tabel Profitability & Pricing terkunci */
@@ -14123,14 +14240,16 @@ function profitPanel(o){
               /* add-on per pcs: harga plat yang ditagih ke client, sekali per
                  order — pasangan dari biaya tetap vendor di kolom HPP */
               ((d.jasa&&jasaSatuan(l)==='pcs')?('<div style="display:flex;align-items:center;gap:4px;margin-top:3px;white-space:nowrap;font-size:8.5px;color:var(--muted)" title="harga plat / biaya tetap yang ditagih ke client, sekali per order — kosong = tak ditagih; masuk quotation, invoice, dan profit">+ plat <input class="pin n money" inputmode="numeric" style="width:88px;font-size:9.5px;padding:2px 5px" data-f="platJasa_'+i+'" value="'+moneyInp(d.plat)+'" placeholder="Rp 0" onchange="profitSet(\''+o.id+'\','+i+',\'plat\',this.value)"> /order</div>'):'')+'</td>')+
+          (lineJenis(l)==='jasa'?'<td data-l="Diskon/pcs" class="num" style="color:var(--muted)">—</td>':('<td data-l="Diskon/pcs">'+diskonSel(o,l,i)+'</td>'))+
           '<td data-l="Profit/pcs" class="num" style="color:'+profitWarna(d.pct)+'">'+((d.adaHpp&&!l.svcFee)?fmt0(d.perPcs):'—')+'</td>'+
           '<td data-l="Profit %" class="num" style="font-weight:800;color:'+profitWarna(d.pct)+'">'+((d.adaHpp&&!l.svcFee)?(d.pct+'%'):'—')+'</td>'+
           '<td data-l="Profit total" class="num" style="font-weight:800">'+((d.adaHpp&&!l.svcFee)?fmt0(d.jasa?d.untungTotal:d.total):'—')+'</td>'+
           '<td><button class="xrow" title="hapus item" onclick="profitHapus(\u0027'+o.id+'\u0027,'+i+')">✕</button></td></tr>';}).join('')+
       '</tbody></table></div>'
       :'<div style="color:var(--muted);font-size:11px">Belum ada baris pricing.</div>')+
-    liveJualBlok(o)+dokItemBlok(o)+diskonBlok(o)+opsiBlok(o)+ongkirBlok(o)+shipTawarBlok(o)+
-    '<div style="display:flex;flex-wrap:wrap;gap:18px;margin-top:13px;padding-top:11px;border-top:1px solid var(--line);font-size:11px">'+
+    liveJualBlok(o)+diskonBlok(o)+terminBlok(o)+opsiBlok(o)+dokItemBlok(o)+ongkirBlok(o)+shipTawarBlok(o)+biayaBlok(o)+
+    '<div class="sj" style="margin-top:13px;padding-top:11px;border-top:1px solid var(--line)">Total</div>'+
+    '<div style="display:flex;flex-wrap:wrap;gap:18px;font-size:11px">'+
       '<div><div style="color:var(--muted);font-size:10px;font-weight:700">TOTAL JUAL</div><b style="font-size:15px">'+fmt0(P.jual)+'</b></div>'+
       '<div><div style="color:var(--muted);font-size:10px;font-weight:700">TOTAL HPP</div><b style="font-size:15px">'+fmt0(P.hpp)+'</b>'+
         (P.spare?('<div style="font-size:9px;color:var(--warn)">termasuk '+P.spare+' pcs spare</div>'):'')+'</div>'+
@@ -14139,7 +14258,7 @@ function profitPanel(o){
         (P.biayaLain?('<div style="font-size:9px;color:var(--muted)">kotor '+fmt0(P.kotor)+'</div>'):'')+'</div>'+
       '<div><div style="color:var(--muted);font-size:10px;font-weight:700">PROFIT %</div><b style="font-size:15px;color:'+profitWarna(P.pct)+'">'+P.pct+'%</b></div>'+
       (ship?('<div><div style="color:var(--muted);font-size:10px;font-weight:700">ONGKIR (ditagih terpisah)</div><b style="font-size:15px">'+fmt0(ship)+'</b></div>'):'')+
-    '</div>'+biayaBlok(o)+'</div></div>';}
+    '</div>'+'</div></div>';}
 
 /* ---- tugas sketch bisa dipanggil lebih awal, dari fase Pricing Vendor ---- */
 function sketchPIC(){
@@ -14607,13 +14726,14 @@ function kirimPanel(o){
 
 function payPanel(o){const T=orderTotals(o);const grand=T.grand;
   const pay=o.pay||{dp:0,pel:0};const paid=(+pay.dp||0)+(+pay.pel||0);const sisa=grand-paid;
-  return `<div class="card actcard" style="margin-top:14px"><div class="ch"><span class="ico" style="background:#2f8f5b">Rp</span><div><div class="t">Pembayaran</div><div class="s">TRACKING DP &amp; PELUNASAN</div></div>
+  return `<div class="card actcard" style="margin-top:14px"><div class="ch"><span class="ico" style="background:#2f8f5b">Rp</span><div><div class="t">Pembayaran</div><div class="s">${(o.phase||0)>=13?'TRACKING DP &amp; PELUNASAN':'TRACKING DP'}</div></div>
     <span style="margin-left:auto;font-size:12px;font-weight:800;color:${sisa<=0?'var(--ok)':'var(--warn)'}">${sisa<=0?'LUNAS':'Sisa '+fmt0(sisa)}</span></div>
     <div class="body">
       <div style="font-size:10.5px;color:var(--muted);margin-bottom:11px">Pembayaran dicatat lewat tombol, bukan diketik di tabel — supaya <b>tanggal uang masuk</b> selalu terisi dan bisa dicocokkan dengan rekening koran.</div>
+      ${vipDpBlok(o)}
       <div style="display:flex;flex-wrap:wrap;gap:11px;align-items:stretch">
         ${bayarKotak(o,'dp','DP',pay.dp,pay.dpDate,grand)}
-        ${bayarKotak(o,'pel','Pelunasan',pay.pel,pay.pelDate,grand)}
+        ${((o.phase||0)>=13||(+pay.pel||0)>0)?bayarKotak(o,'pel','Pelunasan',pay.pel,pay.pelDate,grand):''}
         <div style="margin-left:auto;text-align:right;font-size:11px;align-self:center"><div>Grand total: <b>${fmt0(grand)}</b></div><div>Dibayar: <b style="color:var(--ok)">${fmt0(paid)}</b></div><div style="font-size:13px">Sisa: <b style="color:${sisa<=0?'var(--ok)':'var(--warn)'}">${fmt0(sisa)}</b></div></div>
       </div></div></div>`;
 }
@@ -14685,7 +14805,7 @@ function returGet(o){
   return o.retur;}
 function returAktif(o){return !!returGet(o).aktif;}
 /* Retur cuma masuk akal setelah barangnya jadi — sebelum itu jalurnya revisi. */
-function returBolehMulai(o){return (o.phase||0)>=faseQC();}
+function returBolehMulai(o){return (o.phase||0)>=PH.length-1;}   // retur dicatat di Konfirmasi & Selesai
 function returSisa(o){
   var R=returGet(o);
   return RETUR_LANGKAH.filter(function(x){
