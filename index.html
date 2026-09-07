@@ -526,7 +526,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20260905-134353';
+const VERSI='20260907-111133';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -4915,19 +4915,58 @@ function diskonBlok(o,baca){
 
 /* live service yang dikerjakan tim sendiri tak punya baris vendor — harga
    jualnya tetap harus terlihat di panel harga jual */
-function liveJualBlok(o){
+/* Live service yang dikerjakan tim sendiri: ada di order, tapi tak punya
+   baris vendor di tabel pricing (biayanya fee operator). Harga jualnya
+   diisi di blok Live service (tim sendiri) pada panel Penentuan harga jual. */
+function jasaLiveSendiri(o){
   var L=[];try{L=liveList(o.liveSvc);}catch(e){}
-  if(!L.length)return '';
   var adaBaris=function(n){return (((o.pricing||{}).lines)||[]).some(function(l){return l.jasa==='Live service'&&namaJasaBaris(l)===n;});};
-  var S=L.filter(function(n){return !adaBaris(n);});
+  return L.filter(function(n){return !adaBaris(n);});}
+/* Ketikan di blok itu = harga jual live service untuk order ini. Satuannya
+   mengikuti harga yang berlaku sekarang: master per pcs → per pcs, selain
+   itu sekali per event. Kosong = kembali ke harga standar master. */
+function jasaJualLiveSet(id,nama,v){
+  var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
+  var H=jasaHargaOrder(o,nama),pcs=((+H.perPc||0)>0)&&!((+H.fix||0)>0);
+  var h=Math.max(0,moneyVal(v));
+  if(!o.jasaHarga)o.jasaHarga={};
+  if(h>0)o.jasaHarga[nama]=pcs?{fix:0,harga:h}:{fix:h,harga:0};
+  else delete o.jasaHarga[nama];
+  logHist(o,'Harga jual '+nama+' untuk order ini: '+(h>0?(fmt0(h)+(pcs?'/pcs':'/event')):'kembali ke master'));
+  o._m=Date.now();save();render();}
+/* Mengantar ke kotak harga jual jasa: blok Live service (tim sendiri) dulu,
+   lalu kolom Harga jual baris jasa — yang masih kosong didahulukan. Kalau
+   panel Penentuan harga jual belum terbuka, dibuka lebih dulu. */
+function jasaJualLompat(id){
+  var o=ST.orders.find(function(x){return x.id===id;});if(!o)return null;
+  var cari=function(){
+    var e=document.getElementById('pnl_profit')||document;
+    var A=[].slice.call(e.querySelectorAll('[data-f^="jualLive_"],[data-f^="jualJasa_"]'));
+    return A.filter(function(x){return !String(x.value||'').trim();})[0]||A[0]||null;};
+  var t=cari();
+  if(!t){
+    try{if(panelBawaan(o).indexOf('profit')<0){var LB=bukaAwalSet(o);if(LB.indexOf('profit')<0)LB.push('profit');}}catch(e){}
+    ST.cur=o.id;ST._stepFor=null;render();ST._stepOpen=ST._stepOpen||{};ST._stepOpen.profit=true;render();
+    t=cari();}
+  if(t){try{t.scrollIntoView({block:'center',behavior:'smooth'});}catch(e){}kedip(t);try{t.focus();}catch(e){}}
+  return t;}
+function liveJualBlok(o){
+  var S=jasaLiveSendiri(o);
   if(!S.length)return '';
   var fee=0;try{fee=jasaBiayaTim(o);}catch(e){}
   return '<div data-f="jualJasaLive" style="border:1px solid var(--line);border-radius:9px;padding:8px 11px;margin-top:10px;font-size:10.5px">'+
-    '<div style="font-weight:800;margin-bottom:4px">Live service (tim sendiri) — harga jual ke client</div>'+
-    S.map(function(n){var H=jasaHargaOrder(o,n),jual=(H.perPc>0)?H.perPc:H.fix;
-      return '<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;padding:3px 0"><b>'+esc(n)+'</b><span>harga jual <b>'+fmt0(jual)+'</b>'+(H.perPc>0?' /pcs':' /event')+(H.sendiri?'':' <span style="color:var(--muted)">(standar master)</span>')+'</span></div>';}).join('')+
-    '<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:4px"><span>Biaya ke tim (fee operator): <b>'+fmt0(fee)+'</b></span>'+
-      '<button class="btn ghost sm" style="font-size:9.5px" onclick="jasaHargaIsi(ST.orders.find(function(x){return x.id==='+jsArg(o.id)+';}))">✎ Isi harga jual jasa</button></div></div>';}
+    '<div style="font-weight:800;margin-bottom:2px">Live service (tim sendiri) — harga jual ke client</div>'+
+    '<div style="font-size:9.5px;color:var(--muted);margin-bottom:5px;line-height:1.5">Tak punya baris vendor di tabel; biayanya fee operator. '+
+      'Angka di sini yang masuk quotation & invoice — kosong = harga standar Master Product → Jasa.</div>'+
+    S.map(function(n){var H=jasaHargaOrder(o,n),pcs=((+H.perPc||0)>0)&&!((+H.fix||0)>0),jual=pcs?H.perPc:H.fix;
+      return '<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;padding:3px 0"><b style="min-width:120px">'+esc(n)+'</b>'+
+        '<span style="display:inline-flex;align-items:center;gap:6px">harga jual '+
+        '<input class="pin n money" inputmode="numeric" style="width:110px" data-f="jualLive_'+esc(n)+'" value="'+moneyInp(jual)+'" placeholder="Rp 0"'+
+        ' title="harga jual ke client '+(pcs?'per pcs':'per event')+' — berlaku untuk order ini; kosong = harga standar master"'+
+        ' onchange="jasaJualLiveSet('+jsArg(o.id)+','+jsArg(n)+',this.value)">'+(pcs?'/pcs':'/event')+'</span>'+
+        (H.sendiri?'<span style="color:var(--muted)">harga order ini</span>'
+          :(jual>0?'<span style="color:var(--muted)">standar master</span>':'<span style="color:var(--warn);font-weight:700">belum ada harga</span>'))+'</div>';}).join('')+
+    '<div style="margin-top:4px">Biaya ke tim (fee operator): <b>'+fmt0(fee)+'</b> <span style="color:var(--muted)">— fee per orang diisi di tab Live service</span></div></div>';}
 
 /* tabel harga jual versi baca-saja — kolomnya sama dengan Penentuan harga jual */
 function hargaJualTabelBaca(o){
@@ -5839,7 +5878,7 @@ function drafAda(o){var k=drafKunci(o);if(!k)return null;var d=drafSemua()[k];
     var m=drafSemua();delete m[k];drafTulis(m);return null;}
   return d;}
 function drafSimpan(){
-  if(!_ask)return;
+  if(!_ask||_ask.tanpaDraf)return;
   var k=drafKunci(_ask);if(!k)return;
   var v=askNilaiKini(),isi=false;
   Object.keys(v).forEach(function(f){
@@ -5857,8 +5896,10 @@ function askForm(o){
   document.getElementById('fm_sub').textContent=o.sub||'';
   document.getElementById('fm_err').style.display='none';
   /* draf dari percobaan sebelumnya — kecuali memang diminta mulai bersih */
-  var draf=o._tanpaDraf?null:drafAda(o);
+  var draf=(o._tanpaDraf||o.tanpaDraf)?null:drafAda(o);
   delete o._tanpaDraf;
+  /* form yang menolak draf (mis. harga) juga membuang draf lama yang tersisa */
+  if(o.tanpaDraf){var kb=drafKunci(o);if(kb){var mb=drafSemua();if(mb[kb]){delete mb[kb];drafTulis(mb);}}}
   /* keterangan yang perlu dibaca sebelum mengisi — mis. nomor kontak vendor */
   b.innerHTML=(o.info||'')+(o.fields||[]).map(function(f,i){
     var id='fmf'+i,v=(f.val===undefined||f.val===null)?'':f.val;
@@ -9684,8 +9725,8 @@ const PH_CHECK=[
      tetap kita bayar ke vendor — dan tak ada satu pun angka di layar order
      ini yang terlihat aneh, karena nolnya memang dijumlahkan dengan benar. */
   {auto:function(o){var K=[];try{K=jasaTanpaHarga(o);}catch(e){}return K.length===0;},
-   k:'jualJasa', t:'Isi harga jual tiap jasa (kolom Harga jual baris jasa, atau Master Product → Jasa)',
-   en:'Set the service selling price in Master Product → Services',
+   k:'jualJasa', t:'Isi harga jual tiap jasa (kolom Harga jual baris jasa, atau blok Live service tim sendiri)',
+   en:'Set each service selling price (Selling price column of its row, or the in-house Live service block)',
    guna:'harga jasa tak ada di baris pricing — kalau di master masih 0, client tak tertagih sementara vendornya tetap dibayar',
    gunaEn:'service prices live in master, not in the pricing rows — left at 0, the client is never charged while the vendor still is',
    pic:'Purchasing', w:true, jika:'adaJasa'},
@@ -10021,7 +10062,7 @@ const CHK_SUMBER={'0.logoCl':'Brief → lampiran Logo client',
   '3.dirAcc':'panel Ringkasan untuk Direktur',
   '0.terjemah':'Brief → Material utama, Personalization, dan spesifikasi tiap collateral',
   '0.brief':'form order baru / panel Pricing','0.kontak':'Brief Inquiry','0.acara':'Brief Inquiry','0.ref':'Brief → lampiran Referensi client','0.kota':'Brief → Venue / kota tujuan','0.hpWo':'Brief → WO / EO phone','1.rfq':'panel Minta harga vendor','1.kulit':'panel Minta harga vendor → ketersediaan kulit','1.harga':'panel Minta harga vendor → Catat jawaban','1.konfKatalog':'panel Minta harga vendor → baris harga master → tombol ✓ Catat jawaban','1.moq':'panel Minta harga vendor → catatan vendor','1.liveTanya':'panel Minta harga vendor → kartu Tim live service → Serahkan ke Event Management','2.hpp':'panel Penentuan harga jual','2.margin':'panel Penentuan harga jual','2.ongkir':'panel Penentuan harga jual → Ongkir','2.biayaLain':'panel Penentuan harga jual → Biaya di luar HPP','2.deadlineProd':'panel Penentuan harga jual → Info dari Radja','2.tglPOMax':'panel Penentuan harga jual → Info dari Radja','2.operator':'tab Live service → order ini → Operator','10.opFix':'tab Live service → order ini → Operator → ✓ Sudah fix',
-'2.jualJasa':'panel Penentuan harga jual → kolom Harga jual baris jasa (atau Master Product → Jasa)','2.accJual':'panel Penentuan harga jual → Persetujuan harga jual','4.gen':'panel Quotation → Generate Quotation','4.kirim':'panel Quotation → status quotation','4.follow':'panel Pricing → tandai Approved','4.email':'Master data → Customers (atau Brief → Email client kalau order ini beda)','4.kirimData':'panel Quotation → Ekspedisi (kota dari Alamat kirim di Brief)','4.alamatKantor':'Brief → Alamat client / kantor','4.ppn':'panel Quotation → Status PPN','6.logoCl':'Brief → lampiran Logo client','6.logoPch':'Brief → lampiran Logo soft pouch','6.logoBox':'Brief → lampiran Logo box','6.logoCard':'Brief → lampiran Logo thank you card','6.daftarNama':'Brief → daftar nama tamu','6.preview':'panel Referensi gambar → lampiran preview','6.approve':'panel Referensi gambar → tombol approval sketsa','8.inv':'panel Pricing → Generate Invoice','8.kirim':'panel Pricing → status invoice','8.dp':'panel Pembayaran → Catat DP masuk','8.faktur':'panel Pricing → No. faktur pajak','10.spec':'Form PO Radja','10.appr':'Form PO Radja → approval margin','10.poR':'Form PO Radja → Generate PO','10.poV':'panel PO vendor lain','10.trello':'otomatis saat fase Spec & PO dilewati','10.spare':'Form PO Radja → Qty spare produksi','10.warnaLogo':'Form PO Radja → warna logo','11.sample':'panel Produksi → sample disetujui','11.progres':'panel Produksi → catatan progres','12.qc':'panel Produksi → lampiran foto QC & retur','12.pack':'panel Produksi → lampiran foto packing','12.coll':'panel Produksi → collateral lengkap','13.invP':'panel Pricing → Generate Invoice','13.lunas':'panel Pembayaran → Catat pelunasan','13.alamat':'Brief → Alamat kirim','13.penerima':'panel Pengiriman barang','13.resi':'panel Pengiriman barang','14.tglTerima':'panel Pengiriman barang → Tanggal diterima','14.bukti':'panel Pengiriman barang → foto serah terima','14.testi':'panel Komplain & kepuasan','14.arsip':'otomatis saat order ditutup'};
+'2.jualJasa':'panel Penentuan harga jual → kolom Harga jual baris jasa (atau blok Live service tim sendiri)','2.accJual':'panel Penentuan harga jual → Persetujuan harga jual','4.gen':'panel Quotation → Generate Quotation','4.kirim':'panel Quotation → status quotation','4.follow':'panel Pricing → tandai Approved','4.email':'Master data → Customers (atau Brief → Email client kalau order ini beda)','4.kirimData':'panel Quotation → Ekspedisi (kota dari Alamat kirim di Brief)','4.alamatKantor':'Brief → Alamat client / kantor','4.ppn':'panel Quotation → Status PPN','6.logoCl':'Brief → lampiran Logo client','6.logoPch':'Brief → lampiran Logo soft pouch','6.logoBox':'Brief → lampiran Logo box','6.logoCard':'Brief → lampiran Logo thank you card','6.daftarNama':'Brief → daftar nama tamu','6.preview':'panel Referensi gambar → lampiran preview','6.approve':'panel Referensi gambar → tombol approval sketsa','8.inv':'panel Pricing → Generate Invoice','8.kirim':'panel Pricing → status invoice','8.dp':'panel Pembayaran → Catat DP masuk','8.faktur':'panel Pricing → No. faktur pajak','10.spec':'Form PO Radja','10.appr':'Form PO Radja → approval margin','10.poR':'Form PO Radja → Generate PO','10.poV':'panel PO vendor lain','10.trello':'otomatis saat fase Spec & PO dilewati','10.spare':'Form PO Radja → Qty spare produksi','10.warnaLogo':'Form PO Radja → warna logo','11.sample':'panel Produksi → sample disetujui','11.progres':'panel Produksi → catatan progres','12.qc':'panel Produksi → lampiran foto QC & retur','12.pack':'panel Produksi → lampiran foto packing','12.coll':'panel Produksi → collateral lengkap','13.invP':'panel Pricing → Generate Invoice','13.lunas':'panel Pembayaran → Catat pelunasan','13.alamat':'Brief → Alamat kirim','13.penerima':'panel Pengiriman barang','13.resi':'panel Pengiriman barang','14.tglTerima':'panel Pengiriman barang → Tanggal diterima','14.bukti':'panel Pengiriman barang → foto serah terima','14.testi':'panel Komplain & kepuasan','14.arsip':'otomatis saat order ditutup'};
 
 /* "Brief → lampiran Logo client" diterjemahkan per potong, bukan sebagai satu
    entri kamus — tempatnya berkombinasi jadi puluhan kemungkinan. */
@@ -10097,57 +10138,60 @@ function bukaLiveOrder(o){
 function jasaHargaIsi(o){
   var K=[];try{K=jasaBaris(o).map(function(j){return j.nama;});}catch(e){}
   if(!K.length){alert('Order ini tak memakai jasa apa pun.');return;}
+  /* jasa yang punya baris di tabel pricing (add-on, live service bervendor)
+     diisi di kolom Harga jual barisnya sendiri — form ini hanya untuk live
+     service tim sendiri yang tak punya baris. Tak ada yang begitu → diantar
+     ke kolomnya. */
+  var S=jasaLiveSendiri(o);
+  if(!S.length){jasaJualLompat(o.id);return;}
   var boleh=false;try{boleh=canSec('produk');}catch(e){}
-  var kurang=[];try{kurang=jasaTanpaHarga(o);}catch(e){}
-  if(!boleh&&kurang.length){
-    alert('Harga standar jasa diatur di Master Product → Jasa, dan seksi itu milik Purchasing / Project Manager.'+
-      String.fromCharCode(10)+String.fromCharCode(10)+'Yang belum berharga: '+kurang.join(', '));return;}
-  var biaya=jasaBiayaTim(o),qty=0;
-  try{qty=(((o.pricing||{}).lines)||[]).reduce(function(n,l){
-    return (lineJenis(l)==='produk'&&(l.qty||0)>n)?(l.qty||0):n;},0)||o.qty||0;}catch(e){}
+  var kurang=[];try{kurang=jasaTanpaHarga(o).filter(function(n){return S.indexOf(n)>=0;});}catch(e){}
+  var biaya=jasaBiayaTim(o);
   var F=[];
-  K.forEach(function(n,i){
+  S.forEach(function(n,i){
     var H=jasaHargaOrder(o,n);
     F.push({k:'s'+i,label:n+' — dihitung per apa?',type:'select',
-      opts:[{v:'event',l:'sekali per order'},{v:'pcs',l:'per pcs'}],
+      opts:[{v:'event',l:'sekali per order / event'},{v:'pcs',l:'per pcs'}],
       val:(H.perPc>0?'pcs':'event')});
     F.push({k:'h'+i,label:n+' — harga JUAL ke client',type:'money',
       val:(H.perPc>0?H.perPc:H.fix),req:!!kurang.length,
       hint:'Ini yang masuk quotation & invoice. Yang dibayarkan ke tim bukan angka ini — '+
         'itu fee tiap operator di tab Live service.'+
         (H.sendiri?' <b>Order ini sudah punya harganya sendiri.</b>':'')});});
-  F.push({k:'standar',label:'Jadikan harga standar juga?',type:'checkbox',val:false,
+  if(boleh)F.push({k:'standar',label:'Jadikan harga standar juga?',type:'checkbox',val:false,
     cbLabel:'Ya — simpan ke Master Product → Jasa, dipakai order berikutnya',
     hint:'Kalau tidak dicentang, angkanya cuma berlaku untuk order ini. Harganya memang '+
       'sering berbeda menurut clientnya.'});
-  askForm({judul:'Harga jual jasa',
-    sub:o.customer+' · '+K.length+' jasa'+(biaya?(' · biaya ke tim '+fmt0(biaya)):' · tim belum dipilih'),
+  /* tanpa pemulih draf: angka yang pernah diketik lalu ditinggalkan tak boleh
+     menimpa harga order yang sekarang berlaku */
+  askForm({judul:'Harga jual live service',tanpaDraf:true,
+    sub:o.customer+' · '+S.length+' live service tim sendiri'+(biaya?(' · biaya ke tim '+fmt0(biaya)):' · tim belum dipilih'),
     info:'<div style="border:1px solid var(--line);border-radius:9px;padding:9px 11px;margin-bottom:12px;'+
       'background:var(--bg);font-size:10.5px;line-height:1.7">'+
       '<b>Dua angka yang berbeda</b><br>'+
-      '<b>Harga jual</b> — yang ditagih ke client, masuk quotation & invoice. Diisi di bawah ini.<br>'+
+      '<b>Harga jual</b> — yang ditagih ke client, masuk quotation & invoice. Diisi di bawah ini '+
+      '(sama dengan kotak di blok Live service tim sendiri, panel Penentuan harga jual).<br>'+
       '<b>Fee operator</b> — yang dibayarkan ke tim, per orang, di tab Live service. '+
       'Sekarang '+(biaya?('<b>'+fmt0(biaya)+'</b> untuk '+(((o.event||{}).ops||[]).length)+' orang'):'<b>belum diisi</b>')+'.<br>'+
-      '<span style="color:var(--muted)">Jumlah orang boleh berubah tanpa mengubah harga jualnya — '+
-      'yang berubah biayanya, jadi selisihnya yang bergerak.</span></div>',
+      '<span style="color:var(--muted)">Add-on dan live service bervendor tak ada di sini — harga jualnya di kolom Harga jual baris masing-masing.</span></div>',
     fields:F,
     ok:function(v){
       var ubah=0;
       if(!o.jasaHarga)o.jasaHarga={};
-      K.forEach(function(n,i){
+      S.forEach(function(n,i){
         var harga=+v['h'+i]||0;if(harga<=0)return;
         var perPcs=(v['s'+i]==='pcs');
         o.jasaHarga[n]={fix:perPcs?0:harga,harga:perPcs?harga:0};
-        if(v.standar){
+        if(v.standar&&boleh){
           var nAsli=jasaNamaAsli(n);
           var j=(ST.master.jasa||[]).filter(function(x){return x.nama===nAsli;})[0];
-          if(!j){j={nama:nAsli,jenis:'Service',teknik:'-',fix:0,harga:0,vendor:''};(ST.master.jasa=ST.master.jasa||[]).push(j);}
+          if(!j){j={nama:nAsli,jenis:'Live service',teknik:'-',fix:0,harga:0,vendor:''};(ST.master.jasa=ST.master.jasa||[]).push(j);}
           if(perPcs){j.harga=harga;j.fix=0;}else{j.fix=harga;j.harga=0;}}
         ubah++;});
       if(!ubah){alert('Tak ada harga yang diisi.');return;}
-      if(v.standar)saveMaster();
-      logHist(o,'Harga jual jasa diisi'+(v.standar?' (sekaligus jadi harga standar di master)':' untuk order ini')+
-        ': '+K.join(', '));
+      if(v.standar&&boleh)saveMaster();
+      logHist(o,'Harga jual live service diisi'+((v.standar&&boleh)?' (sekaligus jadi harga standar di master)':' untuk order ini')+
+        ': '+S.join(', '));
       o._m=Date.now();save();render();}});}
 /* kunci item bisa dipakai dua fase (kirim: quotation di fase 4, invoice di
    fase 8) — entri berawalan '<fase>.' menang atas entri umum */
@@ -13808,9 +13852,9 @@ function profitPanel(o){
           '<td data-l="HPP/pcs"><input class="pin n money" inputmode="numeric" style="width:110px" value="'+moneyInp(d.hpp)+'" onchange="profitSet(\''+o.id+'\','+i+',\'hpp\',this.value)"></td>'+
           '<td data-l="Margin %"><input class="pin n" type="number" style="width:70px" value="'+(lineMarginEfektif(l,m,o)===null?'':lineMarginEfektif(l,m,o))+'" placeholder="—" title="'+(lineHppVendor(l)?'ubah margin → harga jual ikut dihitung':'isi HPP vendor dulu')+'" onchange="profitSet(\''+o.id+'\','+i+',\'mg\',this.value)"></td>'+
           (l.svcFee
-            /* fee operator = biaya ke tim; harga jual live service-nya diisi
-               lewat form Harga jual jasa (atau baris jasanya kalau ada) */
-            ? '<td data-l="Harga jual/pcs"><button class="btn ghost sm" style="font-size:9px" title="fee operator adalah biaya ke tim; harga jual live service diisi di sini" onclick="jasaHargaIsi(ST.orders.find(function(x){return x.id===\''+o.id+'\';}))">harga jual jasa →</button></td>'
+            /* fee operator = biaya ke tim; harga jual live service-nya di
+               blok Live service (tim sendiri) atau di baris jasanya sendiri */
+            ? '<td data-l="Harga jual/pcs"><button class="btn ghost sm" style="font-size:9px" title="fee operator adalah biaya ke tim; harga jual live service diisi di blok Live service (tim sendiri) atau di baris jasanya" onclick="jasaJualLompat('+jsArg(o.id)+')">harga jual live service →</button></td>'
             : '<td data-l="Harga jual/pcs"><input class="pin n money" inputmode="numeric" style="width:110px" data-f="jualJasa_'+i+'" value="'+moneyInp(d.jual)+'"'+
               (d.jasa?(' title="harga jual ke client '+(jasaSatuan(l)==='pcs'?'per pcs':'per event')+' — berlaku untuk order ini; master jadi harga standar"'):'')+
               ' onchange="profitSet(\''+o.id+'\','+i+',\'jual\',this.value)">'+
