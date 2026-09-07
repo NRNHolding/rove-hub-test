@@ -526,7 +526,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20260907-111951';
+const VERSI='20260907-120747';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -4643,7 +4643,8 @@ const CONTOH_ISI=[
    b.logoPouchFiles=[contohLogoFile('kemasan')];
    b.logoCardFiles=[contohLogoFile('kemasan')];
    b.logoLetak='produk: monogram deboss depan tengah 12mm · box: ROVE GIFTS di tutup tengah 40mm · pouch: tengah 30mm · kartu: pojok kanan bawah 15mm';
-   lineProduk(o).forEach(function(x){if(!String(x.l.bahan||'').trim())x.l.bahan='Chromium-Tanned Leather';});
+   lineProduk(o).forEach(function(x){if(!String(x.l.bahan||'').trim())x.l.bahan='Chromium-Tanned Leather';
+     if(!aksDaftar(x.l).length)x.l.aksesoris=[{nama:'Snap button',ukuran:'12 mm',warna:'Silver'},{nama:'D-ring',ukuran:'20 mm',warna:'Silver'}];});
    b.mainMat=((lineProduk(o)[0]||{}).l||{}).bahan||'Chromium-Tanned Leather';
    b.mainMatWarna=K.warna;b.stitch=K.stitch;b.benangWarna=K.benang;b.finishing=K.finishing;
    lineProduk(o).forEach(function(x){var s=lineSpek(x.l);s.mainMatWarna=K.warna;s.stitch=K.stitch;s.benangWarna=K.benang;s.finishing=K.finishing;});
@@ -4710,11 +4711,11 @@ const CONTOH_ISI=[
    p.deboss='Ya';p.groover='1,5mm';p.stitch='Machine';p.prong='Diamond';p.ukProng='3,5mm';p.jangka='3,5mm';
    p.benang='Galaces';p.ukBenang='0,45';p.warnaBenang=K.benang;p.finishing='Burnish';p.chemical='Tokonole';
    p.logos=[{milik:'Rove',jenis:'Foil',warna:'Emas',rgb:'#c8a24a'}];
-   p.packing='Per 25 pcs / kardus';p.note='Wedding '+K.klien+' — 3 pcs engrave nama (daftar terlampir)';
+   p.packing='Per 25 pcs / kardus';p.note='Wedding '+K.klien+' — 3 pcs engrave nama (daftar terlampir). Teknik: groover 1,5 mm, prong Diamond 3,5 mm, jangka 3,5 mm, benang Galaces 0,45 '+K.benang+', chemical Tokonole.';
    o.pricing.spare=5;o.pricing.spareTgl=t;o.pricing.marginAppr={tgl:t,tglBy:'dirut'};
    p.generated=true;p.poNo='ROVE/PO/'+(new Date().getFullYear())+'/0101';
    o.trello={created:true};o.checks=[];   // kartu Trello Production ikut terbentuk saat PO turun
-   try{poVendors(o).forEach(function(v){var x=vpoGet(o,v);x.generated=true;x.deadline=contohHari(40);x.packing='Flat pack';});}catch(e){}},
+   try{poVendors(o).forEach(function(v){var x=vpoGet(o,v);x.generated=true;x.deadline=contohHari(40);x.packing='Per 25 pcs / kardus';});}catch(e){}},
  /* 11 Produksi — sample disetujui, progres berjalan */
  function(o){var t=hariIni();o.prod={stage:'Jahit / stitch',note:'sample disetujui; 40 dari 100 pcs',updated:t,updatedTs:Date.now(),sampleTgl:t};},
  /* 12 QC & Packing */
@@ -4832,7 +4833,8 @@ function dokCatatanBaris(o,r){
     if(spec)out.push(spec);
     if(l.detail&&String(l.detail).indexOf('dari prospek')<0)out.push(l.detail);}
   if(r.jenis==='live'&&r.jb)out.push('On-site service'+((r.jb.teknik&&r.jb.teknik!=='-')?(' · '+r.jb.teknik):''));
-  if(r.jenis==='addon'&&r.jb)out.push('Add-on service'+((r.jb.teknik&&r.jb.teknik!=='-')?(' · '+r.jb.teknik):''));
+  if(r.jenis==='addon'&&r.jb)out.push('Add-on service'+((r.jb.teknik&&r.jb.teknik!=='-')?(' · '+r.jb.teknik):'')+
+    (((+r.jb.fix||0)>0&&(+r.jb.perPc||0)>0)?(' · incl. plate / setup fee IDR '+Math.round(r.jb.fix).toLocaleString('id-ID')):''));
   if(r.termasuk&&r.termasuk.length)out.push('Including: '+r.termasuk.join(', '));
   return out.join(String.fromCharCode(10));}
 function dokMaterial(o,r){return (r.l&&(r.jenis==='produk'||r.jenis==='coll'))?(r.l.bahan||''):'';}
@@ -4978,14 +4980,15 @@ function hargaJualTabelBaca(o){
     '<th class="num" style="width:110px">HPP/pcs</th><th class="num" style="width:70px">Margin %</th><th class="num" style="width:110px">Harga jual/pcs</th>'+
     '<th class="num" style="width:100px">Profit/pcs</th><th class="num" style="width:70px">Profit %</th><th class="num" style="width:116px">Profit total</th></tr></thead><tbody>'+
     L.map(function(l){
-      var JJ=jasaJualBaris(o,l);l._jualJasa=JJ?JJ.jual:null;var d=lineProfit(l,m);delete l._jualJasa;
+      var JJ=jasaJualBaris(o,l);l._jualJasa=JJ?JJ.jual:null;l._platJasa=JJ?JJ.plat:0;var d=lineProfit(l,m);delete l._jualJasa;delete l._platJasa;
       var mg=null;try{mg=lineMarginEfektif(l,m,o);}catch(e){}
       return '<tr><td><b>'+esc(l.produk||'-')+'</b>'+(l.bahan?('<div style="font-size:9px;color:var(--muted)">'+esc(l.bahan)+'</div>'):'')+(l.sumber?('<div style="font-size:9px;color:var(--muted)">'+esc(l.sumber)+'</div>'):'')+itemDetail(o,l)+'</td>'+
         '<td data-l="Qty client" class="num">'+(l.qty||0)+'</td>'+
         '<td data-l="Qty vendor" class="num">'+lineQtyPO(l)+(d.spare?('<div style="font-size:8.5px;color:var(--warn);font-weight:700">+'+d.spare+' spare</div>'):'')+'</td>'+
         '<td data-l="HPP/pcs" class="num">'+fmt0(d.hpp)+((+l.hppFix||0)>0?('<div style="font-size:8.5px;color:var(--muted)" title="biaya tetap per order dari jawaban vendor (mis. plat logo) — dibayar sekali per order, bukan per pcs; sudah dikurangkan di Profit total">+ tetap '+fmt0(l.hppFix)+' /order</div>'):'')+'</td>'+
         '<td data-l="Margin %" class="num">'+((mg===null||mg===undefined||mg==='')?'—':(mg+'%'))+'</td>'+
-        '<td data-l="Harga jual/pcs" class="num"><b>'+fmt0(d.jual)+'</b>'+((d.jasa&&jasaSatuan(l)!=='pcs')?'<div style="font-size:8.5px;color:var(--muted)">per event</div>':'')+'</td>'+
+        '<td data-l="Harga jual/pcs" class="num"><b>'+fmt0(d.jual)+'</b>'+((d.jasa&&jasaSatuan(l)!=='pcs')?'<div style="font-size:8.5px;color:var(--muted)">per event</div>':'')+
+          ((d.jasa&&(+d.plat||0)>0)?('<div style="font-size:8.5px;color:var(--muted)" title="harga plat yang ditagih ke client, sekali per order">+ plat '+fmt0(d.plat)+' /order</div>'):'')+'</td>'+
         '<td data-l="Profit/pcs" class="num" style="color:'+profitWarna(d.pct)+'">'+((d.adaHpp&&!l.svcFee)?fmt0(d.perPcs):'—')+'</td>'+
         '<td data-l="Profit %" class="num" style="font-weight:800;color:'+profitWarna(d.pct)+'">'+((d.adaHpp&&!l.svcFee)?(d.pct+'%'):'—')+'</td>'+
         '<td data-l="Profit total" class="num" style="font-weight:800">'+((d.adaHpp&&!l.svcFee)?fmt0(d.jasa?d.untungTotal:d.total):'—')+'</td></tr>';}).join('')+
@@ -5032,6 +5035,78 @@ function quoPanel(o){
       '<button class="btn" data-f="genQuo" onclick="genDoc('+jsArg(o.id)+',\'quotation\')">🧾 '+(D.quotation?'Lihat / generate ulang quotation':'Generate Quotation')+'</button>'+
       (D.quotation?('<span style="font-size:10.5px;color:var(--ok);font-weight:700">✓ Quotation '+esc(D.quotationDate||'')+'</span>'):'<span style="font-size:10.5px;color:var(--muted)">dokumen tersimpan ke folder bulan saat digenerate</span>')+
     '</div><div data-f="quoKirim">'+quoBar(o)+'</div></div></div>';}
+
+/* ================= FASE INVOICE — ringkasan baca-saja dari quotation + generate ================= */
+/* Order multi produk: tiap produk utama bisa dicentang masuk invoice ini atau
+   tidak (ditagih di invoice berikutnya). Bawaan: semua masuk. */
+function invMasuk(o,key){var M=(o&&o.invItem)||{};return Object.prototype.hasOwnProperty.call(M,key)?!!M[key]:true;}
+function invProdukDaftar(o){return dokItemDaftar(o).filter(function(x){return x.jenis==='produk';});}
+function invMasukSet(id,key,v){
+  var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
+  if(!o.invItem)o.invItem={};
+  o.invItem[key]=!!v;
+  var P=invProdukDaftar(o);
+  if(P.length&&!P.some(function(x){return invMasuk(o,x.key);})){
+    o.invItem[key]=true;alert('Minimal satu produk harus masuk invoice.');return;}
+  var nm=(P.filter(function(x){return x.key===key;})[0]||{}).nama||key;
+  logHist(o,'Invoice: '+nm+(v?' masuk invoice':' TIDAK masuk invoice ini (ditagih terpisah)'));
+  o._m=Date.now();save();render();}
+/* tiruan order untuk dokumen invoice: produk yang tak masuk diberi qty 0 */
+function invKlon(o){
+  var oc=opsiKlon(o,null);
+  if(!(o.invItem&&Object.keys(o.invItem).length))return oc;
+  oc.pricing.lines.forEach(function(l){
+    if(lineJenis(l)==='produk'&&!invMasuk(o,'l:'+(l.produk||'')))l.qty=0;});
+  return oc;}
+function invPanel(o){
+  var D=o.docs||{},iv=o.inv||{status:'Draft'},b=briefGet(o),q=o.quo||{};
+  var oc=invKlon(o),T=orderTotals(oc),baris=dokBaris(oc,'inv');
+  var P=invProdukDaftar(o),multi=P.length>1;
+  var dpPct=(o.dpPct==null?50:o.dpPct),dpAmt=Math.round(T.grand*dpPct/100);
+  var info=function(k,v){return '<div style="display:flex;gap:8px;padding:3px 0;font-size:10.5px;line-height:1.5"><b style="flex:0 0 128px;color:var(--ink-soft)">'+k+'</b><span style="flex:1">'+(v||'<span style="color:var(--muted)">—</span>')+'</span></div>';};
+  var kurangEmail=!clientEmail(o),kurangAlamat=!clientAlamatKantor(o);
+  return '<div class="card actcard" style="margin-top:14px"><div class="ch"><span class="ico" style="background:#2f6f8f">💳</span>'+
+    '<div><div class="t">Invoice DP</div><div class="s">RINGKASAN DARI QUOTATION YANG DISETUJUI — BACA SAJA</div></div>'+
+    '<span style="margin-left:auto;font-size:12px;font-weight:800">DP '+dpPct+'% · '+fmt0(dpAmt)+'</span></div><div class="body">'+
+    '<div style="font-size:10.5px;color:var(--muted);margin-bottom:9px;line-height:1.6">Item, harga, ongkir, dan syarat bayar diambil apa adanya dari quotation yang sudah disetujui client'+
+      (D.quotation?(' (<b>'+esc(docNo(o,'quotation'))+'</b>'+(q.tgl?(', deal '+tglDMY(q.tgl)):'')+')'):'')+
+      ' — tak ada yang diubah di sini. DP yang masuk dicatat di fase berikutnya, <b>Menunggu DP / PO resmi</b>.</div>'+
+    '<div class="g2" style="gap:16px">'+
+      '<div><div style="font-size:10px;font-weight:800;color:var(--muted);margin-bottom:4px">CLIENT</div>'+
+        info('Nama',esc(o.customer))+info('PIC',esc(b.picNama||''))+info('HP',esc(o.phone||''))+
+        info('Email',kurangEmail?('<input class="pin" data-f="email" style="width:100%" placeholder="nama@mail.com" value="" onchange="clientEdit('+jsArg(o.id)+',\'email\',this.value);render()">'):esc(clientEmail(o)))+
+        info('Alamat penagihan',kurangAlamat?('<input class="pin" data-f="addrKantor" style="width:100%" placeholder="alamat penagihan / kantor" value="" onchange="clientEdit('+jsArg(o.id)+',\'addrKantor\',this.value);render()">'):esc(clientAlamatKantor(o)))+'</div>'+
+      '<div><div style="font-size:10px;font-weight:800;color:var(--muted);margin-bottom:4px">DOKUMEN</div>'+
+        info('Quotation',D.quotation?(esc(docNo(o,'quotation'))+(D.quotationDate?(' · '+esc(D.quotationDate)):'')):'<span style="color:var(--muted)">belum ada</span>')+
+        info('Nomor invoice',D.invoice?esc(docNo(o,'invoice')):'<span style="color:var(--muted)">belum digenerate</span>')+
+        info('Invoice date',esc(D.invoiceDate||''))+
+        info('Due date','<span title="7 hari sejak invoice terbit">'+tglDMY(tglPlus(7))+'</span>')+
+        info('DP','<b>'+dpPct+'%</b> <span style="color:var(--muted);font-size:9.5px">— sesuai syarat bayar di quotation</span>')+
+        info('Status invoice','<b style="color:'+(iv.status==='Terkirim'?'var(--ok)':'var(--muted)')+'">'+esc(iv.status||'Draft')+'</b>')+'</div>'+
+    '</div>'+
+    (multi?('<div data-f="invItem" style="border:1px solid var(--line);border-radius:9px;padding:9px 11px;margin-top:12px">'+
+      '<div style="font-weight:800;font-size:11px;margin-bottom:3px">Produk yang masuk invoice ini</div>'+
+      '<div style="font-size:10px;color:var(--muted);margin-bottom:7px;line-height:1.55">Quotation memuat lebih dari satu produk. Yang tidak dicentang tidak ditagih di invoice ini (totalnya ikut turun) dan ditagihkan di invoice berikutnya.</div>'+
+      P.map(function(x){var on=invMasuk(o,x.key);
+        return '<label style="display:flex;align-items:center;gap:8px;padding:3px 0;font-size:11px;cursor:pointer"><input type="checkbox" '+(on?'checked':'')+' style="width:auto;accent-color:var(--brand)" onchange="invMasukSet('+jsArg(o.id)+','+jsArg(x.key)+',this.checked)"><b>'+esc(x.nama)+'</b><span style="color:var(--muted)">'+x.qty+' pcs · '+fmt0(x.amount)+'</span>'+(on?'':'<span style="color:var(--warn);font-weight:700">tidak masuk</span>')+'</label>';}).join('')+'</div>'):'')+
+    '<div style="font-size:10px;font-weight:800;color:var(--muted);margin:12px 0 5px">ITEM DI INVOICE <span style="font-weight:400">(urutan sama dengan dokumen)</span></div>'+
+    '<div class="xscroll"><table class="rtable mstack"><thead><tr><th style="width:26px">No</th><th>Item</th><th class="num" style="width:56px">Qty</th><th class="num" style="width:110px">Harga/unit</th><th class="num" style="width:120px">Jumlah</th></tr></thead><tbody>'+
+      baris.map(function(r,i){var c=dokCatatanBaris(oc,r);
+        return '<tr><td>'+(i+1)+'</td><td><b>'+esc(r.nama)+'</b>'+(c?('<div style="font-size:9px;color:var(--muted);white-space:pre-line">'+esc(c)+'</div>'):'')+'</td>'+
+          '<td data-l="Qty" class="num">'+r.qty+'</td><td data-l="Harga/unit" class="num">'+fmt0(r.harga)+'</td><td data-l="Jumlah" class="num"><b>'+fmt0(r.amount)+'</b></td></tr>';}).join('')+
+    '</tbody></table></div>'+
+    '<div style="font-size:11px;text-align:right;line-height:1.7;margin-top:6px">Sub total <b>'+fmt0(T.sub)+'</b>'+
+      (T.disc?('<br>Diskon <b style="color:var(--warn)">−'+fmt0(T.disc)+'</b>'):'')+
+      '<br>Ongkir <b>'+(T.ship?fmt0(T.ship):'—')+'</b>'+
+      (T.kena?('<br>PPN '+T.pctPpn+'% <b>'+fmt0(T.ppn)+'</b>'):'')+
+      '<br><span style="font-size:12.5px">Grand total <b style="color:var(--brand)">'+fmt0(T.grand)+'</b></span>'+
+      '<br>DP '+dpPct+'% <b>'+fmt0(dpAmt)+'</b> · sisa pelunasan <b>'+fmt0(T.grand-dpAmt)+'</b></div>'+
+    '<div data-f="pajakBlok">'+pajakBlok(o)+'</div>'+
+    '<div style="display:flex;flex-wrap:wrap;gap:9px;align-items:center;margin-top:12px;border-top:1px solid var(--line);padding-top:11px">'+
+      '<button class="btn" data-f="genInv" onclick="genDoc('+jsArg(o.id)+',\'invoice\')">💳 '+(D.invoice?'Lihat / generate ulang invoice DP':'Generate Invoice DP')+'</button>'+
+      (D.invoice?('<span style="font-size:10.5px;color:var(--ok);font-weight:700">✓ Invoice '+esc(D.invoiceDate||'')+'</span>'):'<span style="font-size:10.5px;color:var(--muted)">dokumen tersimpan ke folder bulan saat digenerate</span>')+
+      (D.quotation?('<button class="btn ghost sm" style="margin-left:auto" onclick="genDoc('+jsArg(o.id)+',\'quotation\')">📄 Lihat quotation</button>'):'')+
+    '</div><div data-f="invKirim">'+invBar(o)+'</div></div></div>';}
 
 /* ================= FASE MENUNGGU APPROVAL QUOTATION — deal / revisi / cancel ================= */
 function quoJawabPanel(o){
@@ -5550,7 +5625,7 @@ function seed(){
       accs:[{nama:'Snap button',size:'12mm',warna:'Silver'}],packing:'Per 25 pcs / kardus',
       note:K.acara};
       o.vpo={};lines.forEach(function(l){if(l.sumber==='Radja Leather')return;
-        if(!o.vpo[l.sumber])o.vpo[l.sumber]={generated:ph>=7,poNo:'PO / 2026 / '+String(200+n),deadline:ev,packing:'Flat pack',note:''};});}
+        if(!o.vpo[l.sumber])o.vpo[l.sumber]={generated:ph>=7,poNo:'PO / 2026 / '+String(200+n),deadline:ev,packing:'',note:''};});}
     if(ph>=7){o.prod={stage:'Jahit / stitch',note:'progres 60% — 120 dari 200 pcs',updated:fmtTglPendek(ph,1)+', 09.30'};}
     if(ph>=8){o.prod.stage='QC';o.prod.note='QC berjalan, 3 pcs masuk retur jahitan';}
     if(ph>=9){o.prod.stage='Packing';o.prod.note='packing + dokumentasi foto';
@@ -7184,12 +7259,14 @@ function poQtyTeks(l){
 /* Harga jual jasa untuk BARIS pricing ini: per pcs (add-on) atau per event
    (live service), dari harga order kalau ada, kalau tidak dari master. */
 /* subtotal harga jual baris jasa untuk tampilan: per pcs × qty, atau sekali per event */
-function jasaJualSub(o,l){var J=jasaJualBaris(o,l);if(!J)return 0;return J.pcs?((+J.jual||0)*(l.qty||0)):(+J.jual||0);}
+function jasaJualSub(o,l){var J=jasaJualBaris(o,l);if(!J)return 0;return J.pcs?((+J.jual||0)*(l.qty||0)+(+J.plat||0)):(+J.jual||0);}
 function jasaJualBaris(o,l){
   if(!l||lineJenis(l)!=='jasa'||l.svcFee)return null;
   var nama=namaJasaBaris(l);if(!nama)return null;
   var H=jasaHargaOrder(o,nama),pcs=(jasaSatuan(l)==='pcs');
-  return {nama:nama,pcs:pcs,jual:pcs?(+H.perPc||0):((+H.fix||0)||(+H.perPc||0)),sendiri:!!H.sendiri};}
+  /* add-on per pcs boleh juga menagih harga plat (sekali per order) — pasangan
+     dari biaya tetap vendor; live service per event hanya satu angka */
+  return {nama:nama,pcs:pcs,jual:pcs?(+H.perPc||0):((+H.fix||0)||(+H.perPc||0)),plat:pcs?(+H.fix||0):0,sendiri:!!H.sendiri};}
 /* Ketikan di kolom Harga jual baris jasa = harga jual jasa itu untuk order
    ini (master tetap jadi harga standar order lain). */
 function jasaJualSet(id,i,v){
@@ -7198,9 +7275,24 @@ function jasaJualSet(id,i,v){
   var J=jasaJualBaris(o,l);if(!J)return;
   var h=Math.max(0,moneyVal(v));
   if(!o.jasaHarga)o.jasaHarga={};
-  if(h>0)o.jasaHarga[J.nama]=J.pcs?{fix:0,harga:h}:{fix:h,harga:0};
+  /* add-on per pcs: harga plat yang sudah ada dipertahankan — yang diketik
+     di sini hanya harga per pcs-nya */
+  var plat=J.pcs?(+jasaHargaOrder(o,J.nama).fix||0):0;
+  if(h>0||plat>0)o.jasaHarga[J.nama]=J.pcs?{fix:plat,harga:h}:{fix:h,harga:0};
   else delete o.jasaHarga[J.nama];                 // kosong = kembali ke harga master
-  logHist(o,'Harga jual '+J.nama+' untuk order ini: '+(h>0?(fmt0(h)+(J.pcs?'/pcs':'/event')):'kembali ke master'));
+  logHist(o,'Harga jual '+J.nama+' untuk order ini: '+(h>0?(fmt0(h)+(J.pcs?'/pcs':'/event')):(plat>0?'0 /pcs (hanya plat)':'kembali ke master')));
+  o._m=Date.now();save();render();}
+/* Harga plat = biaya tetap yang ditagih ke client untuk add-on per pcs,
+   sekali per order (pasangan dari biaya tetap vendor). Kosong = tak ditagih. */
+function jasaPlatSet(id,i,v){
+  var o=ST.orders.find(function(x){return x.id===id;});if(!o||!o.pricing)return;
+  var l=o.pricing.lines[i];if(!l)return;
+  var J=jasaJualBaris(o,l);if(!J||!J.pcs)return;
+  var p=Math.max(0,moneyVal(v)),perPc=+jasaHargaOrder(o,J.nama).perPc||0;
+  if(!o.jasaHarga)o.jasaHarga={};
+  if(p>0||perPc>0)o.jasaHarga[J.nama]={fix:p,harga:perPc};
+  else delete o.jasaHarga[J.nama];
+  logHist(o,'Harga plat '+J.nama+' untuk order ini: '+(p>0?(fmt0(p)+' /order'):'tak ditagih'));
   o._m=Date.now();save();render();}
 function jasaTanpaHarga(o){
   var out=[];
@@ -9574,7 +9666,10 @@ const PH_PANEL=[['chk','brief'],['chk','rfq'],
                    penagihan diisi di situ kalau masih kosong); fase 6 & 8: hanya
                    jawaban client; fase 7 Sketch: brief Creative + deadline antrean */
                 ['chk','quo'],
-                ['chk','quoJawab'],['chk','sketch'],['chk','sketsaJawab'],['chk','pricing','pay'],['chk','pay','bukti','poclient'],
+                ['chk','quoJawab'],['chk','sketch'],['chk','sketsaJawab'],
+                /* fase 9 Invoice: ringkasan baca-saja dari quotation yang disetujui +
+                   Generate Invoice DP; DP yang masuk dicatat di fase berikutnya (Pembayaran) */
+                ['chk','inv'],['chk','pay','bukti','poclient'],
                 ['chk','po','vpo'],['chk','prod'],['chk','prod','retur'],
                 /* fase 14: Finance menerbitkan invoice pelunasan (Pricing),
                    Sales mengisi alamat kirim final (Brief) */
@@ -9794,7 +9889,7 @@ const PH_CHECK=[
    k:'poRevRadja', t:'Konfirmasi PO revisi ke Radja — pastikan bahan belum terpotong salah', en:'Confirm the revised PO with Radja — check no material has been cut wrongly', guna:'supaya perubahan tak menabrak barang yang sudah dikerjakan', gunaEn:'so the change does not collide with work already done', pic:'PM', w:true, jika:'poRev'},
   {auto:function(o){return !!((o.poRevOk||{}).direktur);},
    k:'poRevDir', t:'Setujui PO revisi beserta biaya tambahannya', en:'Approve the revised PO and any extra cost it brings', guna:'supaya biaya perubahan ada yang menanggung keputusannya', gunaEn:'so someone owns the decision behind the extra cost', pic:'Direktur', w:true, jika:'poRev'},
-  {auto:function(o){return poMissing(o).length===0;}, k:'spec', t:'Lengkapi Form PO: material, deboss, stitch, prong, benang, finishing', en:'Complete the PO form: material, deboss, stitch, prong, thread, finishing', guna:'supaya vendor tak menebak spesifikasi', gunaEn:'so the vendor is not guessing the spec',               pic:'Purchasing', w:true},
+  {auto:function(o){return poMissing(o).length===0;}, k:'spec', t:'Periksa spesifikasi dari Brief (terkunci) — main material tiap produk terisi — dan deadline produksi', en:'Check the locked spec from the Brief (main material of every product filled) and the production deadline', guna:'supaya vendor tak menebak spesifikasi', gunaEn:'so the vendor is not guessing the spec',               pic:'Purchasing', w:true},
   {auto:function(o){return !!(((o.pricing||{}).marginAppr||{}).tgl);}, k:'appr', t:'Setujui kelengkapan spesifikasi sebelum PO turun ke produksi', en:'Approve that the specification is complete before the PO goes to production', guna:'supaya yang diperiksa kesiapan produksinya — untungnya sudah diputus di Profitability', gunaEn:'so what gets checked is production readiness — the profit was already decided at Profitability',                 pic:'Direktur',      w:true},
   {auto:function(o){return !!((o.po||{}).generated);}, k:'poR', t:'Terbitkan PO ke Radja', en:'Issue the PO to Radja', guna:'supaya vendor punya dasar mulai produksi', gunaEn:'so the vendor has authority to start',                       pic:'Purchasing', w:true},
   {auto:function(o){var V=poVendors(o);return V.length===0||V.every(function(v){return !!(((o.vpo||{})[v]||{}).generated);});}, k:'poV', t:'Terbitkan PO ke tiap vendor collateral, lengkap dengan ukuran', en:'Issue a PO to each collateral vendor, sizes included', guna:'supaya kemasan siap bersamaan dengan produknya', gunaEn:'so packaging is ready at the same time as the product',           pic:'Purchasing'},
@@ -10062,7 +10157,7 @@ const CHK_SUMBER={'0.logoCl':'Brief → lampiran Logo client',
   '3.dirAcc':'panel Ringkasan untuk Direktur',
   '0.terjemah':'Brief → Material utama, Personalization, dan spesifikasi tiap collateral',
   '0.brief':'form order baru / panel Pricing','0.kontak':'Brief Inquiry','0.acara':'Brief Inquiry','0.ref':'Brief → lampiran Referensi client','0.kota':'Brief → Venue / kota tujuan','0.hpWo':'Brief → WO / EO phone','1.rfq':'panel Minta harga vendor','1.kulit':'panel Minta harga vendor → ketersediaan kulit','1.harga':'panel Minta harga vendor → Catat jawaban','1.konfKatalog':'panel Minta harga vendor → baris harga master → tombol ✓ Catat jawaban','1.moq':'panel Minta harga vendor → catatan vendor','1.liveTanya':'panel Minta harga vendor → kartu Tim live service → Serahkan ke Event Management','2.hpp':'panel Penentuan harga jual','2.margin':'panel Penentuan harga jual','2.ongkir':'panel Penentuan harga jual → Ongkir','2.biayaLain':'panel Penentuan harga jual → Biaya di luar HPP','2.deadlineProd':'panel Penentuan harga jual → Info dari Radja','2.tglPOMax':'panel Penentuan harga jual → Info dari Radja','2.operator':'tab Live service → order ini → Operator','10.opFix':'tab Live service → order ini → Operator → ✓ Sudah fix',
-'2.jualJasa':'panel Penentuan harga jual → kolom Harga jual baris jasa (atau blok Live service tim sendiri)','2.accJual':'panel Penentuan harga jual → Persetujuan harga jual','4.gen':'panel Quotation → Generate Quotation','4.kirim':'panel Quotation → status quotation','4.follow':'panel Pricing → tandai Approved','4.email':'Master data → Customers (atau Brief → Email client kalau order ini beda)','4.kirimData':'panel Quotation → Ekspedisi (kota dari Alamat kirim di Brief)','4.alamatKantor':'Brief → Alamat client / kantor','4.ppn':'panel Quotation → Status PPN','6.logoCl':'Brief → lampiran Logo client','6.logoPch':'Brief → lampiran Logo soft pouch','6.logoBox':'Brief → lampiran Logo box','6.logoCard':'Brief → lampiran Logo thank you card','6.daftarNama':'Brief → daftar nama tamu','6.preview':'panel Referensi gambar → lampiran preview','6.approve':'panel Referensi gambar → tombol approval sketsa','8.inv':'panel Pricing → Generate Invoice','8.kirim':'panel Pricing → status invoice','8.dp':'panel Pembayaran → Catat DP masuk','8.faktur':'panel Pricing → No. faktur pajak','10.spec':'Form PO Radja','10.appr':'Form PO Radja → approval margin','10.poR':'Form PO Radja → Generate PO','10.poV':'panel PO vendor lain','10.trello':'otomatis saat fase Spec & PO dilewati','10.spare':'Form PO Radja → Qty spare produksi','10.warnaLogo':'Form PO Radja → warna logo','11.sample':'panel Produksi → sample disetujui','11.progres':'panel Produksi → catatan progres','12.qc':'panel Produksi → lampiran foto QC & retur','12.pack':'panel Produksi → lampiran foto packing','12.coll':'panel Produksi → collateral lengkap','13.invP':'panel Pricing → Generate Invoice','13.lunas':'panel Pembayaran → Catat pelunasan','13.alamat':'Brief → Alamat kirim','13.penerima':'panel Pengiriman barang','13.resi':'panel Pengiriman barang','14.tglTerima':'panel Pengiriman barang → Tanggal diterima','14.bukti':'panel Pengiriman barang → foto serah terima','14.testi':'panel Komplain & kepuasan','14.arsip':'otomatis saat order ditutup'};
+'2.jualJasa':'panel Penentuan harga jual → kolom Harga jual baris jasa (atau blok Live service tim sendiri)','2.accJual':'panel Penentuan harga jual → Persetujuan harga jual','4.gen':'panel Quotation → Generate Quotation','4.kirim':'panel Quotation → status quotation','4.follow':'panel Pricing → tandai Approved','4.email':'Master data → Customers (atau Brief → Email client kalau order ini beda)','4.kirimData':'panel Quotation → Ekspedisi (kota dari Alamat kirim di Brief)','4.alamatKantor':'Brief → Alamat client / kantor','4.ppn':'panel Quotation → Status PPN','6.logoCl':'Brief → lampiran Logo client','6.logoPch':'Brief → lampiran Logo soft pouch','6.logoBox':'Brief → lampiran Logo box','6.logoCard':'Brief → lampiran Logo thank you card','6.daftarNama':'Brief → daftar nama tamu','6.preview':'panel Referensi gambar → lampiran preview','6.approve':'panel Referensi gambar → tombol approval sketsa','8.inv':'panel Invoice DP → Generate Invoice DP','8.kirim':'panel Invoice DP → status invoice','8.dp':'panel Pembayaran → Catat DP masuk','8.faktur':'panel Invoice DP → blok PPN & faktur pajak','10.spec':'Form PO Radja','10.appr':'Form PO Radja → approval margin','10.poR':'Form PO Radja → Generate PO','10.poV':'panel PO vendor lain','10.trello':'otomatis saat fase Spec & PO dilewati','10.spare':'Form PO Radja → Qty spare produksi','10.warnaLogo':'Form PO Radja → warna logo','11.sample':'panel Produksi → sample disetujui','11.progres':'panel Produksi → catatan progres','12.qc':'panel Produksi → lampiran foto QC & retur','12.pack':'panel Produksi → lampiran foto packing','12.coll':'panel Produksi → collateral lengkap','13.invP':'panel Pricing → Generate Invoice','13.lunas':'panel Pembayaran → Catat pelunasan','13.alamat':'Brief → Alamat kirim','13.penerima':'panel Pengiriman barang','13.resi':'panel Pengiriman barang','14.tglTerima':'panel Pengiriman barang → Tanggal diterima','14.bukti':'panel Pengiriman barang → foto serah terima','14.testi':'panel Komplain & kepuasan','14.arsip':'otomatis saat order ditutup'};
 
 /* "Brief → lampiran Logo client" diterjemahkan per potong, bukan sebagai satu
    entri kamus — tempatnya berkombinasi jadi puluhan kemungkinan. */
@@ -10116,7 +10211,7 @@ const CHK_FIELD={
   /* fase Minta harga vendor: tiap item menyorot tombol/blok tempat aksinya */
   rfq:'rfqSerah', kulit:'rfqKulit', harga:'rfqJawab_*,rfqSerah',
   konfKatalog:'rfqJawab_*,rfqSerah', moq:'rfqJawab_*,rfqSerah',
-  ongkir:'ongkirBlok', gen:'genQuo',
+  ongkir:'ongkirBlok', gen:'genQuo', inv:'genInv', faktur:'pajakBlok',
   liveTanya:'liveSerah,liveTanya_*',
 };
 /* Sebagian kecil item tempat mengisinya di luar order — di Master data.
@@ -10201,7 +10296,7 @@ const CHK_PANEL={jualJasa:'_master',operator:'_live',opFix:'_live',logoLetak:'br
   rfq:'rfq', kulit:'rfq', harga:'rfq', moq:'rfq', konfKatalog:'rfq', liveTanya:'rfq',
   hpp:'profit', margin:'profit', ongkir:'profit', biayaLain:'profit',
   gen:'quo', kirim:'quo', follow:'quo', email:'quo',
-  '8.kirim':'pricing',
+  '8.kirim':'inv',
   kirimData:'quo', alamatKantor:'quo', ppn:'quo',
   /* item yang ditambahkan belakangan — tanpa didaftarkan di sini, klik-lompat
      dan tombol "Minta isikan" diam saja di baris itu */
@@ -10210,7 +10305,7 @@ const CHK_PANEL={jualJasa:'_master',operator:'_live',opFix:'_live',logoLetak:'br
   poRevRadja:'po', poRevDir:'po',
   logoCl:'brief', logoPch:'brief', logoBox:'brief', logoCard:'brief',
   daftarNama:'brief', preview:'sketch', approve:'sketch',
-  inv:'pricing', dp:'pay', faktur:'pricing',
+  inv:'inv', dp:'pay', faktur:'inv',
   spec:'po', appr:'po', poR:'po', poV:'vpo', trello:'po', spare:'po', warnaLogo:'po',
   mat:'prod', sample:'prod', progres:'prod', qc:'prod', pack:'prod', coll:'prod',
   invP:'pricing', lunas:'pay', alamat:'brief', penerima:'kirim', resi:'kirim',
@@ -10559,6 +10654,7 @@ function panelDef(o){
    {k:'profit',t:'Penentuan harga jual',s:'HPP vendor vs harga jual',h:function(){return (o.phase>=1&&!batal)?profitPanel(o):'';}},
    {k:'ringkas',t:'Ringkasan untuk Direktur',s:'baca saja — approve atau tolak',h:function(){return ringkasPanel(o);}},
    {k:'quo',t:'Quotation',s:'ringkasan baca saja & generate',h:function(){return (o.phase>=4&&!batal)?quoPanel(o):'';}},
+   {k:'inv',t:'Invoice DP',s:'ringkasan dari quotation & generate invoice',h:function(){return (o.phase>=8&&!batal)?invPanel(o):'';}},
    {k:'quoJawab',t:'Jawaban client atas quotation',s:'deal · revisi · cancel',h:function(){return ((o.phase||0)===5&&!batal)?quoJawabPanel(o):'';}},
    {k:'sketch',t:'Sketch',s:'brief Creative & deadline antrean',h:function(){return ((o.phase||0)===6&&!batal)?sketchPanel(o):'';}},
    {k:'sketsaJawab',t:'Jawaban client atas sketsa',s:'deal · revisi',h:function(){return ((o.phase||0)===7&&!batal)?sketsaJawabPanel(o):'';}},
@@ -11824,10 +11920,10 @@ function konfJawab(id,i){
         return {k:'hv'+k2,label:'Harga/pcs — '+(v.q||0)+' pcs '+(v.w||('varian '+(k2+1)))+(sudah?'':(' (kami pegang '+fmt0(konfHargaBaris(l))+')')),type:'money',
           val:sudah?((+v.hpp||0)||''):''};});
       F2.push({k:'note',label:'Catatan vendor',type:'text',val:(l.rfq&&l.rfq.note)||'',ph:'mis. naik per Oktober'});
-      return F2;})()).concat((lineJenis(l)==='jasa'&&adaBiayaTetap(l))
-      /* hanya add-on yang memang berbiaya tetap (plat logo deboss) */
+      return F2;})()).concat((lineJenis(l)==='jasa'&&!l.svcFee&&(jasaSatuan(l)==='pcs'||adaBiayaTetap(l)))
+      /* semua add-on: vendor boleh menjawab per pcs, per plat (biaya tetap), atau keduanya */
       ?[{k:'fix',label:'Biaya tetap per order — jawaban vendor (mis. plat logo)',type:'money',val:sudah?((+l.hppFix||0)||''):'',
-         hint:(sudah?('Jawaban terakhir <b>'+fmt0(+l.hppFix||0)+'</b> per order. '):('Kami pegang <b>'+fmt0(+l.hppFix||0)+'</b> per order — '))+'Sekali per order, BUKAN per pcs. Kosong = tetap '+fmt0(+l.hppFix||0)+'.'}]:[])
+         hint:(sudah?('Jawaban terakhir <b>'+fmt0(+l.hppFix||0)+'</b> per order. '):('Kami pegang <b>'+fmt0(+l.hppFix||0)+'</b> per order — '))+'Sekali per order, BUKAN per pcs — mis. plat logo. Vendor menghitung per plat saja? Isi ini, harga per pcs boleh 0. Kosong = tetap '+fmt0(+l.hppFix||0)+'.'}]:[])
       .concat((keVendorProduksi(l)&&rfqJenisBaris(l)==='addon')
       /* add-on: batas kasih informasi (data / desain), bukan batas turun PO */
       ?[{k:'tglInfoMax',label:'Paling lambat kapan informasi (data / desain) harus kami kirim — jawaban vendor',type:'date',
@@ -12600,8 +12696,9 @@ function rfqJawab(id,i){
                   :(kulit?'Kosongkan kalau vendor baru menjawab soal kulit, harganya menyusul.'
                         :'Harga yang dijawab vendor untuk baris ini.')});
   }
-  if(jasaBrs&&!liveBrs&&adaBiayaTetap(l))F.push({k:'fix',label:'Biaya tetap per order — jawaban vendor (mis. plat logo)',type:'money',val:(+l.hppFix||0)||'',
-    hint:'Sekali per order, BUKAN per pcs. Kosong = 0.'});
+  /* semua add-on: vendor boleh menjawab per pcs, per plat (biaya tetap), atau keduanya */
+  if(jasaBrs&&!liveBrs)F.push({k:'fix',label:'Biaya tetap per order — jawaban vendor (mis. plat logo)',type:'money',val:(+l.hppFix||0)||'',
+    hint:'Sekali per order, BUKAN per pcs. Vendor menghitung per plat saja? Isi ini, harga per pcs boleh 0. Kosong = 0.'});
   F.push({k:'tgl',label:'Tanggal jawaban diterima',type:'date',val:hariIni(),req:true});
   F.push({k:'note',label:'Catatan vendor',type:'text',val:(l.rfq&&l.rfq.note)||'',ph:'mis. berlaku 30 hari, MOQ 100 pcs'});
   /* Jawabannya datang bersamaan dengan harga, jadi dicatat di sini juga —
@@ -12649,6 +12746,7 @@ function rfqSpekBaris(o,l){
   var tambah=function(k,v){if(v&&String(v).trim()&&String(v)!=='-')S.push('• '+k+': '+v);};
   tambah('Qty',(l.qty||0)+' pcs');
   tambah('Material utama',spekVal(o,l,'mainMat'));
+  tambah('Accessories',aksTeks(l));
   tambah('Warna material',lineVarian(l).length?'per varian (lihat rinciannya)':spekVal(o,l,'mainMatWarna'));
   tambah('Lining',spekVal(o,l,'lining'));tambah('Warna lining',spekVal(o,l,'liningWarna'));
   tambah('Stitch technique',spekVal(o,l,'stitch'));
@@ -12706,8 +12804,11 @@ function lineProfit(l,m){
        omset & total tetap 0 / -biaya karena omset jasa dijumlahkan sekali
        lewat jasaTotal() di profitTotals */
     var jualJ=+((l._jualJasa!=null)?l._jualJasa:0)||0;
-    var kali=jasaKali(l),omsetJ=jualJ*kali,untung=omsetJ-biaya;
-    return {jual:jualJ,hpp:hpp,qty:q,qtyPO:qpo,spare:0,perPcs:(jualJ>0?(jualJ-hpp):0),
+    /* harga plat yang ditagih ke client (add-on per pcs) — sekali per order,
+       jadi ditambahkan, bukan dikalikan; pasangan dari biaya tetap vendor */
+    var platJ=+((l._platJasa!=null)?l._platJasa:0)||0;
+    var kali=jasaKali(l),omsetJ=jualJ*kali+platJ,untung=omsetJ-biaya;
+    return {jual:jualJ,plat:platJ,hpp:hpp,qty:q,qtyPO:qpo,spare:0,perPcs:(jualJ>0?(jualJ-hpp):0),
       omset:0,biaya:biaya,total:-biaya,pct:(omsetJ>0?Math.round(untung/omsetJ*100):0),
       untungTotal:untung,adaHpp:(hpp>0||tetap>0),jasa:true};}
   return {jual:jual,hpp:hpp,qty:q,qtyPO:qpo,spare:Math.max(0,qpo-q),
@@ -12980,6 +13081,7 @@ function profitSet(id,i,f,v){
   var l=o.pricing.lines[i];if(!l)return;
   var hv=lineHppVendor(l);
   /* baris jasa: harga jualnya harga jasa order ini (bukan l.jual) */
+  if(f==='plat'&&lineJenis(l)==='jasa'&&!l.svcFee){jasaPlatSet(id,i,v);return;}
   if((f==='jual'||f==='mg')&&lineJenis(l)==='jasa'&&!l.svcFee){
     if(f==='jual'){jasaJualSet(id,i,v);return;}
     if(!hv){alert('Isi HPP vendor dulu — margin dihitung dari situ.');return;}
@@ -12997,7 +13099,7 @@ function profitSet(id,i,f,v){
 /* Margin baris = selisih harga jual terhadap HPP vendor. */
 function lineMarginEfektif(l,m,o){
   var hv=lineHppVendor(l),d;
-  if(o&&lineJenis(l)==='jasa'){var JJ=jasaJualBaris(o,l);l._jualJasa=JJ?JJ.jual:null;d=lineProfit(l,m);delete l._jualJasa;}
+  if(o&&lineJenis(l)==='jasa'){var JJ=jasaJualBaris(o,l);l._jualJasa=JJ?JJ.jual:null;l._platJasa=JJ?JJ.plat:0;d=lineProfit(l,m);delete l._jualJasa;delete l._platJasa;}
   else d=lineProfit(l,m);
   if(!(hv>0))return null;
   if(d.jasa&&!(d.jual>0))return null;              // harga jual jasa belum ada — bukan -100%
@@ -13839,8 +13941,8 @@ function profitPanel(o){
       L.map(function(l){var i=o.pricing.lines.indexOf(l);
         /* baris jasa: harga jual dibaca dari harga jasa order/master, dititipkan
            sementara supaya lineProfit bisa menampilkannya */
-        var JJ=jasaJualBaris(o,l);l._jualJasa=JJ?JJ.jual:null;
-        var d=lineProfit(l,m);delete l._jualJasa;
+        var JJ=jasaJualBaris(o,l);l._jualJasa=JJ?JJ.jual:null;l._platJasa=JJ?JJ.plat:0;
+        var d=lineProfit(l,m);delete l._jualJasa;delete l._platJasa;
         return '<tr><td><b>'+esc(l.produk||'-')+'</b>'+
             (l.bahan?('<div style="font-size:9px;color:var(--muted)">'+esc(l.bahan)+'</div>'):'')+
             (l.sumber?('<div style="font-size:9px;color:var(--muted)">'+esc(l.sumber)+'</div>'):'')+
@@ -13862,7 +13964,10 @@ function profitPanel(o){
             : '<td data-l="Harga jual/pcs"><input class="pin n money" inputmode="numeric" style="width:110px" data-f="jualJasa_'+i+'" value="'+moneyInp(d.jual)+'"'+
               (d.jasa?(' title="harga jual ke client '+(jasaSatuan(l)==='pcs'?'per pcs':'per event')+' — berlaku untuk order ini; master jadi harga standar"'):'')+
               ' onchange="profitSet(\''+o.id+'\','+i+',\'jual\',this.value)">'+
-              ((d.jasa&&jasaSatuan(l)!=='pcs')?'<div style="font-size:8.5px;color:var(--muted)">per event</div>':'')+'</td>')+
+              ((d.jasa&&jasaSatuan(l)!=='pcs')?'<div style="font-size:8.5px;color:var(--muted)">per event</div>':'')+
+              /* add-on per pcs: harga plat yang ditagih ke client, sekali per
+                 order — pasangan dari biaya tetap vendor di kolom HPP */
+              ((d.jasa&&jasaSatuan(l)==='pcs')?('<div style="display:flex;align-items:center;gap:4px;margin-top:3px;white-space:nowrap;font-size:8.5px;color:var(--muted)" title="harga plat / biaya tetap yang ditagih ke client, sekali per order — kosong = tak ditagih; masuk quotation, invoice, dan profit">+ plat <input class="pin n money" inputmode="numeric" style="width:88px;font-size:9.5px;padding:2px 5px" data-f="platJasa_'+i+'" value="'+moneyInp(d.plat)+'" placeholder="Rp 0" onchange="profitSet(\''+o.id+'\','+i+',\'plat\',this.value)"> /order</div>'):'')+'</td>')+
           '<td data-l="Profit/pcs" class="num" style="color:'+profitWarna(d.pct)+'">'+((d.adaHpp&&!l.svcFee)?fmt0(d.perPcs):'—')+'</td>'+
           '<td data-l="Profit %" class="num" style="font-weight:800;color:'+profitWarna(d.pct)+'">'+((d.adaHpp&&!l.svcFee)?(d.pct+'%'):'—')+'</td>'+
           '<td data-l="Profit total" class="num" style="font-weight:800">'+((d.adaHpp&&!l.svcFee)?fmt0(d.jasa?d.untungTotal:d.total):'—')+'</td>'+
@@ -15751,7 +15856,9 @@ function salinBriefKePO(o,timpa){
   taruh('warnaBenang',SU.benangWarna,'Warna benang');
   taruh('finishing',(SU.finishing&&['Burnish','Dye'].indexOf(SU.finishing)>=0)
     ?((SU.finishing==='Dye'?'Dying':'Burnish')+(SU.finishWarna?(' — '+SU.finishWarna):'')):'','Finishing');
-  taruh('deadline',b.tglKirim,'Deadline produksi');
+  /* deadline produksi = 3 hari sebelum tanggal kirim yang diminta client —
+     tetap boleh diubah di formnya */
+  taruh('deadline',b.tglKirim?tglGeser(b.tglKirim,-3):'','Deadline produksi');
   return isi;}
 /* briefKeProd dihapus — salinannya kini otomatis tiap Brief diubah. */
 
@@ -16375,8 +16482,10 @@ function briefPanel(o){
         ['varDlLining|lining','varDlFiller|filler','varDlStitch|stitch','varDlFin|finreq'].map(function(pasang){
           var pp=pasang.split('|');
           return '<datalist id="'+pp[0]+'">'+listArr(pp[1]).map(function(x){return '<option value="'+esc(x)+'">';}).join('')+'</datalist>';}).join('');
-      return P.map(function(x){
+      return (spekKunci(o)?spekKunciBanner(o):'')+P.map(function(x){
         var l=x.l,li=x.i;
+        /* sejak Spec & PO: dibaca saja — perubahan lewat "Ajukan perubahan spec" */
+        if(spekKunci(o))return spekKartuBaca(o,l,li);
         var g=function(f){return spekVal(o,l,f);};
         var inp=function(f,label,dl){return '<label class="nlbl">'+label+
           '<input class="pin" '+(dl?('list="'+dl+'" '):'')+'data-f="'+f+'_'+li+'" style="width:100%;margin-top:3px" value="'+esc(g(f))+'" '+
@@ -16420,6 +16529,7 @@ function briefPanel(o){
           (lineVarian(l).length?'':(
           grid(mat+warnaUtama+selS('lining','Lining',listArr('lining'))+inp('liningWarna','Warna lining','spekDlWr')+selS('filler','Filler',listArr('filler')),170)+
           grid(selS('stitch','Stitch technique',listArr('stitch'))+inp('benangWarna','Warna benang','spekDlWr')+selS('finishing','Finishing request',listArr('finreq'))+(dyeL?inp('finishWarna','Warna dye','spekDlWr'):'')+'',170)))+
+          aksBlok(o,l,li)+
           /* ---- varian inline: baris-baris di dalam kartunya ---- */
           (function(){
             var VR=lineVarian(l);if(!VR.length)return '';
@@ -16757,7 +16867,7 @@ function pricingPanel(o){
       ${H?`<td class="num">${fmt0(lineHppVendor(l))}${(+l.hppFix||0)?'<div style="font-size:8.5px;color:var(--muted)" title="biaya tetap per order dari jawaban vendor (mis. plat logo) — dibayar sekali per order, bukan per pcs; sudah dikurangkan di Profit total">+ tetap '+fmt0(l.hppFix)+' /order</div>':''}</td>`:''}
       <td class="num">${l.fixed?'—':((l.mg===''||l.mg===undefined)?((P.margin||0)+'%'):(l.mg+'%'))}</td>
       <td class="num">${l.dc?(l.dcT==='pct'?(l.dc+'%'):fmt0(l.dc)):'—'}</td>
-      <td class="num">${fmt0(lineJenis(l)==='jasa'?jasaJualSub(o,l):sub)}${(lineJenis(l)==='jasa')?'<div style="font-size:8.5px;color:var(--muted)">harga jual jasa'+(jasaSatuan(l)==='pcs'?'':' · per event')+'</div>':''}${l.dc?`<div style="font-size:8.5px;color:var(--muted)">dari ${fmt0(lineJual(l,m)*(l.qty||0))}</div>`:''}</td>
+      <td class="num">${fmt0(lineJenis(l)==='jasa'?jasaJualSub(o,l):sub)}${(lineJenis(l)==='jasa')?(function(){var J=jasaJualBaris(o,l)||{};return '<div style="font-size:8.5px;color:var(--muted)">harga jual jasa'+(jasaSatuan(l)==='pcs'?'':' · per event')+((+J.plat||0)>0?(' · termasuk plat '+fmt0(J.plat)+' /order'):'')+'</div>';})():''}${l.dc?`<div style="font-size:8.5px;color:var(--muted)">dari ${fmt0(lineJual(l,m)*(l.qty||0))}</div>`:''}</td>
       <td></td></tr>`;
     return `<tr>
       ${lineImgCell(o,l,i)}
@@ -16859,10 +16969,13 @@ function docNo(o,type){
 }
 function genDoc(id,type){
   const o=ST.orders.find(x=>x.id===id);if(!o)return;
+  /* invoice order multi produk: produk yang tak dicentang "masuk invoice"
+     tak ditagih di dokumen ini (qty 0 di tiruannya) */
+  const oDok=(type==='invoice'||type==='invoicePel')?invKlon(o):o;
   const lines=(o.pricing&&o.pricing.lines)||[];const paid=lines.filter(l=>(l.qty||0)>0);
   if(!paid.length&&!jasaBaris(o).length){alert('Isi minimal 1 baris pricing (qty > 0) sebelum generate.');return;}
   const P=o.pricing;
-  const T=orderTotals(o);const ship=T.ship,sub=T.sub,disc=T.disc,grand=T.grand;
+  const T=orderTotals(oDok);const ship=T.ship,sub=T.sub,disc=T.disc,grand=T.grand;
   const isPel=type==='invoicePel';
   const isInv=(type==='invoice')||isPel;const title=isInv?'INVOICE':'QUOTATION';
   const no=docNo(o,type);
@@ -16875,7 +16988,7 @@ function genDoc(id,type){
   /* invoice selalu pasti. Quotation boleh memuat beberapa opsi (set barang /
      qty) dan beberapa pilihan ongkir — selama begitu tak ada grand total,
      hanya SUB TOTAL PROJECT per opsi; client memilih saat Deal. */
-  const S=isInv?[{id:'utama',nama:'',klon:opsiKlon(o,null),utama:true}]:opsiSemua(o);
+  const S=isInv?[{id:'utama',nama:'',klon:opsiKlon(oDok,null),utama:true}]:opsiSemua(o);
   const tawar=isInv?[]:shipTawarDaftar(o);
   const pasti=isInv||(S.length===1&&tawar.length<=1);
   const info=(k,v)=>`<tr><td class="k">${k}</td><td class="c">:</td><td>${esc(v)||'-'}</td></tr>`;
@@ -16932,7 +17045,7 @@ function genDoc(id,type){
   const kunci=(type==='quotation');ST._dokKunci=kunci;
   try{document.getElementById('docbody').contentEditable=kunci?'false':'true';
     var hint=document.getElementById('dokEditHint');if(hint)hint.textContent=kunci?'🔒 quotation tidak bisa diedit — ubah datanya di HUB lalu generate ulang':'✎ klik teks untuk edit sebelum cetak';}catch(e){}
-  o.nilai=Math.round(grand/1e6);
+  o.nilai=Math.round(orderTotals(o).grand/1e6);   // nilai order utuh, bukan sebagian yang ditagih
   if(!o.docs)o.docs={};o.docs[type]=true;o.docs[type+'Date']=tgl;
   /* tanggal tampilan berubah bentuk sesudah generate; yang bisa dihitung
      disimpan terpisah dan tetap ISO */
@@ -16940,7 +17053,7 @@ function genDoc(id,type){
   if(type==='quotation')quoCatatGenerate(o);   // isi berubah dari generate lalu = revisi
   syncStatus(o);                               // Quotation/Invoice 'disiapkan' → 'dibuat'
   ST._doc={type:type,no:no,grand:grand,dp:dpAmt,dpPct:dpPct,
-    items:dokBaris(o,dokJ).map(function(b){return {n:b.nama,q:b.qty,h:b.harga};})};
+    items:dokBaris(oDok,dokJ).map(function(b){return {n:b.nama,q:b.qty,h:b.harga};})};
   save();trDOM(document.getElementById('docbody'));$('#docov').classList.add('show');loadImages();
 }
 /* ================= DOKUMEN PERMINTAAN KE VENDOR =================
@@ -17233,11 +17346,16 @@ const PO_SEL={
 const PO_LABEL={deboss:'Deboss',groover:'Groover',stitch:'Stitch',prong:'Type prong',ukProng:'Uk. prong',jangka:'Jangka',benang:'Jenis benang',ukBenang:'Uk. benang',finishing:'Finishing',chemical:'Chemical'};
 const LOGO_MILIK=['Client','Rove','Others'];
 const LOGO_JENIS=['-','Wooven','Sablon','Sablon Press','Foil','Deboss','Others'];
-const PO_REQ=[['deadline','Deadline produksi'],['mainMaterial','Main material'],['deboss','Deboss'],['stitch','Stitch'],['prong','Type prong'],['benang','Jenis benang'],['finishing','Finishing']];
+/* spesifikasi produk dibaca dari Brief (terkunci); yang diisi di Form PO
+   tinggal deadline — detail teknik (groover, prong, benang, chemical) ditulis
+   di Catatan produksi bila perlu */
+const PO_REQ=[['deadline','Deadline produksi']];
 function poMissing(o){
   const p=o.po||{},miss=[];
   const eff=k=>PO_SEL[k]?(p[k]||PO_SEL[k][0]):p[k];
   PO_REQ.forEach(([k,label])=>{ const v=eff(k); if(!v||v==='-')miss.push(label); });
+  /* spesifikasi dari Brief: tiap produk utama wajib punya main material */
+  try{lineProduk(o).forEach(function(x){if(!String(spekVal(o,x.l,'mainMat')||'').trim())miss.push('Main material '+(x.l.produk||'produk'));});}catch(e){}
   Object.keys(PO_SEL).forEach(k=>{ if(p[k]==='Others'&&!(p[k+'Other']||'').trim())miss.push('isi "Others" '+(PO_LABEL[k]||k)); });
   (p.logos||[]).forEach((lg,i)=>{
     if(lg.milik==='Others'&&!(lg.milikOther||'').trim())miss.push('isi "Others" milik logo #'+(i+1));
@@ -17265,8 +17383,133 @@ function addAcc(id){const o=ST.orders.find(x=>x.id===id);if(!o.po)o.po={};if(!o.
 function delAcc(id,i){const o=ST.orders.find(x=>x.id===id);o.po.accs.splice(i,1);save();render();}
 function poCardName(o){return o.id.toUpperCase()+' - PO Rove'+(orderAU(o)?' AU':'')+' x Radja - '+o.product+' - '+o.customer;}
 
+/* ================= SPEC PER PRODUK: ACCESSORIES / HARDWARE =================
+   Nama, ukuran, warna — bisa lebih dari satu per produk. Diisi di Brief
+   (inquiry), dibaca Spec & PO, RFQ, dan dokumen PO. */
+function aksDaftar(l){return (l&&Array.isArray(l.aksesoris))?l.aksesoris:[];}
+function aksTeks(l){return aksDaftar(l).map(function(a){return [a.nama,a.ukuran,a.warna].filter(function(x){return x&&String(x).trim();}).join(' · ');}).filter(Boolean).join('; ');}
+function aksTambah(id,li){
+  var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
+  var l=(((o.pricing||{}).lines)||[])[li];if(!l)return;
+  if(!Array.isArray(l.aksesoris))l.aksesoris=[];
+  l.aksesoris.push({nama:'',ukuran:'',warna:''});o._m=Date.now();save();render();}
+function aksSet(id,li,k,f,v){
+  var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
+  var l=(((o.pricing||{}).lines)||[])[li];if(!l)return;
+  var a=aksDaftar(l)[k];if(!a)return;
+  a[f]=String(v||'').trim();o._m=Date.now();save();render();}
+function aksHapus(id,li,k){
+  var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
+  var l=(((o.pricing||{}).lines)||[])[li];if(!l)return;
+  var A=aksDaftar(l);if(!A[k])return;
+  A.splice(k,1);if(!A.length)delete l.aksesoris;o._m=Date.now();save();render();}
+function aksBlok(o,l,li){
+  var A=aksDaftar(l);
+  return '<div data-f="aks_'+li+'" style="border-top:1px dashed var(--line);margin-top:8px;padding-top:8px">'+
+    '<div style="display:flex;gap:9px;align-items:baseline;margin-bottom:5px">'+
+      '<span style="font-size:9.5px;font-weight:800;color:var(--muted);letter-spacing:.03em">ACCESSORIES / HARDWARE ('+A.length+')</span>'+
+      '<span style="font-size:9px;color:var(--muted)">nama · ukuran · warna — bisa lebih dari satu; ikut ke RFQ, Spec &amp; PO, dan PO</span></div>'+
+    A.map(function(a,k){
+      var set=function(f){return ' onchange="aksSet('+jsArg(o.id)+','+li+','+k+','+jsArg(f)+',this.value)"';};
+      return '<div style="display:grid;grid-template-columns:1fr 110px 130px auto;gap:6px;margin-bottom:5px;align-items:center">'+
+        '<input class="pin" value="'+esc(a.nama||'')+'" placeholder="mis. Snap button, D-ring, resleting"'+set('nama')+'>'+
+        '<input class="pin" value="'+esc(a.ukuran||'')+'" placeholder="ukuran"'+set('ukuran')+'>'+
+        '<input class="pin" list="spekDlWr" value="'+esc(a.warna||'')+'" placeholder="warna"'+set('warna')+'>'+
+        '<button type="button" class="xrow" onclick="aksHapus('+jsArg(o.id)+','+li+','+k+')">✕</button></div>';}).join('')+
+    '<button type="button" class="btn ghost sm" onclick="aksTambah('+jsArg(o.id)+','+li+')">＋ Tambah accessory</button></div>';}
+/* accessories yang dulu diketik di Form PO (level order) diwariskan ke produk
+   pertama — sekali saja, supaya tak hilang */
+function aksWarisPO(o){
+  var A=((o.po||{}).accs||[]).filter(function(a){return a&&String(a.nama||'').trim();});
+  if(!A.length)return false;
+  var P=lineProduk(o);if(!P.length)return false;
+  if(!aksDaftar(P[0].l).length)P[0].l.aksesoris=A.map(function(a){return {nama:a.nama||'',ukuran:a.size||'',warna:a.warna||''};});
+  delete o.po.accs;return true;}
+
+/* ================= SPESIFIKASI TERKUNCI — dibaca Spec & PO =================
+   Sejak fase Spec & PO spesifikasi produk tak diubah di Brief; Spec & PO
+   menampilkannya apa adanya (bentuk sama dengan Brief). Perubahan diajukan
+   lewat spekRevisi → kartu kembali ke fase yang sesuai perubahannya. */
+const SPEK_KUNCI_FASE=10;
+function spekKunci(o){return !!o&&!o.done&&(o.phase||0)>=SPEK_KUNCI_FASE;}
+function spekKunciBanner(o){
+  return '<div data-f="spekKunci" style="border:1px solid var(--warn);background:var(--warn-bg);border-radius:9px;padding:8px 11px;margin-bottom:10px;font-size:10.5px;line-height:1.6;color:var(--brand-dark)">'+
+    '<b>🔒 Spesifikasi terkunci</b> — sudah dipakai PO. Perubahan diajukan lewat panel Spec &amp; PO → "Ajukan perubahan spec"; kartu kembali ke fase yang sesuai perubahannya.</div>';}
+function spekBarisBaca(k,v){
+  return (v&&String(v).trim()&&String(v)!=='-')
+    ?('<tr><td style="color:var(--muted);padding:2px 10px 2px 0;white-space:nowrap;vertical-align:top">'+esc(k)+'</td><td style="padding:2px 0">'+v+'</td></tr>'):'';}
+/* baris spesifikasi satu produk — teks polos, dipakai dokumen PO */
+function spekDokBaris(o,l){
+  var g=function(f){return spekVal(o,l,f);},V=lineVarian(l),R=[];
+  var t=function(k,v){if(v&&String(v).trim()&&String(v)!=='-')R.push([k,String(v)]);};
+  t('Main material',g('mainMat'));
+  if(V.length)t('Warna / varian',V.map(function(v){var ket=varianRingkas(v);return (+v.q||0)+' pcs '+(v.w||'-')+(ket?(' ('+ket+')'):'');}).join('; '));
+  else t('Warna',g('mainMatWarna'));
+  t('Lining',[g('lining'),g('liningWarna')].filter(function(x){return x&&x!=='-';}).join(' — '));
+  t('Filler',g('filler'));t('Stitch',g('stitch'));t('Warna benang',g('benangWarna'));
+  t('Finishing',[g('finishing'),g('finishWarna')].filter(function(x){return x&&x!=='-';}).join(' — '));
+  t('Accessories',aksTeks(l));
+  return R;}
+function spekKartuBaca(o,l,li){
+  var g=function(f){return spekVal(o,l,f);},V=lineVarian(l);
+  var rows=spekBarisBaca('Main material',esc(g('mainMat')))+
+    (V.length?spekBarisBaca('Warna / varian',varianHTML(l)):spekBarisBaca('Warna',esc(g('mainMatWarna'))))+
+    spekBarisBaca('Lining',esc([g('lining'),g('liningWarna')].filter(function(x){return x&&x!=='-';}).join(' — ')))+
+    spekBarisBaca('Filler',esc(g('filler')))+spekBarisBaca('Stitch',esc(g('stitch')))+spekBarisBaca('Warna benang',esc(g('benangWarna')))+
+    spekBarisBaca('Finishing',esc([g('finishing'),g('finishWarna')].filter(function(x){return x&&x!=='-';}).join(' — ')))+
+    spekBarisBaca('Accessories',esc(aksTeks(l)));
+  return '<div data-f="spekBaca_'+li+'" style="border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:10px;background:var(--bg)">'+
+    '<div style="display:flex;gap:8px;align-items:baseline;margin-bottom:5px"><b style="font-size:11.5px">'+esc(l.produk||'Produk')+'</b>'+
+      '<span style="font-size:9.5px;color:var(--muted)">'+(l.qty||0)+' pcs'+(V.length?(' · '+V.length+' varian'):'')+'</span>'+
+      '<span style="margin-left:auto;font-size:9px;color:var(--muted)">🔒 dari Brief</span></div>'+
+    (rows?('<table style="font-size:10.5px;border-collapse:collapse">'+rows+'</table>'):'<div style="font-size:10px;color:var(--warn);font-weight:700">spesifikasi belum diisi di Brief</div>')+'</div>';}
+function spekPanelBaca(o){
+  var P=lineProduk(o),b=briefGet(o);
+  var jasa=[];try{liveList(o.svc).forEach(function(n){var tk=jasaTeknikOrder(o,n),lt=svcLetak(o,n);jasa.push(esc(n)+(tk?(' — '+esc(tk)):'')+(lt?(' · '+esc(lt)):''));});}catch(e){}
+  var live=[];try{liveList(o.liveSvc).forEach(function(n){live.push(esc(n));});}catch(e){}
+  var kemasan=[];try{PACK_TIPE.forEach(function(t){if((o.coll||{})[t[0]]){var s='';try{s=packRingkas(t[0],packSpec(o,t[0]));}catch(e){}kemasan.push('<b>'+esc(t[1])+'</b>'+(s?(' — '+esc(s)):''));}});}catch(e){}
+  var logo=[];try{Object.keys(b).forEach(function(k){if(k==='logoFiles'||k==='logoBoxFiles'||k==='logoPouchFiles'||k==='logoCardFiles'||k.indexOf('svcF_')===0)(b[k]||[]).forEach(function(f){var nm=esc(f.nama||f.n||k);if(logo.indexOf(nm)<0)logo.push(nm);});});}catch(e){}
+  return '<div data-f="spekBaca" style="margin-bottom:12px">'+
+    '<div style="display:flex;gap:9px;align-items:center;flex-wrap:wrap;margin-bottom:8px"><div style="font-weight:800;font-size:11px">Spesifikasi — dari Brief Inquiry, terkunci</div>'+
+      '<span style="font-size:9.5px;color:var(--muted)">bentuknya sama dengan Brief; tak ada yang bisa diubah di sini</span>'+
+      '<button class="btn ghost sm" data-f="spekRevisi" style="margin-left:auto" onclick="spekRevisi('+jsArg(o.id)+')">✎ Ajukan perubahan spec</button></div>'+
+    (P.length?P.map(function(x){return spekKartuBaca(o,x.l,x.i);}).join(''):'<div style="font-size:10.5px;color:var(--warn)">belum ada produk utama di pricing</div>')+
+    '<div class="g2" style="gap:12px;font-size:10.5px;line-height:1.6">'+
+      '<div><b>Personalization / add-on</b><br>'+(jasa.length?jasa.join('<br>'):'<span style="color:var(--muted)">—</span>')+'</div>'+
+      '<div><b>Kemasan</b><br>'+(kemasan.length?kemasan.join('<br>'):'<span style="color:var(--muted)">—</span>')+'</div>'+
+      '<div><b>Live service</b><br>'+(live.length?live.join('<br>'):'<span style="color:var(--muted)">—</span>')+'</div>'+
+      '<div><b>Logo &amp; lampiran</b><br>'+(logo.length?logo.join('<br>'):'<span style="color:var(--muted)">—</span>')+'</div>'+
+    '</div></div>';}
+/* USULAN pemetaan tujuan — menunggu konfirmasi pemilik proses */
+const SPEK_REVISI_KE=[
+  {v:'bahan',l:'Bahan / warna / accessories / spesifikasi — kembali ke Pricing Vendor (harga vendor ditanyakan ulang)',ke:1},
+  {v:'qty',l:'Jumlah / item berubah — kembali ke Penentuan harga jual',ke:2},
+  {v:'desain',l:'Desain / logo / peletakan — kembali ke Sketch',ke:6}];
+function spekRevisi(id){
+  var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
+  askForm({judul:'Ajukan perubahan spesifikasi',sub:o.customer+' · '+PH[o.phase||0].n,tanpaDraf:true,
+    info:'<div style="font-size:10.5px;line-height:1.6;color:var(--ink-soft);margin-bottom:10px">Spesifikasi sudah terkunci. Perubahan membawa kartu kembali ke fase yang sesuai; persetujuan yang bergantung padanya gugur dan diulang.'+
+      (poSudahTurun(o)?' <b>PO sudah turun</b> — PO revisi wajib dikonfirmasi vendor dan disetujui Direktur.':'')+'</div>',
+    fields:[{k:'jenis',label:'Apa yang berubah?',type:'select',req:true,val:'bahan',opts:SPEK_REVISI_KE.map(function(x){return {v:x.v,l:x.l};})},
+      {k:'alasan',label:'Perubahannya apa & alasannya',type:'textarea',tinggi:90,req:true,ph:'mis. warna kulit jadi hitam; client minta D-ring emas'}],
+    ok:function(v){
+      var J=SPEK_REVISI_KE.filter(function(x){return x.v===v.jenis;})[0]||SPEK_REVISI_KE[0];
+      var alasan=String(v.alasan||'').trim(),ke=J.ke,dari=o.phase||0;
+      var gugur=[];try{gugur=revisiBatalkanAcc(o,ke);}catch(e){}
+      var poTurun=poSudahTurun(o);
+      if(poTurun){o.poRev=(o.poRev||0)+1;o.poRevOk={};}
+      revisiAll(o).push({tgl:nowStr(),oleh:(ST.userName||ST.user||''),sebab:'Perubahan spec: '+J.v,catatan:alasan,dari:dari,ke:ke,poRev:poTurun});
+      o.phase=ke;o._faseSejak=Date.now();o.ingatOtomatis={};
+      if(ke===1)o._kembaliPV={t:Date.now(),sebab:'Perubahan spec: '+alasan,dari:PH[dari].n};
+      syncStatus(o);
+      logHist(o,'✎ Perubahan spec diajukan — kembali ke '+PH[ke].n+': '+alasan+(gugur.length?(' · gugur: '+gugur.join(', ')):'')+(poTurun?(' · PO revisi R'+o.poRev):''));
+      notifyOrder(o,'✎ **Perubahan spesifikasi** — '+o.customer+String.fromCharCode(10)+alasan+String.fromCharCode(10)+picMention(PH[ke].pic)+' — kartu kembali ke '+PH[ke].n+'.');
+      ST._stepOpen={};try{ST._bukaAwal={};ST._bukaAwalFor='';}catch(e){}
+      o._m=Date.now();save();render();
+      kilat('✎ Perubahan spec dicatat — kartu kembali ke <b>'+esc(PH[ke].n)+'</b>');}});}
+
 /* ---- apa yang sudah ada di Form PO, dan apa yang belum ---- */
-const PO_ASAL={deadline:'dari brief (tanggal kirim)',mainMaterial:'dari brief (main material)',
+const PO_ASAL={deadline:'dari brief (3 hari sebelum tanggal kirim)',mainMaterial:'dari brief (main material)',
   materialPendukung:'dari brief (lining)',stitch:'dari brief',warnaBenang:'dari brief',finishing:'dari brief'};
 function poIsiNilai(p,k){return PO_SEL[k]?(p[k]||PO_SEL[k][0]):p[k];}
 function poRingkas(o){
@@ -17287,8 +17530,8 @@ function poRingkas(o){
       (kurang.length||lain.length?'TINGGAL DICEK — '+sudah.length+' dari '+n+' sudah terisi'
                                  :'✓ LENGKAP — '+n+' dari '+n+' terisi')+'</div>'+
     '<div style="font-size:10.5px;color:var(--ink-soft);margin-top:3px;line-height:1.55">'+
-      'Form PO tak diisi dari nol: yang bisa diambil dari brief sudah dituliskan sendiri. '+
-      'Periksa isinya, betulkan nama resmi Radja kalau berbeda, lalu lengkapi sisanya.</div>'+
+      'Spesifikasi dibaca dari Brief dan terkunci; deadline diisi otomatis 3 hari sebelum tanggal kirim. '+
+      'Periksa, lalu lengkapi packing dan catatan produksi.</div>'+
 
     (sudah.length?('<div style="margin-top:9px">'+
       '<div style="font-size:9px;font-weight:800;color:var(--muted);letter-spacing:.03em;margin-bottom:4px">SUDAH ADA</div>'+
@@ -17316,6 +17559,7 @@ function poRingkas(o){
 function poPanel(o){
   /* Order yang sudah telanjur duduk di fase ini ikut terisi — hanya yang kosong. */
   try{if(salinBriefKePO(o,false).length){o._m=Date.now();save();}}catch(e){}
+  try{if(aksWarisPO(o)){o._m=Date.now();save();}}catch(e){}
   const p=o.po||{},miss=poMissing(o),ready=miss.length===0;
   /* kotak yang wajib tapi masih kosong diberi warna, supaya tak perlu dicari */
   const kurangF=(f)=>{
@@ -17330,49 +17574,16 @@ function poPanel(o){
       <span class="badge" style="background:${ready?'var(--ok-bg)':'var(--warn-bg)'};color:${ready?'var(--ok)':'var(--warn)'}">${ready?'draft lengkap ✓':miss.length+' field kurang'}</span></div>
     <div class="body">
       ${poRingkas(o)}
+      ${spekPanelBaca(o)}
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
         ${date('deadline','Deadline produksi')}
         <div style="display:flex;flex-direction:column;gap:3px"><span class="nlbl">Barang titipan klien</span><label style="font-size:12px;display:flex;align-items:center;gap:7px;padding-top:7px"><input type="checkbox" data-id="${o.id}" data-field="titipan" ${p.titipan?'checked':''} onchange="poInput(this)" style="width:auto;accent-color:var(--brand)"> Ada barang titipan</label></div>
-        ${txt('mainMaterial','Main material','mis. Kulit Pull-up Coklat')}
-        ${txt('materialPendukung','Material pendukung','mis. lining suede')}
       </div>
-      <div><div style="font-weight:800;font-size:11px;margin:2px 0 7px">Accessories <span style="color:var(--muted);font-weight:400">(nama · size · warna hardware — bisa &gt;1)</span></div>
-        ${(p.accs||[]).map((a,i)=>`<div style="display:grid;grid-template-columns:1fr 130px 130px auto;gap:8px;margin-bottom:7px;align-items:end">
-          <div style="display:flex;flex-direction:column;gap:3px"><span class="nlbl">Nama hardware</span><input class="pin" data-id="${o.id}" data-idx="${i}" data-field="nama" value="${esc(a.nama)}" onchange="accInput(this)" placeholder="mis. Snap button"></div>
-          <div style="display:flex;flex-direction:column;gap:3px"><span class="nlbl">Size (cm/mm)</span><input class="pin" data-id="${o.id}" data-idx="${i}" data-field="size" value="${esc(a.size)}" onchange="accInput(this)" placeholder="12mm"></div>
-          <div style="display:flex;flex-direction:column;gap:3px"><span class="nlbl">Warna</span><input class="pin" data-id="${o.id}" data-idx="${i}" data-field="warna" value="${esc(a.warna)}" onchange="accInput(this)" placeholder="Silver"></div>
-          <button class="xrow" onclick="delAcc('${o.id}',${i})" style="align-self:center">✕</button>
-        </div>`).join('')}
-        <button class="btn ghost sm" onclick="addAcc('${o.id}')">＋ Tambah accessory</button>
-      </div>
-      <div style="border-top:1px solid var(--line);margin-top:12px;padding-top:11px"><div style="font-weight:800;font-size:11px;margin-bottom:9px">Tim Produksi</div>
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:9px">
-          ${sel('deboss','Deboss')}${sel('groover','Groover')}${sel('stitch','Stitch')}${sel('prong','Type prong')}
-          ${sel('ukProng','Uk. prong')}${sel('jangka','Jangka')}${sel('benang','Jenis benang')}${sel('ukBenang','Uk. benang')}
-          ${txt('warnaBenang','Kode/warna benang','#402 coklat')}${sel('finishing','Finishing')}${sel('chemical','Chemical')}
-        </div>
-        <div style="margin-top:13px"><div style="font-weight:800;font-size:11px;margin-bottom:7px">Logo <span style="color:var(--muted);font-weight:400">(bisa &gt;1 — logo client &amp; logo Rove)</span></div>
-          ${(p.logos||[]).map((lg,i)=>{const jc=lg.jenis&&lg.jenis!=='-'&&lg.jenis!=='Deboss';return `<div style="border:1px solid var(--line);border-radius:8px;padding:9px 10px;margin-bottom:7px">
-            <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:8px;align-items:end">
-              <div style="display:flex;flex-direction:column;gap:3px"><span class="nlbl">Logo #${i+1} — milik</span>
-                <select class="pin" data-id="${o.id}" data-idx="${i}" data-field="milik" onchange="logoInput(this)">${LOGO_MILIK.map(v=>`<option ${lg.milik===v?'selected':''}>${v}</option>`).join('')}</select>
-                ${lg.milik==='Others'?`<input class="pin" data-id="${o.id}" data-idx="${i}" data-field="milikOther" value="${esc(lg.milikOther)}" onchange="logoInput(this)" placeholder="milik logo lainnya…">`:''}</div>
-              <div style="display:flex;flex-direction:column;gap:3px"><span class="nlbl">Jenis aplikasi</span>
-                <select class="pin" data-id="${o.id}" data-idx="${i}" data-field="jenis" onchange="logoInput(this)">${LOGO_JENIS.map(v=>`<option ${(lg.jenis||'-')===v?'selected':''}>${v}</option>`).join('')}</select>
-                ${lg.jenis==='Others'?`<input class="pin" data-id="${o.id}" data-idx="${i}" data-field="jenisOther" value="${esc(lg.jenisOther)}" onchange="logoInput(this)" placeholder="jenis lainnya…">`:''}</div>
-              <button class="xrow" onclick="delLogo('${o.id}',${i})" style="align-self:center">✕</button>
-            </div>
-            ${jc?`<div style="display:grid;grid-template-columns:1fr 200px;gap:8px;margin-top:8px">
-              <div style="display:flex;flex-direction:column;gap:3px"><span class="nlbl">Warna (nama)</span><input class="pin" data-id="${o.id}" data-idx="${i}" data-field="warna" value="${esc(lg.warna)}" onchange="logoInput(this)" placeholder="mis. Emas"></div>
-              <div style="display:flex;flex-direction:column;gap:3px"><span class="nlbl">RGB</span><div style="display:flex;gap:7px;align-items:center"><input type="color" data-id="${o.id}" data-idx="${i}" data-field="rgb" value="${lg.rgb||'#000000'}" onchange="logoInput(this)" style="width:40px;height:34px;padding:2px;border:1px solid var(--line);border-radius:6px;background:var(--bg);cursor:pointer"><span style="font-size:10px;color:var(--muted)">${lg.rgb?'RGB '+hexToRgb(lg.rgb):'pilih warna'}</span></div></div>
-            </div>`:''}
-          </div>`;}).join('')}
-          <button class="btn ghost sm" onclick="addLogo('${o.id}')">＋ Tambah logo</button>
-        </div>
-      </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px">
+      ${(function(){var tk=briefGet(o).tglKirim;var auto=(p._dariBrief||[]).indexOf('deadline')>=0;
+        return '<div style="font-size:9.5px;color:var(--muted);margin:-4px 0 10px">'+(tk?(auto?('Deadline diisi otomatis 3 hari sebelum tanggal kirim yang diminta ('+tglDMY(tk)+') — boleh diubah.'):('Tanggal kirim yang diminta: '+tglDMY(tk)+'.')):'Tanggal kirim belum diisi di Brief — deadline diisi tangan.')+'</div>';})()}
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:2px">
         ${ta('packing','Cara packing & tambahan packing','how to pack + packing tambahan yang seperti apa')}
-        ${ta('note','Catatan produksi (opsional)','catatan khusus produksi bila ada')}
+        ${ta('note','Catatan produksi (opsional)','detail teknik untuk Radja bila perlu: groover, prong, jangka, benang, chemical, dll.')}
       </div>
       <div style="display:flex;flex-wrap:wrap;gap:9px;align-items:center;margin-top:12px">
         <button class="btn" onclick="genPO('${o.id}')" ${ready?'':'disabled'} style="${ready?'':'opacity:.5;cursor:not-allowed'}">⚡ Generate PO (PDF + Trello)</button>
@@ -17410,11 +17621,18 @@ function vendorLines(o,v){return ((o.pricing&&o.pricing.lines)||[]).filter(funct
 function poVendors(o){var seen=[];((o.pricing&&o.pricing.lines)||[]).forEach(function(l){var v=l.sumber||'';
   if(!v||isLeatherVendor(v)||(l.qty||0)<=0)return; if(seen.indexOf(v)<0)seen.push(v);});return seen;}
 function vpoGet(o,v){if(!o.vpo)o.vpo={};if(!o.vpo[v])o.vpo[v]={deadline:'',note:'',packing:'',tahap:'',janji:'',catatan:''};return o.vpo[v];}
-function vpoSet(id,v,f,val){var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;vpoGet(o,v)[f]=val;save();render();}
+function vpoSet(id,v,f,val){var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;var p=vpoGet(o,v);p[f]=val;if(f==='deadline')delete p._deadlineAuto;save();render();}
+/* deadline PO vendor lain: otomatis 3 hari sebelum tanggal kirim (boleh diubah) */
+function vpoDeadlineIsi(o){
+  var tk=briefGet(o).tglKirim;if(!tk)return false;var ubah=false;
+  poVendors(o).forEach(function(v){var p=vpoGet(o,v);if(!p.deadline){p.deadline=tglGeser(tk,-3);p._deadlineAuto=true;ubah=true;}});
+  return ubah;}
+function vpoSlot(v){return String(v||'').replace(/[^A-Za-z0-9]+/g,'_');}
 function vpoMissing(o,v){var p=vpoGet(o,v),m=[];if(!p.deadline)m.push('Deadline');if(!vendorLines(o,v).length)m.push('item di pricing');return m;}
 function vendorKontak(n){var v=((ST.master&&ST.master.vendors)||[]).find(function(x){return x.nama===n;});return v?(v.kontak||''):'';}
 function vpoPanel(o){
   var vs=poVendors(o),yatim='';
+  try{if(vpoDeadlineIsi(o)){o._m=Date.now();save();}}catch(e){}
   try{yatim=tanpaVendorSpanduk(o);}catch(e){}
   if(!vs.length)return '<div class="card actcard" style="margin-top:14px"><div class="ch"><span class="ico" style="background:#7a5cc4;font-size:10px">PO</span><div><div class="t">PO Vendor Lain</div><div class="s">COLLATERAL / NON-KULIT</div></div></div><div class="body">'+yatim+'<div style="font-size:11px;color:var(--muted)">Belum ada baris pricing dari vendor selain Radja. Tambahkan di <b>Pricing</b> (pilih vendor di kolom Sumber vendor) — vendor baru bisa didaftarkan di <b>Master data → Vendors</b>.</div></div></div>';
   return '<div class="card actcard" style="margin-top:14px"><div class="ch"><span class="ico" style="background:#7a5cc4;font-size:10px">PO</span><div><div class="t">PO Vendor Lain ('+vs.length+')</div><div class="s">ITEM OTOMATIS DARI PRICING · 1 PO PER VENDOR</div></div></div><div class="body">'+yatim+
@@ -17425,10 +17643,13 @@ function vpoPanel(o){
           '<span class="badge" style="margin-left:auto;background:'+(ready?'var(--ok-bg)':'var(--warn-bg)')+';color:'+(ready?'var(--ok)':'var(--warn)')+'">'+(ready?'siap ✓':miss.join(', ')+' kurang')+'</span></div>'+
         '<div class="xscroll"><table class="ptable" style="min-width:420px"><thead><tr><th>Item</th><th>Bahan</th><th>Finishing</th><th style="width:52px">Qty</th><th class="num" style="width:96px">HPP</th></tr></thead><tbody>'+
           ls.map(function(l){var ex=[l.tali&&l.tali!=='-'?'Tali: '+l.tali:'',l.ukuran&&l.ukuran!=='-'?'Uk: '+l.ukuran:''].filter(Boolean).join(' · ');
-            return '<tr><td>'+esc(l.produk)+(ex?'<div style="font-size:9px;color:var(--muted)">'+esc(ex)+'</div>':'')+varianChips(l)+'</td><td>'+(esc(l.bahan)||'-')+'</td><td>'+(esc(l.perso)||'-')+'</td><td>'+poQtyTeks(l)+(lineSpare(l)?(' <span style="font-size:8.5px;color:var(--warn)">+'+lineSpare(l)+'</span>'):'')+'</td><td class="num">'+fmt0((l.hpp||0)*poQty(l)+(+l.hppFix||0))+((+l.hppFix||0)?'<div style="font-size:8.5px;color:var(--muted)">termasuk biaya tetap '+fmt0(l.hppFix)+'</div>':'')+'</td></tr>';}).join('')+
+            var spek=[];try{spek=rfqDocSpek(o,l).map(function(r){return r[0]+': '+r[1];});}catch(e){}
+            return '<tr><td>'+(lineImg(l)?imgTag(lineImg(l),'width:30px;height:30px;object-fit:cover;border-radius:4px;vertical-align:middle;margin-right:6px;cursor:zoom-in','onclick="openLB(this.src)"'):'')+esc(l.produk)+(ex?'<div style="font-size:9px;color:var(--muted)">'+esc(ex)+'</div>':'')+varianChips(l)+
+              (spek.length?('<div style="font-size:9px;color:var(--muted);line-height:1.5;margin-top:2px">'+spek.map(esc).join('<br>')+'</div>'):'')+'</td><td>'+(esc(l.bahan)||'-')+'</td><td>'+(esc(l.perso)||'-')+'</td><td>'+poQtyTeks(l)+(lineSpare(l)?(' <span style="font-size:8.5px;color:var(--warn)">+'+lineSpare(l)+'</span>'):'')+'</td><td class="num">'+fmt0((l.hpp||0)*poQty(l)+(+l.hppFix||0))+((+l.hppFix||0)?'<div style="font-size:8.5px;color:var(--muted)">termasuk biaya tetap '+fmt0(l.hppFix)+'</div>':'')+'</td></tr>';}).join('')+
           '</tbody></table></div>'+
         '<div style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;margin-top:10px">'+
-          '<label style="font-size:11px;font-weight:700;color:var(--muted)">Deadline *<br><input type="date" class="pin" style="margin-top:3px" value="'+esc(p.deadline)+'" onchange="vpoSet('+jsArg(o.id)+','+jsArg(v)+','+'deadline'+',this.value)"></label>'+
+          '<label style="font-size:11px;font-weight:700;color:var(--muted)">Deadline *<br><input type="date" class="pin" style="margin-top:3px" value="'+esc(p.deadline)+'" onchange="vpoSet('+jsArg(o.id)+','+jsArg(v)+','+'deadline'+',this.value)">'+
+            (p._deadlineAuto?'<div style="font-size:9px;font-weight:400">otomatis 3 hari sebelum tanggal kirim — boleh diubah</div>':'')+'</label>'+
           '<label style="flex:1;min-width:150px;font-size:11px;font-weight:700;color:var(--muted)">Packing<br><input class="pin" style="width:100%;margin-top:3px" value="'+esc(p.packing)+'" onchange="vpoSet('+jsArg(o.id)+','+jsArg(v)+','+'packing'+',this.value)" placeholder="mis. per 50 pcs / kardus"></label>'+
           '<label style="flex:1;min-width:150px;font-size:11px;font-weight:700;color:var(--muted)">Catatan<br><input class="pin" style="width:100%;margin-top:3px" value="'+esc(p.note)+'" onchange="vpoSet('+jsArg(o.id)+','+jsArg(v)+','+'note'+',this.value)" placeholder="catatan khusus"></label>'+
           '<span style="font-size:11px;font-weight:700">Total HPP: <b style="color:var(--brand)">'+fmt0(tot)+'</b></span>'+
@@ -17437,6 +17658,11 @@ function vpoPanel(o){
           '<button class="btn sm" onclick="genVPO('+jsArg(o.id)+','+jsArg(v)+')" '+(ready?'':'disabled style="opacity:.5;cursor:not-allowed"')+'>⚡ Generate PO '+esc(v)+'</button>'+
           (p.generated?'<span style="font-size:10.5px;color:var(--ok);font-weight:700">✓ '+esc(p.poNo)+' terkirim</span>':(ready?'<span style="font-size:10.5px;color:var(--muted)">siap generate</span>':'<span style="font-size:10.5px;color:var(--warn)">🔒 isi deadline dulu</span>'))+
         '</div>'+
+        /* gambar final & logo untuk vendor ini — diunggah admin; sisanya
+           (spesifikasi, gambar acuan) otomatis dari Brief seperti lembar RFQ */
+        '<div style="border-top:1px dashed var(--line);margin-top:10px;padding-top:9px">'+
+          lampiranBlok(o,'vpoFinal_'+vpoSlot(v),'Gambar final untuk '+v+' (desain / mockup yang disetujui)')+
+          lampiranBlok(o,'vpoLogo_'+vpoSlot(v),'Logo untuk '+v+' (file siap cetak)')+'</div>'+
         /* pantauan manual: vendor selain Radja diurus lewat WA, jadi
            Purchasing yang memperbaruinya di sini */
         vpoProgBlok(o,v)+
@@ -17455,6 +17681,21 @@ function genVPO(id,v){
     (ls.length&&ls.every(function(l){return lineJenis(l)==='jasa'&&jasaSatuan(l)!=='pcs';})?' event':' pcs'));
   save();showVPODoc(o,v);
 }
+/* gambar untuk PO vendor lain: gambar final & logo yang diunggah admin
+   (slot brief vpoFinal_/vpoLogo_), lalu gambar acuan yang sama dengan RFQ */
+function vpoGambarHTML(o,v){
+  var b=briefGet(o),san=vpoSlot(v),ls=vendorLines(o,v);
+  var fin=(b['vpoFinal_'+san]||[]).filter(fileGambar),lg=(b['vpoLogo_'+san]||[]).filter(fileGambar);
+  var kotak=function(src,cap){return '<div style="text-align:center">'+imgTag(src,'width:100%;max-height:300px;object-fit:contain;border:1px solid #ddd;border-radius:8px')+'<div style="font-size:11px;color:#333;margin-top:6px">'+esc(cap)+'</div></div>';};
+  var out='';
+  if(fin.length||lg.length)out+='<div class="dsec">Gambar Final &amp; Logo</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:10px">'+
+    fin.map(function(f){return kotak(f.data,'Gambar final — '+(f.nama||f.n||''));}).join('')+lg.map(function(f){return kotak(f.data,'Logo — '+(f.nama||f.n||''));}).join('')+'</div>';
+  var G=[],ada={};
+  ls.forEach(function(l){var V=[];try{V=vendorGambar(o,l)||[];}catch(e){}
+    V.forEach(function(x){var src=x.drive?String(x.f.data||'').replace(/^.*[?&]id=/,'').replace(/&.*$/,''):x.f.data;
+      if(!src||ada[src])return;ada[src]=1;G.push({src:src,cap:x.cap||x.f.nama||''});});});
+  if(G.length)out+='<div class="dsec">Gambar Acuan</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:10px">'+G.map(function(x){return kotak(x.src,x.cap);}).join('')+'</div>';
+  return out;}
 function showVPODoc(o,v){
   var p=vpoGet(o,v),ls=vendorLines(o,v);
   var tgl=new Date().toLocaleDateString('id-ID',{day:'2-digit',month:'long',year:'numeric'});
@@ -17463,14 +17704,18 @@ function showVPODoc(o,v){
    '<div class="dhrow"><div><div class="dbrand">ROVE</div><div class="dbsub">Purchase Order → '+esc(v)+'</div></div>'+
      '<div class="dtitle">PURCHASE ORDER<div class="dno">'+esc(p.poNo)+'<br>'+tgl+'</div></div></div>'+
    '<div class="dsec">Project Information</div>'+
-   '<table class="dinfotbl">'+info('Vendor',v+(vendorTipe(v)?(' ('+vendorTipe(v)+')'):''))+info('Kontak vendor',vendorKontak(v))+info('Customer',o.customer)+info('Order',o.product)+info('Deadline',p.deadline)+info('Tanggal acara',o.eventDate)+'</table>'+
+   '<table class="dinfotbl">'+info('Vendor',v+(vendorTipe(v)?(' ('+vendorTipe(v)+')'):''))+info('Kontak vendor',vendorKontak(v))+info('Customer',o.customer)+info('Order',o.product)+info('Deadline',p.deadline?tglDMY(p.deadline):'')+'</table>'+
    '<div class="dsec">Item Pesanan</div>'+
    '<table class="dtable"><thead><tr><th class="num">No</th><th>Item</th><th>Bahan</th><th>Finishing</th><th class="num">Qty</th></tr></thead><tbody>'+
      ls.map(function(l,i){var ex=[l.tali&&l.tali!=='-'?'Tali: '+l.tali:'',l.ukuran&&l.ukuran!=='-'?'Ukuran: '+l.ukuran:''].filter(Boolean).join(' · ');
        return '<tr><td class="num">'+(i+1)+'</td><td>'+(lineImg(l)?imgTag(lineImg(l),'width:34px;height:34px;object-fit:cover;border-radius:4px;vertical-align:middle;margin-right:7px'):'')+esc(l.produk)+(ex?'<div style="font-size:9px;color:#888;margin-top:2px">'+esc(ex)+'</div>':'')+varianHTML(l)+'</td><td>'+(esc(l.bahan)||'-')+'</td><td>'+(esc(l.perso)||'-')+'</td><td class="num">'+poQtyTeks(l)+(lineSpare(l)?('<div style="font-size:9px;color:#888">client '+(l.qty||0)+' + spare '+lineSpare(l)+'</div>'):'')+'</td></tr>';}).join('')+
    '</tbody></table>'+
+   /* spesifikasi tiap item — himpunan yang sama dengan lembar permintaan harga */
+   ls.map(function(l){var R=[];try{R=rfqDocSpek(o,l);}catch(e){}if(!R.length)return '';
+     return '<div class="dsec">Spesifikasi — '+esc(l.produk||'')+'</div><table class="dinfotbl">'+R.map(function(r){return info(r[0],r[1]);}).join('')+'</table>';}).join('')+
    ((p.packing||p.note)?('<div class="dsec">Packing &amp; Catatan</div><table class="dinfotbl">'+(p.packing?info('Packing',p.packing):'')+(p.note?info('Catatan',p.note):'')+'</table>'):'')+
-   (ls.some(function(l){return lineImg(l);})?('<div class="dsec">Referensi Gambar</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:8px">'+ls.filter(function(l){return lineImg(l);}).map(function(l){return '<div style="text-align:center">'+imgTag(lineImg(l),'width:100%;max-height:240px;object-fit:contain;border:1px solid #ddd;border-radius:8px')+'<div style="font-size:11px;color:#333;margin-top:6px">'+esc(l.produk)+'</div></div>';}).join('')+'</div>'):'')+
+   vpoGambarHTML(o,v)+
+   (false?('<div class="dsec">Referensi Gambar</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:8px">'+ls.filter(function(l){return lineImg(l);}).map(function(l){return '<div style="text-align:center">'+imgTag(lineImg(l),'width:100%;max-height:240px;object-fit:contain;border:1px solid #ddd;border-radius:8px')+'<div style="font-size:11px;color:#333;margin-top:6px">'+esc(l.produk)+'</div></div>';}).join('')+'</div>'):'')+
    '<div class="dsign">Disetujui,<div class="nm">Purchasing · Rove</div></div>'+
    '<div class="dfoot">PO dari ROVE HUB · notif terkirim ke channel Discord order ini. Kirim dokumen ini ke vendor (WhatsApp / email).</div>';
   ST._doc={type:'po'};
@@ -17487,19 +17732,17 @@ function showPODoc(o){
      <div class="dtitle">PURCHASE ORDER<div class="dno">${esc(p.poNo)}<br>${tgl}</div></div></div>
    <div style="font-size:10.5px;color:#555;margin-bottom:4px"><b>Kartu Trello:</b> ${esc(poCardName(o))}</div>
    <div class="dsec">Project Information</div>
-   <table class="dinfotbl">${info('Customer',o.customer)}${info('Produk',o.product)}${info('Total Qty',o.qty+' pcs')}${info('Deadline Produksi',p.deadline)}${info('Barang Titipan Klien',p.titipan?'Ada':'Tidak')}${info('Main Material',p.mainMaterial)}${info('Material Pendukung',p.materialPendukung)}${(p.accs||[]).map((a,i)=>`<tr><td class="k">Accessory #${i+1}</td><td>${esc(accVal(a))}</td></tr>`).join('')}</table>
+   <table class="dinfotbl">${info('Customer',o.customer)}${info('Produk',o.product)}${info('Total Qty',o.qty+' pcs')}${info('Deadline Produksi',p.deadline?tglDMY(p.deadline):'')}${info('Barang Titipan Klien',p.titipan?'Ada':'Tidak')}</table>
+   <div class="dsec">Spesifikasi Produk (dari Brief)</div>
+   ${lineProduk(o).map(function(x){var R=spekDokBaris(o,x.l);return '<div class="djt">'+esc(x.l.produk||'Produk')+' — '+(x.l.qty||0)+' pcs</div><table class="dinfotbl">'+(R.length?R.map(function(r){return info(r[0],r[1]);}).join(''):info('Spesifikasi','belum diisi di Brief'))+'</table>';}).join('')}
+   ${(function(){var J=[];try{liveList(o.svc).forEach(function(n){J.push([n,[jasaTeknikOrder(o,n),svcLetak(o,n)].filter(Boolean).join(' — ')||'-']);});}catch(e){}
+     return J.length?('<div class="djt">Personalization</div><table class="dinfotbl">'+J.map(function(r){return info(r[0],r[1]);}).join('')+'</table>'):'';})()}
    <div class="dsec">Gambar Produk / Sketch</div>
    ${refTiles(o).length?`<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:6px">${refTiles(o).map(function(x){return '<div style="text-align:center">'+(x.img?imgTag(x.img,'width:100%;max-height:240px;object-fit:contain;border:1px solid #ddd;border-radius:8px'):'')+'<div style="font-size:11px;color:#333;margin-top:6px">'+esc(x.cap)+'</div></div>';}).join('')}</div>`:'<div style="border:1px dashed #bbb;border-radius:8px;height:120px;display:flex;align-items:center;justify-content:center;color:#aaa;font-size:11px;margin-bottom:4px">[ Belum ada gambar — tambahkan di Pricing / Referensi ]</div>'}
    ${(function(){var b=o.brief||{};var r2=[];
-     if(b.filler&&b.filler!=='-')r2.push(['Filler',b.filler]);
-     if(b.lining&&b.lining!=='-')r2.push(['Lining',b.lining]);
-     if(b.thread&&b.thread!=='-')r2.push(['Thread looks',b.thread]);
-     if(b.finishing&&b.finishing!=='-')r2.push(['Finishing request',b.finishing]);
      if(b.proses&&b.proses!=='-')r2.push(['Proses produksi',b.proses]);
      var ft=(b.fitur||[]).filter(Boolean);if(ft.length)r2.push(['Fitur diminta',ft.join(' · ')]);
      return r2.length?('<div class="dsec">Brief dari Client</div><table class="dinfotbl">'+r2.map(function(x){return info(x[0],x[1]);}).join('')+'</table>'):'';})()}
-   <div class="dsec">Tim Produksi</div>
-   <table class="dinfotbl">${spec('Deboss',poVal(p,'deboss'))}${(p.logos||[]).map((lg,i)=>`<tr><td class="k">Logo #${i+1}</td><td>${esc(logoVal(lg))}</td></tr>`).join('')}${spec('Groover',poVal(p,'groover'))}${spec('Stitch',poVal(p,'stitch'))}${spec('Type Prong',poVal(p,'prong'))}${spec('Uk. Prong',poVal(p,'ukProng'))}${spec('Jangka',poVal(p,'jangka'))}${spec('Jenis Benang',poVal(p,'benang'))}${spec('Uk. Benang',poVal(p,'ukBenang'))}${spec('Kode/Warna Benang',p.warnaBenang)}${spec('Finishing',poVal(p,'finishing'))}${spec('Chemical',poVal(p,'chemical'))}</table>
    ${(p.packing||p.note)?`<div class="dsec">Packing & Catatan Produksi</div><table class="dinfotbl">${spec('Cara & tambahan packing',p.packing)}${spec('Catatan produksi',p.note)}</table>`:''}
    <div class="dsign">Disetujui,<div class="nm">Purchasing · Rove</div></div>
    <div class="dfoot">PO valid dari ROVE HUB · board Trello PO ROVE kolom PO ${bulan} · notif terkirim ke Discord Radja.</div>`;
