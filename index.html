@@ -526,7 +526,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20260907-122540';
+const VERSI='20260907-150255';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -4751,10 +4751,14 @@ const CONTOH_ISI=[
    o.docs=o.docs||{};o.docs.invoicePel=true;o.docs.invoicePelDate=t;try{docNo(o,'invoicePel');}catch(e){}o.invPel={status:'Terkirim'};},
  /* 14 Menunggu pelunasan — pelunasan masuk */
  function(o){var t=hariIni();o.pay=o.pay||{};o.pay.pel=orderTotals(o).grand-(+o.pay.dp||0);o.pay.pelDate=t;},
- /* 15 Shipping — resi tercatat */
- function(o){var K=CONTOH_W,t=hariIni();o.addr=K.alamat;o.kirim={nama:K.pic,hp:K.hp,resi:'JNE 8823 4471 0092',tgl:t};},
+ /* 15 Shipping — bertahap: 60 pcs berangkat & diterima, 40 pcs menyusul */
+ function(o){var K=CONTOH_W,t=hariIni(),key='l:'+(((lineProduk(o)[0]||{}).l||{}).produk||'');var isi1={},isi2={};isi1[key]=60;isi2[key]=40;
+   o.addr=K.alamat;o.kirim={nama:K.pic,hp:K.hp,daftar:[
+     {id:'k1',tgl:contohHari(-3),eksp:'JNE',layanan:'Regular',resi:'JNE 8823 4471 0092',nama:'',hp:'',alamat:'',isi:isi1,catatan:'60 pcs dulu untuk acara pertama',tglTerima:contohHari(-1),sjNo:'SJ / '+(new Date().getFullYear())+' / 0001'},
+     {id:'k2',tgl:t,eksp:'JNE',layanan:'Regular',resi:'JNE 8823 4471 0093',nama:'',hp:'',alamat:'',isi:isi2,catatan:'sisa 40 pcs',tglTerima:'',sjNo:''}]};
+   kirimSinkron(o);},
  /* 16 Konfirmasi & Selesai — diterima; arsip dibiarkan untuk tombolnya */
- function(o){var t=hariIni();o.kirim=o.kirim||{};o.kirim.tglTerima=t;
+ function(o){var t=hariIni();o.kirim=o.kirim||{};(o.kirim.daftar||[]).forEach(function(s){if(!s.tglTerima)s.tglTerima=t;});kirimSinkron(o);if(!o.kirim.tglTerima)o.kirim.tglTerima=t;
    briefGet(o).kirimFiles=[contohFile('serah-terima.svg',contohSvg('OK','#e8f1e8','#1f6b3a'))];
    o.cs={komplain:[],puas:{rating:5,catatan:'client kirim foto meja souvenir',tgl:t}};}   // bentuk yang dibaca panel CS (bintang) & laporan
 ];
@@ -8881,7 +8885,8 @@ function kurangFase(o,i){
   else if(i===15){
     if(!ada(o.shipEksp))k.push('Ekspedisi');
     if(!((o.shipKg||0)>0))k.push('Berat kirim');
-    if(!((o.kirim||{}).resi))k.push('Nomor resi');}
+    if(!kirimDaftar(o).some(function(s){return s.resi;}))k.push('Nomor resi');
+    if(kirimTerkirim(o)>0&&kirimSisa(o)>0)k.push('Sisa belum dikirim '+kirimSisa(o)+' pcs');}
   else if(i===16){
     if(!o.done)k.push('Konfirmasi barang diterima client');}
   return k;}
@@ -8983,7 +8988,7 @@ function todoTeks(o){
   if(ph===12)return 'Unggah foto barang yang sudah QC dan foto barang terpacking dari Radja di panel <b>QC &amp; Packing</b>. Retur difoto satu foto satu alasan.';
   if(ph===13)return 'Panel <b>Invoice pelunasan</b>: ringkasan yang sama dengan invoice DP — klik <b>Generate Invoice Pelunasan</b> (foto barang jadi &amp; terpacking ikut sebagai lampiran), lalu kirim ke client.';
   if(ph===14)return 'Tunggu pelunasan masuk — catat di panel <b>Pembayaran</b>. Client bertermin PO resmi yang sudah disetujui boleh langsung lanjut.';
-  if(ph===15)return 'Pastikan alamat &amp; penerima final (Brief), ekspedisi &amp; berat, lalu isi nomor resi dan tanggal kirim di panel <b>Pengiriman barang</b>.';
+  if(ph===15)return 'Pastikan alamat &amp; penerima final (Brief), ekspedisi &amp; berat, lalu buat pengiriman di panel <b>Pengiriman barang</b> — sekaligus atau bertahap (isi qty tiap produk yang berangkat, resi, surat jalan). Fase ditutup begitu semua qty berangkat.';
   if(ph===16)return 'Konfirmasi barang diterima client → minta testimoni → arsipkan.';
   return (PH[ph]||{}).desc||'-';}
 function langkahBerikut(o){
@@ -9609,6 +9614,10 @@ function statusFase(o){
     if(!D.invoice)return 'Invoice disiapkan';
     if(iv.status==='Terkirim')return 'Invoice terkirim';
     return 'Invoice dibuat';}
+  if(p===15){                                  // fase Shipping: bertahap
+    var trk=0,ss=0;try{trk=kirimTerkirim(o);ss=kirimSisa(o);}catch(e){}
+    if(trk>0&&ss>0)return 'Terkirim sebagian';
+    if(trk>0&&ss<=0)return 'Terkirim semua';}
   return PH_STATUS[p]||'Inquiry';}
 function syncStatus(o){if(!o||o.status==='Cancel')return;var s=statusFase(o);if(o.status!==s)o.status=s;}
 /* Data lama pakai status manual — selaraskan sekali. */
@@ -9978,10 +9987,11 @@ const PH_CHECK=[
  [ // 15 Shipping
   {auto:function(o){return !!(o.addr&&String(o.addr).trim());}, k:'alamat', t:'Minta alamat kirim final ke client', en:'Ask the client for the final shipping address', guna:'supaya paket tak salah tujuan', gunaEn:'so the parcel does not go to the wrong place',               pic:'Sales',   w:true},
   {auto:function(o){return !!(penerimaNama(o)&&penerimaHp(o));}, k:'penerima', t:'Pastikan nama dan no. HP penerima', en:'Confirm the recipient name and phone number', guna:'supaya kurir bisa menghubungi saat tiba', gunaEn:'so the courier can reach someone on arrival',      pic:'Packing', w:true},
-  {auto:function(o){var K=o.kirim||{};return !!(K.resi&&K.tgl);}, k:'resi', t:'Input nomor resi ekspedisi', en:'Enter the courier tracking number', guna:'supaya client dan portal bisa melacak paketnya', gunaEn:'so the client and the portal can track the parcel',                        pic:'Packing', w:true}
+  {auto:function(o){return kirimDaftar(o).some(function(s){return !!(s.resi&&s.tgl);});}, k:'resi', t:'Input nomor resi ekspedisi', en:'Enter the courier tracking number', guna:'supaya client dan portal bisa melacak paketnya', gunaEn:'so the client and the portal can track the parcel',                        pic:'Packing', w:true},
+  {auto:function(o){return kirimDaftar(o).length>0&&kirimSisa(o)<=0;}, k:'kirimSemua', t:'Semua qty sudah berangkat — kirim sebagian dicatat per pengiriman, sisanya menyusul', en:'All quantity has shipped — partial shipments are recorded one by one', guna:'supaya order tak ditutup selagi sebagian barang masih di gudang', gunaEn:'so the order is not closed while part of the goods is still in the warehouse', pic:'Packing', w:true},
  ],
  [ // 16 Konfirmasi & Selesai
-  {auto:function(o){return !!((o.kirim||{}).tglTerima);}, k:'tglTerima', t:'Catat tanggal barang diterima client', en:'Record the date the client received the goods', guna:'supaya lead time terhitung dan tenggat pelunasan punya titik mulai', gunaEn:'so lead time is measured and the payment deadline has a start date',                       pic:'Packing', w:true},
+  {auto:function(o){return kirimSemuaTiba(o)||!!((o.kirim||{}).tglTerima);}, k:'tglTerima', t:'Catat tanggal barang diterima client', en:'Record the date the client received the goods', guna:'supaya lead time terhitung dan tenggat pelunasan punya titik mulai', gunaEn:'so lead time is measured and the payment deadline has a start date',                       pic:'Packing', w:true},
   {auto:function(o){return (((o.brief||{}).kirimFiles)||[]).length>0;}, k:'bukti', t:'Unggah foto bukti serah terima', en:'Upload the handover proof photo', guna:'supaya ada bukti kalau client bilang barang tak sampai', gunaEn:'so there is proof if the client says nothing arrived',                  pic:'Packing'},
   {auto:function(o){return ((o.cs||{}).puas)!=null;}, k:'testi', t:'Minta foto atau testimoni ke client', en:'Ask the client for photos or a testimonial', guna:'supaya ada bahan konten dan bukti sosial', gunaEn:'so there is content and social proof to use',           pic:'Sales'},
   {auto:function(o){return !!o.done;}, k:'arsip', t:'Arsipkan channel Discord order ini', en:'Archive this order Discord channel', guna:'supaya server tak penuh channel yang sudah selesai', gunaEn:'so the server does not fill up with finished channels',                   pic:'Sales'}
@@ -10206,7 +10216,7 @@ const CHK_SUMBER={'0.logoCl':'Brief → lampiran Logo client',
   '3.dirAcc':'panel Ringkasan untuk Direktur',
   '0.terjemah':'Brief → Material utama, Personalization, dan spesifikasi tiap collateral',
   '0.brief':'form order baru / panel Pricing','0.kontak':'Brief Inquiry','0.acara':'Brief Inquiry','0.ref':'Brief → lampiran Referensi client','0.kota':'Brief → Venue / kota tujuan','0.hpWo':'Brief → WO / EO phone','1.rfq':'panel Minta harga vendor','1.kulit':'panel Minta harga vendor → ketersediaan kulit','1.harga':'panel Minta harga vendor → Catat jawaban','1.konfKatalog':'panel Minta harga vendor → baris harga master → tombol ✓ Catat jawaban','1.moq':'panel Minta harga vendor → catatan vendor','1.liveTanya':'panel Minta harga vendor → kartu Tim live service → Serahkan ke Event Management','2.hpp':'panel Penentuan harga jual','2.margin':'panel Penentuan harga jual','2.ongkir':'panel Penentuan harga jual → Ongkir','2.biayaLain':'panel Penentuan harga jual → Biaya di luar HPP','2.deadlineProd':'panel Penentuan harga jual → Info dari Radja','2.tglPOMax':'panel Penentuan harga jual → Info dari Radja','2.operator':'tab Live service → order ini → Operator','10.opFix':'tab Live service → order ini → Operator → ✓ Sudah fix',
-'2.jualJasa':'panel Penentuan harga jual → kolom Harga jual baris jasa (atau blok Live service tim sendiri)','2.accJual':'panel Penentuan harga jual → Persetujuan harga jual','4.gen':'panel Quotation → Generate Quotation','4.kirim':'panel Quotation → status quotation','4.follow':'panel Pricing → tandai Approved','4.email':'Master data → Customers (atau Brief → Email client kalau order ini beda)','4.kirimData':'panel Quotation → Ekspedisi (kota dari Alamat kirim di Brief)','4.alamatKantor':'Brief → Alamat client / kantor','4.ppn':'panel Quotation → Status PPN','6.logoCl':'Brief → lampiran Logo client','6.logoPch':'Brief → lampiran Logo soft pouch','6.logoBox':'Brief → lampiran Logo box','6.logoCard':'Brief → lampiran Logo thank you card','6.daftarNama':'Brief → daftar nama tamu','6.preview':'panel Referensi gambar → lampiran preview','6.approve':'panel Referensi gambar → tombol approval sketsa','8.inv':'panel Invoice DP → Generate Invoice DP','8.kirim':'panel Invoice DP → status invoice','8.dp':'panel Pembayaran → Catat DP masuk','8.faktur':'panel Invoice DP → blok PPN & faktur pajak','10.spec':'Form PO Radja','10.appr':'Form PO Radja → approval margin','10.poR':'Form PO Radja → Generate PO','10.poV':'panel PO vendor lain','10.trello':'otomatis saat fase Spec & PO dilewati','10.spare':'Form PO Radja → Qty spare produksi','10.warnaLogo':'Form PO Radja → warna logo','11.sample':'panel Produksi → sample disetujui','11.progres':'panel Produksi → catatan progres','12.qc':'panel QC & Packing → foto barang sudah QC dari Radja','12.fotoJadi':'panel QC & Packing','12.pack':'panel QC & Packing → foto barang terpacking dari Radja','11.coll':'panel Produksi → collateral yang sudah terkirim ke Radja','13.invP':'panel Invoice pelunasan → Generate Invoice Pelunasan','13.fotoJadi':'panel QC & Packing → foto barang QC & terpacking','14.lunas':'panel Pembayaran → Catat pelunasan','15.alamat':'Brief → Alamat kirim','15.penerima':'panel Pengiriman barang','15.resi':'panel Pengiriman barang','16.tglTerima':'panel Pengiriman barang → Tanggal diterima','16.bukti':'panel Pengiriman barang → foto serah terima','16.testi':'panel Komplain & kepuasan','16.arsip':'otomatis saat order ditutup'};
+'2.jualJasa':'panel Penentuan harga jual → kolom Harga jual baris jasa (atau blok Live service tim sendiri)','2.accJual':'panel Penentuan harga jual → Persetujuan harga jual','4.gen':'panel Quotation → Generate Quotation','4.kirim':'panel Quotation → status quotation','4.follow':'panel Pricing → tandai Approved','4.email':'Master data → Customers (atau Brief → Email client kalau order ini beda)','4.kirimData':'panel Quotation → Ekspedisi (kota dari Alamat kirim di Brief)','4.alamatKantor':'Brief → Alamat client / kantor','4.ppn':'panel Quotation → Status PPN','6.logoCl':'Brief → lampiran Logo client','6.logoPch':'Brief → lampiran Logo soft pouch','6.logoBox':'Brief → lampiran Logo box','6.logoCard':'Brief → lampiran Logo thank you card','6.daftarNama':'Brief → daftar nama tamu','6.preview':'panel Referensi gambar → lampiran preview','6.approve':'panel Referensi gambar → tombol approval sketsa','8.inv':'panel Invoice DP → Generate Invoice DP','8.kirim':'panel Invoice DP → status invoice','8.dp':'panel Pembayaran → Catat DP masuk','8.faktur':'panel Invoice DP → blok PPN & faktur pajak','10.spec':'Form PO Radja','10.appr':'Form PO Radja → approval margin','10.poR':'Form PO Radja → Generate PO','10.poV':'panel PO vendor lain','10.trello':'otomatis saat fase Spec & PO dilewati','10.spare':'Form PO Radja → Qty spare produksi','10.warnaLogo':'Form PO Radja → warna logo','11.sample':'panel Produksi → sample disetujui','11.progres':'panel Produksi → catatan progres','12.qc':'panel QC & Packing → foto barang sudah QC dari Radja','12.fotoJadi':'panel QC & Packing','12.pack':'panel QC & Packing → foto barang terpacking dari Radja','11.coll':'panel Produksi → collateral yang sudah terkirim ke Radja','13.invP':'panel Invoice pelunasan → Generate Invoice Pelunasan','13.fotoJadi':'panel QC & Packing → foto barang QC & terpacking','14.lunas':'panel Pembayaran → Catat pelunasan','15.alamat':'Brief → Alamat kirim','15.penerima':'panel Pengiriman barang','15.resi':'panel Pengiriman barang → pengiriman (resi)','15.kirimSemua':'panel Pengiriman barang → ringkasan qty terkirim / sisa','16.tglTerima':'panel Pengiriman barang → Tanggal diterima','16.bukti':'panel Pengiriman barang → foto serah terima','16.testi':'panel Komplain & kepuasan','16.arsip':'otomatis saat order ditutup'};
 
 /* "Brief → lampiran Logo client" diterjemahkan per potong, bukan sebagai satu
    entri kamus — tempatnya berkombinasi jadi puluhan kemungkinan. */
@@ -10261,7 +10271,7 @@ const CHK_FIELD={
   rfq:'rfqSerah', kulit:'rfqKulit', harga:'rfqJawab_*,rfqSerah',
   konfKatalog:'rfqJawab_*,rfqSerah', moq:'rfqJawab_*,rfqSerah',
   ongkir:'ongkirBlok', gen:'genQuo', inv:'genInv', faktur:'pajakBlok',
-  sample:'sampleFiles', coll:'collKirim', qc:'qcFiles', pack:'packFiles', invP:'genInvPel',
+  sample:'sampleFiles', coll:'collKirim', qc:'qcFiles', pack:'packFiles', invP:'genInvPel', resi:'kirimKartu_0,kirimBaru', kirimSemua:'kirimBaru,kirimRingkas',
   liveTanya:'liveSerah,liveTanya_*',
 };
 /* Sebagian kecil item tempat mengisinya di luar order — di Master data.
@@ -10359,7 +10369,7 @@ const CHK_PANEL={jualJasa:'_master',operator:'_live',opFix:'_live',logoLetak:'br
   spec:'po', appr:'po', poR:'po', poV:'vpo', trello:'po', spare:'po', warnaLogo:'po',
   mat:'prod', sample:'prod', progres:'prod', qc:'qc', pack:'qc', coll:'prod',
   invP:'pel', fotoJadi:'qc', lunas:'pay', alamat:'brief', penerima:'kirim', resi:'kirim',
-  tglTerima:'kirim', bukti:'kirim', testi:'cs', arsip:'cs',
+  tglTerima:'kirim', bukti:'kirim', testi:'cs', arsip:'cs', kirimSemua:'kirim',
 };
 /* Boleh melompat kalau itu memang tugasnya — atau kalau dia Holding, yang
    memang mengurus semuanya. */
@@ -10625,7 +10635,7 @@ const FASE_HASIL=[
     ['Pelunasan', function(o){var p=(o.pay||{}).pel||0;return p?(fmt0(p)+' masuk '+tglID((o.pay||{}).pelDate)):'';}],
     ['Total dibayar', function(o){return fmt0(((o.pay||{}).dp||0)+((o.pay||{}).pel||0));}],
     ['Penerima', function(o){return (o.kirim||{}).nama;}],
-    ['No. resi', function(o){return (o.kirim||{}).resi;}]],
+    ['No. resi', function(o){var R=kirimDaftar(o).filter(function(s){return s.resi;}).map(function(s){return s.resi+' ('+kirimQtyIsi(s)+' pcs)';});return R.length?R.join(', '):((o.kirim||{}).resi||'');}]],
   /* 14 Konfirmasi & Selesai */[
     ['Barang diterima', function(o){return tglID((o.kirim||{}).tglTerima);}],
     ['Foto serah terima', function(o){var n=((o.kirim||{}).bukti||[]).length;return n?(n+' lampiran'):'';}]]];
@@ -11370,10 +11380,10 @@ function faseKosongkan(o,f){
     break;
   case 11: o.prod={};break;
   case 12: b.qcFiles=[];b.packFiles=[];if(o.prod)o.prod.collTgl='';break;
-  case 13: /* Pelunasan & Shipping */
-    if(o.docs)hapus(o.docs,'invoicePel');if(o.pay){o.pay.pel=0;o.pay.pelDate='';}o.kirim={};
-    break;
-  case 14: if(o.kirim){o.kirim.tglTerima='';o.kirim.bukti=[];}b.kirimFiles=[];hapus(o,'cs');o.done=false;break;
+  case 13: /* Pelunasan */ if(o.docs)hapus(o.docs,'invoicePel');hapus(o,'invPel');break;
+  case 14: /* Menunggu pelunasan */ if(o.pay){o.pay.pel=0;o.pay.pelDate='';}break;
+  case 15: /* Shipping */ o.kirim={};break;
+  case 16: if(o.kirim){o.kirim.tglTerima='';o.kirim.bukti=[];(o.kirim.daftar||[]).forEach(function(s){s.tglTerima='';});}b.kirimFiles=[];hapus(o,'cs');o.done=false;break;
   }}
 function mundurFase(id){
   var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
@@ -14456,40 +14466,143 @@ function kirimSet(id,f,v){
   if(f==='tglTerima'&&k.tglTerima)logHist(o,'Barang diterima client '+tglID(k.tglTerima));
   o._m=Date.now();save();render();}
 /* Nama & HP penerima: kalau kosong, jatuh ke data client — itu yang paling sering benar. */
+/* ================= SHIPPING BERTAHAP — beberapa pengiriman dalam satu order =================
+   Tiap pengiriman punya tanggal, ekspedisi, resi, penerima, isi per produk,
+   foto, tanggal diterima, dan surat jalannya sendiri. Kolom lama di level
+   order (resi / tgl / tglTerima) tetap diisi dari daftarnya supaya laporan,
+   ekspor, dan checklist lama membaca hal yang benar. */
+function kirimProduk(o){return lineProduk(o).map(function(x){return {key:'l:'+(x.l.produk||''),nama:x.l.produk||'',qty:+x.l.qty||0};});}
+function kirimDaftar(o){
+  var k=kirimGet(o);
+  if(Array.isArray(k.daftar))return k.daftar;
+  /* order lama: satu resi di level order dibaca sebagai satu pengiriman (baru ditulis balik begitu diubah) */
+  if(k.resi||k.tgl){var isi={};kirimProduk(o).forEach(function(p){isi[p.key]=p.qty;});
+    return [{id:'lama',tgl:k.tgl||'',eksp:o.shipEksp||'',layanan:k.layanan||'',resi:k.resi||'',nama:'',hp:'',alamat:'',isi:isi,catatan:'',tglTerima:k.tglTerima||'',sjNo:''}];}
+  return [];}
+function kirimDaftarTulis(o){var k=kirimGet(o);if(!Array.isArray(k.daftar))k.daftar=kirimDaftar(o).map(function(s){return JSON.parse(JSON.stringify(s));});return k.daftar;}
+function kirimQtyIsi(s){var isi=(s&&s.isi)||{};return Object.keys(isi).reduce(function(n,k){return n+(+isi[k]||0);},0);}
+function kirimTerkirimProduk(o,key,kecuali){return kirimDaftar(o).reduce(function(n,s){return (kecuali&&s.id===kecuali)?n:n+(+((s.isi||{})[key])||0);},0);}
+function kirimTotal(o){return kirimProduk(o).reduce(function(n,p){return n+p.qty;},0);}
+function kirimTerkirim(o){return kirimDaftar(o).reduce(function(n,s){return n+kirimQtyIsi(s);},0);}
+function kirimSisa(o){return Math.max(0,kirimTotal(o)-kirimTerkirim(o));}
+function kirimSemuaTiba(o){var D=kirimDaftar(o);return D.length>0&&kirimSisa(o)<=0&&D.every(function(s){return !!s.tglTerima;});}
+function kirimSinkron(o){
+  var k=kirimGet(o);if(!Array.isArray(k.daftar))return;var D=k.daftar;
+  var ada=D.filter(function(s){return s.resi;});
+  k.resi=ada.length?ada[ada.length-1].resi:'';
+  k.tgl=D.filter(function(s){return s.tgl;}).map(function(s){return s.tgl;}).sort()[0]||'';
+  k.tglTerima=kirimSemuaTiba(o)?(D.map(function(s){return s.tglTerima;}).sort().slice(-1)[0]||''):'';}
+function kirimTambah(id){
+  var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
+  var D=kirimDaftarTulis(o),isi={};
+  kirimProduk(o).forEach(function(p){isi[p.key]=Math.max(0,p.qty-kirimTerkirimProduk(o,p.key));});
+  var s={id:'k'+Date.now().toString(36)+Math.floor(Math.random()*1000),tgl:'',eksp:o.shipEksp||'',layanan:'',resi:'',nama:'',hp:'',alamat:'',isi:isi,catatan:'',tglTerima:'',sjNo:''};
+  D.push(s);kirimSinkron(o);
+  logHist(o,'Pengiriman '+D.length+' dibuat — '+kirimQtyIsi(s)+' pcs');
+  o._m=Date.now();save();render();}
+function kirimBaris(o,sid){return kirimDaftar(o).filter(function(s){return s.id===sid;})[0]||null;}
+function kirimSetB(id,sid,f,v){
+  var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
+  var D=kirimDaftarTulis(o),s=D.filter(function(x){return x.id===sid;})[0];if(!s)return;
+  var lama=s[f]||'',n=D.indexOf(s)+1;
+  s[f]=(typeof v==='string')?v.trim():v;
+  if(f==='resi'&&s.resi&&!s.tgl)s.tgl=hariIni();          // resi masuk = hari itu berangkat
+  if(f==='resi'&&s.resi&&s.resi!==lama){
+    logHist(o,'Resi pengiriman '+n+' ('+(s.eksp||o.shipEksp||'ekspedisi')+'): '+s.resi+' — '+kirimQtyIsi(s)+' pcs');
+    notifyOrder(o,'📦 **Pengiriman '+n+' berangkat** — '+o.customer+String.fromCharCode(10)+kirimQtyIsi(s)+' pcs · '+(s.eksp||o.shipEksp||'')+' '+s.resi+(kirimSisa(o)>0?(String.fromCharCode(10)+'sisa '+kirimSisa(o)+' pcs menyusul'):''));}
+  if(f==='tglTerima'&&s.tglTerima&&s.tglTerima!==lama)logHist(o,'Pengiriman '+n+' diterima client '+tglID(s.tglTerima));
+  kirimSinkron(o);o._m=Date.now();save();render();}
+function kirimIsiSet(id,sid,key,v){
+  var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
+  var D=kirimDaftarTulis(o),s=D.filter(function(x){return x.id===sid;})[0];if(!s)return;
+  var q=Math.max(0,Math.round(+v||0)),p=kirimProduk(o).filter(function(x){return x.key===key;})[0];
+  var maks=p?Math.max(0,p.qty-kirimTerkirimProduk(o,key,sid)):q;
+  if(q>maks){alert('Melebihi sisa yang belum dikirim ('+maks+' pcs).');q=maks;}
+  if(!s.isi)s.isi={};s.isi[key]=q;kirimSinkron(o);o._m=Date.now();save();render();}
+function kirimHapus(id,sid){
+  var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
+  var D=kirimDaftarTulis(o),i=D.findIndex(function(x){return x.id===sid;});if(i<0)return;
+  if(!confirm('Hapus pengiriman '+(i+1)+'?'))return;
+  D.splice(i,1);kirimSinkron(o);logHist(o,'Pengiriman '+(i+1)+' dihapus');o._m=Date.now();save();render();}
+/* surat jalan per pengiriman — dibawa kurir / diserahkan ke penerima */
+function showSuratJalan(id,sid){
+  var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
+  var D=kirimDaftarTulis(o),s=D.filter(function(x){return x.id===sid;})[0];if(!s)return;
+  if(!s.sjNo){var n=(+localStorage.getItem('rovehub_seq_sj')||0)+1;localStorage.setItem('rovehub_seq_sj',String(n));
+    s.sjNo='SJ / '+new Date().getFullYear()+' / '+String(n).padStart(4,'0');
+    logHist(o,'Surat jalan '+s.sjNo+' — pengiriman '+(D.indexOf(s)+1));o._m=Date.now();save();}
+  var P=kirimProduk(o).filter(function(p){return (+((s.isi||{})[p.key])||0)>0;});
+  var info=function(k,v){return '<tr><td class="k">'+esc(k)+'</td><td class="c">:</td><td>'+(esc(v)||'-')+'</td></tr>';};
+  var html='<div class="dhrow"><div><img src="'+LOGO_ROVE.lockup+'" alt="ROVE" style="height:46px"></div>'+
+     '<div class="dkop"><b>ROVE - FAVORS AND GIFTS</b><br>Jl. Tenggilis Barat I No.21, Kel. Kendangsari, Kec. Tenggilis Mejoyo, Surabaya, Jawa Timur 60292<br>+62 812-9965-1010</div></div>'+
+    '<div class="djudul">SURAT JALAN</div>'+
+    '<div class="dsec">Informasi Pengiriman</div><table class="dinfotbl">'+info('Nomor',s.sjNo)+info('Tanggal kirim',s.tgl?tglDMY(s.tgl):'')+
+      info('Pengiriman ke',(D.indexOf(s)+1)+' dari '+D.length)+info('Ekspedisi',[s.eksp||o.shipEksp,s.layanan].filter(Boolean).join(' · '))+info('No. resi',s.resi)+'</table>'+
+    '<div class="dsec">Penerima</div><table class="dinfotbl">'+info('Customer',o.customer)+info('Nama penerima',s.nama||penerimaNama(o))+info('No. HP',s.hp||penerimaHp(o))+info('Alamat',s.alamat||o.addr)+'</table>'+
+    '<div class="dsec">Isi Kiriman</div><table class="dtable grid"><thead><tr><th class="num wno">No.</th><th>Item</th><th class="num wqty">Qty</th></tr></thead><tbody>'+
+    P.map(function(p,i){return '<tr><td class="num">'+(i+1)+'</td><td>'+esc(p.nama)+'</td><td class="num">'+(+s.isi[p.key])+' pcs</td></tr>';}).join('')+
+    '<tr class="dsub"><td colspan="2">TOTAL</td><td class="num">'+kirimQtyIsi(s)+' pcs</td></tr></tbody></table>'+
+    (s.catatan?('<div class="dket" style="margin-top:6px">Catatan: '+esc(s.catatan)+'</div>'):'')+
+    (kirimSisa(o)>0?('<div class="dket" style="margin-top:4px">Sisa yang menyusul: '+kirimSisa(o)+' pcs</div>'):'')+
+    '<div style="display:flex;justify-content:space-between;margin-top:30px;font-size:11px"><div>Dikirim oleh,<div style="height:52px"></div><b>Packing · Rove</b></div>'+
+      '<div style="text-align:right">Diterima oleh,<div style="height:52px"></div><b>'+esc(s.nama||penerimaNama(o))+'</b></div></div>'+
+    '<div class="dfoot2"><span>Rove Gifts and Favors</span><span>Surat Jalan</span><span></span></div>';
+  $('#docbody').innerHTML=html;ST._docHtml=html;ST._dokKunci=false;
+  try{document.getElementById('docbody').contentEditable='true';var hint=document.getElementById('dokEditHint');if(hint)hint.textContent='✎ klik teks untuk edit sebelum cetak';}catch(e){}
+  ST._doc={type:'suratjalan',no:s.sjNo,grand:0,items:P.map(function(p){return {n:p.nama,q:+s.isi[p.key],h:0};})};
+  trDOM(document.getElementById('docbody'));$('#docov').classList.add('show');loadImages();}
 function penerimaNama(o){var k=kirimGet(o);return k.nama||((o.brief||{}).picNama)||o.pic3||o.customer||'';}
 function penerimaHp(o){var k=kirimGet(o);return k.hp||o.phone||'';}
 function kirimPanel(o){
   if(o.status==='Cancel')return '';
-  var k=kirimGet(o),ada=!!k.resi,tiba=!!k.tglTerima;
+  var k=kirimGet(o),D=kirimDaftar(o),P=kirimProduk(o),tot=kirimTotal(o),trk=kirimTerkirim(o),sisa=kirimSisa(o),tiba=kirimSemuaTiba(o);
+  var semua=D.length>0&&sisa<=0;
+  var status=tiba?'DITERIMA SEMUA':semua?'TERKIRIM SEMUA':(trk>0?('TERKIRIM SEBAGIAN · '+trk+' dari '+tot+' pcs'):'BELUM DIKIRIM');
+  var warna=tiba?'var(--ok)':semua?'var(--brand)':'var(--warn)';
   var lbl=function(t,isi,lebar){return '<label style="font-size:10px;font-weight:700;color:var(--muted)">'+t+
     '<br><div style="margin-top:3px'+(lebar?(';width:'+lebar):'')+'">'+isi+'</div></label>';};
   var txt=function(f,ph,lebar){return '<input class="pin" style="width:'+(lebar||'150px')+'" value="'+esc(k[f]||'')+
-    '" placeholder="'+esc(ph||'')+'" onchange="kirimSet(\'' + o.id + '\',\'' + f + '\',this.value)">';};
-  var tgl=function(f){return '<input type="date" class="pin" value="'+esc(k[f]||'')+
-    '" onchange="kirimSet(\'' + o.id + '\',\'' + f + '\',this.value)">';};
+    '" placeholder="'+esc(ph||'')+'" onchange="kirimSet('+jsArg(o.id)+','+jsArg(f)+',this.value)">';};
+  var kartu=D.map(function(s,i){
+    var inp=function(f,ph,lebar){return '<input class="pin" style="width:'+(lebar||'150px')+'" value="'+esc(s[f]||'')+'" placeholder="'+esc(ph||'')+'" onchange="kirimSetB('+jsArg(o.id)+','+jsArg(s.id)+','+jsArg(f)+',this.value)">';};
+    var tglI=function(f){return '<input type="date" class="pin" value="'+esc(s[f]||'')+'" onchange="kirimSetB('+jsArg(o.id)+','+jsArg(s.id)+','+jsArg(f)+',this.value)">';};
+    var st=s.tglTerima?('DITERIMA '+tglID(s.tglTerima)):(s.resi?'DALAM PERJALANAN':'BELUM BERANGKAT');
+    return '<div data-f="kirimKartu_'+i+'" style="border:1px solid '+(s.tglTerima?'var(--ok)':'var(--line)')+';border-radius:9px;padding:10px 12px;margin-bottom:10px;background:var(--bg)">'+
+      '<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px"><b style="font-size:11.5px">Pengiriman '+(i+1)+'</b><span style="font-size:10px;color:var(--muted)">'+kirimQtyIsi(s)+' pcs</span>'+
+        '<span style="margin-left:auto;font-size:10px;font-weight:800;color:'+(s.tglTerima?'var(--ok)':(s.resi?'var(--brand)':'var(--warn)'))+'">'+st+'</span>'+
+        '<button class="xrow" title="hapus pengiriman ini" onclick="kirimHapus('+jsArg(o.id)+','+jsArg(s.id)+')">✕</button></div>'+
+      '<div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:8px">'+lbl('Tanggal kirim',tglI('tgl'))+lbl('Ekspedisi',inp('eksp',o.shipEksp||'JNE','110px'))+lbl('Layanan',inp('layanan','reguler / kargo','120px'))+lbl('Nomor resi',inp('resi','mis. JNE0123456789','180px'))+'</div>'+
+      '<div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:8px">'+lbl('Penerima',inp('nama',penerimaNama(o),'160px'))+lbl('HP penerima',inp('hp',penerimaHp(o),'130px'))+lbl('Alamat tujuan',inp('alamat',o.addr||'alamat kirim order','280px'))+'</div>'+
+      '<div style="font-size:10px;font-weight:800;color:var(--muted);margin-bottom:3px">ISI PENGIRIMAN</div>'+
+      '<div style="display:flex;flex-wrap:wrap;gap:8px 16px;margin-bottom:8px">'+P.map(function(p){var maks=Math.max(0,p.qty-kirimTerkirimProduk(o,p.key,s.id));
+        return '<label style="font-size:11px;display:inline-flex;align-items:center;gap:6px">'+esc(p.nama)+' <input class="pin n" type="number" min="0" max="'+maks+'" style="width:70px" value="'+(+((s.isi||{})[p.key])||0)+'" onchange="kirimIsiSet('+jsArg(o.id)+','+jsArg(s.id)+','+jsArg(p.key)+',this.value)"> <span style="color:var(--muted);font-size:9.5px">pcs · maks '+maks+'</span></label>';}).join('')+'</div>'+
+      lbl('Catatan',inp('catatan','mis. 60 pcs dulu untuk acara pertama, sisanya menyusul','100%'))+
+      '<div style="margin-top:8px">'+lampiranBlok(o,'kirimFoto_'+s.id,'Foto paket / bukti kirim')+'</div>'+
+      '<div style="display:flex;flex-wrap:wrap;gap:9px;align-items:flex-end;margin-top:4px">'+lbl('Tanggal diterima client',tglI('tglTerima'))+
+        ((s.resi&&!s.tglTerima)?('<button class="btn sm" onclick="kirimSetB('+jsArg(o.id)+','+jsArg(s.id)+',\'tglTerima\',hariIni())">✓ Diterima hari ini</button>'):'')+
+        '<button class="btn ghost sm" data-f="suratJalan_'+i+'" onclick="showSuratJalan('+jsArg(o.id)+','+jsArg(s.id)+')">📄 Surat jalan'+(s.sjNo?(' · '+esc(s.sjNo)):'')+'</button></div>'+
+      '</div>';}).join('');
   return '<div class="card actcard" style="margin-top:14px"><div class="ch">'+
     '<span class="ico" style="background:#3a6ea5">🚚</span>'+
-    '<div><div class="t">Pengiriman barang</div><div class="s">penerima, resi, tanggal kirim &amp; terima</div></div>'+
-    '<span style="margin-left:auto;font-size:12px;font-weight:800;color:'+(tiba?'var(--ok)':ada?'var(--brand)':'var(--warn)')+'">'+
-      (tiba?'DITERIMA':ada?'DALAM PERJALANAN':'BELUM DIKIRIM')+'</span></div><div class="body">'+
+    '<div><div class="t">Pengiriman barang</div><div class="s">bisa bertahap — tiap pengiriman punya resi, isi, dan surat jalannya sendiri</div></div>'+
+    '<span style="margin-left:auto;font-size:12px;font-weight:800;color:'+warna+'">'+status+'</span></div><div class="body">'+
     '<div style="font-size:10.5px;color:var(--muted);margin-bottom:11px;line-height:1.6">'+
       'Ekspedisi <b>'+esc(o.shipEksp||'belum dipilih')+'</b> · tujuan <b>'+esc(o.shipKota||'belum diisi')+'</b> · '+
-      (o.shipKg?(o.shipKg+' kg'):'berat belum diisi')+'. Ubah ketiganya di panel <b>Pricing &amp; Dokumen</b> karena dipakai hitung ongkir.</div>'+
-    '<div style="display:flex;flex-wrap:wrap;gap:11px;margin-bottom:11px">'+
-      lbl('Nama penerima',txt('nama',penerimaNama(o),'170px'))+
-      lbl('No. HP penerima',txt('hp',penerimaHp(o),'140px'))+
+      (o.shipKg?(o.shipKg+' kg'):'berat belum diisi')+'. Ubah ketiganya di panel <b>Pricing &amp; Dokumen</b> karena dipakai hitung ongkir. Alamat kirim final ada di <b>Brief</b>.</div>'+
+    '<div style="display:flex;flex-wrap:wrap;gap:11px;margin-bottom:6px">'+
+      lbl('Nama penerima (bawaan)',txt('nama',penerimaNama(o),'170px'))+
+      lbl('No. HP penerima (bawaan)',txt('hp',penerimaHp(o),'140px'))+
       lbl('Nama pengirim',txt('pengirim','Rove Gifts','150px'))+
-      lbl('Jenis layanan',txt('layanan','reguler / kargo / instant','160px'))+
     '</div>'+
-    '<div style="font-size:10px;color:var(--muted);margin:-6px 0 11px">Nama &amp; HP penerima kosong = pakai data client ('+esc(penerimaNama(o))+
-      (penerimaHp(o)?(' · '+esc(penerimaHp(o))):'')+'). Isi kalau paket dikirim ke orang lain, mis. WO di venue.</div>'+
-    '<div style="display:flex;flex-wrap:wrap;gap:11px;align-items:flex-end">'+
-      lbl('Nomor resi',txt('resi','mis. JNE0123456789','190px'))+
-      lbl('Tanggal kirim',tgl('tgl'))+
-      lbl('Tanggal diterima client',tgl('tglTerima'))+
-      (ada&&!tiba?('<button class="btn sm" onclick="kirimSet(\'' + o.id + '\',\'tglTerima\',hariIni())">✓ Barang sudah diterima hari ini</button>'):'')+
-    '</div>'+
-    '<div style="margin-top:11px">'+lampiranBlok(o,'kirimFiles','Foto bukti serah terima')+'</div>'+
+    '<div style="font-size:10px;color:var(--muted);margin:0 0 11px">Kosong = pakai data client ('+esc(penerimaNama(o))+(penerimaHp(o)?(' · '+esc(penerimaHp(o))):'')+'). Tiap pengiriman boleh punya penerima sendiri, mis. WO di venue.</div>'+
+    '<div class="xscroll"><table class="rtable mstack" data-f="kirimRingkas"><thead><tr><th>Produk</th><th class="num" style="width:70px">Qty</th><th class="num" style="width:80px">Terkirim</th><th class="num" style="width:70px">Sisa</th></tr></thead><tbody>'+
+      P.map(function(p){var t=kirimTerkirimProduk(o,p.key),ss=Math.max(0,p.qty-t);return '<tr><td><b>'+esc(p.nama)+'</b></td><td data-l="Qty" class="num">'+p.qty+'</td><td data-l="Terkirim" class="num" style="color:var(--ok);font-weight:700">'+t+'</td><td data-l="Sisa" class="num" style="font-weight:800;color:'+(ss>0?'var(--warn)':'var(--ok)')+'">'+ss+'</td></tr>';}).join('')+
+      (P.length?'':'<tr><td colspan="4" style="color:var(--muted)">belum ada produk utama di pricing</td></tr>')+
+    '</tbody></table></div>'+
+    '<div style="font-size:10px;font-weight:800;color:var(--muted);margin:12px 0 6px">PENGIRIMAN ('+D.length+')</div>'+
+    (kartu||'<div style="font-size:10.5px;color:var(--muted);margin-bottom:8px">Belum ada pengiriman. Kirim semua sekaligus atau sebagian dulu — buat pengiriman pertama, isi qty tiap produk yang berangkat.</div>')+
+    ((sisa>0||!D.length)?('<button class="btn sm" data-f="kirimBaru" onclick="kirimTambah('+jsArg(o.id)+')">＋ Pengiriman baru'+(D.length&&sisa>0?(' — sisa '+sisa+' pcs'):'')+'</button>'):'<div style="font-size:10.5px;color:var(--ok);font-weight:700">✓ Semua qty sudah berangkat.</div>')+
+    '<div style="margin-top:12px">'+lampiranBlok(o,'kirimFiles','Foto bukti serah terima')+'</div>'+
     '</div></div>';}
 
 function payPanel(o){const T=orderTotals(o);const grand=T.grand;
@@ -16723,7 +16836,7 @@ function briefPanel(o){
     '<a id="sekPerso"></a>'+
     '<div data-f="sekPerso">'+sub('PERSONALIZATION','dikerjakan di workshop pada produknya — initial, full name, logo')+'</div>'+
     salesPita(o,'perso')+
-    ordSvcEditor(o,'Service')+
+    (spekKunci(o)?svcBacaBlok(o,'Service'):ordSvcEditor(o,'Service'))+
     /* Logo, acuan, dan daftar nama menempel di jasanya masing-masing di atas.
        Dua blok lampiran umum yang dulu di sini dibuang - fungsi ganda; yang
        lama ditampilkan hanya kalau memang masih berisi. */
@@ -16742,19 +16855,19 @@ function briefPanel(o){
       :'')+
 
     sub('PACKAGING')+
-    briefPackBlok(o)+
+    (spekKunci(o)?packBacaBlok(o):briefPackBlok(o))+
     /* logo tiap kemasan menempel di kemasannya — hanya yang dicentang yang
        muncul, dan tombol samakan hidup di sini juga */
     /* logo tiap kemasan kini SATU kolom dengan gambar acuannya, di dalam
        kartunya masing-masing — tombol Samakan menyalin ke sana juga */
-    logoSamaTombol(o)+
+    (spekKunci(o)?'':logoSamaTombol(o))+
 
     /* Dipisah: live service dikerjakan di lokasi acara oleh tim yang datang,
        add-on dikerjakan di workshop. Vendornya beda, harganya ditanya
        terpisah, dan personalisasi per-pcs termasuk add-on. */
     sub('LIVE SERVICE','dikerjakan di lokasi acara')+
     briefSvcImg(o)+
-    ordSvcEditor(o,'Live service')+
+    (spekKunci(o)?svcBacaBlok(o,'Live service'):ordSvcEditor(o,'Live service'))+
     '</div></div>';}
 /* ---- editor live service / add-on di order yang sudah jadi ---- */
 const SVCKEY={'Live service':'liveSvc','Service':'svc'};
@@ -17576,11 +17689,27 @@ function aksWarisPO(o){
    Sejak fase Spec & PO spesifikasi produk tak diubah di Brief; Spec & PO
    menampilkannya apa adanya (bentuk sama dengan Brief). Perubahan diajukan
    lewat spekRevisi → kartu kembali ke fase yang sesuai perubahannya. */
-const SPEK_KUNCI_FASE=10;
+const SPEK_KUNCI_FASE=8;   // sejak sketsa disetujui client (fase Invoice ke atas)
 function spekKunci(o){return !!o&&!o.done&&(o.phase||0)>=SPEK_KUNCI_FASE;}
 function spekKunciBanner(o){
   return '<div data-f="spekKunci" style="border:1px solid var(--warn);background:var(--warn-bg);border-radius:9px;padding:8px 11px;margin-bottom:10px;font-size:10.5px;line-height:1.6;color:var(--brand-dark)">'+
-    '<b>🔒 Spesifikasi terkunci</b> — sudah dipakai PO. Perubahan diajukan lewat panel Spec &amp; PO → "Ajukan perubahan spec"; kartu kembali ke fase yang sesuai perubahannya.</div>';}
+    '<div style="display:flex;gap:9px;align-items:center;flex-wrap:wrap"><span><b>🔒 Spesifikasi terkunci</b> — sketsa sudah disetujui client; spesifikasi produk, kemasan, dan jasa dipakai invoice &amp; PO. Perubahan diajukan, bukan diedit: kartu kembali ke fase yang sesuai perubahannya.</span>'+
+    '<button class="btn ghost sm" data-f="spekRevisiBrief" style="margin-left:auto" onclick="spekRevisi('+jsArg(o.id)+')">✎ Ajukan perubahan spec</button></div></div>';}
+/* kemasan & jasa di Brief saat terkunci: dibaca saja */
+function packBacaBlok(o){
+  var C=[];try{PACK_TIPE.forEach(function(t){if((o.coll||{})[t[0]]){var s='';try{s=packRingkas(t[0],packSpec(o,t[0]));}catch(e){}
+    var d='';try{d=String(salesNote(o,t[0])||'');}catch(e){}C.push('<div style="padding:3px 0"><b>'+esc(t[1])+'</b>'+(s?(' — '+esc(s)):'')+(d?('<div style="font-size:9.5px;color:var(--muted)">'+esc(d)+'</div>'):'')+'</div>');}});}catch(e){}
+  return '<div data-f="packBaca" style="border:1px solid var(--line);border-radius:9px;padding:8px 11px;margin-bottom:10px;background:var(--bg);font-size:10.5px">'+
+    (C.length?C.join(''):'<span style="color:var(--muted)">tanpa kemasan</span>')+
+    (packMode(o)==='perProduk'?'<div style="font-size:9.5px;color:var(--muted);margin-top:3px">kemasan diatur per produk</div>':'')+
+    '<div style="font-size:9px;color:var(--muted);margin-top:4px">🔒 terkunci — perubahan lewat "Ajukan perubahan spec"</div></div>';}
+function svcBacaBlok(o,jenis){
+  var k=SVCKEY[jenis],L=[];try{L=liveList(o[k]);}catch(e){}
+  return '<div data-f="svcBaca_'+(jenis==='Service'?'svc':'live')+'" style="border:1px solid var(--line);border-radius:9px;padding:8px 11px;margin-bottom:10px;background:var(--bg);font-size:10.5px">'+
+    (L.length?L.map(function(n){var im='';try{im=jasaImg(n);}catch(e){}var tk='',lt='';try{tk=jasaTeknikOrder(o,n)||'';lt=svcLetak(o,n)||'';}catch(e){}
+      return '<div style="display:flex;align-items:center;gap:7px;padding:3px 0">'+(im?imgTag(im,'width:26px;height:26px;object-fit:cover;border-radius:6px;border:1px solid var(--line)'):'')+'<b>'+esc(n)+'</b>'+(tk?('<span>— '+esc(tk)+'</span>'):'')+(lt?('<span style="color:var(--muted)">· '+esc(lt)+'</span>'):'')+'</div>';}).join('')
+      :'<span style="color:var(--muted)">tidak ada</span>')+
+    '<div style="font-size:9px;color:var(--muted);margin-top:4px">🔒 terkunci — perubahan lewat "Ajukan perubahan spec"</div></div>';}
 function spekBarisBaca(k,v){
   return (v&&String(v).trim()&&String(v)!=='-')
     ?('<tr><td style="color:var(--muted);padding:2px 10px 2px 0;white-space:nowrap;vertical-align:top">'+esc(k)+'</td><td style="padding:2px 0">'+v+'</td></tr>'):'';}
