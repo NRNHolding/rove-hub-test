@@ -546,7 +546,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20260908-103116';
+const VERSI='20260908-105834';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -2085,6 +2085,7 @@ if(r){ST.orders=JSON.parse(r);}else{ST.orders=[];}
   loadLang();migrasiFaseProfit();migrasiFase12();migrasiFase15();migrasiFase17();migrasiFase22();migrasiStatus();
   try{migrasiTeknikJasa();}catch(e){}
   finData();asetAll();loadCatalogCache();loadMaster();loadLeads();loadTax();loadKonten();loadHR();loadBuy();loadInv();
+  try{migrasiContoh();}catch(e){}   // kartu contoh versi lama diganti yang lengkap
   /* Link permintaan dari Discord dibaca paling akhir, sesudah semua data
      termuat — ordernya harus sudah ada sebelum linknya dicari. */
   try{bukaDariTautan();}catch(e){}
@@ -4686,6 +4687,9 @@ function contohBuatDasar(n){
 
 /* Isian tiap fase — indeksnya fase yang dikerjakan. Dipanggil berurutan,
    lalu fasenya ditutup dengan applyTrigger seperti tombol "Selesai". */
+/* Naikkan tiap kali bentuk kartu contoh berubah (fase bertambah, isian baru):
+   kartu contoh yang tersimpan di browser tiap orang diganti sendiri saat HUB dibuka. */
+const CONTOH_V='22a';
 const CONTOH_ISI=[
  /* 0 Inquiry — PM merinci; Sales menjawab warna, logo, dan letaknya */
  function(o){var K=CONTOH_W,b=briefGet(o);
@@ -4693,6 +4697,7 @@ const CONTOH_ISI=[
    o.eventDate=contohHari(60);b.tglAcara=o.eventDate;b.tglKirim=contohHari(53);
    b.venue=K.venue;o.venue=K.venue;o.addr=K.alamat;   // sudah dari kartu dasar; ditegaskan lagi
    b.woNama=K.wo;b.woHp=K.woHp;b.brideNama=K.bride;b.groomNama=K.groom;b.jenisProject='Wedding '+K.klien;
+   o.email=K.email;b.addrKantor=K.alamatKantor;o.addrKantor=K.alamatKantor;
    b.refFiles=[contohFile('referensi-client.svg',contohSvg('REF','#efe6d8','#6b4a2b'))];
    b.quoFiles=[contohFile('packaging-preview.svg',contohSvg('PACKAGING','#f3ede4','#2b1d0e'))];
    /* logo produk = ROVE MONOGRAM (deboss di produk, juga lampiran add-on logo);
@@ -4758,13 +4763,13 @@ const CONTOH_ISI=[
  /* 7 Menunggu approval sketsa */
  function(o){o.sketch={tgl:hariIni(),by:'cika'};},
  /* 8 Invoice DP */
- function(o){var t=hariIni();o.docs=o.docs||{};o.docs.invoice=true;o.docs.invoiceDate=t;try{docNo(o,'invoice');}catch(e){}o.inv={status:'Terkirim'};},
+ function(o){var t=hariIni();o.docs=o.docs||{};o.docs.invoice=true;o.docs.invoiceDate=t;try{docNo(o,'invoice');}catch(e){}o.inv={status:'Terkirim'};o.soNo='SO2072801';},
  /* 9 DP masuk */
  function(o){var t=hariIni();
    o.bukti={teks:'transfer DP 50% via BCA a.n. Sarah Halim',files:[contohFile('bukti-dp.svg',contohSvg('DP','#e8f1e8','#1f6b3a'))],oleh:'cika',tgl:nowStr()};
    o.pay=o.pay||{};o.pay.dp=Math.round(orderTotals(o).grand*0.5);o.pay.dpDate=t;},
  /* 10 Spec & PO — Purchasing + Direktur */
- function(o){var K=CONTOH_W,t=hariIni(),p=o.po=o.po||{};
+ function(o){var K=CONTOH_W,t=hariIni(),p=o.po=o.po||{},b=briefGet(o),d=new Date();
    p.tim='Tim A';p.warna=K.warna;
    if(!p.mainMaterial)p.mainMaterial=((lineProduk(o)[0]||{}).l||{}).bahan||'Chromium-Tanned Leather';
    if(!p.deadline)p.deadline=contohHari(45);
@@ -4773,11 +4778,15 @@ const CONTOH_ISI=[
    p.logos=[{milik:'Rove',jenis:'Foil',warna:'Emas',rgb:'#c8a24a'}];
    p.packing='Per 25 pcs / kardus';p.note='Wedding '+K.klien+' — 3 pcs engrave nama (daftar terlampir). Teknik: groover 1,5 mm, prong Diamond 3,5 mm, jangka 3,5 mm, benang Galaces 0,45 '+K.benang+', chemical Tokonole.';
    o.pricing.spare=5;o.pricing.spareTgl=t;o.pricing.marginAppr={tgl:t,tglBy:'dirut'};
-   p.generated=true;p.poNo='ROVE/PO/'+(new Date().getFullYear())+'/0101';
+   p.generated=true;p.poNo='ROVE/PO'+d.getFullYear()+'/'+roman(d.getMonth()+1)+'/0001806';p.tglPO=t;
    o.trello={created:true};o.checks=[];   // kartu Trello Production ikut terbentuk saat PO turun
-   try{poVendors(o).forEach(function(v){var x=vpoGet(o,v);x.generated=true;x.deadline=contohHari(40);x.packing='Per 25 pcs / kardus';});}catch(e){}},
+   try{poVendors(o).forEach(function(v,i){var x=vpoGet(o,v);x.generated=true;x.deadline=contohHari(40);x.packing='Per 25 pcs / kardus';
+     x.poNo='ROVE/PO'+d.getFullYear()+'/'+roman(d.getMonth()+1)+'/000'+(1807+i);x.tglPO=t;x.date=nowStr();
+     b['vpoFinal_'+vpoSlot(v)]=[contohFile('final-'+vpoSlot(v)+'.svg',contohSvg('FINAL','#f3ede4','#2b1d0e'))];
+     b['vpoLogo_'+vpoSlot(v)]=[contohLogoFile('kemasan')];});}catch(e){}},
  /* 11 Pembayaran vendor 1 — DP 50% tiap vendor */
- function(o){var t=hariIni();vendorTagihan(o).forEach(function(x){bvDaftar(o,x.v).push({tahap:1,nominal:Math.round(x.total*0.5),tgl:t,catatan:'DP 50%',oleh:'fin'});});},
+ function(o){var t=hariIni(),b=briefGet(o);vendorTagihan(o).forEach(function(x){bvDaftar(o,x.v).push({tahap:1,nominal:Math.round(x.total*0.5),tgl:t,catatan:'DP 50%',oleh:'fin'});
+   b['bvBukti_'+vpoSlot(x.v)+'_1']=[contohFile('bukti-dp-vendor.svg',contohSvg('TRF 1','#e8f1e8','#1f6b3a'))];});},
  /* 11 Produksi — foto sample, sample disetujui, collateral terkirim, progres berjalan */
  function(o){var t=hariIni(),b=briefGet(o);
    b.sampleFiles=[contohFile('sample-jadi.svg',contohSvg('SAMPLE','#f1ece2','#6b4718'))];
@@ -4793,7 +4802,8 @@ const CONTOH_ISI=[
    var pr={};pr[key]=100;o.terima={produk:pr,coll:{box:true,pouch:true,card:true},catatan:'diterima lengkap, 2 pcs retur jahitan sudah diganti Radja',tgl:t,oleh:'pack',_lengkapLog:true};
    b.terimaFiles=[contohFile('diterima-rove.svg',contohSvg('DITERIMA','#e8f1e8','#1f6b3a'))];},
  /* 14 Pembayaran vendor 2 — 30% tiap vendor */
- function(o){var t=hariIni();vendorTagihan(o).forEach(function(x){bvDaftar(o,x.v).push({tahap:2,nominal:Math.round(x.total*0.3),tgl:t,catatan:'termin 2',oleh:'fin'});});},
+ function(o){var t=hariIni(),b=briefGet(o);vendorTagihan(o).forEach(function(x){bvDaftar(o,x.v).push({tahap:2,nominal:Math.round(x.total*0.3),tgl:t,catatan:'termin 2',oleh:'fin'});
+   b['bvBukti_'+vpoSlot(x.v)+'_2']=[contohFile('bukti-termin2-vendor.svg',contohSvg('TRF 2','#e8f1e8','#1f6b3a'))];});},
  /* 13 Pelunasan — invoice pelunasan terkirim */
  function(o){var t=hariIni();
    o.docs=o.docs||{};o.docs.invoicePel=true;o.docs.invoicePelDate=t;try{docNo(o,'invoicePel');}catch(e){}o.invPel={status:'Terkirim'};},
@@ -4806,10 +4816,13 @@ const CONTOH_ISI=[
      {id:'k2',tgl:t,eksp:'JNE',layanan:'Regular',resi:'JNE 8823 4471 0093',nama:'',hp:'',alamat:'',isi:isi2,catatan:'sisa 40 pcs',tglTerima:'',sjNo:''}]};
    kirimSinkron(o);},
  /* 18 Live Event — persiapan beres */
- function(o){o.event=o.event||{};if(!o.event.venue)o.event.venue=briefGet(o).venue||'';o.event.time=o.event.time||'15.00 WIB';o.event.team=o.event.team||'1 kaligrafer';var c=evChk(o);EV_STEPS.forEach(function(s){c[s.k]=true;});
+ function(o){var K=CONTOH_W;o.event=o.event||{};if(!o.event.venue)o.event.venue=briefGet(o).venue||'';o.event.time=o.event.time||'15.00 WIB';o.event.team=o.event.team||'1 kaligrafer';var c=evChk(o);EV_STEPS.forEach(function(s){c[s.k]=true;});
+   o.event.picName=o.event.picName||K.wo;o.event.picPhone=o.event.picPhone||K.woHp;o.event.wardrobe=o.event.wardrobe||'Black on Black';
+   o.event.tm=Object.assign({tgl:contohHari(57),jam:'19.00',catatan:'pembagian tugas, cek alat, rute ke venue'},o.event.tm||{});
    if(!Array.isArray(o.event.ops)||!o.event.ops.length)o.event.ops=[{nama:'Mercia',job:'Calligrapher',hp:'0812-0000-0001',lokasi:'Surabaya',fee:1500000,fix:true}];else o.event.ops.forEach(function(x){x.fix=true;});},
  /* 19 Pembayaran vendor 3 — pelunasan semua vendor */
- function(o){var t=hariIni();vendorTagihan(o).forEach(function(x){var s=bvSisa(o,x.v,x.total);if(s>0)bvDaftar(o,x.v).push({tahap:3,nominal:s,tgl:t,catatan:'pelunasan',oleh:'fin'});});},
+ function(o){var t=hariIni(),b=briefGet(o);vendorTagihan(o).forEach(function(x){var s=bvSisa(o,x.v,x.total);if(s>0)bvDaftar(o,x.v).push({tahap:3,nominal:s,tgl:t,catatan:'pelunasan',oleh:'fin'});
+   b['bvBukti_'+vpoSlot(x.v)+'_3']=[contohFile('bukti-pelunasan-vendor.svg',contohSvg('TRF 3','#e8f1e8','#1f6b3a'))];});},
  /* 20 Laporan penutupan */
  function(o){var t=hariIni();o.tutup={liveSesuai:'Sesuai',liveCatatan:'kaligrafi 100 pcs selesai di venue',spareKembali:'Sudah kembali',spareQty:'5 pcs',komplain:'',biaya:[{ket:'parkir & konsumsi tim live',nominal:150000,tgl:t,oleh:'pm'}],evalVendor:{'Radja Leather':{nilai:5,catatan:'tepat waktu, rapi'},'BoxMaker':{nilai:4,catatan:''}},tgl:t,oleh:'pm'};
    briefGet(o).dokumentasiFiles=[contohFile('dokumentasi.svg',contohSvg('DOC','#e9eef7','#27408b'))];},
@@ -4818,6 +4831,17 @@ const CONTOH_ISI=[
    briefGet(o).kirimFiles=[contohFile('serah-terima.svg',contohSvg('OK','#e8f1e8','#1f6b3a'))];
    o.cs={komplain:[],puas:{rating:5,catatan:'client kirim foto meja souvenir',tgl:t}};}   // bentuk yang dibaca panel CS (bintang) & laporan
 ];
+/* Kartu contoh dari versi HUB sebelumnya (jumlah / bentuknya beda) diganti
+   sendiri: semua kolom pipeline terisi order contoh yang sama, lengkap.
+   Order sungguhan tak disentuh — hanya kartu ber-_contoh. */
+function migrasiContoh(){
+  var C=(ST.orders||[]).filter(function(o){return o._contoh&&!o.deleted;});
+  if(!C.length)return false;
+  if(C.length===CONTOH_ISI.length&&C.every(function(o){return o._contohV===CONTOH_V;}))return false;
+  var S={user:ST.user,roles:ST._roles,nama:ST.userName};
+  ST.user='Holding';ST._roles=['Holding'];ST.userName='sim';
+  try{seedContoh();}finally{ST.user=S.user;ST._roles=S.roles;ST.userName=S.nama;}
+  return true;}
 function seedContohHapus(diam){
   ST.orders=(ST.orders||[]).filter(function(o){return !o._contoh;});
   ST.leads=(ST.leads||[]).filter(function(l){return !/^LCW/.test(String(l.id||''));});
@@ -4837,7 +4861,7 @@ function seedContoh(){
       /* isian fase kartunya sendiri ikut diisi (semua harga & persetujuan ada);
          yang belum ditekan hanya tombol Selesai fase itu */
       for(var i=0;i<=f;i++){CONTOH_ISI[i](o);if(i<f)applyTrigger(o,true);}
-      o._m=Date.now();}
+      o._contohV=CONTOH_V;o._m=Date.now();}
   }finally{render=Rn;alert=Al;confirm=Cf;pushBackend=Pb;notifyOrder=No;ST.user=S.user;ST._roles=S.roles;ST.userName=S.nama;ST.cur=S.cur;ST.view=S.view;}
   save();saveLeads();
   return ST.orders.filter(function(o){return o._contoh;}).length;}
