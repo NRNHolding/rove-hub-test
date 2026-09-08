@@ -137,7 +137,7 @@
   .evtag{font-size:9px;font-weight:800;padding:2px 7px;border-radius:20px;background:var(--warn-bg);color:var(--warn);margin-right:3px}
 
   /* status + collaterals */
-  .stbadge.stlead{background:transparent;border:1px dashed #8a7a5c;color:#8a7a5c}
+  .stbadge.stlead{background:var(--bg);color:var(--muted)}
   .stbadge{font-size:9px;font-weight:800;padding:3px 9px;border-radius:20px;white-space:nowrap}
   .st-Inquiry{background:var(--bg);color:var(--muted)}
   .st-Quotation{background:var(--warn-bg);color:var(--warn)}
@@ -146,7 +146,7 @@
   .oc.cancel{opacity:.6;border-left-color:var(--red)!important}
   .oc.cancel .on{text-decoration:line-through}
   .stsel{font-size:11px;font-weight:800;padding:5px 9px;border-radius:8px;border:1px solid var(--line);background:var(--bg);color:var(--ink);cursor:pointer;margin-top:6px}
-  .collrow{display:flex;flex-wrap:wrap;gap:8px}
+  .collrow{display:flex;flex-direction:column;gap:8px}
   .collchk{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:700;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px 11px;cursor:pointer}
   .collchk input{width:auto;height:auto;margin:0;accent-color:var(--brand)}
   .collchip{font-size:10px;font-weight:800;background:#efe7d8;color:var(--brand);padding:3px 9px;border-radius:20px;margin:0 4px 4px 0;display:inline-block}
@@ -217,6 +217,11 @@
   .body [style*="font-size:16px"]{font-size:17.5px!important}
   .card .ch .t{font-size:14px}
   .card .ch .s{font-size:10.5px}
+  /* tombol pilihan (kategori, jenis order, mode kemasan) tersusun ke bawah — permintaan 8 Sep 2026 */
+  .pilihan{display:flex;flex-direction:column;gap:6px}
+  .pilihan>button,.pilihan>label{width:100%;box-sizing:border-box;text-align:left;flex:0 0 auto!important;min-width:0!important}
+  .body div[style*="flex-wrap:wrap"]:has(> button[style*="flex:1"]),.rcard div[style*="flex-wrap:wrap"]:has(> button[style*="flex:1"]){flex-direction:column}
+  .body div[style*="flex-wrap:wrap"]:has(> button[style*="flex:1"])>button,.rcard div[style*="flex-wrap:wrap"]:has(> button[style*="flex:1"])>button{width:100%;text-align:left}
   /* halaman order mentok kanan-kiri */
   .main.detail{padding-left:12px;padding-right:12px}
   [data-f="termin"] > div{flex-direction:column;align-items:stretch}
@@ -577,7 +582,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20260908-150031';
+const VERSI='20260908-154058';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -650,49 +655,51 @@ function teamOf(who){who=String(who||'?');return TEAM[who]||[who.replace(/[^A-Za
 
 // phase model: label, discord category, PIC, action button text, gate?, builds
 const PH=[
- {n:'Inquiry',cat:['rove','PRE-DEAL'],pic:'PM',btn:'Rinci order & lengkapi data client',
+ {n:'Inquiry Processing',cat:['rove','PRE-DEAL'],pic:'PM',btn:'Rinci order & lengkapi data client',
   desc:'Buat channel Discord (server Rove, kategori PRE-DEAL) + input lead ke HUB. Tentukan Katalog/Custom.'},
- {n:'Pricing Vendor',cat:['radja','PRICING → PRICING DONE'],pic:'PM',btn:'Harga vendor lengkap — lanjut penentuan harga jual',
+ {n:'Project Costing',cat:['radja','PRICING → PRICING DONE'],pic:'PM',btn:'Harga vendor lengkap — lanjut penentuan harga jual',
   desc:'Harga yang belum ada diminta ke vendornya; harga yang sudah ada dari master tetap dipastikan masih berlaku.'},
- {n:'Penentuan harga jual',cat:['rove','PRE-DEAL'],pic:'Sales',btn:'Harga jual disetujui — lanjut quotation',
+ {n:'Project Pricing',cat:['rove','PRE-DEAL'],pic:'Sales',btn:'Harga jual disetujui — lanjut quotation',
   desc:'Bandingkan HPP vendor dengan harga jual. Cek profit per item & total sebelum quotation dikirim.'},
- {n:'Profitability',cat:['rove','PRE-DEAL'],pic:'Direktur Utama',btn:'Approve — lanjut quotation',gate:'approval direktur',
-  desc:'Ringkasan order sebelum quotation. Direktur menyetujui atau menolak. Ditolak karena harga → balik ke Pricing Vendor; di luar harga → balik ke Inquiry.'},
- {n:'Quotation',cat:['rove','PRE-DEAL'],pic:'Sales',btn:'Quotation terkirim — tunggu respon client',
+ {n:'Profitability Checking',cat:['rove','PRE-DEAL'],pic:'Direktur Utama',btn:'Approve — lanjut quotation',gate:'approval direktur',
+  desc:'Ringkasan order sebelum quotation. Direktur menyetujui atau menolak. Ditolak karena harga → balik ke Project Costing; di luar harga → balik ke Inquiry Processing.'},
+ {n:'Quotation Issuing',cat:['rove','PRE-DEAL'],pic:'Sales',btn:'Quotation terkirim — tunggu respon client',
   desc:'Generate quotation detail (artikel kulit, soft pouch, thankyou card), kirim ke client, tunggu approve.'},
- {n:'Menunggu approval quotation',cat:['rove','PRE-DEAL'],pic:'Sales',btn:'Client approve — lanjut sketch',gate:'approve client',
+ {n:'Quotation – Awaiting Approval',cat:['rove','PRE-DEAL'],pic:'Sales',btn:'Client approve — lanjut sketch',gate:'approve client',
   desc:'Penawaran sudah di tangan client. Satu-satunya yang ditunggu di sini: jawabannya.'},
- {n:'Sketch',cat:['rove','PRE-DEAL'],pic:'Creative',btn:'Sketsa siap — kirim ke client',
+ {n:'Product Sketch Processing',cat:['rove','PRE-DEAL'],pic:'Creative',btn:'Sketsa siap — kirim ke client',
   desc:'Buat preview sketch, kirim ke client untuk approval desain (tombol ✅/❌ di Discord).'},
- {n:'Menunggu approval sketsa',cat:['rove','DEAL'],pic:'Sales',btn:'Sketsa disetujui — lanjut invoice',gate:'approve sketsa',
+ {n:'Product Sketch – Awaiting Approval',cat:['rove','DEAL'],pic:'Sales',btn:'Sketsa disetujui — lanjut invoice',gate:'approve sketsa',
   desc:'Preview sudah dikirim ke client. Satu-satunya yang ditunggu di sini: persetujuannya.'},
- {n:'Invoice',cat:['rove','→ Deal Bulan'],pic:'Sales',btn:'Invoice terkirim — tunggu DP masuk',
+ {n:'First Invoice Processing',cat:['rove','→ Deal Bulan'],pic:'Sales',btn:'Invoice terkirim — tunggu DP masuk',
   desc:'Buat & tagih invoice DP. DP masuk (Billing 1) → channel pindah ke kategori Deal Bulan.'},
- {n:'Menunggu DP / PO resmi',cat:['rove','DEAL'],pic:'Sales',btn:'Uang muka atau surat PO beres — lanjut spec & PO',gate:'DP masuk / PO resmi',
+ {n:'First Payment Processing',cat:['rove','DEAL'],pic:'Sales',btn:'Uang muka atau surat PO beres — lanjut spec & PO',gate:'DP masuk / PO resmi',
   desc:'Invoice sudah dikirim. Satu-satunya yang ditunggu di sini: uangnya benar-benar masuk rekening.'},
- {n:'Spec & PO',cat:['rove','Deal Bulan'],pic:'Purchasing',btn:'Spesifikasi disetujui → PO turun',gate:'invoice terbayar',
+ {n:'Purchase Order Issuing',cat:['rove','Deal Bulan'],pic:'Purchasing',btn:'Spesifikasi disetujui → PO turun',gate:'invoice terbayar',
   desc:'Approval margin (Direktur+Sales). Spec lengkap → GENERATE kartu Trello Production + turun PO ke Radja.'},
- {n:'Pembayaran vendor 1',cat:['rove','Deal Bulan'],pic:'Finance',btn:'Pembayaran vendor tahap 1 dicatat — lanjut produksi',
+ {n:'Vendor Payment Processing 1',cat:['rove','Deal Bulan'],pic:'Finance',btn:'Pembayaran vendor tahap 1 dicatat — lanjut produksi',
   desc:'Bayar vendor tahap 1 (DP / termin pertama). Boleh 1×, 2×, atau 3× per vendor — tak mengunci fase.'},
- {n:'Produksi',cat:['radja','ON GOING → DONE MASS PROD'],pic:'PM',btn:'Mulai produksi (baca progres)',
+ {n:'Production Process',cat:['radja','ON GOING → DONE MASS PROD'],pic:'PM',btn:'Mulai produksi (baca progres)',
   desc:'Radja jalankan produksi. HUB baca progres Trello + kategori Radja (read-only).'},
- {n:'QC & Packing',cat:['radja','QC di Radja'],pic:'Packing',btn:'Rekam QC + packing',gate:'lolos QC',
-  desc:'QC + packing (tim Rove hadir dokumentasi). Retur difoto (1 foto = 1 alasan).'},
- {n:'Pembayaran vendor 2',cat:['rove','Deal Bulan'],pic:'Finance',btn:'Pembayaran vendor tahap 2 dicatat — lanjut pelunasan client',
+ {n:'QC & Packing Process',cat:['radja','QC di Radja'],pic:'Packing',btn:'Rekam QC + packing',gate:'lolos QC',
+  desc:'Barang dari Radja diterima di Rove: qty tiap produk & collateral dicatat, foto saat diterima. Retur difoto (1 foto = 1 alasan).'},
+ {n:'Product Documentation',cat:['rove','Deal Bulan'],pic:'Marketing',btn:'Foto dokumentasi lengkap — lanjut pembayaran vendor 2',
+  desc:'Foto produk jadi, kemasan, dan set lengkap dipotret di Rove sebelum dikirim — untuk arsip, Planner Konten, dan lampiran ke client. Catatan konten ditulis di sini.'},
+ {n:'Vendor Payment Processing 2',cat:['rove','Deal Bulan'],pic:'Finance',btn:'Pembayaran vendor tahap 2 dicatat — lanjut pelunasan client',
   desc:'Bayar vendor tahap 2 sesudah barang diterima Rove. Tak mengunci fase.'},
- {n:'Pelunasan',cat:['rove','Deal Bulan'],pic:'Finance',btn:'Invoice pelunasan terkirim — tunggu pelunasan',
+ {n:'Second Invoice Processing',cat:['rove','Deal Bulan'],pic:'Finance',btn:'Invoice pelunasan terkirim — tunggu pelunasan',
   desc:'Invoice pelunasan dari ringkasan yang sama dengan invoice DP (baca saja); wajib melampirkan foto barang jadi & terpacking.'},
- {n:'Menunggu pelunasan',cat:['rove','Deal Bulan'],pic:'Finance',btn:'Lunas — lanjut shipping',gate:'Billing 2 lunas / termin PO resmi',
+ {n:'Second Payment Processing',cat:['rove','Deal Bulan'],pic:'Finance',btn:'Lunas — lanjut shipping',gate:'Billing 2 lunas / termin PO resmi',
   desc:'Gerbang ke pengiriman: tracking DP & pelunasan. Client bertermin PO resmi boleh lanjut tanpa bukti bayar.'},
- {n:'Shipping',cat:['rove','Deal Bulan'],pic:'Packing',btn:'Barang berangkat — resi tercatat',
+ {n:'Product Shipping',cat:['rove','Deal Bulan'],pic:'Packing',btn:'Barang berangkat — resi tercatat',
   desc:'Alamat & penerima final, ekspedisi, nomor resi, tanggal kirim.'},
- {n:'Live Event',cat:['rove','Deal Bulan'],pic:'Event Management',btn:'Live event selesai — lanjut pembayaran vendor 3',
+ {n:'Live Event Organization',cat:['rove','Deal Bulan'],pic:'Event Management',btn:'Live event selesai — lanjut pembayaran vendor 3',
   desc:'Semua persiapan live service: operator, reminder, alat, pengiriman alat. Dilewati otomatis bila order tanpa live service.'},
- {n:'Pembayaran vendor 3',cat:['rove','Deal Bulan'],pic:'Finance',btn:'Semua vendor lunas — lanjut laporan penutupan',gate:'semua vendor lunas',
+ {n:'Vendor Payment Processing 3',cat:['rove','Deal Bulan'],pic:'Finance',btn:'Semua vendor lunas — lanjut laporan penutupan',gate:'semua vendor lunas',
   desc:'Pelunasan semua vendor. Fase ini mengunci: tak bisa lanjut sebelum semua vendor lunas.'},
- {n:'Laporan penutupan',cat:['rove','Deal Bulan'],pic:'PM',btn:'Laporan penutupan lengkap — lanjut konfirmasi selesai',gate:'laporan lengkap',
-  desc:'Live service sesuai atau tidak, lebihan qty live service kembali, dokumentasi, biaya lain yang timbul, evaluasi vendor.'},
- {n:'Konfirmasi & Selesai',cat:['rove','→ ARCHIVED'],pic:'Sales',btn:'Konfirmasi selesai + arsip',gate:'diterima client',
+ {n:'Project Closing',cat:['rove','Deal Bulan'],pic:'PM',btn:'Laporan penutupan lengkap — lanjut konfirmasi selesai',gate:'laporan lengkap',
+  desc:'Live service sesuai atau tidak, lebihan qty live service kembali, dokumentasi, biaya lain yang timbul, evaluasi vendor, royalti Rove AU.'},
+ {n:'Project Archiving',cat:['rove','→ ARCHIVED'],pic:'Sales',btn:'Konfirmasi selesai + arsip',gate:'diterima client',
   desc:'Konfirmasi barang diterima → order Selesai. Arsip channel + masuk laporan & evaluasi.'}
 ];
 const CHECK=['Potong & skiving','Deboss logo','Jahit / stitch','Finishing','QC + retur','Packing + foto','Terkirim (resi)'];
@@ -2014,6 +2021,18 @@ function migrasiFase22(){
     o._faseV=5;});
   if(n)simpanLokal();
   return n;}
+/* Product Documentation disisipkan di indeks 14 (8 Sep 2026): order lama di
+   fase 14 ke atas — termasuk yang selesai (22) — digeser satu. */
+function migrasiFase23(){
+  var n=0;
+  (ST.orders||[]).forEach(function(o){
+    if(o._faseV>=6)return;
+    var p=o.phase||0,baru=p;
+    if(p>=14)baru=p+1;
+    if(baru!==p){o.phase=baru;n++;}
+    o._faseV=6;});
+  if(n)simpanLokal();
+  return n;}
 function migrasiFase17(){
   var n=0;
   (ST.orders||[]).forEach(function(o){
@@ -2115,7 +2134,7 @@ if(r){ST.orders=JSON.parse(r);}else{ST.orders=[];}
   try{ST.cfg=JSON.parse(localStorage.getItem('rovehub_cfg')||'{"url":"","live":false,"catalogUrl":""}');}catch(e){ST.cfg={url:'',live:false,catalogUrl:''};}
   ST.cfg=cfgBawaan(ST.cfg);
   pastikanBentukSemua();
-  loadLang();migrasiFaseProfit();migrasiFase12();migrasiFase15();migrasiFase17();migrasiFase22();migrasiStatus();
+  loadLang();migrasiFaseProfit();migrasiFase12();migrasiFase15();migrasiFase17();migrasiFase22();migrasiFase23();migrasiStatus();
   try{migrasiTeknikJasa();}catch(e){}
   finData();asetAll();loadCatalogCache();loadMaster();loadLeads();loadTax();loadKonten();loadHR();loadBuy();loadInv();
   try{migrasiContoh();}catch(e){}   // kartu contoh versi lama diganti yang lengkap
@@ -2365,7 +2384,7 @@ function leadPilihKategori(l){
         'title="ganti kategori" onclick="leadKategoriUbah(\''+l.id+'\')">ubah</button>'+
       '</div>';
   return '<div style="font-size:10px;font-weight:800;color:var(--muted);margin:11px 0 5px;letter-spacing:.03em">KATEGORI CLIENT</div>'+
-    '<div style="display:flex;flex-wrap:wrap;gap:7px">'+
+    '<div class="pilihan">'+
     LEAD_KAT.map(function(k){var on=(kini===k);
       return '<button onclick="leadKategoriSet(\''+l.id+'\',\''+k+'\')" style="flex:1;min-width:96px;border:1px solid '+
         (on?'var(--brand)':'var(--line)')+';background:'+(on?'var(--brand)':'var(--panel)')+
@@ -2391,7 +2410,7 @@ function leadPilihJenis(l){
       '</div>';
   return leadPilihKategori(l)+
     '<div style="font-size:10px;font-weight:800;color:var(--muted);margin:11px 0 5px;letter-spacing:.03em">JENIS ORDER — cara menghargainya</div>'+
-    '<div style="display:flex;flex-wrap:wrap;gap:7px">'+
+    '<div class="pilihan">'+
     LEAD_JENIS.map(function(j){var on=(l.jenis===j);
       return '<button onclick="leadJenisSet(\''+l.id+'\',\''+(on?'':j)+'\')" style="flex:1;min-width:96px;border:1px solid '+
         (on?'var(--brand)':'var(--line)')+';background:'+(on?'var(--brand)':'var(--panel)')+
@@ -2694,7 +2713,7 @@ function kirimKeInquiry(id){
      client, bukan nama jasa di master. Catatannya sampai ke PM lewat pita Sales
      di bagian PERSONALIZATION, dan PM yang memilih jasanya. */
   /* kemasan & jasa yang diminta client ikut jadi baris, supaya vendornya
-     masuk antrean "Minta harga vendor" — bukan baru ketahuan di Profitability */
+     masuk antrean "Minta harga vendor" — bukan baru ketahuan di Profitability Checking */
   o.coll=coll;
   try{barisVendorLengkapi(o);}catch(e){}
   o.brief=Object.assign({fitur:['','','']},o.brief||{});
@@ -2932,7 +2951,7 @@ function leadPanel(){
         (isVip(fokus)?('<span style="margin-left:8px">'+vipLencana()+'</span>'):'')+
         '<div class="sp"></div><button class="btn ghost sm" onclick="lepasFokusProspek()">Lihat semua prospek ('+L.length+')</button></div>'+
       baris;
-  return '<div class="topbar"><h1>Prospek</h1><span class="demo">'+aktif+' aktif</span>'+
+  return '<div class="topbar"><h1>Project Prospecting</h1><span class="demo">'+aktif+' aktif</span>'+
       (telat?'<span style="margin-left:auto;background:var(--warn-bg);color:var(--warn);border-radius:20px;padding:5px 13px;font-size:11px;font-weight:800">🔔 '+telat+' perlu di-follow up</span>':'')+
       '<div class="sp"></div><button class="btn" onclick="leadAdd()">＋ Prospek baru</button></div>'+
     tabNote('Calon client yang <b>belum jadi order</b> — dari WhatsApp, Instagram, email, dsb. <b>Semua prospek aktif perlu ditindaklanjuti tiap hari</b>; yang paling lama didiamkan naik ke atas dan memerah. Buka <b>Brief singkat untuk PM</b>, pilih jenisnya (Katalog / Custom / Mix), lalu klik <b>→ Kirim ke Inquiry</b> — seluruh isinya ikut terbawa. Prospek gagal jangan dihapus — ubah status jadi <b>Batal</b> supaya jadi bahan evaluasi.')+
@@ -4302,7 +4321,7 @@ function jalankanIngatOtomatis(){
    Radja, dan yang bisa dilakukan PM cuma menanyakan lalu mencatatnya. */
 const PROD_INGAT_MULAI=30;   // mulai menagih H-30 sebelum deadline produksi
 const PROD_INGAT_JEDA=2;     // paling cepat 2 hari kerja sekali
-function faseProduksi(){var i=PH.findIndex(function(x){return /^Produksi/i.test(x.n);});return i<0?11:i;}
+function faseProduksi(){var i=PH.findIndex(function(x){return /^(Produksi|Production)/i.test(x.n);});return i<0?12:i;}
 function prodDiamBerapaHari(o){
   var pr=o.prod||{};
   return hariKerjaSejak(+pr.updatedTs||+o._faseSejak||+o._m||0);}
@@ -4739,7 +4758,7 @@ function contohBuatDasar(n){
    lalu fasenya ditutup dengan applyTrigger seperti tombol "Selesai". */
 /* Naikkan tiap kali bentuk kartu contoh berubah (fase bertambah, isian baru):
    kartu contoh yang tersimpan di browser tiap orang diganti sendiri saat HUB dibuka. */
-const CONTOH_V='22b';
+const CONTOH_V='23a';
 const CONTOH_ISI=[
  /* 0 Inquiry — PM merinci; Sales menjawab warna, logo, dan letaknya */
  function(o){var K=CONTOH_W,b=briefGet(o);
@@ -4765,7 +4784,7 @@ const CONTOH_ISI=[
    lineProduk(o).forEach(function(x){var s=lineSpek(x.l);s.mainMatWarna=K.warna;s.stitch=K.stitch;s.benangWarna=K.benang;s.finishing=K.finishing;});
    var warnaK={box:'Coklat tua',pouch:'Krem',card:'Putih tulang'};
    ['box','pouch','card'].forEach(function(k){var s=packSpec(o,k);Object.assign(s,packSpecBawaan(k));s.Warna=warnaK[k];});},
- /* 1 Pricing Vendor — semua vendor menjawab; harga NAIK dari katalog */
+ /* 1 Project Costing — semua vendor menjawab; harga NAIK dari katalog */
  function(o){var K=CONTOH_W,t=hariIni();
    (o.pricing.lines||[]).forEach(function(l){
      var baru=null;
@@ -4797,7 +4816,7 @@ const CONTOH_ISI=[
    if(!(o.shipTarif>0))o.shipTarif=11000;
    o.pricing.ship=Math.round((+o.shipKg||0)*(+o.shipTarif||0));
    o.pricing.jualAppr={tgl:t,tglBy:'cika'};},
- /* 3 Profitability — Direktur setuju */
+ /* 3 Profitability Checking — Direktur setuju */
  function(o){o.pricing.dirAppr={tgl:hariIni(),tglBy:'dirut',tolak:false,alasan:'',catatan:'margin 35%, aman'};},
  /* 4 Quotation — Finance */
  function(o){var K=CONTOH_W,t=hariIni(),b=briefGet(o);
@@ -4806,11 +4825,11 @@ const CONTOH_ISI=[
    o.docs=o.docs||{};o.docs.quotation=true;o.docs.quotationDate=t;try{docNo(o,'quotation');}catch(e){}
    o.quoDue=contohHari(7);
    o.quo={status:'Terkirim',rev:0,log:[]};},
- /* 5 Menunggu approval quotation */
+ /* 5 Quotation – Awaiting Approval */
  function(o){o.quo=o.quo||{};o.quo.status='Approved';},
  /* 6 Sketch — Creative */
  function(o){briefGet(o).previewFiles=[contohFoto('prevProduk','sketsa-produk.jpg',contohSvg('SKETSA','#f3ede4','#2b1d0e')),contohFoto('prevBox','sketsa-box.jpg',null),contohFoto('prevPouch','sketsa-soft-pouch.jpg',null),contohFoto('prevCard','sketsa-thank-you-card.jpg',null)].filter(Boolean);},
- /* 7 Menunggu approval sketsa */
+ /* 7 Product Sketch – Awaiting Approval */
  function(o){o.sketch={tgl:hariIni(),by:'cika'};},
  /* 8 Invoice DP */
  function(o){var t=hariIni();o.docs=o.docs||{};o.docs.invoice=true;o.docs.invoiceDate=t;try{docNo(o,'invoice');}catch(e){}o.inv={status:'Terkirim'};o.soNo='SO2072801';},
@@ -4818,7 +4837,7 @@ const CONTOH_ISI=[
  function(o){var t=hariIni();
    o.bukti={teks:'transfer DP 50% via BCA a.n. Sarah Halim',files:[contohFoto('transfer','bukti-transfer-dp.jpg',contohSvg('DP','#e8f1e8','#1f6b3a'))],oleh:'cika',tgl:nowStr()};
    o.pay=o.pay||{};o.pay.dp=Math.round(orderTotals(o).grand*0.5);o.pay.dpDate=t;},
- /* 10 Spec & PO — Purchasing + Direktur */
+ /* 10 Purchase Order Issuing — Purchasing + Direktur */
  function(o){var K=CONTOH_W,t=hariIni(),p=o.po=o.po||{},b=briefGet(o),d=new Date();
    p.tim='Tim A';p.warna=K.warna;
    if(!p.mainMaterial)p.mainMaterial=((lineProduk(o)[0]||{}).l||{}).bahan||'Chromium-Tanned Leather';
@@ -4852,13 +4871,18 @@ const CONTOH_ISI=[
  function(o){var t=hariIni(),b=briefGet(o),key='l:'+(((lineProduk(o)[0]||{}).l||{}).produk||'');
    var pr={};pr[key]=100;o.terima={produk:pr,coll:{box:true,pouch:true,card:true},catatan:'diterima lengkap, 2 pcs retur jahitan sudah diganti Radja',tgl:t,oleh:'pack',_lengkapLog:true};
    b.terimaFiles=[contohFoto('terima','diterima-rove.jpg',contohSvg('DITERIMA','#e8f1e8','#1f6b3a'))];},
- /* 14 Pembayaran vendor 2 — 30% tiap vendor */
+ /* 14 Product Documentation — foto produk, kemasan, catatan konten */
+ function(o){var b=briefGet(o);
+   b.dokProdukFiles=[contohFoto('prevProduk','dokumentasi-produk.jpg',contohSvg('FOTO','#f3ede4','#2b1d0e'))];
+   b.dokKemasanFiles=[contohFoto('prevBox','dokumentasi-box.jpg',null),contohFoto('prevPouch','dokumentasi-pouch.jpg',null),contohFoto('prevCard','dokumentasi-card.jpg',null)].filter(Boolean);
+   b.dokCaption='Wedding Sarah & Kevin — Irvine Card Wallet coklat tua, deboss monogram Rove; box + soft pouch + thank you card. Boleh dipublikasikan.';},
+ /* 15 Pembayaran vendor 2 — 30% tiap vendor */
  function(o){var t=hariIni(),b=briefGet(o);vendorTagihan(o).forEach(function(x){bvDaftar(o,x.v).push({tahap:2,nominal:Math.round(x.total*0.3),tgl:t,catatan:'termin 2',oleh:'fin'});
    b['bvBukti_'+vpoSlot(x.v)+'_2']=[contohFoto('transfer','bukti-termin2-vendor.jpg',contohSvg('TRF 2','#e8f1e8','#1f6b3a'))];});},
  /* 13 Pelunasan — invoice pelunasan terkirim */
  function(o){var t=hariIni();
    o.docs=o.docs||{};o.docs.invoicePel=true;o.docs.invoicePelDate=t;try{docNo(o,'invoicePel');}catch(e){}o.invPel={status:'Terkirim'};},
- /* 14 Menunggu pelunasan — pelunasan masuk */
+ /* 14 Second Payment Processing — pelunasan masuk */
  function(o){var t=hariIni();o.pay=o.pay||{};o.pay.pel=orderTotals(o).grand-(+o.pay.dp||0);o.pay.pelDate=t;},
  /* 15 Shipping — bertahap: 60 pcs berangkat & diterima, 40 pcs menyusul */
  function(o){var K=CONTOH_W,t=hariIni(),key='l:'+(((lineProduk(o)[0]||{}).l||{}).produk||'');var isi1={},isi2={};isi1[key]=60;isi2[key]=40;
@@ -4877,7 +4901,7 @@ const CONTOH_ISI=[
  /* 20 Laporan penutupan */
  function(o){var t=hariIni();o.tutup={liveSesuai:'Sesuai',liveCatatan:'kaligrafi 100 pcs selesai di venue',spareKembali:'Sudah kembali',spareQty:'5 pcs',komplain:'',biaya:[{ket:'parkir & konsumsi tim live',nominal:150000,tgl:t,oleh:'pm'}],evalVendor:{'Radja Leather':{nilai:5,catatan:'tepat waktu, rapi'},'BoxMaker':{nilai:4,catatan:''}},tgl:t,oleh:'pm'};
    briefGet(o).dokumentasiFiles=[contohFoto('ref1','dokumentasi-acara.jpg',contohSvg('DOC','#e9eef7','#27408b'))];},
- /* 16 Konfirmasi & Selesai — diterima; arsip dibiarkan untuk tombolnya */
+ /* 16 Project Archiving — diterima; arsip dibiarkan untuk tombolnya */
  function(o){var t=hariIni();o.kirim=o.kirim||{};(o.kirim.daftar||[]).forEach(function(s){if(!s.tglTerima)s.tglTerima=t;});kirimSinkron(o);if(!o.kirim.tglTerima)o.kirim.tglTerima=t;
    briefGet(o).kirimFiles=[contohFoto('serah','serah-terima.jpg',contohSvg('OK','#e8f1e8','#1f6b3a'))];
    o.cs={komplain:[],puas:{rating:5,catatan:'client kirim foto meja souvenir',tgl:t}};}   // bentuk yang dibaca panel CS (bintang) & laporan
@@ -5018,7 +5042,7 @@ function tglPlusDari(iso,n){var d=new Date(iso);if(isNaN(d))d=new Date();d=new D
   return ymd(d.getFullYear(),d.getMonth()+1,d.getDate());}
 const DOK_TIPE_EN={Katalog:'Catalogue',Custom:'Custom',Mix:'Catalogue + Custom'};
 
-/* blok di panel Penentuan harga jual (baca=true untuk Profitability) */
+/* blok di panel Penentuan harga jual (baca=true untuk Profitability Checking) */
 function dokItemBlok(o,baca){
   var D=dokItemDaftar(o);if(!D.length)return '';
   var nm={produk:'produk utama',coll:'collateral',live:'live service',addon:'add-on'};
@@ -5041,7 +5065,7 @@ function dokItemBlok(o,baca){
 
 /* ================= DISKON =================
    Biasanya diminta client sesudah quotation terkirim; kartu kembali ke
-   Penentuan harga jual dari fase Menunggu approval quotation. */
+   Penentuan harga jual dari fase Quotation – Awaiting Approval. */
 function diskonOrderSet(id,f,v){
   var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;if(!o.pricing)o.pricing={lines:[],margin:30};
   if(f==='discType'){o.pricing.discType=(v==='pct')?'pct':'rp';o.pricing.disc=0;}
@@ -5120,7 +5144,7 @@ function quoPanel(o){
   return '<div class="card actcard" style="margin-top:14px"><div class="ch"><span class="ico" style="background:#c78a24">🧾</span>'+
     '<div><div class="t">Quotation</div><div class="s">RINGKASAN YANG MASUK QUOTATION — BACA SAJA</div></div>'+
     '<span style="margin-left:auto;font-size:12px;font-weight:800">'+fmt0(T.grand)+'</span></div><div class="body">'+
-    '<div style="font-size:10.5px;color:var(--muted);margin-bottom:9px;line-height:1.6">Angka & spesifikasi sudah terkunci dari fase sebelumnya (ubahnya lewat revisi ke Penentuan harga jual). Di sini tinggal melengkapi data client untuk dokumen (email, alamat penagihan), ongkir, dan status PPN — lalu <b>Generate Quotation</b>, kirim, dan tandai terkirim.</div>'+
+    '<div style="font-size:10.5px;color:var(--muted);margin-bottom:9px;line-height:1.6">Angka & spesifikasi sudah terkunci dari fase sebelumnya (ubahnya lewat revisi ke Project Pricing). Di sini tinggal melengkapi data client untuk dokumen (email, alamat penagihan), ongkir, dan status PPN — lalu <b>Generate Quotation</b>, kirim, dan tandai terkirim.</div>'+
     '<div class="g2" style="gap:16px">'+
       '<div><div style="font-size:10px;font-weight:800;color:var(--muted);margin-bottom:4px">CLIENT</div>'+
         info('Nama',esc(o.customer))+info('PIC',esc(b.picNama||''))+info('HP',esc(o.phone||''))+
@@ -5187,7 +5211,7 @@ function invPanel(o){
     '<span style="margin-left:auto;font-size:12px;font-weight:800">DP '+dpPct+'% · '+fmt0(dpAmt)+'</span></div><div class="body">'+
     '<div style="font-size:10.5px;color:var(--muted);margin-bottom:9px;line-height:1.6">Item, harga, ongkir, dan syarat bayar diambil apa adanya dari quotation yang sudah disetujui client'+
       (D.quotation?(' (<b>'+esc(docNo(o,'quotation'))+'</b>'+(q.tgl?(', deal '+tglDMY(q.tgl)):'')+')'):'')+
-      ' — tak ada yang diubah di sini. DP yang masuk dicatat di fase berikutnya, <b>Menunggu DP / PO resmi</b>.</div>'+
+      ' — tak ada yang diubah di sini. DP yang masuk dicatat di fase berikutnya, <b>First Payment Processing</b>.</div>'+
     '<div class="g2" style="gap:16px">'+
       '<div><div style="font-size:10px;font-weight:800;color:var(--muted);margin-bottom:4px">CLIENT</div>'+
         info('Nama',esc(o.customer))+info('PIC',esc(b.picNama||''))+info('HP',esc(o.phone||''))+
@@ -5238,7 +5262,7 @@ function quoJawabPanel(o){
       (opsiDaftar(o).length?('opsi '+opsiSemua(o).map(function(x){return x.nama;}).join(' / ')):'')+
       ((opsiDaftar(o).length&&shipTawarDaftar(o).length>1)?' · ':'')+
       (shipTawarDaftar(o).length>1?('ongkir '+shipTawarDaftar(o).map(shipLayananLabel).join(' / ')):'')+'</div>'):'')+
-    '<div style="font-size:10.5px;color:var(--muted);margin-bottom:11px;line-height:1.6">Satu-satunya yang ditunggu di sini: jawaban client. <b>Deal</b> = kartu lanjut ke Sketch. <b>Revisi</b> = kartu kembali ke fase yang sesuai alasannya (minta diskon → Penentuan harga jual; ubah spesifikasi → Pricing Vendor). <b>Cancel</b> wajib beralasan.</div>'+
+    '<div style="font-size:10.5px;color:var(--muted);margin-bottom:11px;line-height:1.6">Satu-satunya yang ditunggu di sini: jawaban client. <b>Deal</b> = kartu lanjut ke Product Sketch Processing. <b>Revisi</b> = kartu kembali ke fase yang sesuai alasannya (minta diskon → Penentuan harga jual; ubah spesifikasi → Project Costing). <b>Cancel</b> wajib beralasan.</div>'+
     (bisa?('<div style="display:flex;gap:8px;flex-wrap:wrap">'+
       '<button class="btn" data-f="quoDeal" style="background:var(--ok);border-color:var(--ok)" onclick="quoDeal('+jsArg(o.id)+')">✓ Deal — client setuju</button>'+
       '<button class="btn ghost" data-f="quoRevisi" onclick="quoRevisi('+jsArg(o.id)+')">✎ Revisi</button>'+
@@ -5258,7 +5282,7 @@ function quoDeal(id){
     syncStatus(o);o._m=Date.now();
     triggerLangsung(o);};
   if(!perluPilih){
-    if(!confirm('Client SETUJU quotation '+docNo(o,'quotation')+' (total '+fmt0(orderTotals(o).grand)+')?'+NL+NL+'Kartu lanjut ke Sketch — Creative dikabari.'))return;
+    if(!confirm('Client SETUJU quotation '+docNo(o,'quotation')+' (total '+fmt0(orderTotals(o).grand)+')?'+NL+NL+'Kartu lanjut ke Product Sketch Processing — Creative dikabari.'))return;
     lanjut();return;}
   /* masih ada pilihan: opsi set/qty dan/atau ongkir — yang dipilih client
      jadi harga, qty, dan ongkir yang berlaku (invoice, PO, produksi) */
@@ -5280,7 +5304,7 @@ function quoRevisi(id){
   askForm({judul:'Client minta revisi quotation',sub:o.customer+((o.docs||{}).quotation?(' · '+docNo(o,'quotation')):''),
     fields:[{k:'alasan',label:'Alasan / permintaan client',type:'textarea',tinggi:90,req:true,ph:'mis. minta diskon 10%, atau ganti warna kulit jadi hitam'},
       {k:'ke',label:'Kembali ke fase',type:'select',req:true,val:'harga',
-       opts:[{v:'harga',l:'Penentuan harga jual — minta diskon / ubah harga'},{v:'spek',l:'Pricing Vendor — ubah spesifikasi / item (PM tanya vendor lagi)'}],
+       opts:[{v:'harga',l:'Penentuan harga jual — minta diskon / ubah harga'},{v:'spek',l:'Project Costing — ubah spesifikasi / item (PM tanya vendor lagi)'}],
        hint:'Diskon diisi di Penentuan harga jual → Diskon. Ubah spek berarti harga vendor ditanyakan ulang.'}],
     ok:function(v){
       var alasan=String(v.alasan||'').trim(),ke=(v.ke==='spek')?1:2,dari=o.phase;
@@ -5405,8 +5429,8 @@ function sketsaJawabPanel(o){
   return '<div class="card actcard" style="margin-top:14px"><div class="ch"><span class="ico" style="background:#4b5d8a">✉</span>'+
     '<div><div class="t">Jawaban client atas sketsa</div><div class="s">DEAL · REVISI</div></div>'+
     '<span style="margin-left:auto;font-size:12px;font-weight:800;color:'+(S.tgl?'var(--ok)':'var(--warn)')+'">'+(S.tgl?('● disetujui '+tglID(S.tgl)):'● menunggu jawaban')+'</span></div><div class="body">'+
-    '<div style="font-size:10px;font-weight:800;color:var(--muted);margin-bottom:5px">PREVIEW YANG DIKIRIM KE CLIENT</div>'+berkasTiles(PR,'preview belum diunggah — kembali ke Sketch')+
-    '<div style="font-size:10.5px;color:var(--muted);margin:10px 0;line-height:1.6">Satu-satunya yang ditunggu di sini: jawaban client. <b>Deal</b> = kartu lanjut ke Invoice. <b>Revisi</b> = kartu kembali ke Sketch beserta alasannya.</div>'+
+    '<div style="font-size:10px;font-weight:800;color:var(--muted);margin-bottom:5px">PREVIEW YANG DIKIRIM KE CLIENT</div>'+berkasTiles(PR,'preview belum diunggah — kembali ke Product Sketch Processing')+
+    '<div style="font-size:10.5px;color:var(--muted);margin:10px 0;line-height:1.6">Satu-satunya yang ditunggu di sini: jawaban client. <b>Deal</b> = kartu lanjut ke Invoice. <b>Revisi</b> = kartu kembali ke Product Sketch Processing beserta alasannya.</div>'+
     (bisa?('<div style="display:flex;gap:8px;flex-wrap:wrap">'+
       '<button class="btn" data-f="sketsaDeal" style="background:var(--ok);border-color:var(--ok)" onclick="sketsaDeal('+jsArg(o.id)+')">✓ Deal — sketsa disetujui</button>'+
       '<button class="btn ghost" data-f="sketsaRevisi" onclick="sketsaRevisi('+jsArg(o.id)+')">✎ Revisi</button></div>')
@@ -5433,8 +5457,8 @@ function sketsaRevisi(id){
       revisiAll(o).push({tgl:nowStr(),oleh:(ST.userName||ST.user||''),sebab:'Client minta revisi sketsa',catatan:alasan,dari:dari,ke:6,poRev:false});
       o.phase=6;o._faseSejak=Date.now();o.ingatOtomatis={};o.sketchMasuk=new Date().toISOString();
       syncStatus(o);
-      logHist(o,'✎ Client minta revisi sketsa — kembali ke Sketch: '+alasan);
-      notifyOrder(o,'✎ **Client minta revisi sketsa** — '+o.customer+String.fromCharCode(10)+alasan+String.fromCharCode(10)+picMention('Creative')+' — kartu kembali ke Sketch.');
+      logHist(o,'✎ Client minta revisi sketsa — kembali ke Product Sketch Processing: '+alasan);
+      notifyOrder(o,'✎ **Client minta revisi sketsa** — '+o.customer+String.fromCharCode(10)+alasan+String.fromCharCode(10)+picMention('Creative')+' — kartu kembali ke Product Sketch Processing.');
       (o.disc=o.disc||[]).push({cat:['rove','DEAL'],who:(typeof TEAM==='object'&&TEAM[ST.user])?ST.user:'Sales',txt:'✎ Client minta revisi sketsa: '+esc(alasan)});
       ST._stepOpen={};try{ST._bukaAwal={};ST._bukaAwalFor='';}catch(e){}
       o._m=Date.now();save();render();
@@ -6037,7 +6061,7 @@ function fmtTglPendek(ph,geser){var d=new Date(Date.now()-(ph*9-geser)*864e5);
   return d.toLocaleDateString('id-ID',{day:'2-digit',month:'short',year:'numeric'});}
 function fmtTglIso(ph,geser){var d=new Date(Date.now()-(ph*9-geser)*864e5);
   return ymd(d.getFullYear(),d.getMonth()+1,d.getDate());}
-function mk(x){return Object.assign({id:uid(),phase:0,_faseV:5,disc:[],trello:null,checks:[],done:false,nilai:0,leadDays:0,eventDate:'',shipEksp:'',shipKota:'',shipTarif:0,shipKg:0,dpPct:50,phone:'',email:'',addr:'',addrKantor:'',pic3:'',venue:'',status:'Inquiry',reason:'',coll:{box:false,pouch:false,card:false,others:''},liveSvc:[],svc:[],brief:{fitur:['','','']},event:{venue:'',time:'',team:'1 mesin 1 operator',wardrobe:'',picName:'',picPhone:''},pricing:{lines:[],margin:30},notes:{kulit:'',pouch:'',card:'',box:''},docs:{},po:{},hist:[],pay:{dp:0,pel:0,dpDate:'',pelDate:''},quo:{status:'Draft',rev:0,log:[]},prod:{stage:'',note:'',updated:''}},x)}
+function mk(x){return Object.assign({id:uid(),phase:0,_faseV:6,disc:[],trello:null,checks:[],done:false,nilai:0,leadDays:0,eventDate:'',shipEksp:'',shipKota:'',shipTarif:0,shipKg:0,dpPct:50,phone:'',email:'',addr:'',addrKantor:'',pic3:'',venue:'',status:'Inquiry',reason:'',coll:{box:false,pouch:false,card:false,others:''},liveSvc:[],svc:[],brief:{fitur:['','','']},event:{venue:'',time:'',team:'1 mesin 1 operator',wardrobe:'',picName:'',picPhone:''},pricing:{lines:[],margin:30},notes:{kulit:'',pouch:'',card:'',box:''},docs:{},po:{},hist:[],pay:{dp:0,pel:0,dpDate:'',pelDate:''},quo:{status:'Draft',rev:0,log:[]},prod:{stage:'',note:'',updated:''}},x)}
 const PROD_STAGES=['Belum mulai','Potong & skiving','Deboss / emboss','Jahit / stitch','Finishing','QC','Packing','Selesai'];
 function nowStr(){return new Date().toLocaleString('id-ID',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});}
 function logHist(o,txt){if(!o.hist)o.hist=[];o.hist.push({t:nowStr(),txt:txt,who:ST.user||'Sistem'});}
@@ -6057,7 +6081,7 @@ function applyTrigger(o,silent){
     push('Bot','HPP vendor lengkap. Giliran <b>Sales</b> menetapkan harga jual.');}
   else if(p===2){var Pp=profitTotals(o);
     push('Sales','Harga jual &amp; margin ditetapkan: jual '+fmt0(Pp.jual)+' − HPP '+fmt0(Pp.hpp)+' = <b>'+fmt0(Pp.profit)+'</b> ('+Pp.pct+'%).');
-    push('Bot','Harga jual disetujui Sales. Menunggu keputusan <b>Direktur</b> di Profitability.');}
+    push('Bot','Harga jual disetujui Sales. Menunggu keputusan <b>Direktur</b> di Profitability Checking.');}
   else if(p===3){push('Direktur','Ringkasan dibaca — profit, deadline produksi, batas tanggal PO turun. <b>Approve.</b>');
     push('Bot','Gerbang approval direktur lewat. Giliran <b>Sales</b> membuat quotation.');}
   else if(p===4){push('Sales','Quotation '+o.customer+' di-generate lengkap lalu dikirim ke client.');
@@ -6065,7 +6089,7 @@ function applyTrigger(o,silent){
   else if(p===5){o.sketchMasuk=new Date().toISOString();push('Sales','Client menyetujui penawarannya.');
     push('Bot','Gerbang approve client lewat. Giliran <b>Creative</b> menyiapkan sketsa.');}
   else if(p===6){push('Creative','Preview sketsa beserta collateral-nya selesai dan dirapikan.');
-    push('Bot','Preview siap dikirim. Menunggu approval sketsa dari client — yang memegang <b>Sales</b>.');}
+    push('Bot','Preview siap dikirim. Product Sketch – Awaiting Approval dari client — yang memegang <b>Sales</b>.');}
   else if(p===7){push('Sales','Client menyetujui sketsanya.');
     push('Bot','Gerbang approve sketsa lewat. Giliran <b>Sales</b> menerbitkan invoice.');}
   else if(p===8){push('Sales','Invoice DP diterbitkan dan ditagihkan ke client.');
@@ -6086,23 +6110,25 @@ function applyTrigger(o,silent){
     push('Bot','Giliran <b>PM</b> memantau produksi Radja.');}
   else if(p===12){push('Radja','Produksi jalan, fotonya dikirim tiap tahap.');
     push('PM','Tahap produksi dipantau dari HUB + kategori Radja (read-only).');o.checks=['Potong & skiving','Deboss logo','Jahit / stitch'];}
-  else if(p===14){push('Finance','Pembayaran vendor tahap 2 dicatat (yang belum, menyusul).');
+  else if(p===14){push('Marketing','Foto dokumentasi produk &amp; kemasan diunggah — arsip, konten, lampiran ke client.');
+    push('Bot','Giliran <b>Finance</b> mencatat pembayaran vendor tahap 2.');}
+  else if(p===15){push('Finance','Pembayaran vendor tahap 2 dicatat (yang belum, menyusul).');
     push('Bot','Giliran <b>Finance</b> menerbitkan invoice pelunasan ke client.');}
   else if(p===13){push('Packing','Barang dari Radja diterima di Rove, kelengkapannya dicatat.');
-    push('Bot','QC <b>lolos</b>. Barang dikemas lengkap dengan collateral dan didokumentasikan.');o.checks=['Potong & skiving','Deboss logo','Jahit / stitch','Finishing','QC + retur','Packing + foto'];}
-  else if(p===15){push('Finance','Invoice pelunasan terkirim beserta foto barang jadi &amp; terpacking.');
-    push('Bot','Menunggu pelunasan — atau termin PO resmi client yang sudah disetujui.');}
-  else if(p===16){push('Finance','Pelunasan masuk dicocokkan lalu dicatat — <b>Billing 2</b> lunas.');
+    push('Bot','QC <b>lolos</b>. Barang dikemas lengkap dengan collateral. Giliran <b>Marketing</b> memotret produk untuk dokumentasi.');o.checks=['Potong & skiving','Deboss logo','Jahit / stitch','Finishing','QC + retur','Packing + foto'];}
+  else if(p===16){push('Finance','Invoice pelunasan terkirim beserta foto barang jadi &amp; terpacking.');
+    push('Bot','Second Payment Processing — atau termin PO resmi client yang sudah disetujui.');}
+  else if(p===17){push('Finance','Pelunasan masuk dicocokkan lalu dicatat — <b>Billing 2</b> lunas.');
     push('Bot','Gerbang pelunasan lewat. Giliran <b>Packing</b> memberangkatkan barang.');}
-  else if(p===17){push('Packing','Alamat &amp; penerima final dipastikan, nomor resi dan tanggal kirim dicatat di HUB.');
+  else if(p===18){push('Packing','Alamat &amp; penerima final dipastikan, nomor resi dan tanggal kirim dicatat di HUB.');
     push('Bot','Barang berangkat.'+(adaLive(o)?' Giliran <b>Event Management</b> menuntaskan live event.':' Tanpa live service — lanjut pembayaran vendor tahap 3.'));o.checks=CHECK.slice();}
-  else if(p===18){push('Event Management','Live event selesai: operator, alat, reminder, dan pengiriman alat beres.');
+  else if(p===19){push('Event Management','Live event selesai: operator, alat, reminder, dan pengiriman alat beres.');
     push('Bot','Giliran <b>Finance</b> melunasi semua vendor (tahap 3).');}
-  else if(p===19){push('Finance','Semua vendor lunas — pembayaran tahap 3 dicatat.');
+  else if(p===20){push('Finance','Semua vendor lunas — pembayaran tahap 3 dicatat.');
     push('Bot','Tak ada utang vendor. Giliran <b>PM</b> menyusun laporan penutupan.');}
-  else if(p===20){push('PM','Laporan penutupan: live service, lebihan qty, dokumentasi, biaya lain, evaluasi vendor.');
+  else if(p===21){push('PM','Laporan penutupan: live service, lebihan qty, dokumentasi, biaya lain, evaluasi vendor.');
     push('Bot','Order siap dikonfirmasi selesai — yang memegang <b>Sales</b>.');}
-  else if(p===21){push('Packing','Tanggal barang diterima client dicatat, bukti serah terima dilampirkan.');
+  else if(p===22){push('Packing','Tanggal barang diterima client dicatat, bukti serah terima dilampirkan.');
     push('Sales','Client konfirmasi diterima. 🙏 Minta foto / testimoni.');
     push('Bot','Order <b>Selesai</b>. Channel diarsipkan (ARCHIVED) + masuk laporan &amp; evaluasi.');o.done=true;o.leadDays=14+(o.qty%23);
     o.returns=returAktif(o)?1:0;   // retur sungguhan, bukan tebakan dari qty
@@ -6889,7 +6915,7 @@ function evFeeAjukan(id){
   logHist(o,'Pengajuan pembayaran live service: '+fmt0(tot)+' ke '+vend);
   notifyOrder(o,'💵 **Pengajuan bayar live service** — '+o.customer+'\nVendor: '+vend+' · '+ops.length+' operator · '+fmt0(tot));
   save();render();
-  alert('✓ Diajukan.\n\nBaris biaya masuk ke Pricing. Purchasing tinggal Generate PO ke "'+vend+'" (fase Spec & PO), lalu Finance ekspor ke AIS seperti biasa.');}
+  alert('✓ Diajukan.\n\nBaris biaya masuk ke Pricing. Purchasing tinggal Generate PO ke "'+vend+'" (fase Purchase Order Issuing), lalu Finance ekspor ke AIS seperti biasa.');}
 function evFeePanel(o){
   var e=o.event||{},ops=e.ops||[];
   if(!ops.length)return '<div style="font-size:10.5px;color:var(--ink-soft);line-height:1.7;'+
@@ -8301,7 +8327,7 @@ function renderMaster(){
      } else if(sub==='komb'){
        isi=kombPanel();
      } else if(sub==='kulit'){
-       isi='<div style="font-size:10.5px;color:var(--muted);margin-bottom:9px">Stok kulit vendor. Diisi dari jawaban vendor saat <b>Tanya kulit ready</b> di fase Pricing Vendor, atau langsung di sini. Yang <b>Ready</b> muncul sebagai saran waktu bertanya, jadi lama-lama tak perlu tanya lagi.</div>'+
+       isi='<div style="font-size:10.5px;color:var(--muted);margin-bottom:9px">Stok kulit vendor. Diisi dari jawaban vendor saat <b>Tanya kulit ready</b> di fase Project Costing, atau langsung di sini. Yang <b>Ready</b> muncul sebagai saran waktu bertanya, jadi lama-lama tak perlu tanya lagi.</div>'+
          '<div class="xscroll">'+tbl('kulit',[['nama','Nama / artikel'],['warna','Warna'],['stok','Ketersediaan',KULIT_STOK],['minOrder','Minimum order'],['vendor','Vendor',vendorNames()],['catatan','Catatan']],M.kulit||[])+'</div>'+
          '<button class="btn ghost sm" style="margin-top:9px" onclick="mAdd(\u0027kulit\u0027)">＋ Tambah kulit</button>';
      } else {
@@ -8644,7 +8670,7 @@ function taskOrders(role){
     if(R.indexOf('Holding')>=0&&R.length===1)return false; // Holding = admin sistem, di luar alur order
     if(R.indexOf('Direktur Utama')>=0&&ph.gate&&(o.phase===3||o.phase===5||o.phase===7||o.phase===9))return true;
     /* VIP boleh minta sketsa lebih dulu — maka Creative harus melihat
-       ordernya sebelum fase Sketch, bukan menunggu gilirannya tiba. */
+       ordernya sebelum fase Product Sketch Processing, bukan menunggu gilirannya tiba. */
     if(isVip(o)&&(o.phase||0)<6&&R.indexOf('Creative')>=0)return true;
     /* Kalau aku memegang item WAJIB yang belum tuntas, akulah yang menahan
        order ini — kartunya harus ada di daftarku, bukan cuma di blok
@@ -8657,7 +8683,7 @@ function taskOrders(role){
 /* ================= DAFTAR DIREKTUR =================
    Dua pertanyaan yang beda: "apa yang menunggu tanda tanganku?" dan
    "apa yang perlu kuawasi?". Dulu keduanya dijawab dengan daftar yang sama. */
-function faseSpecPO(){var i=PH.findIndex(function(x){return /^Spec/i.test(x.n);});return i<0?10:i;}
+function faseSpecPO(){var i=PH.findIndex(function(x){return /^(Spec|Purchase Order)/i.test(x.n);});return i<0?10:i;}
 
 /* Yang benar-benar menunggu keputusan Direktur, apa pun fasenya. */
 function dirPutusanSebab(o){
@@ -8853,7 +8879,7 @@ function renderTasks(){
 
 /* Kelengkapan yang menunggu ORANG INI, termasuk di order yang fase-nya
    dipegang jabatan lain — mis. logo client masih ditunggu Sales padahal
-   fase Sketch PIC-nya Creative. */
+   fase Product Sketch Processing PIC-nya Creative. */
 
 /* Satu kartu order di daftar "Tugas saya". Dipisah supaya bisa dirender
    di dalam kelompok fase. */
@@ -8875,7 +8901,7 @@ function kartuTugas(o){
     '<div class="om" style="margin-top:5px"><span>'+(function(){
       var n=chkKurang(o,o.phase).filter(chkTugasku).length;
       if(n)return '<b>'+n+' kelengkapan</b> menunggumu di order ini';
-      /* Creative kebagian kartu VIP sebelum fase Sketch; tanpa keterangan,
+      /* Creative kebagian kartu VIP sebelum fase Product Sketch Processing; tanpa keterangan,
          kartu tanpa tugas itu membingungkan */
       if(isVip(o)&&(o.phase||0)<6&&myRoles().indexOf('Creative')>=0)
         return '<b>Sketsa boleh dikerjakan lebih dulu</b> — buka panel Referensi gambar';
@@ -9219,7 +9245,7 @@ function regionLabel(r){
 
 /* Perkiraan lama tiap fase (hari kalender). Dikalibrasi otomatis begitu ada
    minimal 3 order selesai — pakai lead time asli, bukan tebakan terus. */
-const PH_HARI=[3,4,1,2,5,5,3,3,4,4,3,2,14,3,2,2,3,2,2,2,2,3];   // fase menunggu: umurnya jawaban client, bukan pengerjaan   // fase Profitability: keputusan, bukan pengerjaan
+const PH_HARI=[3,4,1,2,5,5,3,3,4,4,3,2,14,3,1,2,2,3,2,2,2,2,3];   // 15 Product Documentation: 1 hari   // fase menunggu: umurnya jawaban client, bukan pengerjaan   // fase Profitability Checking: keputusan, bukan pengerjaan
 function phHariTotal(){return PH_HARI.reduce(function(a,b){return a+b;},0);}
 function leadRata(){
   var L=ST.orders.filter(function(o){return !o.deleted&&o.done&&(o.leadDays||0)>0;}).map(function(o){return o.leadDays;});
@@ -9278,27 +9304,29 @@ function kurangFase(o,i){
     if(!fotoJadiLengkap(o))k.push('Foto QC & packing dari Radja');}
   else if(i===13){
     if(!terimaLengkap(o))k.push('Kelengkapan barang diterima Rove');}
-  else if(i===11||i===14){
+  else if(i===14){
+    if(!(((o.brief||{}).dokProdukFiles)||[]).length)k.push('Foto dokumentasi produk');}
+  else if(i===11||i===15){
     if(!bvAdaTahap(o,i===11?1:2)&&!bvLunasSemua(o))k.push('Pembayaran vendor tahap '+(i===11?1:2)+' (boleh menyusul)');}
-  else if(i===15){
-    if(!fotoJadiLengkap(o))k.push('Foto barang jadi & terpacking (fase Produksi)');
-    if(!((o.docs||{}).invoicePel))k.push('Invoice pelunasan');}
   else if(i===16){
+    if(!fotoJadiLengkap(o))k.push('Foto barang jadi & terpacking (fase Production Process)');
+    if(!((o.docs||{}).invoicePel))k.push('Invoice pelunasan');}
+  else if(i===17){
     var sisa=orderGrand(o)-orderPaid(o);
     if(sisa>0&&!poClientSah(o))k.push('Pelunasan '+fmt0(sisa));}
-  else if(i===17){
+  else if(i===18){
     if(!ada(o.shipEksp))k.push('Ekspedisi');
     if(!((o.shipKg||0)>0))k.push('Berat kirim');
     if(!kirimDaftar(o).some(function(s){return s.resi;}))k.push('Nomor resi');
     if(kirimTerkirim(o)>0&&kirimSisa(o)>0)k.push('Sisa belum dikirim '+kirimSisa(o)+' pcs');
     if(kirimCatatanKurang(o))k.push('Catatan wajib untuk kiriman ke vendor live service / gudang Rove');}
-  else if(i===18){
-    if(adaLive(o)&&liveBeres(o)<liveTotal(o))k.push('Persiapan live service '+liveBeres(o)+'/'+liveTotal(o));}
   else if(i===19){
-    vendorTagihan(o).forEach(function(x){var s=bvSisa(o,x.v,x.total);if(s>0)k.push('Sisa '+x.v+' '+fmt0(s));});}
+    if(adaLive(o)&&liveBeres(o)<liveTotal(o))k.push('Persiapan live service '+liveBeres(o)+'/'+liveTotal(o));}
   else if(i===20){
-    if(!tutupLengkap(o))k.push('Laporan penutupan belum lengkap');}
+    vendorTagihan(o).forEach(function(x){var s=bvSisa(o,x.v,x.total);if(s>0)k.push('Sisa '+x.v+' '+fmt0(s));});}
   else if(i===21){
+    if(!tutupLengkap(o))k.push('Laporan penutupan belum lengkap');}
+  else if(i===22){
     if(!o.done)k.push('Konfirmasi barang diterima client');}
   return k;}
 /* Yang seharusnya sudah beres sampai fase sekarang, tapi belum. */
@@ -9322,22 +9350,25 @@ function wajibFase(o,i){
     if(!L.length)w.push('Minimal satu baris pesanan dengan qty (produk atau collateral)');
   }
   else if(i===1){
-    var tanpaHpp=L.filter(function(l){return !(lineHppVendor(l)>0);});
+    /* sama dengan item checklist 'harga': jasa berbiaya tetap (hppFix) sudah berharga */
+    var tanpaHpp=L.filter(function(l){return !(lineHppVendor(l)>0||(+l.hppFix||0)>0);});
     if(tanpaHpp.length)w.push(tanpaHpp.length+' item belum ada HPP: '+tanpaHpp.map(function(l){return l.produk||'(tanpa nama)';}).slice(0,3).join(', '));
   }
   else if(i===2){
-    var tanpaJual=L.filter(function(l){return !((l.jual||0)>0);});
+    /* sama dengan item checklist 'margin': harga jual jasa hidup di jasaHarga, harga dari margin pun terisi */
+    var tanpaJual=L.filter(function(l){var J=null;try{J=jasaJualBaris(o,l);}catch(e){}if(J&&(+J.jual||0)>0)return false;
+      var m=((o.pricing||{}).margin||0)/100;return !((l.jual||0)>0||lineJual(l,m)>0);});
     if(tanpaJual.length)w.push('Harga jual belum terisi: '+tanpaJual.map(function(l){return l.produk||'(tanpa nama)';}).slice(0,3).join(', '));
   }
   else if(i===10){
     var pm=poMissing(o);
     if(pm.length)w.push('Form PO belum lengkap: '+pm.join(', '));
   }
-  else if(i===17){
+  else if(i===18){
     /* jaring kedua: fase 4 sudah menahan ekspedisi, tapi Holding bisa menembusnya */
     if(!ada(o.shipEksp))w.push('Ekspedisi belum dipilih — ongkir tak bisa dihitung');
   }
-  else if(i===19){
+  else if(i===20){
     /* pembayaran vendor tahap 3 mengunci: sebut vendor mana yang masih bersisa */
     vendorTagihan(o).forEach(function(x){var s=bvSisa(o,x.v,x.total);if(s>0)w.push('Sisa tagihan '+x.v+' '+fmt0(s)+' — PIC Finance');});
   }
@@ -9380,13 +9411,13 @@ function todoTeks(o){
     if(q.status==='Terkirim'||q.status==='Approved')return 'Quotation sudah terkirim. Klik <b>Selesai — lanjut fase</b> — jawaban client dicatat di fase berikutnya.';
     return 'Quotation sudah dibuat. Kirim ke client (<b>💬 WhatsApp</b> atau <b>⭳ Simpan PDF</b>), lalu tandai <b>📤 Terkirim</b>.';}
   if(ph===5){
-    if(q.status==='Approved')return 'Client sudah <b>Deal</b> — kartu lanjut ke Sketch.';
-    return 'Tunggu jawaban client, lalu catat di panel <b>Jawaban client atas quotation</b>: <b>Deal</b>, <b>Revisi</b> (beserta alasan — kartu kembali ke Penentuan harga jual untuk diskon, atau ke Pricing Vendor untuk ubah spek), atau <b>Cancel</b>.';}
+    if(q.status==='Approved')return 'Client sudah <b>Deal</b> — kartu lanjut ke Product Sketch Processing.';
+    return 'Tunggu jawaban client, lalu catat di panel <b>Jawaban client atas quotation</b>: <b>Deal</b>, <b>Revisi</b> (beserta alasan — kartu kembali ke Project Pricing untuk diskon, atau ke Project Costing untuk ubah spek), atau <b>Cancel</b>.';}
   if(ph===6){
     var dl=null;try{dl=sketchDeadline(o);}catch(e){}
     var dasar6='Kerjakan sketsa dari brief di panel <b>Sketch</b>'+(dl?(' — deadline <b>'+tglID(ymdDari(dl.deadline))+'</b> (antrean ke-'+dl.urut+')'):'')+', unggah preview-nya, lalu tutup fase supaya Sales meminta approval client.';
     return kat?(dasar6+' Produk katalog biasanya cukup foto katalog sebagai acuan.'):dasar6;}
-  if(ph===7)return 'Kirim preview ke client, lalu catat jawabannya di panel <b>Jawaban client atas sketsa</b>: <b>Deal</b> atau <b>Revisi</b> (beserta alasan — kartu kembali ke Sketch).';
+  if(ph===7)return 'Kirim preview ke client, lalu catat jawabannya di panel <b>Jawaban client atas sketsa</b>: <b>Deal</b> atau <b>Revisi</b> (beserta alasan — kartu kembali ke Product Sketch Processing).';
   if(ph===8){
     if(!D.invoice)return 'Klik <b>Generate Invoice</b>, lalu kirim ke client.';
     if(iv.status!=='Terkirim')return 'Invoice sudah dibuat. Kirim ke client lalu tandai <b>📤 Terkirim</b>.';
@@ -9401,14 +9432,15 @@ function todoTeks(o){
     return dasar+(cus?' Pastikan material, warna, dan finishing sesuai brief — vendor kerja dari sini.':'');}
   if(ph===12)return 'Panel <b>Produksi Radja</b>: minta foto ke Radja di tiap tahap (sample, setelah potong, QC, packing) lalu unggah; centang collateral yang sudah sampai di Radja, tanya Purchasing bila belum jelas.';
   if(ph===13)return 'Panel <b>QC &amp; Packing</b>: catat qty tiap produk dan collateral yang benar-benar diterima Rove dari Radja, plus foto saat diterima.';
-  if(ph===11||ph===14)return 'Panel <b>Pembayaran vendor tahap '+(ph===11?1:2)+'</b>: catat yang dibayar ke tiap vendor (boleh 1×, 2×, atau 3× per vendor). Fase ini tidak mengunci — yang belum dibayar boleh menyusul.';
-  if(ph===15)return 'Panel <b>Invoice pelunasan</b>: ringkasan yang sama dengan invoice DP — klik <b>Generate Invoice Pelunasan</b> (foto barang jadi &amp; terpacking ikut sebagai lampiran), lalu kirim ke client.';
-  if(ph===16)return 'Tunggu pelunasan masuk — catat di panel <b>Pembayaran</b>. Client bertermin PO resmi yang sudah disetujui boleh langsung lanjut.';
-  if(ph===17)return 'Pastikan alamat &amp; penerima final (Brief), ekspedisi &amp; berat, lalu buat pengiriman di panel <b>Pengiriman barang</b> — sekaligus atau bertahap (isi qty tiap produk yang berangkat, resi, surat jalan). Fase ditutup begitu semua qty berangkat.';
-  if(ph===18)return 'Panel <b>Live Event</b>: pastikan operator, reminder, alat, dan pengiriman alat beres — isinya sama dengan tab Live service.';
-  if(ph===19)return 'Panel <b>Pembayaran vendor tahap 3</b>: lunasi sisa semua vendor — fase ini baru bisa ditutup setelah semuanya lunas.';
-  if(ph===20)return 'Panel <b>Laporan penutupan</b>: catat live service sesuai atau tidak, lebihan qty kembali, dokumentasi, biaya lain yang timbul, evaluasi vendor.';
-  if(ph===21)return 'Konfirmasi barang diterima client → minta testimoni → arsipkan.';
+  if(ph===14)return 'Panel <b>Dokumentasi produk</b>: unggah foto produk jadi (wajib), foto kemasan &amp; set lengkap (kalau ada collateral), dan catatan untuk konten. Fotonya dipakai arsip, Planner Konten, dan laporan penutupan.';
+  if(ph===11||ph===15)return 'Panel <b>Pembayaran vendor tahap '+(ph===11?1:2)+'</b>: catat yang dibayar ke tiap vendor (boleh 1×, 2×, atau 3× per vendor). Fase ini tidak mengunci — yang belum dibayar boleh menyusul.';
+  if(ph===16)return 'Panel <b>Invoice pelunasan</b>: ringkasan yang sama dengan invoice DP — klik <b>Generate Invoice Pelunasan</b> (foto barang jadi &amp; terpacking ikut sebagai lampiran), lalu kirim ke client.';
+  if(ph===17)return 'Tunggu pelunasan masuk — catat di panel <b>Pembayaran</b>. Client bertermin PO resmi yang sudah disetujui boleh langsung lanjut.';
+  if(ph===18)return 'Pastikan alamat &amp; penerima final (Brief), ekspedisi &amp; berat, lalu buat pengiriman di panel <b>Pengiriman barang</b> — sekaligus atau bertahap (isi qty tiap produk yang berangkat, resi, surat jalan). Fase ditutup begitu semua qty berangkat.';
+  if(ph===19)return 'Panel <b>Live Event</b>: pastikan operator, reminder, alat, dan pengiriman alat beres — isinya sama dengan tab Live service.';
+  if(ph===20)return 'Panel <b>Pembayaran vendor tahap 3</b>: lunasi sisa semua vendor — fase ini baru bisa ditutup setelah semuanya lunas.';
+  if(ph===21)return 'Panel <b>Laporan penutupan</b>: catat live service sesuai atau tidak, lebihan qty kembali, dokumentasi, biaya lain yang timbul, evaluasi vendor.';
+  if(ph===22)return 'Konfirmasi barang diterima client → minta testimoni → arsipkan.';
   return (PH[ph]||{}).desc||'-';}
 function langkahBerikut(o){
   if(o.status==='Cancel')return 'Order dibatalkan.';
@@ -9527,7 +9559,7 @@ function renderReport(){
   const selP=selesai.filter(hasPrice);
   /* Dasarnya pendapatan Rove — tanpa PPN (uang negara) dan tanpa ongkir
      (dibayarkan ke ekspedisi); untungnya dari rumus yang sama dengan panel
-     Profitability, jadi biaya di luar HPP ikut terpotong. */
+     Profitability Checking, jadi biaya di luar HPP ikut terpotong. */
   const omsetP=selP.reduce((s,o)=>s+orderOmset(o),0);
   const margin=selP.reduce((s,o)=>s+orderProfit(o),0);
   const mPct=omsetP?Math.round(margin/omsetP*100):0;
@@ -9744,7 +9776,7 @@ function boardMatch(o){
   return true;
 }
 /* ---- Order Management memayungi Pipeline, Tugas, dan Prospek ---- */
-const OM_TABS=[['board','Pipeline'],['ov','Overview order'],['tasks','Tugas saya'],['leads','Prospek']];
+const OM_TABS=[['board','Pipeline'],['ov','Overview order'],['tasks','Tugas saya'],['leads','Project Prospecting']];
 function omTab(v){ST._omTab=v;render();}
 function renderOM(){
   var t=ST._omTab||'board';
@@ -9896,7 +9928,7 @@ function kartuProspek(l){
   var diam=(u==='biasa')?''
     :('<div style="margin-top:5px;font-size:10px;font-weight:800;color:'+leadWarna(l)+'">⏱ '+esc(leadKet(l))+'</div>');
   return '<div class="oc" style="border-left-color:'+(u==='merah'?'#d9534f':(u==='kuning'?'#c78a24':pfColor(p)))+
-      ';border-style:dashed;opacity:.93" onclick="bukaProspek(\''+l.id+'\')">'+
+      '" onclick="bukaProspek(\''+l.id+'\')">'+
     '<div class="on"><span class="pf" style="background:'+pfColor(p)+'">'+p.toUpperCase()+'</span>'+
       esc(l.nama||'(tanpa nama)')+(isVip(l)?(' '+vipLencana(true)):'')+
       /* stopPropagation: kartunya sendiri sudah bisa diklik untuk dibuka.
@@ -9933,13 +9965,13 @@ function renderBoard(){
   const seen=new Set();
   $('#main').innerHTML=`
    <div class="topbar"><h1>Order Management</h1><span class="demo">PROTOTYPE · data lokal</span>
-     <div class="sp"></div>${can('neworder')?`<button class="btn" onclick="openNew()">＋ Order baru</button>`:''}${can('leads')?`<button class="btn ghost" onclick="ST.view='leads';ST.cur=null;render()">◇ Prospek</button>`:''}</div>
+     <div class="sp"></div>${can('neworder')?`<button class="btn" onclick="openNew()">＋ Order baru</button>`:''}</div>
    ${tabNote('Semua order dari <b>Inquiry sampai Selesai</b>. <b>Klik kartu</b> untuk buka detail — di dalamnya ada langkah berikutnya, pricing, pembayaran, PO, dan produksi. Order baru? Klik <b>＋ Order baru</b> kanan atas.')}
    ${filterBar}
    <div class="board">${(function(){var P=papanProspek();
      if(!can('leads'))return '';
-     return '<div class="col" style="background:linear-gradient(180deg,rgba(138,122,92,.09),transparent 120px)">'+
-       '<div class="col-h"><span class="cn" style="color:#8a7a5c">◇ Prospek</span><span class="ct">'+P.length+'</span></div>'+
+     return '<div class="col">'+
+       '<div class="col-h"><span class="cn">0. Project Prospecting</span><span class="ct">'+P.length+'</span></div>'+
        (P.length?P.map(kartuProspek).join('')
                :'<div style="font-size:10.5px;color:var(--muted);padding:8px 2px;line-height:1.55">Belum ada prospek aktif.</div>')+
        '<button class="btn ghost sm" style="width:100%;margin-top:8px;font-size:10px" onclick="ST.view=\'leads\';render()">＋ Prospek baru</button>'+
@@ -9964,7 +9996,7 @@ function renderDetail(){
   // discord grouped
   const discHTML=(o.disc||[]).length?groupDisc(o.disc):'<div class="discempty">Belum ada aktivitas.<br>Klik tombol trigger untuk memulai fase.</div>';
   // trello
-  let trelloHTML='<div class="tempty">Belum ada kartu.<br>Kartu dibuat saat fase <b>Spec & PO</b> di-trigger.</div>';
+  let trelloHTML='<div class="tempty">Belum ada kartu.<br>Kartu dibuat saat fase <b>Purchase Order Issuing</b> di-trigger.</div>';
   let tbadge=['0 kartu','var(--bg)','var(--muted)'];
   if(o.trello){
     const total=CHECK.length, done=o.checks.length, pct=Math.round(done/total*100);
@@ -10020,7 +10052,7 @@ function renderDetail(){
    Hanya Cancel yang manual, lewat tombol sendiri. */
 const PH_STATUS=['Inquiry','Minta harga vendor','Cek profit','Menunggu approval direktur','Quotation',
                  'Menunggu approval quotation','Sketch previewing','Menunggu approval sketsa','Invoice','Menunggu DP masuk',
-                 'Deal — spec & PO','Bayar vendor 1','Produksi','QC & packing','Bayar vendor 2','Pelunasan','Menunggu pelunasan','Shipping','Live event','Bayar vendor 3','Laporan penutupan','Konfirmasi client'];
+                 'Deal — spec & PO','Bayar vendor 1','Produksi','QC & packing','Dokumentasi produk','Bayar vendor 2','Pelunasan','Menunggu pelunasan','Shipping','Live event','Bayar vendor 3','Laporan penutupan','Konfirmasi client'];
 function invGet(o){if(!o.inv)o.inv={status:'Draft'};return o.inv;}
 function statusFase(o){
   if(o.status==='Cancel')return 'Cancel';
@@ -10035,14 +10067,14 @@ function statusFase(o){
     if(!D.invoice)return 'Invoice disiapkan';
     if(iv.status==='Terkirim')return 'Invoice terkirim';
     return 'Invoice dibuat';}
-  if(p===17){                                  // fase Shipping: bertahap
+  if(p===18){                                  // fase Product Shipping: bertahap
     var trk=0,ss=0;try{trk=kirimTerkirim(o);ss=kirimSisa(o);}catch(e){}
     if(trk>0&&ss>0)return 'Terkirim sebagian';
     if(trk>0&&ss<=0)return 'Terkirim semua';}
   return PH_STATUS[p]||'Inquiry';}
 function syncStatus(o){if(!o||o.status==='Cancel')return;var s=statusFase(o);if(o.status!==s)o.status=s;}
 /* Data lama pakai status manual — selaraskan sekali. */
-/* Profitability disisipkan di indeks 2 — order lama harus digeser sekali saja. */
+/* Profitability Checking disisipkan di indeks 2 — order lama harus digeser sekali saja. */
 function migrasiFaseProfit(){
   if(localStorage.getItem('rovehub_mig_profit'))return 0;
   var n=0;
@@ -10123,7 +10155,7 @@ function depositJadiBarang(o,alasan){
   var dp=+((o.pay||{}).dp||0);
   o.depositBarang={nilai:dp,tgl:hariIni(),alasan:alasan,oleh:(ST.userName||ST.user||''),dariFase:(o.phase||0),produkLama:o.product||''};
   o.status='';o.reason='';
-  /* belum ada PO yang turun: kembali menyusun item & harga (fase Penentuan harga jual);
+  /* belum ada PO yang turun: kembali menyusun item & harga (fase Project Pricing);
      PO sudah turun: fasenya tetap, tinggal pengingat nilainya */
   if(!poSudahTurun(o)&&(o.phase||0)>2){
     var gugur=[];try{gugur=revisiBatalkanAcc(o,2);}catch(e){}
@@ -10175,14 +10207,16 @@ const PH_PANEL=[['chk','brief'],['chk','rfq'],
                 /* fase 9 Invoice: ringkasan baca-saja dari quotation yang disetujui +
                    Generate Invoice DP; DP yang masuk dicatat di fase berikutnya (Pembayaran) */
                 ['chk','inv'],['chk','pay','bukti','poclient'],
-                ['chk','po','vpo'],['chk','bv1'],['chk','prod'],['chk','qc'],['chk','bv2'],
-                /* fase 14 Pelunasan: ringkasan + generate invoice pelunasan;
-                   fase 15 Menunggu pelunasan: tracking pembayaran (gerbang);
-                   fase 16 Shipping: alamat & penerima final (Brief) + resi */
+                ['chk','po','vpo'],['chk','bv1'],['chk','prod'],['chk','qc'],
+                /* 15 Product Documentation: foto produk jadi & kemasan (Marketing) */
+                ['chk','dokProduk'],['chk','bv2'],
+                /* fase 17 Second Invoice: ringkasan + generate invoice pelunasan;
+                   fase 18 Second Payment: tracking pembayaran (gerbang);
+                   fase 19 Product Shipping: alamat & penerima final (Brief) + resi */
                 ['chk','pel'],
                 ['chk','pay','bukti','poclient'],
                 ['chk','kirim','brief'],
-                /* 19 Live Event (dilewati bila tanpa live service), 20 Pembayaran vendor 3 (mengunci), 21 Laporan penutupan */
+                /* 20 Live Event (dilewati bila tanpa live service), 21 Vendor Payment 3 (mengunci), 22 Project Closing */
                 ['chk','liveEvent'],['chk','bv3'],['chk','tutup'],
                 ['chk','kirim','cs','retur']];
 
@@ -10223,8 +10257,8 @@ const PH_CHECK=[
    en:'Pick the materials & colours: main material + colour, lining colour (if used), thread colour',
    guna:'warnanya pilihan client — kalau tak ditanyakan sekarang, produksi jalan dengan tebakan',
    gunaEn:'the client chooses the colours — ask now or production runs on guesses',
-   /* tak menahan fase: warnanya bisa menyusul; yang penting tertanya & terlihat */
-   pic:'Sales'},
+   /* menahan fase (keputusan user 8 Sep 2026): bahan & warnanya dibutuhkan untuk pricing */
+   pic:'Sales', w:true},
   {auto:function(o){return !!(o.phone&&String(o.phone).trim());}, k:'kontak', t:'Catat nama PIC client beserta nomor HP-nya', en:'Record the client PIC and their phone number', guna:'supaya semua komunikasi order punya tujuan yang jelas', gunaEn:'so every message about this order has somewhere to go',                 pic:'PM', w:true},
   {auto:function(o){var b=o.brief||{};return !!o.eventDate&&!!b.tglKirim;},
    k:'acara', t:'Tanyakan tanggal acara dan tanggal kirim yang diminta', en:'Ask for the event date and the requested ship date', guna:'supaya seluruh hitung mundur produksi punya acuan', gunaEn:'so the whole production countdown has a reference', pic:'PM', w:true},
@@ -10236,7 +10270,7 @@ const PH_CHECK=[
   /* Logo ditanyakan di sini, bukan nanti di Sketch. Kotaknya memang sudah
      ada di panel Brief; yang dulu tak ada cuma yang menagihnya. Tak wajib di
      sini — di Sketch barulah menahan fase. */
-  {auto:function(o){return adaLogoFile(o);}, k:'logoCl', t:'Kalau client punya logo, minta file vektornya (.ai / .eps)', en:'If the client has a logo, ask for the vector file (.ai / .eps)', guna:'tak wajib — logonya bisa saja dibuat tim Rove sendiri. Kalau client memang punya, meminta sekarang membuat Creative tak menunggu di fase Sketch', gunaEn:'not required — the logo may be made by the Rove team. If the client does have one, asking now means Creative does not wait at Sketch', pic:'Sales', jika:'adaLogo'},
+  {auto:function(o){return adaLogoFile(o);}, k:'logoCl', t:'Kalau client punya logo, minta file vektornya (.ai / .eps)', en:'If the client has a logo, ask for the vector file (.ai / .eps)', guna:'tak wajib — logonya bisa saja dibuat tim Rove sendiri. Kalau client memang punya, meminta sekarang membuat Creative tak menunggu di fase Product Sketch Processing', gunaEn:'not required — the logo may be made by the Rove team. If the client does have one, asking now means Creative does not wait at Sketch', pic:'Sales', jika:'adaLogo'},
   {auto:function(o){var b=o.brief||{};
     /* kolom lama sudah dibuang — yang berlaku letak per jasa; isian lama dan
        acuan gambar tetap dihitung */
@@ -10248,13 +10282,13 @@ const PH_CHECK=[
    gunaEn:'this is what usually stalls Creative — the sketch is quick, waiting for the answer is not',
    pic:'Sales'}
  ],
- [ // 1 Pricing Vendor
+ [ // 1 Project Costing
   {auto:function(o){var R=rfqLines(o);return R.length===0||R.every(function(x){return !!(x.l.rfq&&x.l.rfq.minta);});}, k:'rfq', t:'Kirim permintaan harga ke tiap vendor', en:'Send a quote request to each vendor', guna:'supaya HPP tak ditebak-tebak', gunaEn:'so the cost price is not guessed',      pic:'PM', w:true},
   /* Dulu cukup "sudah ditanya". Tak cukup: jawaban yang tak dipakai memilih
      bahan sama saja dengan tak bertanya. Sekarang tiap baris kulit harus
      punya jawaban Radja DAN satu kulit yang dipilih dari jawaban itu — dan
      itu menahan fase, karena inilah pengganti "pastikan material siap di
-     vendor" yang dulu berdiri di fase Produksi. Baris yang harganya dari
+     vendor" yang dulu berdiri di fase Production Process. Baris yang harganya dari
      master pun ditanyai — form Catat jawaban harga master ikut menanyakan
      kulitnya, jadi tak ada lagi yang lolos tanpa jawaban. */
   {auto:function(o){
@@ -10338,7 +10372,7 @@ const PH_CHECK=[
   {auto:function(o){return !!(((o.pricing||{}).jualAppr||{}).tgl);},
    k:'accJual', t:'Setujui HPP, kedua tanggal Radja, dan harga jual', en:'Approve the cost, both Radja dates, and the selling price', guna:'supaya tak ada quotation terbit tanpa Sales memeriksanya', gunaEn:'so no quotation goes out without Sales having checked it', pic:'Sales', w:true}
  ],
- [ // 3 Profitability
+ [ // 3 Profitability Checking
   {auto:function(o){return !!(((o.pricing||{}).dirAppr||{}).tgl);},
    k:'dirAcc', t:'Baca ringkasan order, lalu approve atau tolak', en:'Read the order summary, then approve or reject', guna:'supaya tak ada quotation terbit tanpa Direktur melihat profitnya', gunaEn:'so no quotation goes out without the Director seeing the profit', pic:'Direktur', w:true}
  ],
@@ -10356,7 +10390,7 @@ const PH_CHECK=[
   {auto:function(o){return !!(((o.pricing||{}).pajak||{}).status);},
    k:'ppn', t:'Pastikan ke client: kena PPN atau tidak', en:'Confirm with the client whether VAT applies', guna:'supaya Rove tak menanggung sendiri PPN 11%', gunaEn:'so Rove does not end up absorbing the 11% VAT', pic:'Finance', w:true}
  ],
- [ // 5 Menunggu approval quotation
+ [ // 5 Quotation – Awaiting Approval
   {auto:function(o){return (o.quo||{}).status==='Approved';},
    k:'quoAcc', t:'Tandai Approved begitu client menyetujui penawaran', en:'Mark Approved as soon as the client accepts the quotation', guna:'supaya penawaran tak menggantung tanpa jawaban', gunaEn:'so the offer does not hang unanswered', pic:'Sales', w:true}
  ],
@@ -10380,7 +10414,7 @@ const PH_CHECK=[
      return L.length>0&&L.every(function(x){return x.N.daftar.length===persoQtyUntuk(o,x.nama);});}, k:'daftarNama', t:'Minta daftar nama tamu, cocokkan jumlahnya dengan qty', en:'Ask for the guest name list, match the count against the qty', guna:'supaya tak ada pcs yang tercetak tanpa nama', gunaEn:'so no piece is produced without a name', pic:'Sales', w:true, jika:'perPcs'},
   {auto:function(o){return (((o.brief||{}).previewFiles)||[]).length>0;}, k:'preview', t:'Buat preview desain lalu kirim ke client', en:'Make the design preview and send it to the client', guna:'supaya client melihat hasilnya sebelum produksi jalan', gunaEn:'so the client sees it before production starts',  pic:'Creative', w:true}
  ],
- [ // 7 Menunggu approval sketsa
+ [ // 7 Product Sketch – Awaiting Approval
   {auto:function(o){return !!((o.sketch||{}).tgl);},
    k:'sketsaAcc', t:'Catat approval sketsa dari client', en:'Record the client sketch approval', guna:'supaya produksi tak berjalan tanpa persetujuan', gunaEn:'so production does not run without sign-off', pic:'Sales', w:true}
  ],
@@ -10394,13 +10428,13 @@ const PH_CHECK=[
   {auto:function(o){return dpTerpenuhi(o);},
    k:'dpMasuk', t:'Catat DP yang masuk — atau surat PO resmi client yang sudah disetujui Direktur', en:'Record the incoming down payment and reconcile it against the bank', guna:'supaya produksi tak jalan tanpa uang muka', gunaEn:'so production does not start without money in', pic:'Sales', w:true}
  ],
- [ // 10 Spec & PO
+ [ // 10 Purchase Order Issuing
   {auto:function(o){return !!((o.poRevOk||{}).radja);},
    k:'poRevRadja', t:'Konfirmasi PO revisi ke Radja — pastikan bahan belum terpotong salah', en:'Confirm the revised PO with Radja — check no material has been cut wrongly', guna:'supaya perubahan tak menabrak barang yang sudah dikerjakan', gunaEn:'so the change does not collide with work already done', pic:'PM', w:true, jika:'poRev'},
   {auto:function(o){return !!((o.poRevOk||{}).direktur);},
    k:'poRevDir', t:'Setujui PO revisi beserta biaya tambahannya', en:'Approve the revised PO and any extra cost it brings', guna:'supaya biaya perubahan ada yang menanggung keputusannya', gunaEn:'so someone owns the decision behind the extra cost', pic:'Direktur', w:true, jika:'poRev'},
   {auto:function(o){return poMissing(o).length===0;}, k:'spec', t:'Periksa spesifikasi dari Brief (terkunci) — main material tiap produk terisi — dan deadline produksi', en:'Check the locked spec from the Brief (main material of every product filled) and the production deadline', guna:'supaya vendor tak menebak spesifikasi', gunaEn:'so the vendor is not guessing the spec',               pic:'Purchasing', w:true},
-  {auto:function(o){return !!(((o.pricing||{}).marginAppr||{}).tgl);}, k:'appr', t:'Setujui kelengkapan spesifikasi sebelum PO turun ke produksi', en:'Approve that the specification is complete before the PO goes to production', guna:'supaya yang diperiksa kesiapan produksinya — untungnya sudah diputus di Profitability', gunaEn:'so what gets checked is production readiness — the profit was already decided at Profitability',                 pic:'Direktur',      w:true},
+  {auto:function(o){return !!(((o.pricing||{}).marginAppr||{}).tgl);}, k:'appr', t:'Setujui kelengkapan spesifikasi sebelum PO turun ke produksi', en:'Approve that the specification is complete before the PO goes to production', guna:'supaya yang diperiksa kesiapan produksinya — untungnya sudah diputus di Profitability Checking', gunaEn:'so what gets checked is production readiness — the profit was already decided at Profitability Checking',                 pic:'Direktur',      w:true},
   {auto:function(o){return !!((o.po||{}).generated);}, k:'poR', t:'Terbitkan PO ke Radja', en:'Issue the PO to Radja', guna:'supaya vendor punya dasar mulai produksi', gunaEn:'so the vendor has authority to start',                       pic:'Purchasing', w:true},
   {auto:function(o){var V=poVendors(o);return V.length===0||V.every(function(v){return !!(((o.vpo||{})[v]||{}).generated);});}, k:'poV', t:'Terbitkan PO ke tiap vendor collateral, lengkap dengan ukuran', en:'Issue a PO to each collateral vendor, sizes included', guna:'supaya kemasan siap bersamaan dengan produknya', gunaEn:'so packaging is ready at the same time as the product',           pic:'Purchasing'},
   {auto:function(o){return !!((o.trello||{}).created);}, k:'trello', t:'Pastikan kartu Trello Production sudah terbentuk', en:'Make sure the Trello Production card was created', guna:'supaya progres produksi bisa dipantau', gunaEn:'so production progress can be tracked',               pic:'PM'},
@@ -10438,16 +10472,30 @@ const PH_CHECK=[
   {auto:function(o){return terimaLengkap(o);}, k:'terima', t:'Catat kelengkapan barang yang diterima Rove — qty tiap produk & collateral yang ikut', en:'Record what Rove received — qty of each product and the collaterals included', guna:'supaya yang dikirim ke client sama dengan yang diterima dari Radja', gunaEn:'so what ships to the client matches what came from Radja', pic:'Packing', w:true},
   {auto:function(o){return (((o.brief||{}).terimaFiles)||[]).length>0;}, k:'terimaFoto', t:'Unggah foto barang saat diterima di Rove', en:'Upload photos of the goods as received at Rove', guna:'supaya ada bukti kondisi barang saat sampai', gunaEn:'so the condition on arrival is documented', pic:'Packing'},
  ],
-  [ // 14 Pembayaran vendor 2
+  [ // 14 Product Documentation — foto produk jadi (Marketing)
+  {auto:function(o){return (((o.brief||{}).dokProdukFiles)||[]).length>0;},
+   k:'fotoProduk', t:'Foto produk jadi untuk dokumentasi — produk utama, beberapa sudut, close-up personalisasi', en:'Photograph the finished product for documentation — main product, several angles, close-up of the personalisation',
+   guna:'supaya tiap order punya foto produk jadinya sendiri: arsip Rove, bahan konten, dan bukti ke client', gunaEn:'so every order has photos of its own finished product: archive, content material, and proof for the client',
+   pic:'Marketing', w:true},
+  {auto:function(o){return (((o.brief||{}).dokKemasanFiles)||[]).length>0;}, jika:'coll',
+   k:'fotoKemasan', t:'Foto kemasan & set lengkap — produk di dalam box / pouch beserta thank you card', en:'Photograph the packaging & the complete set',
+   guna:'supaya konten dan arsip memperlihatkan paket utuhnya, bukan produknya saja', gunaEn:'so content and the archive show the whole package, not just the product',
+   pic:'Marketing', w:true},
+  {auto:function(o){return !!String(((o.brief||{}).dokCaption)||'').trim();},
+   k:'caption', t:'Tulis catatan untuk konten: boleh disebut nama clientnya? produk, teknik, cerita singkat', en:'Write the content note: may the client be named? product, technique, short story',
+   guna:'supaya tim konten tak perlu bertanya lagi saat fotonya dipakai — dan tak salah menyebut client yang minta tak dipublikasikan', gunaEn:'so the content team need not ask again when the photos are used — and never names a client who asked not to be published',
+   pic:'Marketing'}
+ ],
+  [ // 15 Pembayaran vendor 2
   {auto:function(o){return bvAdaTahap(o,2)||bvLunasSemua(o);}, k:'bayarV2', t:'Catat pembayaran vendor tahap 2 (boleh menyusul — tak menahan fase)', en:'Record stage-2 vendor payments (may follow later — does not block)', guna:'supaya termin vendor sesudah barang diterima tercatat', gunaEn:'so the post-delivery vendor instalment is on record', pic:'Finance'},
  ],
  [ // 15 Pelunasan
   /* benderanya sendiri — dulu membaca o.docs.invoice, bendera invoice DP, jadi
-     fase Pelunasan bisa ditutup tanpa invoice pelunasan pernah terbit */
+     fase Second Invoice Processing bisa ditutup tanpa invoice pelunasan pernah terbit */
   {auto:function(o){return !!(o.docs&&o.docs.invoicePel);}, k:'invP', t:'Generate & kirim invoice pelunasan (lampiran foto barang jadi & terpacking ikut otomatis)', en:'Send the final invoice', guna:'supaya sisa tagihan tertagih sebelum barang dikirim', gunaEn:'so the balance is billed before the goods go out',                     pic:'Finance', w:true},
-  {auto:function(o){return fotoJadiLengkap(o);}, k:'fotoJadi', t:'Foto barang jadi (QC) & terpacking sudah ada — dari fase QC & Packing', en:'Photos of the finished (QC) and packed goods are on file — from the QC & Packing phase', guna:'supaya invoice pelunasan membawa bukti barangnya sudah jadi', gunaEn:'so the final invoice carries proof the goods are done', pic:'Packing', w:true},
+  {auto:function(o){return fotoJadiLengkap(o);}, k:'fotoJadi', t:'Foto barang jadi (QC) & terpacking sudah ada — dari fase QC & Packing Process', en:'Photos of the finished (QC) and packed goods are on file — from the QC & Packing phase', guna:'supaya invoice pelunasan membawa bukti barangnya sudah jadi', gunaEn:'so the final invoice carries proof the goods are done', pic:'Packing', w:true},
  ],
- [ // 16 Menunggu pelunasan
+ [ // 16 Second Payment Processing
   {auto:function(o){return pelTerpenuhi(o);}, k:'lunas', t:'Catat pelunasan yang masuk — client bertermin PO resmi yang disetujui boleh lanjut tanpa bukti bayar', en:'Record the incoming final payment', guna:'supaya barang tak terkirim sebelum lunas', gunaEn:'so nothing ships before it is paid',                               pic:'Finance', w:true},
  ],
  [ // 17 Shipping
@@ -10466,7 +10514,7 @@ const PH_CHECK=[
   {auto:function(o){return tutupLengkap(o);}, k:'tutupLengkap', t:'Laporan penutupan: live service sesuai/tidak, lebihan qty kembali, dokumentasi, biaya lain yang timbul, royalti Rove AU (order AU)', en:'Closing report: live service outcome, spare returned, documentation, extra costs, Rove AU royalty (AU orders)', guna:'supaya order benar-benar ditutup rapi sebelum konfirmasi selesai', gunaEn:'so the order is properly closed before final confirmation', pic:'PM', w:true},
   {auto:function(o){return Object.keys(((o.tutup||{}).evalVendor)||{}).length>0;}, k:'evalVendor', t:'Beri nilai vendor (1–5) beserta catatannya', en:'Rate each vendor (1–5) with notes', guna:'supaya pilihan vendor berikutnya berdasar catatan, bukan ingatan', gunaEn:'so the next vendor choice is based on records, not memory', pic:'PM'},
  ],
- [ // 21 Konfirmasi & Selesai
+ [ // 21 Project Archiving
   {auto:function(o){return kirimSemuaTiba(o)||!!((o.kirim||{}).tglTerima);}, k:'tglTerima', t:'Catat tanggal barang diterima client', en:'Record the date the client received the goods', guna:'supaya lead time terhitung dan tenggat pelunasan punya titik mulai', gunaEn:'so lead time is measured and the payment deadline has a start date',                       pic:'Packing', w:true},
   {auto:function(o){return (((o.brief||{}).kirimFiles)||[]).length>0;}, k:'bukti', t:'Unggah foto bukti serah terima', en:'Upload the handover proof photo', guna:'supaya ada bukti kalau client bilang barang tak sampai', gunaEn:'so there is proof if the client says nothing arrived',                  pic:'Packing'},
   {auto:function(o){return ((o.cs||{}).puas)!=null;}, k:'testi', t:'Minta foto atau testimoni ke client', en:'Ask the client for photos or a testimonial', guna:'supaya ada bahan konten dan bukti sosial', gunaEn:'so there is content and social proof to use',           pic:'Sales'},
@@ -10683,7 +10731,8 @@ function chkTugasSaya(role){
 
 /* Petunjuk tempat mengisi tiap item — checklist hanya memantau, pengisiannya
    di panel kerja masing-masing. */
-const CHK_SUMBER={'0.logoCl':'Brief → lampiran Logo client',
+const CHK_SUMBER={'14.fotoProduk':'panel Dokumentasi produk → Foto produk jadi','14.fotoKemasan':'panel Dokumentasi produk → Foto kemasan & set lengkap','14.caption':'panel Dokumentasi produk → Catatan untuk konten',
+  '0.logoCl':'Brief → lampiran Logo client',
   '0.logoLetak':'Brief → Peletakan logo (atau lampirkan Acuan personalisasi)',
   '6.logoLetak':'Brief → Peletakan logo (atau lampirkan Acuan personalisasi)',
   '6.logoCl':'Brief → lampiran Logo client (diunggah Sales kalau dari client, atau Creative kalau dibuat sendiri)','9.dpMasuk':'panel Pembayaran → Catat DP masuk, atau panel Surat PO resmi (Sales lampirkan → PM olah → Direktur setujui)',
@@ -10693,7 +10742,7 @@ const CHK_SUMBER={'0.logoCl':'Brief → lampiran Logo client',
   '3.dirAcc':'panel Ringkasan untuk Direktur',
   '0.terjemah':'Brief → Material utama, Personalization, dan spesifikasi tiap collateral',
   '0.brief':'form order baru / panel Pricing','0.kontak':'Brief Inquiry','0.acara':'Brief Inquiry','0.ref':'Brief → lampiran Referensi client','0.kota':'Brief → Venue / kota tujuan','0.hpWo':'Brief → WO / EO phone','1.rfq':'panel Minta harga vendor','1.kulit':'panel Minta harga vendor → ketersediaan kulit','1.harga':'panel Minta harga vendor → Catat jawaban','1.konfKatalog':'panel Minta harga vendor → baris harga master → tombol ✓ Catat jawaban','1.moq':'panel Minta harga vendor → catatan vendor','1.liveTanya':'panel Minta harga vendor → kartu Tim live service → Serahkan ke Event Management','2.hpp':'panel Penentuan harga jual','2.margin':'panel Penentuan harga jual','2.ongkir':'panel Penentuan harga jual → Ongkir','2.biayaLain':'panel Penentuan harga jual → Biaya di luar HPP','2.deadlineProd':'panel Penentuan harga jual → Info dari Radja','2.tglPOMax':'panel Penentuan harga jual → Info dari Radja','2.operator':'tab Live service → order ini → Operator','10.opFix':'tab Live service → order ini → Operator → ✓ Sudah fix',
-'2.jualJasa':'panel Penentuan harga jual → kolom Harga jual baris jasa (atau blok Live service tim sendiri)','2.accJual':'panel Penentuan harga jual → Persetujuan harga jual','4.gen':'panel Quotation → Generate Quotation','4.kirim':'panel Quotation → status quotation','4.follow':'panel Pricing → tandai Approved','4.email':'Master data → Customers (atau Brief → Email client kalau order ini beda)','4.kirimData':'panel Quotation → Ekspedisi (kota dari Alamat kirim di Brief)','4.alamatKantor':'Brief → Alamat client / kantor','4.ppn':'panel Quotation → Status PPN','6.logoCl':'Brief → lampiran Logo client','6.logoPch':'Brief → lampiran Logo soft pouch','6.logoBox':'Brief → lampiran Logo box','6.logoCard':'Brief → lampiran Logo thank you card','6.daftarNama':'Brief → daftar nama tamu','6.preview':'panel Referensi gambar → lampiran preview','6.approve':'panel Referensi gambar → tombol approval sketsa','8.inv':'panel Invoice DP → Generate Invoice DP','8.kirim':'panel Invoice DP → status invoice','8.dp':'panel Pembayaran → Catat DP masuk','8.faktur':'panel Invoice DP → blok PPN & faktur pajak','10.spec':'Form PO Radja','10.appr':'Form PO Radja → approval margin','10.poR':'Form PO Radja → Generate PO','10.poV':'panel PO vendor lain','10.trello':'otomatis saat fase Spec & PO dilewati','10.spare':'Form PO Radja → Qty spare produksi','10.warnaLogo':'Form PO Radja → warna logo','12.sample':'panel Produksi → sample disetujui','12.progres':'panel Produksi → catatan progres','12.qc':'panel Produksi → tahap 3 QC (foto dari Radja)','15.fotoJadi':'panel Produksi → foto QC & packing','12.pack':'panel Produksi → tahap 4 Packing (foto dari Radja)','12.fotoPotong':'panel Produksi → tahap 2 Setelah potong','13.terima':'panel QC & Packing → qty diterima & collateral ikut','13.terimaFoto':'panel QC & Packing → foto saat diterima','12.coll':'panel Produksi → collateral yang sudah terkirim ke Radja','15.invP':'panel Invoice pelunasan → Generate Invoice Pelunasan','15.fotoJadiLama':'panel Produksi','16.lunas':'panel Pembayaran → Catat pelunasan','17.alamat':'Brief → Alamat kirim','17.penerima':'panel Pengiriman barang','17.resi':'panel Pengiriman barang → pengiriman (resi)','17.kirimSemua':'panel Pengiriman barang → ringkasan qty terkirim / sisa','21.tglTerima':'panel Pengiriman barang → Tanggal diterima','21.bukti':'panel Pengiriman barang → foto serah terima','21.testi':'panel Komplain & kepuasan','21.arsip':'otomatis saat order ditutup','11.bayarV1':'panel Pembayaran vendor — tahap 1','14.bayarV2':'panel Pembayaran vendor — tahap 2','18.liveSiap':'panel Live Event','19.vendorLunas':'panel Pembayaran vendor — tahap 3','20.tutupLengkap':'panel Laporan penutupan','20.evalVendor':'panel Laporan penutupan → evaluasi vendor'};
+'2.jualJasa':'panel Penentuan harga jual → kolom Harga jual baris jasa (atau blok Live service tim sendiri)','2.accJual':'panel Penentuan harga jual → Persetujuan harga jual','4.gen':'panel Quotation → Generate Quotation','4.kirim':'panel Quotation → status quotation','4.follow':'panel Pricing → tandai Approved','4.email':'Master data → Customers (atau Brief → Email client kalau order ini beda)','4.kirimData':'panel Quotation → Ekspedisi (kota dari Alamat kirim di Brief)','4.alamatKantor':'Brief → Alamat client / kantor','4.ppn':'panel Quotation → Status PPN','6.logoCl':'Brief → lampiran Logo client','6.logoPch':'Brief → lampiran Logo soft pouch','6.logoBox':'Brief → lampiran Logo box','6.logoCard':'Brief → lampiran Logo thank you card','6.daftarNama':'Brief → daftar nama tamu','6.preview':'panel Referensi gambar → lampiran preview','6.approve':'panel Referensi gambar → tombol approval sketsa','8.inv':'panel Invoice DP → Generate Invoice DP','8.kirim':'panel Invoice DP → status invoice','8.dp':'panel Pembayaran → Catat DP masuk','8.faktur':'panel Invoice DP → blok PPN & faktur pajak','10.spec':'Form PO Radja','10.appr':'Form PO Radja → approval margin','10.poR':'Form PO Radja → Generate PO','10.poV':'panel PO vendor lain','10.trello':'otomatis saat fase Purchase Order Issuing dilewati','10.spare':'Form PO Radja → Qty spare produksi','10.warnaLogo':'Form PO Radja → warna logo','12.sample':'panel Produksi → sample disetujui','12.progres':'panel Produksi → catatan progres','12.qc':'panel Produksi → tahap 3 QC (foto dari Radja)','16.fotoJadi':'panel Produksi → foto QC & packing','12.pack':'panel Produksi → tahap 4 Packing (foto dari Radja)','12.fotoPotong':'panel Produksi → tahap 2 Setelah potong','13.terima':'panel QC & Packing → qty diterima & collateral ikut','13.terimaFoto':'panel QC & Packing → foto saat diterima','12.coll':'panel Produksi → collateral yang sudah terkirim ke Radja','16.invP':'panel Invoice pelunasan → Generate Invoice Pelunasan','16.fotoJadiLama':'panel Produksi','17.lunas':'panel Pembayaran → Catat pelunasan','18.alamat':'Brief → Alamat kirim','18.penerima':'panel Pengiriman barang','18.resi':'panel Pengiriman barang → pengiriman (resi)','18.kirimSemua':'panel Pengiriman barang → ringkasan qty terkirim / sisa','22.tglTerima':'panel Pengiriman barang → Tanggal diterima','22.bukti':'panel Pengiriman barang → foto serah terima','22.testi':'panel Komplain & kepuasan','22.arsip':'otomatis saat order ditutup','11.bayarV1':'panel Pembayaran vendor — tahap 1','15.bayarV2':'panel Pembayaran vendor — tahap 2','19.liveSiap':'panel Live Event','20.vendorLunas':'panel Pembayaran vendor — tahap 3','21.tutupLengkap':'panel Laporan penutupan','21.evalVendor':'panel Laporan penutupan → evaluasi vendor'};
 
 /* "Brief → lampiran Logo client" diterjemahkan per potong, bukan sebagai satu
    entri kamus — tempatnya berkombinasi jadi puluhan kemungkinan. */
@@ -10710,7 +10759,7 @@ const SUMBER_EN={'panel':'the','Brief Inquiry':'Brief Inquiry','Brief':'the Brie
   'foto serah terima':'handover photo','Tahap':'Stage','catatan progres':'progress notes',
   'sample disetujui':'sample approved','collateral lengkap':'collaterals complete',
   'foto QC & retur':'QC & return photos','foto packing':'packing photos','Ongkir':'Shipping cost',
-  'tandai Approved':'mark as Approved','otomatis saat fase Spec & PO dilewati':'automatic when Spec & PO is passed',
+  'tandai Approved':'mark as Approved','otomatis saat fase Purchase Order Issuing dilewati':'automatic when Purchase Order Issuing is passed',
   'otomatis saat order ditutup':'automatic when the order is closed',
   'Logo client':'Client logo','Logo soft pouch':'Soft pouch logo','Logo box':'Box logo',
   'Logo thank you card':'Thank you card logo','Referensi client':'client references'};
@@ -10750,6 +10799,7 @@ const CHK_FIELD={
   ongkir:'ongkirBlok', gen:'genQuo', inv:'genInv', faktur:'pajakBlok',
   sample:'sampleFiles', coll:'collProd_*,collKirim', qc:'prodTahap_qcFiles', pack:'prodTahap_packFiles', fotoPotong:'prodTahap_potongFiles', terima:'terima_*', terimaFoto:'terimaFiles', invP:'genInvPel', resi:'kirimKartu_0,kirimBaru', kirimSemua:'kirimBaru,kirimRingkas',
   liveTanya:'liveSerah,liveTanya_*',
+  fotoProduk:'dokProdukFiles', fotoKemasan:'dokKemasanFiles', caption:'dokCaption',
 };
 /* Sebagian kecil item tempat mengisinya di luar order — di Master data.
    Diantar ke sana, bukan dijawab "item ini tak punya panel". */
@@ -10841,6 +10891,7 @@ const CHK_PANEL={jualJasa:'_master',operator:'_live',opFix:'_live',logoLetak:'br
   dirAcc:'ringkas', quoAcc:'quoJawab', sketsaAcc:'sketsaJawab', dpMasuk:'pay',
   poRevRadja:'po', poRevDir:'po',
   logoCl:'brief', logoPch:'brief', logoBox:'brief', logoCard:'brief',
+  fotoProduk:'dokProduk', fotoKemasan:'dokProduk', caption:'dokProduk',
   daftarNama:'brief', preview:'sketch', approve:'sketch',
   inv:'inv', dp:'pay', faktur:'inv',
   spec:'po', appr:'po', poR:'po', poV:'vpo', trello:'po', spare:'po', warnaLogo:'po',
@@ -10865,7 +10916,7 @@ function chkLompat(id,fase,k){
   /* item yang tempatnya di Master data punya jalannya sendiri */
   if((pk==='_master'||pk==='_live')&&CHK_MASTER[k]){CHK_MASTER[k](o);return;}
   /* panel yang bukan bawaan fase ini dibuka lebih awal, bukan ditolak —
-     fase Sketch hanya menampilkan brief Creative, tapi logo kemasan tetap
+     fase Product Sketch Processing hanya menampilkan brief Creative, tapi logo kemasan tetap
      diisi di Brief begitu itemnya diklik */
   if(pk&&panelBawaan(o).indexOf(pk)<0){try{var LB=bukaAwalSet(o);if(LB.indexOf(pk)<0)LB.push(pk);}catch(e){}}
   ST.cur=o.id;
@@ -10986,7 +11037,7 @@ function chkPanel(o){
    prospeknya. */
 /* Rincian baris yang ditanyakan ke vendor — dibaca fase berikutnya.
    Dulu cuma "6 baris ditanyakan ke vendor": jumlah tanpa isi. Yang ingin
-   diketahui orang di fase Penentuan harga jual: barang apa ke vendor siapa,
+   diketahui orang di fase Project Pricing: barang apa ke vendor siapa,
    dijawab berapa (per varian kalau ada), kapan, dan mana yang masih
    menggantung. Hasilnya {ringkas, rinci[]} — ringkasSebelumBlok menggambar
    baris ringkasnya lalu baris-baris rinci di bawahnya. */
@@ -11041,7 +11092,7 @@ const FASE_HASIL_LAMA=[
     ['Teknik personalisasi', function(o){return briefGet(o).perso;}],
     ['Referensi gambar', function(o){var n=((briefGet(o).refFiles)||[]).length;
       return n?(n+' lampiran'):'';}]],
-  /* 1 Pricing Vendor */[
+  /* 1 Project Costing */[
     ['Harga modal (HPP)', function(o){return fmt0(profitTotals(o).hpp);}],
     ['Ditanyakan ke vendor', function(o){return rfqRingkasJawaban(o);}],
     ['Paling lambat PO turun — jawaban Radja', function(o){return tglID((o.po||{}).tglPOMax);}],
@@ -11064,7 +11115,7 @@ const FASE_HASIL_LAMA=[
     ['Margin', function(o){var m=(o.pricing||{}).margin;return m?(m+'%'):'';}],
     ['Harga jual', function(o){return fmt0(profitTotals(o).jual);}],
     ['Disetujui Sales', function(o){return ((o.pricing||{}).jualAppr||{}).tglBy;}]],
-  /* 3 Profitability */[
+  /* 3 Profitability Checking */[
     ['Untung bersih', function(o){var p=profitTotals(o);return fmt0(p.profit)+' · '+p.pct+'%';}],
     ['Nilai tagihan', function(o){return fmt0(orderTotals(o).grand);}],
     ['Keputusan Direktur', function(o){var d=dirAppr(o);
@@ -11074,7 +11125,7 @@ const FASE_HASIL_LAMA=[
     ['Status PPN', function(o){return ((o.pricing||{}).pajak||{}).status;}],
     ['Ongkir', function(o){return [o.shipEksp,o.shipKota,(o.shipKg?(o.shipKg+' kg'):'')].filter(Boolean).join(' · ');}],
     ['Total yang ditawarkan', function(o){return fmt0(orderTotals(o).grand);}]],
-  /* 5 Menunggu approval quotation */[
+  /* 5 Quotation – Awaiting Approval */[
     ['Jawaban client', function(o){return (o.quo||{}).status;}],
     ['Dicatat', function(o){return tglID((o.quo||{}).tgl);}]],
   /* 6 Sketch */[
@@ -11085,7 +11136,7 @@ const FASE_HASIL_LAMA=[
       return p.length?p.map(function(x){return x[0]+' '+x[1];}).join(' · '):'';}],
     ['Daftar nama tamu', function(o){if(!persoPerPcs(o))return '';
       var N=persoGet(o);return N.daftar.length+' nama · qty '+persoQty(o);}]],
-  /* 7 Menunggu approval sketsa */[
+  /* 7 Product Sketch – Awaiting Approval */[
     ['Sketsa disetujui', function(o){return tglID((o.sketch||{}).tgl);}],
     ['Dicatat oleh', function(o){return (o.sketch||{}).by;}]],
   /* 8 Invoice */[
@@ -11093,12 +11144,12 @@ const FASE_HASIL_LAMA=[
     ['DP yang diminta', function(o){var g=orderTotals(o).grand;
       return g?fmt0(Math.round(g*((o.dpPct==null?50:o.dpPct))/100)):'';}],
     ['No. faktur pajak', function(o){return ((o.pricing||{}).pajak||{}).noFaktur;}]],
-  /* 9 Menunggu DP / PO resmi */[
+  /* 9 First Payment Processing */[
     ['Uang muka', function(o){var dp=(o.pay||{}).dp||0;
       if(dp>0)return fmt0(dp)+' masuk '+tglID((o.pay||{}).dpDate);
       return poClientSah(o)?('tanpa DP — surat PO '+(poClientGet(o).no||'')):'';}],
     ['Sisa tagihan', function(o){return fmt0(orderTotals(o).grand-((o.pay||{}).dp||0));}]],
-  /* 10 Spec & PO */[
+  /* 10 Purchase Order Issuing */[
     ['Nomor PO Radja', function(o){return (o.po||{}).poNo;}],
     ['Bahan di PO', function(o){return (o.po||{}).mainMaterial;}],
     ['Qty spare', function(o){var s=(o.pricing||{}).spare;return (s==null||s==='')?'':(s+' pcs');}],
@@ -11119,7 +11170,7 @@ const FASE_HASIL_LAMA=[
     ['Total dibayar', function(o){return fmt0(((o.pay||{}).dp||0)+((o.pay||{}).pel||0));}],
     ['Penerima', function(o){return (o.kirim||{}).nama;}],
     ['No. resi', function(o){var R=kirimDaftar(o).filter(function(s){return s.resi;}).map(function(s){return s.resi+' ('+kirimQtyIsi(s)+' pcs)';});return R.length?R.join(', '):((o.kirim||{}).resi||'');}]],
-  /* 14 Konfirmasi & Selesai */[
+  /* 14 Project Archiving */[
     ['Barang diterima', function(o){return tglID((o.kirim||{}).tglTerima);}],
     ['Foto serah terima', function(o){var n=((o.kirim||{}).bukti||[]).length;return n?(n+' lampiran'):'';}]]];
 /* FASE_HASIL_LAMA memakai nomor 15 fase lama. Sejak 22 fase, ringkasan fase 11
@@ -11139,6 +11190,10 @@ const FASE_HASIL=(function(){var L=FASE_HASIL_LAMA;
     [['Barang diterima Rove',function(o){return terimaLengkap(o)?'lengkap — qty tiap produk & collateral cocok':'';}],
      ['Foto saat diterima',function(o){var n=((briefGet(o).terimaFiles)||[]).length;return n?(n+' foto'):'';}],
      L[12][3]],
+    /* 14 Product Documentation */
+    [['Foto dokumentasi produk',function(o){var n=((briefGet(o).dokProdukFiles)||[]).length;return n?(n+' foto'):'';}],
+     ['Foto kemasan & set',function(o){var n=((briefGet(o).dokKemasanFiles)||[]).length;return n?(n+' foto'):'';}],
+     ['Catatan konten',function(o){return String(briefGet(o).dokCaption||'').slice(0,90);}]],
     bv(2),
     [['Invoice pelunasan',function(o){var D=o.docs||{};return D.invoicePel?(docNo(o,'invoicePel')+(D.invoicePelDate?(' · '+D.invoicePelDate):'')):'';}]],
     [L[13][0],L[13][1]],
@@ -11260,13 +11315,14 @@ function panelDef(o){
    {k:'bv1',t:'Pembayaran vendor 1',s:'termin pertama ke vendor',h:function(){return (o.phase>=11&&!batal)?bayarVendorPanel(o,1):'';}},
    {k:'prod',t:'Produksi Radja',s:'tahap & progres',h:function(){return (o.phase>=12&&!batal)?prodPanel(o):'';}},
    {k:'qc',t:'QC & Packing',s:'kelengkapan barang diterima Rove',h:function(){return (o.phase>=13&&!batal)?qcPanel(o):'';}},
-   {k:'bv2',t:'Pembayaran vendor 2',s:'termin kedua ke vendor',h:function(){return (o.phase>=14&&!batal)?bayarVendorPanel(o,2):'';}},
-   {k:'pel',t:'Invoice pelunasan',s:'ringkasan & generate',h:function(){return (o.phase>=15&&!batal)?pelPanel(o):'';}},
-   {k:'kirim',t:'Pengiriman barang',s:'penerima, resi, tanggal',h:function(){return (o.phase>=17&&!batal)?kirimPanel(o):'';}},
-   {k:'liveEvent',t:'Live Event',s:'persiapan live service',h:function(){return (o.phase>=18&&!batal)?liveEventPanel(o):'';}},
-   {k:'bv3',t:'Pembayaran vendor 3',s:'pelunasan semua vendor',h:function(){return (o.phase>=19&&!batal)?bayarVendorPanel(o,3):'';}},
-   {k:'tutup',t:'Laporan penutupan',s:'live service, sisa qty, dokumentasi, biaya',h:function(){return (o.phase>=20&&!batal)?tutupPanel(o):'';}},
-   {k:'cs',t:'Komplain & kepuasan',s:'after sales',h:function(){return (o.phase>=15&&!batal)?csPanel(o):'';}},
+   {k:'dokProduk',t:'Dokumentasi produk',s:'foto produk jadi & kemasan — arsip, konten, client',h:function(){return (o.phase>=14&&!batal)?dokProdukPanel(o):'';}},
+   {k:'bv2',t:'Pembayaran vendor 2',s:'termin kedua ke vendor',h:function(){return (o.phase>=15&&!batal)?bayarVendorPanel(o,2):'';}},
+   {k:'pel',t:'Invoice pelunasan',s:'ringkasan & generate',h:function(){return (o.phase>=16&&!batal)?pelPanel(o):'';}},
+   {k:'kirim',t:'Pengiriman barang',s:'penerima, resi, tanggal',h:function(){return (o.phase>=18&&!batal)?kirimPanel(o):'';}},
+   {k:'liveEvent',t:'Live Event',s:'persiapan live service',h:function(){return (o.phase>=19&&!batal)?liveEventPanel(o):'';}},
+   {k:'bv3',t:'Pembayaran vendor 3',s:'pelunasan semua vendor',h:function(){return (o.phase>=20&&!batal)?bayarVendorPanel(o,3):'';}},
+   {k:'tutup',t:'Laporan penutupan',s:'live service, sisa qty, dokumentasi, biaya',h:function(){return (o.phase>=21&&!batal)?tutupPanel(o):'';}},
+   {k:'cs',t:'Komplain & kepuasan',s:'after sales',h:function(){return (o.phase>=16&&!batal)?csPanel(o):'';}},
    {k:'retur',t:'Retur barang client',s:'R18 — tiap tahap punya penerimanya',h:function(){return returBolehMulai(o)?returPanel(o):'';}},
    /* paling bawah — tabel kontrol dibaca sesudah semua ringkasan di atasnya */
    {k:'chk',t:'Kelengkapan fase',s:'checklist + PIC',h:function(){return chkPanel(o);}}];}
@@ -11287,7 +11343,7 @@ function mintaCatatan(o,fase,k){return mintaSemua(o)[fase+'.'+k]||null;}
 const MINTA_URUT=[
   /* kulit, harga, dan MOQ sengaja TIDAK di sini — itu ditanyakan PM ke vendor,
      bukan Sales ke client. Menaruhnya di sini membuat tombol "Ingatkan Sales"
-     muncul di fase Pricing Vendor, fase yang seluruh isinya pekerjaan PM. */
+     muncul di fase Project Costing, fase yang seluruh isinya pekerjaan PM. */
   ['Spesifikasi produk',['terjemah','bahanWarna','brief','ref','kontak','acara','kota','hpWo']],
   ['Logo',['logoCl','logoLetak','logoPch','logoBox','logoCard']],
   ['Packaging',['coll','spec']],
@@ -11615,7 +11671,7 @@ function panelBawaan(o){
   if(o.done||(o.phase||0)>=PH.length)return [];       // selesai: semua diringkas
   var L=(PH_PANEL[o.phase||0]||[]).slice();
   /* Satu-satunya hak istimewa VIP yang menabrak urutan: panel Referensi
-     gambar dibuka sebelum fase Sketch, jadi preview bisa dikerjakan lebih
+     gambar dibuka sebelum fase Product Sketch Processing, jadi preview bisa dikerjakan lebih
      dulu. Untuk client biasa panel ini tetap terkunci sampai gilirannya. */
   if(isVip(o)&&(o.phase||0)<6){
     if(L.indexOf('ref')<0)L.push('ref');
@@ -11878,7 +11934,7 @@ function faseKosongkan(o,f){
     L.forEach(function(l){if(l.spek){delete l.spek.mainMatWarna;delete l.spek.liningWarna;delete l.spek.benangWarna;}
       lineVarian(l).forEach(function(v){v.w='';});});
     break;
-  case 1: /* Pricing Vendor: jawaban vendor */
+  case 1: /* Project Costing: jawaban vendor */
     L.forEach(function(l){
       var otomatis='';try{otomatis=hargaOtomatis(l);}catch(e){}
       if(!otomatis&&!l.svcFee){l.hpp=0;lineVarian(l).forEach(function(v){delete v.hpp;});}
@@ -11910,7 +11966,7 @@ function faseKosongkan(o,f){
   case 9: /* DP / PO client */
     if(o.pay){o.pay.dp=0;o.pay.dpDate='';}hapus(o,'poClient');
     break;
-  case 10: /* Spec & PO */
+  case 10: /* Purchase Order Issuing */
     if(o.po){hapus(o.po,'generated');o.po.poNo='';}o.vpo={};hapus(o,'trello');hapus(o,'poRevOk');
     hapus(P,'marginAppr');hapus(P,'spareTgl');hapus(P,'spare');
     ((o.event||{}).ops||[]).forEach(function(x){hapus(x,'fix');hapus(x,'status');hapus(x,'konfirm');});
@@ -11918,14 +11974,15 @@ function faseKosongkan(o,f){
   case 11: bvHapusTahap(o,1);break;
   case 12: o.prod={};b.sampleFiles=[];b.potongFiles=[];b.qcFiles=[];b.packFiles=[];break;
   case 13: hapus(o,'terima');b.terimaFiles=[];break;
-  case 14: bvHapusTahap(o,2);break;
-  case 15: /* Pelunasan */ if(o.docs)hapus(o.docs,'invoicePel');hapus(o,'invPel');break;
-  case 16: /* Menunggu pelunasan */ if(o.pay){o.pay.pel=0;o.pay.pelDate='';}break;
-  case 17: /* Shipping */ o.kirim={};break;
-  case 18: if(o.event)o.event.chk={};break;
-  case 19: bvHapusTahap(o,3);break;
-  case 20: hapus(o,'tutup');b.dokumentasiFiles=[];break;
-  case 21: if(o.kirim){o.kirim.tglTerima='';o.kirim.bukti=[];(o.kirim.daftar||[]).forEach(function(s){s.tglTerima='';});}b.kirimFiles=[];hapus(o,'cs');o.done=false;break;
+  case 14: b.dokProdukFiles=[];b.dokKemasanFiles=[];b.dokCaption='';break;
+  case 15: bvHapusTahap(o,2);break;
+  case 16: /* Pelunasan */ if(o.docs)hapus(o.docs,'invoicePel');hapus(o,'invPel');break;
+  case 17: /* Second Payment Processing */ if(o.pay){o.pay.pel=0;o.pay.pelDate='';}break;
+  case 18: /* Shipping */ o.kirim={};break;
+  case 19: if(o.event)o.event.chk={};break;
+  case 20: bvHapusTahap(o,3);break;
+  case 21: hapus(o,'tutup');b.dokumentasiFiles=[];break;
+  case 22: if(o.kirim){o.kirim.tglTerima='';o.kirim.bukti=[];(o.kirim.daftar||[]).forEach(function(s){s.tglTerima='';});}b.kirimFiles=[];hapus(o,'cs');o.done=false;break;
   }}
 function mundurFase(id){
   var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
@@ -12146,12 +12203,12 @@ function bayarVendorPanel(o,tahap){
     '</div></div>';}
 
 /* ================= LIVE EVENT — fase khusus order dengan live service ================= */
-function faseLiveEvent(){return PH.findIndex(function(p){return p.n==='Live Event';});}
+function faseLiveEvent(){return PH.findIndex(function(p){return /^Live Event/i.test(p.n);});}
 function adaLive(o){var n=0;try{n=liveList((o||{}).liveSvc).length;}catch(e){}return n>0;}
 function faseDilewati(o,i){return i===faseLiveEvent()&&!adaLive(o);}
 function liveEventPanel(o){
   if(!adaLive(o))return '<div class="card actcard" style="margin-top:14px"><div class="ch"><span class="ico" style="background:#7a5cc4">🎪</span><div><div class="t">Live Event</div><div class="s">TANPA LIVE SERVICE</div></div></div>'+
-    '<div class="body" style="font-size:10.5px;color:var(--muted)">Order ini tidak memakai live service — fase Live Event dilewati otomatis.</div></div>';
+    '<div class="body" style="font-size:10.5px;color:var(--muted)">Order ini tidak memakai live service — fase Live Event Organization dilewati otomatis.</div></div>';
   var isi='';try{isi=liveDetail(o).replace(/^<div style="margin-bottom:12px"><button[^]*?<\/div>/,'');}catch(e){isi='';}
   var beres=liveBeres(o),total=liveTotal(o);
   return '<div class="card actcard" style="margin-top:14px"><div class="ch"><span class="ico" style="background:#7a5cc4">🎪</span>'+
@@ -12227,6 +12284,25 @@ function tutupEvalSet(id,v,f,val){
   if(!T.evalVendor[v])T.evalVendor[v]={nilai:0,catatan:''};
   T.evalVendor[v][f]=(f==='nilai')?Math.max(0,Math.min(5,+val||0)):String(val||'').trim();
   o._m=Date.now();save();render();}
+/* ================= FASE PRODUCT DOCUMENTATION — foto produk jadi =================
+   Sesudah barang lengkap diterima Rove dan sebelum dikirim: Marketing memotret
+   produk jadi (produk utama, kemasan, set lengkap) untuk arsip Rove, Planner
+   Konten, dan lampiran ke client. Catatan kontennya ditulis di sini juga. */
+function dokProdukPanel(o){
+  var b=briefGet(o),n1=(b.dokProdukFiles||[]).length,n2=(b.dokKemasanFiles||[]).length;
+  var coll=['box','pouch','card'].some(function(k){return (o.coll||{})[k];});
+  return '<div class="card actcard" style="margin-top:14px"><div class="ch"><span class="ico" style="background:#b04a7a">📷</span>'+
+    '<div><div class="t">Dokumentasi produk</div><div class="s">FOTO PRODUK JADI — ARSIP, KONTEN, LAMPIRAN KE CLIENT</div></div>'+
+    '<span style="margin-left:auto;font-size:11px;font-weight:800;color:'+(n1?'var(--ok)':'var(--warn)')+'">'+(n1?('✓ '+(n1+n2)+' foto'):'belum ada foto produk')+'</span></div><div class="body">'+
+    '<div style="font-size:10.5px;color:var(--muted);margin-bottom:9px;line-height:1.6">Dipotret di Rove sesudah barang lengkap diterima dan sebelum dikirim. Foto produk utama wajib (menahan fase); foto kemasan &amp; set lengkap wajib kalau order memakai collateral. Semuanya ikut ke Planner Konten dan laporan penutupan.</div>'+
+    '<div class="sj">1. Foto produk jadi</div>'+lampiranBlok(o,'dokProdukFiles','Foto produk utama — beberapa sudut, close-up personalisasi')+
+    '<div class="sj" style="margin-top:12px">2. Foto kemasan &amp; set lengkap</div>'+
+    (coll?lampiranBlok(o,'dokKemasanFiles','Produk di dalam box / pouch, beserta thank you card')
+         :'<div style="font-size:10.5px;color:var(--muted);margin-bottom:8px">Order tanpa collateral — bagian ini tidak berlaku.</div>')+
+    '<div class="sj" style="margin-top:12px">3. Catatan untuk konten</div>'+
+    '<label class="nlbl">Boleh disebut nama clientnya? produk, teknik, cerita singkat untuk caption'+
+      '<textarea class="nta" data-f="dokCaption" onchange="briefSet('+jsArg(o.id)+',\'dokCaption\',this.value)" placeholder="mis. Wedding Sarah & Kevin — Irvine Card Wallet coklat tua, deboss monogram; boleh dipublikasikan">'+esc(b.dokCaption||'')+'</textarea></label>'+
+    '</div></div>';}
 function tutupPanel(o){
   var T=tutupGet(o),live=adaLive(o),ok=tutupLengkap(o),V=vendorTagihan(o);
   var no=0,N=function(){no++;return no+'. ';};   // nomor bagian mengikuti yang tampil
@@ -12480,7 +12556,7 @@ function bayarCatat(id,jenis,dariBukti){
      aturan yang sama dipakai gerbang fase Menunggu DP, jadi tak bisa berbeda */
   if(!dp&&!dpTerpenuhi(o)){
     alert('Catat DP dulu sebelum pelunasan.\n\nKalau order ini memang berjalan tanpa DP, '+
-      'lampirkan surat PO client dan minta Direktur menyetujuinya dulu di fase Menunggu DP / PO resmi.');return;}
+      'lampirkan surat PO client dan minta Direktur menyetujuinya dulu di fase First Payment Processing.');return;}
   if(!dp&&sisa<=0){alert('Sudah lunas — tak ada sisa tagihan.');return;}
   var saran=dp?Math.round(G*((+o.dpPct||50)/100)):sisa;
   var bk=buktiGet(o),dariTeks=dariBukti?angkaDariTeks(bk.teks):0;
@@ -12551,7 +12627,7 @@ function perluHargaVendor(l){
    Harga katalog bukan harga mati. Vendor menaikkan harga tanpa memberi tahu,
    dan yang ketahuan belakangan cuma marginnya yang tipis. Jadi baris yang
    harganya datang dari master pun tetap harus dipastikan ke vendornya —
-   masih di fase Pricing Vendor, sebelum quotation keluar.
+   masih di fase Project Costing, sebelum quotation keluar.
 
    Yang disimpan bukan centang, tapi harga yang dikonfirmasi. Kalau harganya
    berubah sesudah itu, konfirmasinya batal sendiri — sama seperti item
@@ -13640,7 +13716,7 @@ function rfqJawab(id,i){
   F.push({k:'tgl',label:'Tanggal jawaban diterima',type:'date',val:hariIni(),req:true});
   F.push({k:'note',label:'Catatan vendor',type:'text',val:(l.rfq&&l.rfq.note)||'',ph:'mis. berlaku 30 hari, MOQ 100 pcs'});
   /* Jawabannya datang bersamaan dengan harga, jadi dicatat di sini juga —
-     item "tanggal paling lambat PO" di fase Penentuan harga jual membaca
+     item "tanggal paling lambat PO" di fase Project Pricing membaca
      kolom yang sama dan tercentang sendiri. */
   /* add-on: yang ditanya batas KASIH INFORMASI (data / desain), bukan batas
      turun PO — PO-nya ikut produk utamanya */
@@ -13909,7 +13985,7 @@ function pajakBlok(o){
     '</div></div>';}
 
 /* Batas TANDA, bukan kuncian: tak menahan apa-apa, cuma tampil mencolok di
-   panel Profitability dan Ringkasan Direktur. Angkanya silakan diubah. */
+   panel Profitability Checking dan Ringkasan Direktur. Angkanya silakan diubah. */
 const TANDA_MARGIN_MIN=15;   // % profit bersih di bawah ini ditandai tipis
 const TANDA_DISKON_MAX=20;   // % diskon dari omset di atas ini ditandai besar
 function tandaMarginDiskon(o){
@@ -13989,7 +14065,7 @@ function spareSemua(id){
 function lineHppVendor(l){return (+l.hpp||0)||(+l.hppVendor||0);}
 /* Satu-satunya rumus untung. Laporan dulu menghitungnya sendiri (grand - HPP)
    dan karenanya menganggap PPN sebagai untung, sekaligus melupakan biaya di
-   luar HPP — satu order terbaca 31% di sana dan 18% di panel Profitability. */
+   luar HPP — satu order terbaca 31% di sana dan 18% di panel Profitability Checking. */
 function orderProfit(o){try{return profitTotals(o).profit;}catch(e){return 0;}}
 /* Pendapatan Rove dari satu order: tanpa PPN (uang negara) dan tanpa ongkir
    (dibayarkan ke ekspedisi). Dasar persentase untung. */
@@ -14070,7 +14146,7 @@ function lineMarginEfektif(l,m,o){
   if(!(hv>0))return null;
   return Math.round((d.jual-hv)/hv*100);}
 function profitWarna(pct){return pct<0?'var(--red,#d9534f)':pct<15?'var(--warn)':'var(--ok)';}
-/* Tambah item dari panel Profitability — selama belum masuk Quotation. */
+/* Tambah item dari panel Profitability Checking — selama belum masuk Quotation. */
 function profitHapus(id,i){
   var o=ST.orders.find(function(x){return x.id===id;});if(!o||!o.pricing)return;
   var l=o.pricing.lines[i];if(!l)return;
@@ -14078,15 +14154,15 @@ function profitHapus(id,i){
   o.pricing.lines.splice(i,1);o._m=Date.now();logHist(o,'Item dihapus: '+(l.produk||'-'));save();render();}
 /* ================= KEMBALI KE PRICING VENDOR =================
    Menambah item (katalog, custom, collateral) atau membuka nego harga di
-   fase Penentuan harga jual berarti ada harga vendor yang belum ada / harus
-   ditanyakan ulang. Itu pekerjaan PM di fase Pricing Vendor — jadi kartunya
+   fase Project Pricing berarti ada harga vendor yang belum ada / harus
+   ditanyakan ulang. Itu pekerjaan PM di fase Project Costing — jadi kartunya
    otomatis kembali ke sana, PM dikabari, dan persetujuan harga jual /
    Direktur yang terlanjur ada gugur (angkanya sudah berubah). Kartu
    benar-benar mundur: Sales yang mau menambah lagi menunggu harga vendor
    selesai dulu. */
 function kembaliKePricingVendor(o,sebab){
   var f=o.phase||0;
-  if(o.status==='Cancel'||f<2||f>3)return false;      // hanya dari Penentuan harga jual / Profitability
+  if(o.status==='Cancel'||f<2||f>3)return false;      // hanya dari Penentuan harga jual / Profitability Checking
   var dari=f,ke=1;
   var gugur=revisiBatalkanAcc(o,ke);
   revisiAll(o).push({tgl:nowStr(),oleh:(ST.userName||ST.user||''),
@@ -14105,15 +14181,15 @@ function kembaliKePricingVendor(o,sebab){
   (o.disc=o.disc||[]).push({cat:['radja','PRICING → PRICING DONE'],who:(typeof TEAM==='object'&&TEAM[ST.user])?ST.user:'Sales',
     txt:'↩ Kembali ke <b>'+esc(PH[ke].n)+'</b> — '+esc(sebab)});
   return true;}
-/* spanduk di panel Penentuan harga jual selagi kartunya ada di Pricing Vendor */
+/* spanduk di panel Penentuan harga jual selagi kartunya ada di Project Costing */
 function kembaliPVBlok(o){
   if((o.phase||0)!==1)return '';
   var k=o._kembaliPV;
   return '<div style="border:1px solid var(--warn);background:var(--bg);border-radius:9px;padding:8px 11px;margin-bottom:10px;font-size:10.5px">'+
-    '<b style="color:var(--warn)">↩ Kartu ada di fase Pricing Vendor</b>'+
+    '<b style="color:var(--warn)">↩ Kartu ada di fase Project Costing</b>'+
     (k?(' — '+esc(k.sebab)+'.'):'.')+' '+
     esc(PH[1].pic)+' menanyakan harga vendor dulu. Tambah item dan nego harga bisa lagi setelah kartu kembali ke '+esc(PH[2].n)+'.</div>';}
-/* selagi kartu di Pricing Vendor, deret tombol tambah item diganti keterangan */
+/* selagi kartu di Project Costing, deret tombol tambah item diganti keterangan */
 function tungguPVBlok(o){
   return '<div style="font-size:10.5px;color:var(--muted);margin-bottom:10px">⏳ Tambah item &amp; nego harga menunggu '+esc(PH[1].pic)+
     ' menyelesaikan harga vendor — tombolnya kembali di fase '+esc(PH[2].n)+'.</div>';}
@@ -14258,7 +14334,7 @@ function revisiBatalkanAcc(o,keFase){
   var gugur=[];
   var P=o.pricing||{};
   if(keFase!==null&&keFase<=2&&P.jualAppr){delete P.jualAppr;gugur.push('persetujuan harga jual (Sales)');}
-  if(keFase!==null&&keFase<=3&&P.dirAppr){delete P.dirAppr;gugur.push('approval Direktur di Profitability');}
+  if(keFase!==null&&keFase<=3&&P.dirAppr){delete P.dirAppr;gugur.push('approval Direktur di Profitability Checking');}
   if(keFase!==null&&keFase<=10&&P.marginAppr){delete P.marginAppr;gugur.push('approval margin Direktur');}
   if(keFase!==null&&keFase<=5&&o.quo&&o.quo.status==='Approved'){
     o.quo.status='Revisi';o.quo.rev=(o.quo.rev||0)+1;
@@ -14436,7 +14512,7 @@ function vipDpBlok(o){
   if(!isVip(o)||(o.phase||0)!==9)return '';
   var v=o.vipDp||{},akuDir=(myRoles().indexOf('Direktur Utama')>=0||myRoles().indexOf('Holding')>=0);
   return '<div data-f="vipDp" style="border:1px solid var(--accent);border-radius:9px;padding:9px 11px;margin-bottom:11px;font-size:10.5px;line-height:1.6;background:var(--warn-bg)">'+
-    '<b>★ Client VIP</b> — boleh lanjut ke Spec &amp; PO tanpa DP maupun PO resmi, dengan approval Direktur.'+
+    '<b>★ Client VIP</b> — boleh lanjut ke Purchase Order Issuing tanpa DP maupun PO resmi, dengan approval Direktur.'+
     (v.tgl?('<div style="color:var(--ok);font-weight:700;margin-top:4px">✓ Disetujui Direktur '+tglID(v.tgl)+(v.by?(' · '+esc(v.by)):'')+
         (akuDir?(' <button class="btn ghost sm" onclick="vipDpSet('+jsArg(o.id)+')">↺ Batalkan</button>'):'')+'</div>')
       :(akuDir?('<div style="margin-top:6px"><button class="btn sm" data-f="vipDpBtn" onclick="vipDpSet('+jsArg(o.id)+')">✓ Setujui jalan tanpa DP / PO</button></div>')
@@ -14704,14 +14780,14 @@ function ringkasPanel(o){
     keputusan+'</div></div>';}
 
 const DIR_TOLAK=[
-  ['harga','Soal harga — HPP atau margin belum masuk akal',1,'Pricing Vendor'],
+  ['harga','Soal harga — HPP atau margin belum masuk akal',1,'Project Costing'],
   ['lain','Di luar harga — pesanan, spesifikasi, atau tanggalnya keliru',0,'Inquiry']];
 function dirSetuju(id){
   var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
   if(!rolePunya('Direktur Utama')){alert('Hanya Direktur Utama yang bisa menyetujui profitability.');return;}
   if(!o.pricing)o.pricing={lines:[],margin:30};
   o.pricing.dirAppr={tgl:hariIni(),tglBy:(ST.userName||ST.user||''),tolak:false,alasan:'',catatan:''};
-  logHist(o,'✓ Profitability disetujui Direktur ('+(ST.userName||ST.user||'')+')');
+  logHist(o,'✓ Profitability Checking disetujui Direktur ('+(ST.userName||ST.user||'')+')');
   o._m=Date.now();save();render();}
 function dirTolak(id){
   var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
@@ -14720,7 +14796,7 @@ function dirTolak(id){
     fields:[
       {k:'sebab',label:'Alasan penolakan',type:'select',req:true,val:'harga',
        opts:DIR_TOLAK.map(function(x){return x[1];}),
-       hint:'Soal harga dikembalikan ke Pricing Vendor; di luar harga dikembalikan ke Inquiry.'},
+       hint:'Soal harga dikembalikan ke Project Costing; di luar harga dikembalikan ke Inquiry.'},
       {k:'catatan',label:'Yang harus diperbaiki',type:'textarea',req:true,
        ph:'mis. margin 12% terlalu tipis untuk order sebesar ini, minta harga ulang ke Radja.'}],
     ok:function(v){
@@ -14785,8 +14861,8 @@ function negoLencana(o,l,i){
     ((+n.target||0)>0?(' — target '+fmt0(n.target)):'')+(n.oleh?(' · '+esc(n.oleh)):'')+'</div>';
   else if(h)teks='<div style="font-size:9px;color:var(--ok);font-weight:700;margin-top:3px">⚖ nego '+
     (h.ke<h.dari?('turun '+fmt0(h.dari-h.ke)+'/pcs'):'tak turun')+' · '+esc(tglID(h.tgl))+'</div>';
-  /* di Pricing Vendor harga sedang ditanyakan PM — nego dari Sales menunggu
-     kartu kembali ke Penentuan harga jual */
+  /* di Project Costing harga sedang ditanyakan PM — nego dari Sales menunggu
+     kartu kembali ke Project Pricing */
   return teks+(((o.phase||0)>=2)?tombol:'');}
 function negoBuka(id,i){
   var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
@@ -14828,7 +14904,7 @@ function negoBuka(id,i){
         notifyOrder(o,pesan+(tuj.keVendor?'':(NL+picMention('Purchasing')+' — tolong sampaikan ke vendornya.')));}
       logHist(o,'⚖ Nego '+(l.produk||'item')+' ke '+(l.sumber||'vendor')+' — dari '+fmt0(kini)+
         (t>0?(' minta '+fmt0(t)):'')+(l.nego.alasan?(' ('+l.nego.alasan+')'):''));
-      /* jawaban vendor atas nego dicatat PM di fase Pricing Vendor */
+      /* jawaban vendor atas nego dicatat PM di fase Project Costing */
       kembaliKePricingVendor(o,'Nego harga '+(l.produk||'item')+' ke '+(l.sumber||'vendor')+
         (t>0?(' — target '+fmt0(t)+'/pcs'):''));
       o._m=Date.now();save();render();}});}
@@ -14937,7 +15013,7 @@ function profitPanel(o){
       '<button class="btn ghost sm" onclick="spareSemua(\u0027'+o.id+'\u0027)">＋% Spare vendor</button>'+
       '<span style="font-size:9.5px;color:var(--muted);align-self:center">'+
         (((o.phase||0)>=2&&(o.phase||0)<=3)
-          ?'menambah item / nego harga = kartu kembali ke Pricing Vendor, PM menanyakan harganya'
+          ?'menambah item / nego harga = kartu kembali ke Project Costing, PM menanyakan harganya'
           :'item masih bisa ditambah/dikurangi di sini — setelah Quotation sudah terkunci')+'</span>'+
     '</div>'+
     (((ST._catBuka||{})[o.id])?catalogPicker(o,'profit'):''))+
@@ -14954,7 +15030,7 @@ function profitPanel(o){
       (ship?('<div><div style="color:var(--muted);font-size:10px;font-weight:700">ONGKIR (ditagih terpisah)</div><b style="font-size:15px">'+fmt0(ship)+'</b></div>'):'')+
     '</div>'+'</div></div>';}
 
-/* ---- tugas sketch bisa dipanggil lebih awal, dari fase Pricing Vendor ---- */
+/* ---- tugas sketch bisa dipanggil lebih awal, dari fase Project Costing ---- */
 function sketchPIC(){
   var U=((ST.master&&ST.master.users)||[]).filter(function(u){return u.jabatan==='Creative'&&u.aktif!==false;});
   return U.map(function(u){return u.username;});}
@@ -15533,7 +15609,7 @@ function returGet(o){
   return o.retur;}
 function returAktif(o){return !!returGet(o).aktif;}
 /* Retur cuma masuk akal setelah barangnya jadi — sebelum itu jalurnya revisi. */
-function returBolehMulai(o){return (o.phase||0)>=PH.length-1;}   // retur dicatat di Konfirmasi & Selesai
+function returBolehMulai(o){return (o.phase||0)>=PH.length-1;}   // retur dicatat di Project Archiving
 function returSisa(o){
   var R=returGet(o);
   return RETUR_LANGKAH.filter(function(x){
@@ -15543,7 +15619,7 @@ function returTuntas(o){return returAktif(o)&&returSisa(o).length===0;}
 
 function returMulai(id){
   var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
-  if(!returBolehMulai(o)){alert('Retur baru bisa dicatat setelah barangnya jadi (fase QC & Packing ke atas).\n\nSebelum itu, perubahan dari client jalurnya Revisi order.');return;}
+  if(!returBolehMulai(o)){alert('Retur baru bisa dicatat setelah barangnya jadi (fase QC & Packing Process ke atas).\n\nSebelum itu, perubahan dari client jalurnya Revisi order.');return;}
   askForm({judul:'Catat retur dari client',sub:'Order '+o.customer,
     fields:[
       {k:'kategori',label:'Jenis masalahnya',type:'select',req:true,val:KOM_KAT[0],opts:KOM_KAT},
@@ -16795,8 +16871,8 @@ function catToggle(id){
   ST._catBuka=ST._catBuka||{};ST._catBuka[id]=!ST._catBuka[id];render();}
 function catalogPicker(o,tempat){
   if(o.type==='Custom'&&tempat!=='profit')return '';   // order custom tak pakai katalog — kecuali sengaja dibuka dari Penentuan harga jual
-  if((o.phase||0)>=3)return '';              // sejak Quotation item sudah final — tambah item lewat panel Profitability
-  /* di fase Penentuan harga jual pickernya digambar panel itu sendiri; kalau
+  if((o.phase||0)>=3)return '';              // sejak Quotation item sudah final — tambah item lewat panel Profitability Checking
+  /* di fase Project Pricing pickernya digambar panel itu sendiri; kalau
      panel Pricing kebetulan dibuka lebih awal, jangan gambar dua kali */
   if(tempat!=='profit'&&(o.phase||0)===2)return '';
   var mats=catMaterials(),liveN=((ST.master&&ST.master.catalog&&ST.master.catalog.length)||(CATALOG_LIVE&&CATALOG_LIVE.length));
@@ -17390,7 +17466,7 @@ function briefPackBlok(o){
     'border:1px '+(mode===v?'solid var(--brand)':'dashed var(--line)')+';border-radius:9px;padding:8px 11px;background:var(--bg)">'+
     '<input type="radio" name="packmode_'+o.id+'" '+(mode===v?'checked':'')+' onchange="packModeSet(\''+o.id+'\',\''+v+'\')" style="width:auto;accent-color:var(--brand);margin-top:2px">'+
     '<span><b>'+lab+'</b><br><span style="font-size:9.5px;color:var(--muted);line-height:1.5">'+ket+'</span></span></label>';};
-  var kepala='<div style="display:flex;flex-wrap:wrap;gap:9px;margin-bottom:11px">'+
+  var kepala='<div class="pilihan" style="margin-bottom:11px">'+
     pil('sama','Sama untuk semua produk','Satu set box / pouch / card dipakai seluruh item.')+
     pil('perProduk','Beda per produk','Tiap produk punya pouch & card sendiri.'+(L.length?(' Ada '+L.length+' produk.'):''))+
     '</div>';
@@ -17590,7 +17666,7 @@ function briefPanel(o){
           return '<datalist id="'+pp[0]+'">'+listArr(pp[1]).map(function(x){return '<option value="'+esc(x)+'">';}).join('')+'</datalist>';}).join('');
       return (spekKunci(o)?spekKunciBanner(o):'')+P.map(function(x){
         var l=x.l,li=x.i;
-        /* sejak Spec & PO: dibaca saja — perubahan lewat "Ajukan perubahan spec" */
+        /* sejak Purchase Order Issuing: dibaca saja — perubahan lewat "Ajukan perubahan spec" */
         if(spekKunci(o))return spekKartuBaca(o,l,li);
         var g=function(f){return spekVal(o,l,f);};
         var inp=function(f,label,dl){return '<label class="nlbl">'+label+
@@ -18053,7 +18129,7 @@ function pricingPanel(o){
      <div style="display:flex;flex-wrap:wrap;gap:9px;align-items:center;margin-top:12px">
        <button class="btn" onclick="genDoc('${o.id}','quotation')">🧾 Generate Quotation</button>
        ${o.phase>=8?`<button class="btn ghost" onclick="genDoc('${o.id}','invoice')">🧾 Generate Invoice DP</button>`:''}
-       ${o.phase>=15?`<button class="btn ghost" onclick="genDoc('${o.id}','invoicePel')" title="ringkasannya ada di panel Invoice pelunasan">🧾 Generate Invoice Pelunasan</button>`:''}
+       ${o.phase>=16?`<button class="btn ghost" onclick="genDoc('${o.id}','invoicePel')" title="ringkasannya ada di panel Invoice pelunasan">🧾 Generate Invoice Pelunasan</button>`:''}
        ${docst?`<span style="font-size:10.5px;color:var(--ok);font-weight:700">${docst} · tersimpan folder bulan</span>`:'<span style="font-size:10.5px;color:var(--muted)">dokumen tersimpan ke folder bulan saat digenerate</span>'}
      </div>
      ${quoBar(o)}
@@ -18475,7 +18551,7 @@ function closeDoc(){$('#docov').classList.remove('show');
   ST._dokKunci=false;if(ST.cur)render();}
 $('#docov')&&(document.getElementById('docov').onclick=e=>{if(e.target.id==='docov')closeDoc();});
 
-/* ---- Form PO (Penurunan) — fase Spec & PO ---- */
+/* ---- Form PO (Penurunan) — fase Purchase Order Issuing ---- */
 const PO_SEL={
   deboss:['-','Ya','Tidak'],
   groover:['-','1,5mm','2mm','Others'],stitch:['-','Handmade','Machine','Others'],
@@ -18529,7 +18605,7 @@ function poCardName(o){return o.id.toUpperCase()+' - PO Rove'+(orderAU(o)?' AU':
 
 /* ================= SPEC PER PRODUK: ACCESSORIES / HARDWARE =================
    Nama, ukuran, warna — bisa lebih dari satu per produk. Diisi di Brief
-   (inquiry), dibaca Spec & PO, RFQ, dan dokumen PO. */
+   (inquiry), dibaca Purchase Order Issuing, RFQ, dan dokumen PO. */
 function aksDaftar(l){return (l&&Array.isArray(l.aksesoris))?l.aksesoris:[];}
 function aksTeks(l){return aksDaftar(l).map(function(a){return [a.nama,a.ukuran,a.warna].filter(function(x){return x&&String(x).trim();}).join(' · ');}).filter(Boolean).join('; ');}
 function aksTambah(id,li){
@@ -18552,7 +18628,7 @@ function aksBlok(o,l,li){
   return '<div data-f="aks_'+li+'" style="border-top:1px dashed var(--line);margin-top:8px;padding-top:8px">'+
     '<div style="display:flex;gap:9px;align-items:baseline;margin-bottom:5px">'+
       '<span style="font-size:9.5px;font-weight:800;color:var(--muted);letter-spacing:.03em">ACCESSORIES / HARDWARE ('+A.length+')</span>'+
-      '<span style="font-size:9px;color:var(--muted)">nama · ukuran · warna — bisa lebih dari satu; ikut ke RFQ, Spec &amp; PO, dan PO</span></div>'+
+      '<span style="font-size:9px;color:var(--muted)">nama · ukuran · warna — bisa lebih dari satu; ikut ke RFQ, Purchase Order Issuing, dan PO</span></div>'+
     A.map(function(a,k){
       var set=function(f){return ' onchange="aksSet('+jsArg(o.id)+','+li+','+k+','+jsArg(f)+',this.value)"';};
       return '<div style="display:grid;grid-template-columns:1fr 110px 130px auto;gap:6px;margin-bottom:5px;align-items:center">'+
@@ -18570,8 +18646,8 @@ function aksWarisPO(o){
   if(!aksDaftar(P[0].l).length)P[0].l.aksesoris=A.map(function(a){return {nama:a.nama||'',ukuran:a.size||'',warna:a.warna||''};});
   delete o.po.accs;return true;}
 
-/* ================= SPESIFIKASI TERKUNCI — dibaca Spec & PO =================
-   Sejak fase Spec & PO spesifikasi produk tak diubah di Brief; Spec & PO
+/* ================= SPESIFIKASI TERKUNCI — dibaca Purchase Order Issuing =================
+   Sejak fase Purchase Order Issuing spesifikasi produk tak diubah di Brief; Purchase Order Issuing
    menampilkannya apa adanya (bentuk sama dengan Brief). Perubahan diajukan
    lewat spekRevisi → kartu kembali ke fase yang sesuai perubahannya. */
 const SPEK_KUNCI_FASE=8;   // sejak sketsa disetujui client (fase Invoice ke atas)
@@ -18611,7 +18687,7 @@ function spekDokBaris(o,l){
   t('Accessories',aksTeks(l));
   t('Ukuran',ukuranTeks(o,l));
   return R;}
-/* ukuran produk (cm): dari baris (diisi di Spec & PO) atau Master Product */
+/* ukuran produk (cm): dari baris (diisi di Purchase Order Issuing) atau Master Product */
 function ukuranTeks(o,l){
   if(l&&String(l.ukuranCm||'').trim())return String(l.ukuranCm).trim();
   try{var p=prodInfo(l.produk,l);if(p&&(p.pjg||p.lbr||p.tgi))return [p.pjg,p.lbr,p.tgi].map(function(x){return x||'?';}).join(' × ')+' cm';}catch(e){}
@@ -18654,9 +18730,9 @@ function spekPanelBaca(o){
     '</div></div>';}
 /* USULAN pemetaan tujuan — menunggu konfirmasi pemilik proses */
 const SPEK_REVISI_KE=[
-  {v:'bahan',l:'Bahan / warna / accessories / spesifikasi — kembali ke Pricing Vendor (harga vendor ditanyakan ulang)',ke:1},
-  {v:'qty',l:'Jumlah / item berubah — kembali ke Penentuan harga jual',ke:2},
-  {v:'desain',l:'Desain / logo / peletakan — kembali ke Sketch',ke:6}];
+  {v:'bahan',l:'Bahan / warna / accessories / spesifikasi — kembali ke Project Costing (harga vendor ditanyakan ulang)',ke:1},
+  {v:'qty',l:'Jumlah / item berubah — kembali ke Project Pricing',ke:2},
+  {v:'desain',l:'Desain / logo / peletakan — kembali ke Product Sketch Processing',ke:6}];
 function spekRevisi(id){
   var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
   askForm({judul:'Ajukan perubahan spesifikasi',sub:o.customer+' · '+PH[o.phase||0].n,tanpaDraf:true,
@@ -18742,7 +18818,7 @@ function poPanel(o){
   const txt=(f,label,ph)=>`<div style="display:flex;flex-direction:column;gap:3px"><span class="nlbl">${label}</span><input class="pin" style="${tandai(f)}" data-id="${o.id}" data-field="${f}" value="${esc(p[f])}" onchange="poInput(this)" placeholder="${ph||''}"></div>`;
   const date=(f,label)=>`<div style="display:flex;flex-direction:column;gap:3px"><span class="nlbl">${label}</span><input type="date" class="pin" style="${tandai(f)}" data-id="${o.id}" data-field="${f}" value="${esc(p[f])}" onchange="poInput(this)"></div>`;
   const ta=(f,label,ph)=>`<div style="display:flex;flex-direction:column;gap:3px"><span class="nlbl">${label}</span><textarea class="nta" data-id="${o.id}" data-field="${f}" onchange="poInput(this)" placeholder="${ph||''}">${esc(p[f])}</textarea></div>`;
-  return `<div class="card actcard" style="margin-top:14px"><div class="ch"><span class="ico" style="background:#0079bf;font-size:10px">PO</span><div><div class="t">Form PO — Penurunan <span style="color:var(--muted);font-weight:400">(fase Spec & PO)</span></div><div class="s">DRAFT LENGKAP → PDF PO + KARTU TRELLO + NOTIF RADJA</div></div>
+  return `<div class="card actcard" style="margin-top:14px"><div class="ch"><span class="ico" style="background:#0079bf;font-size:10px">PO</span><div><div class="t">Form PO — Penurunan <span style="color:var(--muted);font-weight:400">(fase Purchase Order Issuing)</span></div><div class="s">DRAFT LENGKAP → PDF PO + KARTU TRELLO + NOTIF RADJA</div></div>
       <span class="badge" style="background:${ready?'var(--ok-bg)':'var(--warn-bg)'};color:${ready?'var(--ok)':'var(--warn)'}">${ready?'draft lengkap ✓':miss.length+' field kurang'}</span></div>
     <div class="body">
       ${poRingkas(o)}
@@ -19232,7 +19308,7 @@ function nolAddCustom(){
     fields:[{k:'nama',label:'Nama produk',type:'text',req:true,ph:'mis. Clutch Bag Custom'},
       {k:'bahan',label:'Bahan / material',type:'text',ph:'mis. Napa Coklat'},
       {k:'qty',label:'Qty',type:'number',req:true,ph:'0'},
-      {k:'jual',label:'Harga jual per pcs',type:'money',hint:'Harga yang ditawarkan ke client. HPP dari vendor diisi belakangan di fase Pricing Vendor.'},
+      {k:'jual',label:'Harga jual per pcs',type:'money',hint:'Harga yang ditawarkan ke client. HPP dari vendor diisi belakangan di fase Project Costing.'},
       {k:'sumber',label:'Vendor',type:'select',val:vendorGrup('produk')[0]||'',opts:vendorGrup('produk')},
       {k:'detail',label:'Detail / permintaan khusus',type:'text',ph:'mis. request warna khusus, jahitan kontras'}],
     ok:function(v){
