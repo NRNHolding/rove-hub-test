@@ -546,7 +546,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20260908-105834';
+const VERSI='20260908-110854';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -9951,7 +9951,7 @@ function renderDetail(){
            ? 'dibatalkan · <span style="cursor:pointer;text-decoration:underline" onclick="orderCancelBatal(\u0027'+o.id+'\u0027)">aktifkan lagi</span>'
            : 'terisi sendiri dari fase &amp; dokumen · <span style="cursor:pointer;text-decoration:underline" onclick="orderCancel(\u0027'+o.id+'\u0027)">batalkan order</span>'}</div></div></div>
    </div>
-   <div class="card actcard" style="margin-top:14px"><div class="ch"><span class="ico" style="background:var(--hub)">▶</span><div><div class="t">Langkah saat ini</div><div class="s">FASE ${selesai?'—':(o.phase+1)}/${PH.length}</div></div></div><div class="body">${actHTML}</div></div>
+   ${(o.status==='Cancel'||selesai)?`<div class="card actcard" style="margin-top:14px"><div class="body">${actHTML}</div></div>`:''}
    ${peringatanBlok(o)}
    ${ringkasSebelumBlok(o)}
    ${panelStack(o)}
@@ -10884,7 +10884,8 @@ function chkPanel(o){
   var selesaiBar=(function(){
     if(o.done||o.status==='Cancel')return '';
     var nx=PH[f+1];
-    return '<div style="display:flex;justify-content:flex-end;align-items:center;gap:10px;margin-top:14px;flex-wrap:wrap">'+
+    return '<div data-f="selesaiBar" style="display:flex;justify-content:flex-end;align-items:center;gap:10px;margin-top:14px;flex-wrap:wrap">'+
+      (bolehMundur(o)?('<button class="btn ghost" style="font-size:11px;color:var(--muted);margin-right:auto" title="alat coba-coba — hilang sendiri begitu HUB tersambung ke Discord" onclick="mundurFase('+jsArg(o.id)+')">↩ Mundur ke '+esc(PH[f-1].n)+'</button>'):'')+
       '<span style="font-size:10px;color:var(--muted)">'+(nx?('lanjut ke <b>'+esc(nx.n)+'</b>'):'fase terakhir')+'</span>'+
       (faseMilikku(o)
         ?('<button class="btn" onclick="trigger('+jsArg(o.id)+')">✓ Selesai — lanjut fase</button>')
