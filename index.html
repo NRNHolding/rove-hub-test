@@ -546,7 +546,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20260908-110854';
+const VERSI='20260908-114423';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -2582,9 +2582,9 @@ function leadRefDel(id,i){
 function leadRefBuka(id,i){
   var l=leadsAll().find(function(x){return x.id===id;});if(!l)return;
   var f=leadRef(l)[i];if(!f)return;
-  if(String(f.tipe||'').indexOf('image')===0){openLB(f.data);return;}
+  if(String(f.tipe||'').indexOf('image')===0){openLB(gambarSrc(f.data));return;}
   var w=window.open('','_blank');
-  if(w)w.document.write('<iframe src="'+f.data+'" style="border:0;width:100%;height:100%;position:absolute;inset:0"></iframe>');
+  if(w)w.document.write('<iframe src="'+gambarSrc(f.data)+'" style="border:0;width:100%;height:100%;position:absolute;inset:0"></iframe>');
   else alert('Popup diblokir browser. Izinkan popup untuk membuka PDF.');}
 function leadRefBlok(l){
   var a=leadRef(l);
@@ -2596,7 +2596,7 @@ function leadRefBlok(l){
     (a.length?('<div style="display:flex;flex-wrap:wrap;gap:8px">'+a.map(function(f,i){
       var gbr=String(f.tipe||'').indexOf('image')===0;
       return '<div style="border:1px solid var(--line);border-radius:9px;padding:6px;background:var(--bg);width:122px">'+
-        (gbr?('<img src="'+f.data+'" style="width:100%;height:74px;object-fit:cover;border-radius:6px;cursor:zoom-in" onclick="leadRefBuka('+jsArg(l.id)+','+i+')">')
+        (gbr?('<img src="'+gambarSrc(f.data)+'" style="width:100%;height:74px;object-fit:cover;border-radius:6px;cursor:zoom-in" onclick="leadRefBuka('+jsArg(l.id)+','+i+')">')
             :('<div style="height:74px;display:flex;align-items:center;justify-content:center;font-size:26px;cursor:pointer" onclick="leadRefBuka('+jsArg(l.id)+','+i+')">\ud83d\udcc4</div>'))+
         '<input class="pin" style="width:100%;margin-top:5px;font-size:10px" value="'+esc(f.ket||'')+'" placeholder="mis. Referensi box" '+
           'onchange="leadRefKet('+jsArg(l.id)+','+i+',this.value)" title="keterangan gambar \u2014 mis. Referensi box, Referensi A">'+
@@ -4639,6 +4639,18 @@ function contohSvg(teks,latar,tinta){
     '<text x="120" y="150" text-anchor="middle" font-family="Georgia,serif" font-size="'+(teks.length>4?40:84)+'" fill="'+tinta+'">'+teks+'</text></svg>';
   return 'data:image/svg+xml;utf8,'+encodeURIComponent(s);}   // tanpa btoa: jalan di browser maupun harness uji
 function contohFile(nama,data){return {nama:nama,tipe:'image/svg+xml',kb:1,data:data,t:nowStr(),by:'contoh'};}
+/* Foto asli kartu contoh — diisi skrip Pembuat dokumen/sisip-gambar-contoh.py
+   dari folder "HUB - Sistem & integrasi/Gambar contoh". Disimpan sekali di sini;
+   berkas contoh hanya menunjuk kuncinya ('contoh:ref1'), jadi 22 kartu yang
+   memakai foto yang sama tak menggandakan base64-nya di penyimpanan. */
+/*CONTOH_GAMBAR_AWAL*/
+const CONTOH_GAMBAR={};
+/*CONTOH_GAMBAR_AKHIR*/
+function gambarSrc(d){d=String(d==null?'':d);if(d.slice(0,7)==='contoh:')return CONTOH_GAMBAR[d.slice(7)]||'';return d;}
+function contohFoto(kunci,nama,cadangan){
+  var d=CONTOH_GAMBAR[kunci];
+  if(d)return {nama:nama,tipe:(d.slice(0,15)==='data:image/png;')?'image/png':'image/jpeg',kb:Math.round(d.length*3/4/1024),data:'contoh:'+kunci,t:nowStr(),by:'contoh'};
+  return cadangan?contohFile(nama.replace(/\.(jpg|jpeg|png)$/i,'.svg'),cadangan):null;}
 /* Logo Rove asli (folder TTD Sales), diperkecil supaya ringan: monogram
    untuk produk, wordmark ROVE GIFTS untuk kemasan. */
 /* logo lockup ROVE untuk kop dokumen client — dipakai juga kartu contoh */
@@ -4689,7 +4701,7 @@ function contohBuatDasar(n){
    lalu fasenya ditutup dengan applyTrigger seperti tombol "Selesai". */
 /* Naikkan tiap kali bentuk kartu contoh berubah (fase bertambah, isian baru):
    kartu contoh yang tersimpan di browser tiap orang diganti sendiri saat HUB dibuka. */
-const CONTOH_V='22a';
+const CONTOH_V='22b';
 const CONTOH_ISI=[
  /* 0 Inquiry — PM merinci; Sales menjawab warna, logo, dan letaknya */
  function(o){var K=CONTOH_W,b=briefGet(o);
@@ -4698,11 +4710,11 @@ const CONTOH_ISI=[
    b.venue=K.venue;o.venue=K.venue;o.addr=K.alamat;   // sudah dari kartu dasar; ditegaskan lagi
    b.woNama=K.wo;b.woHp=K.woHp;b.brideNama=K.bride;b.groomNama=K.groom;b.jenisProject='Wedding '+K.klien;
    o.email=K.email;b.addrKantor=K.alamatKantor;o.addrKantor=K.alamatKantor;
-   b.refFiles=[contohFile('referensi-client.svg',contohSvg('REF','#efe6d8','#6b4a2b'))];
-   b.quoFiles=[contohFile('packaging-preview.svg',contohSvg('PACKAGING','#f3ede4','#2b1d0e'))];
+   b.refFiles=[contohFoto('ref1','referensi-client-1.jpg',contohSvg('REF','#efe6d8','#6b4a2b')),contohFoto('ref2','referensi-client-2.jpg',null)].filter(Boolean);
+   b.quoFiles=[contohFoto('prevProduk','preview-produk.jpg',contohSvg('PACKAGING','#f3ede4','#2b1d0e')),contohFoto('prevBox','preview-box.jpg',null),contohFoto('prevPouch','preview-soft-pouch.jpg',null),contohFoto('prevCard','preview-thank-you-card.jpg',null)].filter(Boolean);
    /* logo produk = ROVE MONOGRAM (deboss di produk, juga lampiran add-on logo);
       logo kemasan = wordmark ROVE GIFTS, sama di box, soft pouch, thank you card */
-   b.logoFiles=[contohLogoFile('produk')];
+   b.logoFiles=[contohFoto('logoClient','logo-client.png',null)||contohLogoFile('produk')];
    b[svcSlot('Add-on Logo')]=[contohLogoFile('produk')];
    b.logoBoxFiles=[contohLogoFile('kemasan')];
    b.logoPouchFiles=[contohLogoFile('kemasan')];
@@ -4759,14 +4771,14 @@ const CONTOH_ISI=[
  /* 5 Menunggu approval quotation */
  function(o){o.quo=o.quo||{};o.quo.status='Approved';},
  /* 6 Sketch — Creative */
- function(o){briefGet(o).previewFiles=[contohFile('preview-sketsa.svg',contohSvg('SKETSA','#f3ede4','#2b1d0e'))];},
+ function(o){briefGet(o).previewFiles=[contohFoto('prevProduk','sketsa-produk.jpg',contohSvg('SKETSA','#f3ede4','#2b1d0e')),contohFoto('prevBox','sketsa-box.jpg',null),contohFoto('prevPouch','sketsa-soft-pouch.jpg',null),contohFoto('prevCard','sketsa-thank-you-card.jpg',null)].filter(Boolean);},
  /* 7 Menunggu approval sketsa */
  function(o){o.sketch={tgl:hariIni(),by:'cika'};},
  /* 8 Invoice DP */
  function(o){var t=hariIni();o.docs=o.docs||{};o.docs.invoice=true;o.docs.invoiceDate=t;try{docNo(o,'invoice');}catch(e){}o.inv={status:'Terkirim'};o.soNo='SO2072801';},
  /* 9 DP masuk */
  function(o){var t=hariIni();
-   o.bukti={teks:'transfer DP 50% via BCA a.n. Sarah Halim',files:[contohFile('bukti-dp.svg',contohSvg('DP','#e8f1e8','#1f6b3a'))],oleh:'cika',tgl:nowStr()};
+   o.bukti={teks:'transfer DP 50% via BCA a.n. Sarah Halim',files:[contohFoto('transfer','bukti-transfer-dp.jpg',contohSvg('DP','#e8f1e8','#1f6b3a'))],oleh:'cika',tgl:nowStr()};
    o.pay=o.pay||{};o.pay.dp=Math.round(orderTotals(o).grand*0.5);o.pay.dpDate=t;},
  /* 10 Spec & PO — Purchasing + Direktur */
  function(o){var K=CONTOH_W,t=hariIni(),p=o.po=o.po||{},b=briefGet(o),d=new Date();
@@ -4782,28 +4794,29 @@ const CONTOH_ISI=[
    o.trello={created:true};o.checks=[];   // kartu Trello Production ikut terbentuk saat PO turun
    try{poVendors(o).forEach(function(v,i){var x=vpoGet(o,v);x.generated=true;x.deadline=contohHari(40);x.packing='Per 25 pcs / kardus';
      x.poNo='ROVE/PO'+d.getFullYear()+'/'+roman(d.getMonth()+1)+'/000'+(1807+i);x.tglPO=t;x.date=nowStr();
-     b['vpoFinal_'+vpoSlot(v)]=[contohFile('final-'+vpoSlot(v)+'.svg',contohSvg('FINAL','#f3ede4','#2b1d0e'))];
-     b['vpoLogo_'+vpoSlot(v)]=[contohLogoFile('kemasan')];});}catch(e){}},
+     var tipeV=String(vendorTipe(v)||'').toLowerCase(),kunci=/box/.test(tipeV)?'prevBox':/pouch/.test(tipeV)?'prevPouch':/card|kartu/.test(tipeV)?'prevCard':'prevProduk';
+     b['vpoFinal_'+vpoSlot(v)]=[contohFoto(kunci,'final-'+vpoSlot(v)+'.jpg',contohSvg('FINAL','#f3ede4','#2b1d0e'))];
+     b['vpoLogo_'+vpoSlot(v)]=[contohFoto('logoClient','logo-client.png',null)||contohLogoFile('kemasan')];});}catch(e){}},
  /* 11 Pembayaran vendor 1 — DP 50% tiap vendor */
  function(o){var t=hariIni(),b=briefGet(o);vendorTagihan(o).forEach(function(x){bvDaftar(o,x.v).push({tahap:1,nominal:Math.round(x.total*0.5),tgl:t,catatan:'DP 50%',oleh:'fin'});
-   b['bvBukti_'+vpoSlot(x.v)+'_1']=[contohFile('bukti-dp-vendor.svg',contohSvg('TRF 1','#e8f1e8','#1f6b3a'))];});},
+   b['bvBukti_'+vpoSlot(x.v)+'_1']=[contohFoto('transfer','bukti-dp-vendor.jpg',contohSvg('TRF 1','#e8f1e8','#1f6b3a'))];});},
  /* 11 Produksi — foto sample, sample disetujui, collateral terkirim, progres berjalan */
  function(o){var t=hariIni(),b=briefGet(o);
-   b.sampleFiles=[contohFile('sample-jadi.svg',contohSvg('SAMPLE','#f1ece2','#6b4718'))];
-   b.potongFiles=[contohFile('setelah-potong.svg',contohSvg('POTONG','#efe7d8','#9a6a2f'))];
-   b.qcFiles=[contohFile('barang-qc.svg',contohSvg('QC OK','#fdf1e2','#a3541b'))];
-   b.packFiles=[contohFile('terpacking.svg',contohSvg('PACKED','#e9eef7','#27408b'))];
+   b.sampleFiles=[contohFoto('produksi1','sample-jadi.jpg',contohSvg('SAMPLE','#f1ece2','#6b4718'))];
+   b.potongFiles=[contohFoto('produksi2','setelah-potong.jpg',contohSvg('POTONG','#efe7d8','#9a6a2f'))];
+   b.qcFiles=[contohFoto('produksi3','barang-qc.jpg',contohSvg('QC OK','#fdf1e2','#a3541b'))];
+   b.packFiles=[contohFoto('prevBox','terpacking.jpg',contohSvg('PACKED','#e9eef7','#27408b'))];
    b.packGuideFiles=[contohFile('panduan-packing.svg',contohSvg('PACK GUIDE','#e9eef7','#27408b'))];
-   b.collFoto_box=[contohFile('box-vendor.svg',contohSvg('BOX','#efe7d8','#6b4718'))];
+   b.collFoto_box=[contohFoto('prevBox','box-vendor.jpg',contohSvg('BOX','#efe7d8','#6b4718'))];
    o.prod={stage:'Packing',note:'sample disetujui; QC lolos 100 pcs; packing per 25 pcs',updated:t,updatedTs:Date.now(),sampleTgl:t,sampleTglBy:'pm',
      collKirim:{box:true,pouch:true,card:true},collTgl:t,minta:{sampleFiles:{tgl:t,oleh:'pm'},qcFiles:{tgl:t,oleh:'pm'}}};},
  /* 12 QC & Packing — barang diterima lengkap di Rove */
  function(o){var t=hariIni(),b=briefGet(o),key='l:'+(((lineProduk(o)[0]||{}).l||{}).produk||'');
    var pr={};pr[key]=100;o.terima={produk:pr,coll:{box:true,pouch:true,card:true},catatan:'diterima lengkap, 2 pcs retur jahitan sudah diganti Radja',tgl:t,oleh:'pack',_lengkapLog:true};
-   b.terimaFiles=[contohFile('diterima-rove.svg',contohSvg('DITERIMA','#e8f1e8','#1f6b3a'))];},
+   b.terimaFiles=[contohFoto('terima','diterima-rove.jpg',contohSvg('DITERIMA','#e8f1e8','#1f6b3a'))];},
  /* 14 Pembayaran vendor 2 — 30% tiap vendor */
  function(o){var t=hariIni(),b=briefGet(o);vendorTagihan(o).forEach(function(x){bvDaftar(o,x.v).push({tahap:2,nominal:Math.round(x.total*0.3),tgl:t,catatan:'termin 2',oleh:'fin'});
-   b['bvBukti_'+vpoSlot(x.v)+'_2']=[contohFile('bukti-termin2-vendor.svg',contohSvg('TRF 2','#e8f1e8','#1f6b3a'))];});},
+   b['bvBukti_'+vpoSlot(x.v)+'_2']=[contohFoto('transfer','bukti-termin2-vendor.jpg',contohSvg('TRF 2','#e8f1e8','#1f6b3a'))];});},
  /* 13 Pelunasan — invoice pelunasan terkirim */
  function(o){var t=hariIni();
    o.docs=o.docs||{};o.docs.invoicePel=true;o.docs.invoicePelDate=t;try{docNo(o,'invoicePel');}catch(e){}o.invPel={status:'Terkirim'};},
@@ -4822,13 +4835,13 @@ const CONTOH_ISI=[
    if(!Array.isArray(o.event.ops)||!o.event.ops.length)o.event.ops=[{nama:'Mercia',job:'Calligrapher',hp:'0812-0000-0001',lokasi:'Surabaya',fee:1500000,fix:true}];else o.event.ops.forEach(function(x){x.fix=true;});},
  /* 19 Pembayaran vendor 3 — pelunasan semua vendor */
  function(o){var t=hariIni(),b=briefGet(o);vendorTagihan(o).forEach(function(x){var s=bvSisa(o,x.v,x.total);if(s>0)bvDaftar(o,x.v).push({tahap:3,nominal:s,tgl:t,catatan:'pelunasan',oleh:'fin'});
-   b['bvBukti_'+vpoSlot(x.v)+'_3']=[contohFile('bukti-pelunasan-vendor.svg',contohSvg('TRF 3','#e8f1e8','#1f6b3a'))];});},
+   b['bvBukti_'+vpoSlot(x.v)+'_3']=[contohFoto('transfer','bukti-pelunasan-vendor.jpg',contohSvg('TRF 3','#e8f1e8','#1f6b3a'))];});},
  /* 20 Laporan penutupan */
  function(o){var t=hariIni();o.tutup={liveSesuai:'Sesuai',liveCatatan:'kaligrafi 100 pcs selesai di venue',spareKembali:'Sudah kembali',spareQty:'5 pcs',komplain:'',biaya:[{ket:'parkir & konsumsi tim live',nominal:150000,tgl:t,oleh:'pm'}],evalVendor:{'Radja Leather':{nilai:5,catatan:'tepat waktu, rapi'},'BoxMaker':{nilai:4,catatan:''}},tgl:t,oleh:'pm'};
-   briefGet(o).dokumentasiFiles=[contohFile('dokumentasi.svg',contohSvg('DOC','#e9eef7','#27408b'))];},
+   briefGet(o).dokumentasiFiles=[contohFoto('ref1','dokumentasi-acara.jpg',contohSvg('DOC','#e9eef7','#27408b'))];},
  /* 16 Konfirmasi & Selesai — diterima; arsip dibiarkan untuk tombolnya */
  function(o){var t=hariIni();o.kirim=o.kirim||{};(o.kirim.daftar||[]).forEach(function(s){if(!s.tglTerima)s.tglTerima=t;});kirimSinkron(o);if(!o.kirim.tglTerima)o.kirim.tglTerima=t;
-   briefGet(o).kirimFiles=[contohFile('serah-terima.svg',contohSvg('OK','#e8f1e8','#1f6b3a'))];
+   briefGet(o).kirimFiles=[contohFoto('serah','serah-terima.jpg',contohSvg('OK','#e8f1e8','#1f6b3a'))];
    o.cs={komplain:[],puas:{rating:5,catatan:'client kirim foto meja souvenir',tgl:t}};}   // bentuk yang dibaca panel CS (bintang) & laporan
 ];
 /* Kartu contoh dari versi HUB sebelumnya (jumlah / bentuknya beda) diganti
@@ -5273,7 +5286,7 @@ function berkasTiles(files,kosong){
   return '<div style="display:flex;flex-wrap:wrap;gap:8px">'+files.map(function(f){
     var img=/^image[/]/.test(f.tipe||'')||/[.](png|jpe?g|gif|webp|svg)$/i.test(f.nama||'');
     return '<div style="width:96px;text-align:center;font-size:9px;color:var(--muted)">'+
-      ((img&&f.data)?('<img src="'+f.data+'" style="width:96px;height:72px;object-fit:contain;border:1px solid var(--line);border-radius:6px;background:#fff;cursor:zoom-in" onclick="openLB(this.src)">')
+      ((img&&f.data)?('<img src="'+gambarSrc(f.data)+'" style="width:96px;height:72px;object-fit:contain;border:1px solid var(--line);border-radius:6px;background:#fff;cursor:zoom-in" onclick="openLB(this.src)">')
                     :'<div style="width:96px;height:72px;border:1px solid var(--line);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:18px">📄</div>')+
       '<div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+esc(f.nama||'')+'">'+esc(f.nama||'')+'</div></div>';}).join('')+'</div>';}
 function sketchPanel(o){
@@ -15859,7 +15872,7 @@ function vendorData(nama){
    mengenali tipe berkas. Awalan data URI-nya sendiri sudah cukup jujur. */
 function fileGambar(f){
   return !!(f&&f.data&&(String(f.tipe||'').indexOf('image')===0||
-    String(f.data).slice(0,11)==='data:image/'));}
+    String(f.data).slice(0,11)==='data:image/'||String(f.data).slice(0,7)==='contoh:'));}
 /* Semua gambar yang masuk akal dikirim ke vendor untuk baris ini: referensi
    dari client, ditambah gambar milik barisnya sendiri kalau ada. */
 /* Vendor tak perlu tahu nama berkas kita; yang perlu diketahui gambar itu apa. */
@@ -16011,7 +16024,7 @@ function vendorGambarBlok(o,l,kunci,baris){
     '<div style="display:flex;gap:9px;flex-wrap:wrap">'+
       G.map(function(x){
         return '<div style="width:96px">'+
-          '<img src="'+x.f.data+'" style="width:96px;height:72px;object-fit:cover;border-radius:7px;border:1px solid var(--line);cursor:zoom-in" onclick="openLB(this.src)">'+
+          '<img src="'+gambarSrc(x.f.data)+'" style="width:96px;height:72px;object-fit:cover;border-radius:7px;border:1px solid var(--line);cursor:zoom-in" onclick="openLB(this.src)">'+
           '<div style="font-size:8.5px;color:var(--muted);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+esc(x.f.nama||'')+'">'+esc(x.cap||x.f.nama||'')+'</div>'+
           '<div style="display:flex;gap:3px;margin-top:2px">'+
             (x.drive
@@ -16420,7 +16433,7 @@ function catalog(){ var mc=ST.master&&ST.master.catalog; if(mc&&mc.length)return
 function driveId(u){if(!u)return'';var m=String(u).match(/[-\w]{25,}/);return m?m[0]:'';}
 var IMGCACHE={};
 function imgUrlBase(){var u=ST.cfg&&ST.cfg.catalogUrl;return u?String(u):'';}   // ada/tidak; URL gambarnya estUrlImg(id)
-function imgTag(id,style,attr){attr=attr||'';if(!id)return'';if(String(id).slice(0,5)==='data:')return '<img src="'+id+'" alt="" '+attr+' style="background:#eee;'+style+'">';return '<img class="lazyimg" data-imgid="'+id+'" src="data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw==" alt="" '+attr+' style="background:#eee;'+style+'">';}
+function imgTag(id,style,attr){attr=attr||'';if(!id)return'';if(String(id).slice(0,7)==='contoh:')id=gambarSrc(id);if(!id)return'';if(String(id).slice(0,5)==='data:')return '<img src="'+id+'" alt="" '+attr+' style="background:#eee;'+style+'">';return '<img class="lazyimg" data-imgid="'+id+'" src="data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw==" alt="" '+attr+' style="background:#eee;'+style+'">';}
 function openLB(src){if(!src||src.indexOf('data:image/gif')===0)return;var lb=document.getElementById('lightbox');lb.querySelector('img').src=src;lb.style.display='flex';}
 function closeLB(){var lb=document.getElementById('lightbox');if(lb)lb.style.display='none';}
 const LINE_IMG_MAX=5;
@@ -16969,9 +16982,9 @@ function lampiranDel(id,slot,i){
 function lampiranBuka(id,slot,i){
   var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
   var f=((briefGet(o)[slot])||[])[i];if(!f)return;
-  if(String(f.tipe||'').indexOf('image')===0){openLB(f.data);return;}
+  if(String(f.tipe||'').indexOf('image')===0){openLB(gambarSrc(f.data));return;}
   var w=window.open('','_blank');                       // pdf dibuka di tab baru
-  if(w)w.document.write('<iframe src="'+f.data+'" style="border:0;width:100%;height:100%;position:absolute;inset:0"></iframe>');
+  if(w)w.document.write('<iframe src="'+gambarSrc(f.data)+'" style="border:0;width:100%;height:100%;position:absolute;inset:0"></iframe>');
   else alert('Popup diblokir browser. Izinkan popup untuk membuka PDF.');}
 /* Kemasan yang benar-benar dipesan order ini, beserta slot logonya. */
 /* slot logo milik satu jenis kemasan */
@@ -17049,7 +17062,7 @@ function lampiranBlok(o,slot,judul){
       ? '<div style="display:flex;flex-wrap:wrap;gap:7px">'+a.map(function(f,i){
           var gbr=String(f.tipe||'').indexOf('image')===0;
           return '<div style="display:flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:8px;padding:4px 7px;background:var(--bg)">'+
-            (gbr?'<img src="'+f.data+'" style="width:26px;height:26px;object-fit:cover;border-radius:4px;cursor:zoom-in" onclick="lampiranBuka(\''+o.id+'\',\''+slot+'\','+i+')">'
+            (gbr?'<img src="'+gambarSrc(f.data)+'" style="width:26px;height:26px;object-fit:cover;border-radius:4px;cursor:zoom-in" onclick="lampiranBuka(\''+o.id+'\',\''+slot+'\','+i+')">'
                 :'<span style="font-size:14px;cursor:pointer" onclick="lampiranBuka(\''+o.id+'\',\''+slot+'\','+i+')">📄</span>')+
             '<span style="font-size:10px;cursor:pointer" onclick="lampiranBuka(\''+o.id+'\',\''+slot+'\','+i+')">'+esc(f.nama||f.n||'lampiran')+
               /* berkas dari seed/cloud lama bisa tanpa ukuran — jangan cetak "undefined KB" */
@@ -17174,9 +17187,9 @@ function packRefDel(id,k,i,j){
   a.splice(j,1);o._m=Date.now();save();render();}
 function packRefBuka(o,k,i,j){
   var f=packRefOf(o,k,i)[j];if(!f)return;
-  if(String(f.tipe||'').indexOf('image')===0){openLB(f.data);return;}
+  if(String(f.tipe||'').indexOf('image')===0){openLB(gambarSrc(f.data));return;}
   var w=window.open('','_blank');
-  if(w)w.document.write('<iframe src="'+f.data+'" style="border:0;width:100%;height:100%;position:absolute;inset:0"></iframe>');
+  if(w)w.document.write('<iframe src="'+gambarSrc(f.data)+'" style="border:0;width:100%;height:100%;position:absolute;inset:0"></iframe>');
   else alert('Popup diblokir browser. Izinkan popup untuk membuka PDF.');}
 function packRefBlok(o,k,i){
   var a=packRefOf(o,k,i),idx=(i===undefined?-1:i);
@@ -17189,14 +17202,14 @@ function packRefBlok(o,k,i){
     a.map(function(f,j){
       var gbr=String(f.tipe||'').indexOf('image')===0;
       return '<span style="display:inline-flex;align-items:center;gap:5px;border:1px solid var(--line);border-radius:8px;padding:3px 6px;background:var(--card,#fff)">'+
-        (gbr?'<img src="'+f.data+'" style="width:24px;height:24px;object-fit:cover;border-radius:4px;cursor:zoom-in" onclick="packRefBuka(ST.orders.find(function(x){return x.id===\''+o.id+'\'}),\''+k+'\','+idx+','+j+')">'
+        (gbr?'<img src="'+gambarSrc(f.data)+'" style="width:24px;height:24px;object-fit:cover;border-radius:4px;cursor:zoom-in" onclick="packRefBuka(ST.orders.find(function(x){return x.id===\''+o.id+'\'}),\''+k+'\','+idx+','+j+')">'
             :'<span style="font-size:13px;cursor:pointer" onclick="packRefBuka(ST.orders.find(function(x){return x.id===\''+o.id+'\'}),\''+k+'\','+idx+','+j+')">📄</span>')+
         '<span style="font-size:9.5px">'+esc(f.nama)+'</span>'+
         '<button class="xrow" onclick="packRefDel(\''+o.id+'\',\''+k+'\','+idx+','+j+')">✕</button></span>';}).join('')+
     logoA.map(function(f,j){
       var gbr=String(f.tipe||'').indexOf('image')===0;
       return '<span style="display:inline-flex;align-items:center;gap:5px;border:1px solid var(--ok);border-radius:8px;padding:3px 6px;background:var(--card,#fff)" title="logo kemasan ini — ikut dicetak vendor">'+
-        (gbr?'<img src="'+f.data+'" style="width:24px;height:24px;object-fit:cover;border-radius:4px;cursor:zoom-in" onclick="lampiranBuka('+jsArg(o.id)+','+jsArg(logoSlot)+','+j+')">'
+        (gbr?'<img src="'+gambarSrc(f.data)+'" style="width:24px;height:24px;object-fit:cover;border-radius:4px;cursor:zoom-in" onclick="lampiranBuka('+jsArg(o.id)+','+jsArg(logoSlot)+','+j+')">'
             :'<span style="cursor:pointer" onclick="lampiranBuka('+jsArg(o.id)+','+jsArg(logoSlot)+','+j+')">\ud83d\udcc4</span>')+
         '<span style="font-size:9px;color:var(--ok);font-weight:700">logo</span>'+
         '<span style="font-size:9.5px">'+esc(f.nama||f.n||'logo')+'</span>'+
@@ -18040,7 +18053,7 @@ function genDoc(id,type){
    ${L.length?`<div class="dsec">Attachment Information</div><div class="djt">Attachments & Notes</div><ol class="dol">${L.map(a=>'<li>'+esc(a.nama)+'</li>').join('')}</ol>`:''}
    <div class="dsign2">Regards,${ttd.ttd?'<div><img src="'+ttd.ttd+'" alt="" style="height:64px;margin:6px 0 2px"></div>':'<div style="height:52px"></div>'}<div class="nm">${esc(ttd.nama)}</div></div>
    ${kaki}
-   ${L.map((a,i)=>`<div style="page-break-before:always;height:1px"></div>${kop}<div class="djt">Attachments ${i+1} : ${esc(a.nama)}</div>${a.tiles?('<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:10px">'+a.tiles.map(function(x){return '<div style="text-align:center">'+(x.img?imgTag(x.img,'width:100%;max-height:300px;object-fit:contain;border:1px solid #ddd;border-radius:8px'):'')+'<div style="font-size:11px;color:#333;margin-top:6px;font-weight:700">'+esc(x.cap)+'</div>'+((x.notes&&x.notes.length)?('<ul class="dol" style="text-align:left;font-size:10.5px;margin:4px 0 0 18px">'+x.notes.map(function(n){return '<li>'+esc(n)+'</li>';}).join('')+'</ul>'):'')+'</div>';}).join('')+'</div>'):((a.data&&a.data.indexOf('data:image')===0)?('<img src="'+a.data+'" alt="" style="max-width:100%;max-height:220mm;object-fit:contain;display:block;margin:8px auto">'):('<div class="dket">'+esc(a.nama)+' (file)</div>'))}${kaki}`).join('')}`;
+   ${L.map((a,i)=>`<div style="page-break-before:always;height:1px"></div>${kop}<div class="djt">Attachments ${i+1} : ${esc(a.nama)}</div>${a.tiles?('<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:10px">'+a.tiles.map(function(x){return '<div style="text-align:center">'+(x.img?imgTag(x.img,'width:100%;max-height:300px;object-fit:contain;border:1px solid #ddd;border-radius:8px'):'')+'<div style="font-size:11px;color:#333;margin-top:6px;font-weight:700">'+esc(x.cap)+'</div>'+((x.notes&&x.notes.length)?('<ul class="dol" style="text-align:left;font-size:10.5px;margin:4px 0 0 18px">'+x.notes.map(function(n){return '<li>'+esc(n)+'</li>';}).join('')+'</ul>'):'')+'</div>';}).join('')+'</div>'):((a.data&&gambarSrc(a.data).indexOf('data:image')===0)?('<img src="'+gambarSrc(a.data)+'" alt="" style="max-width:100%;max-height:220mm;object-fit:contain;display:block;margin:8px auto">'):('<div class="dket">'+esc(a.nama)+' (file)</div>'))}${kaki}`).join('')}`;
   $('#docbody').innerHTML=htmlDok;ST._docHtml=htmlDok;   // salinan terakhir — dibaca uji & pratinjau
   /* quotation tak boleh diedit di layar — ubah datanya di HUB lalu generate ulang */
   const kunci=(type==='quotation');ST._dokKunci=kunci;
