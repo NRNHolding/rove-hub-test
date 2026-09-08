@@ -176,6 +176,20 @@
   .nlbl{font-size:10px;font-weight:800;color:var(--muted);display:block;margin-bottom:3px}
   .sj{font-size:12.5px;font-weight:800;color:var(--brand);margin:0 0 5px;letter-spacing:.3px;text-transform:uppercase}
   .kecil{font-size:9.5px;color:var(--muted)}
+  /* ---- isian ke bawah (keputusan user 8 Sep 2026): tiap label + kotak satu baris
+     penuh selebar panel — di panel order (.body), kartu tab lain (.rcard), dan form
+     dialog. Grid yang berisi gambar/kartu (tanpa label.nlbl), tabel, dan deretan
+     tombol tidak disentuh. ---- */
+  .body div[style*="grid-template-columns"]:has(> label),.rcard div[style*="grid-template-columns"]:has(> label),
+  .body div[style*="grid-template-columns"]:has(> div > label),.rcard div[style*="grid-template-columns"]:has(> div > label),
+  .body div[style*="grid-template-columns"]:has(> div > .nlbl),.rcard div[style*="grid-template-columns"]:has(> div > .nlbl),
+  .body .g2:has(> label),.body .g3:has(> label),.rcard .g2:has(> label),.rcard .g3:has(> label),
+  .rcard .g2:has(> div > .nlbl),.body .g2:has(> div > .nlbl),.rcard .g3:has(> div > .nlbl),.body .g3:has(> div > .nlbl){grid-template-columns:1fr!important}
+  .nlbl{display:block}
+  .nlbl > .pin,.nlbl > input,.nlbl > select,.nlbl > textarea,.nlbl > div > .pin{width:100%!important;min-width:0}
+  .nlbl > div[style*="display:flex"] > .pin.money,.nlbl > div[style*="display:flex"] > input.pin{flex:1}
+  [data-f="termin"] > div{flex-direction:column;align-items:stretch}
+  [data-f="termin"] .pill{display:flex;width:100%;box-sizing:border-box;justify-content:space-between;align-items:center}
   .hj .kecil{font-size:8.5px;line-height:1.35}
   .hj tfoot td{background:var(--bg);font-weight:800;font-size:11px}
   .hj tfoot tr.pct td{font-weight:400;font-size:9.5px;color:var(--muted)}
@@ -230,6 +244,7 @@
   .dol{margin:2px 0 6px 22px;padding:0;font-size:11px;line-height:1.6}
   .dtotwrap{margin-top:8px;border-top:1px solid #ccc;padding-top:6px}
   .dsign2{margin-top:30px;font-size:11px;text-align:right}.dsign2 .nm{font-weight:800}
+  .dtot.dmerah{color:#b3161b;font-weight:800;font-size:14px;border-top:2px solid #333;border-bottom:3px double #333;padding:7px 9px}
   .dfoot2{margin-top:18px;font-size:9.5px;color:#666;display:flex;justify-content:space-between;border-top:1px solid #ddd;padding-top:6px}
   /* Margin per halaman HARUS datang dari @page: padding #docbody hanya berlaku
      sekali, jadi halaman kedua dan seterusnya dulu tercetak menempel ke tepi
@@ -531,7 +546,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20260908-095058';
+const VERSI='20260908-103116';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -4890,7 +4905,8 @@ function dokBaris(o,dok){
       var k=induk.indexOf(x);
       var bagi=(k===induk.length-1)?(lebur-terbagi):Math.round(lebur*(x.qty||1)/bobot);
       terbagi+=bagi;r.amount+=bagi;
-      r.termasuk=sembunyi.map(function(s){return s.nama;});}
+      /* add-on dilebur diam-diam (catatan revisi quotation 5c); collateral yang dilebur tetap disebut */
+      r.termasuk=sembunyi.filter(function(s){return s.jenis!=='addon';}).map(function(s){return s.nama;});}
     r.harga=(r.qty>0)?Math.round(r.amount/r.qty):r.amount;
     return r;});}
 /* keterangan tiap baris di dokumen client (bahasa Inggris) */
@@ -5632,6 +5648,55 @@ function opsiProfitTabel(o,baca){
         '<td data-l="Total Net Profit" class="num" style="font-weight:800;color:'+profitWarna(a.pct)+'">'+fmt0(a.bersih)+'</td><td data-l="%" class="num" style="font-weight:800;color:'+profitWarna(a.pct)+'">'+a.pct+'%</td></tr>';}).join('')+
     '</tbody></table></div></div>';}
 
+/* ================= ONGKIR MULTI KOTA =================
+   Satu quotation boleh mengirim ke beberapa tujuan (mis. sebagian ke venue di
+   Bali, sisanya ke kantor client di Jakarta). Tujuan utama = Alamat kirim
+   (ongkirBlok); tujuan lain dicatat di sini, tarifnya dari Master → Pengiriman,
+   beratnya diketik. Jumlahnya ikut Shipping Cost di quotation & invoice. */
+function shipLainList(o){if(!Array.isArray(o.shipLain))o.shipLain=[];return o.shipLain;}
+function shipLainJumlah(r){return Math.round((+r.kg||0)*(+r.tarif||0));}
+function shipLainTotal(o){return (((o||{}).shipLain)||[]).reduce(function(s,r){return s+shipLainJumlah(r);},0);}
+function shipLainAdd(id){
+  var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
+  shipLainList(o).push({id:'sl'+Math.random().toString(36).slice(2,7),kota:'',eksp:'',layanan:'',lama:'',kg:0,tarif:0,ket:''});
+  o._m=Date.now();save();render();}
+function shipLainSet(id,rid,f,v){
+  var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
+  var r=shipLainList(o).find(function(x){return x.id===rid;});if(!r)return;
+  if(f==='kg')r.kg=Math.max(0,parseFloat(String(v==null?'':v).replace(',','.'))||0);
+  else if(f==='tarif')r.tarif=Math.max(0,moneyVal(v));
+  else r[f]=String(v==null?'':v).trim();
+  if(f==='kota'||f==='eksp'||f==='layanan'){
+    var Z=((ST.master||{}).shipping||[]).filter(function(s){return s.kota===r.kota&&(!r.eksp||s.ekspedisi===r.eksp);});
+    var z=Z.find(function(s){return !r.layanan||(s.layanan||'')===r.layanan;})||Z[0];
+    if(z){r.eksp=z.ekspedisi;if(!r.layanan)r.layanan=z.layanan||'';r.lama=z.lama||'';r.tarif=+z.tarif||0;}}
+  logHist(o,'Ongkir tujuan lain '+(r.kota||'(kota?)')+': '+(r.kg||0)+' kg × '+fmt0(r.tarif||0)+' = '+fmt0(shipLainJumlah(r)));
+  o._m=Date.now();save();render();}
+function shipLainDel(id,rid){
+  var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
+  o.shipLain=shipLainList(o).filter(function(x){return x.id!==rid;});o._m=Date.now();save();render();}
+function shipLainBlok(o){
+  var L=shipLainList(o),M=((ST.master||{}).shipping||[]);
+  var kota=M.map(function(s){return s.kota;}).filter(function(k,i,a){return k&&a.indexOf(k)===i;});
+  return '<div data-f="shipLain" style="margin-top:10px;border-top:1px dashed var(--line);padding-top:8px">'+
+    '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:6px"><b style="font-size:10.5px">Tujuan lain (multi kota)</b>'+
+      '<span class="kecil">satu quotation boleh ke beberapa tujuan — tarif dari Master → Pengiriman, berat diketik; jumlahnya ikut Shipping Cost</span>'+
+      '<button class="btn ghost sm" style="margin-left:auto" onclick="shipLainAdd('+jsArg(o.id)+')">＋ Tujuan lain</button></div>'+
+    '<datalist id="kotalistLain">'+kota.map(function(k){return '<option value="'+esc(k)+'">';}).join('')+'</datalist>'+
+    (L.length?('<div class="xscroll"><table class="rtable mstack"><thead><tr><th>Kota tujuan</th><th style="width:120px">Ekspedisi</th><th style="width:110px">Layanan</th><th class="num" style="width:70px">Berat kg</th><th class="num" style="width:110px">Tarif/kg</th><th class="num" style="width:110px">Jumlah</th><th>Keterangan</th><th style="width:28px"></th></tr></thead><tbody>'+
+      L.map(function(r){var E=M.filter(function(s){return s.kota===r.kota;});var eks=E.map(function(s){return s.ekspedisi;}).filter(function(k,i,a){return k&&a.indexOf(k)===i;});var lay=E.filter(function(s){return s.ekspedisi===r.eksp;}).map(function(s){return s.layanan||'';}).filter(function(k,i,a){return a.indexOf(k)===i;});
+        var H=function(f){return 'shipLainSet('+jsArg(o.id)+','+jsArg(r.id)+','+jsArg(f)+',this.value)';};
+        return '<tr><td data-l="Kota"><input class="pin" list="kotalistLain" style="width:100%" value="'+esc(r.kota)+'" placeholder="kota" onchange="'+H('kota')+'"></td>'+
+          '<td data-l="Ekspedisi">'+(eks.length?('<select class="pin" style="width:100%" onchange="'+H('eksp')+'"><option value="">—</option>'+eks.map(function(e){return '<option '+(r.eksp===e?'selected':'')+'>'+esc(e)+'</option>';}).join('')+'</select>'):('<input class="pin" style="width:100%" value="'+esc(r.eksp)+'" placeholder="ekspedisi" onchange="'+H('eksp')+'">'))+'</td>'+
+          '<td data-l="Layanan">'+(lay.length?('<select class="pin" style="width:100%" onchange="'+H('layanan')+'">'+lay.map(function(e){return '<option '+((r.layanan||'')===e?'selected':'')+'>'+esc(e||'-')+'</option>';}).join('')+'</select>'):('<input class="pin" style="width:100%" value="'+esc(r.layanan)+'" placeholder="Regular" onchange="'+H('layanan')+'">'))+'</td>'+
+          '<td data-l="Berat"><input class="pin n" type="number" step="0.1" style="width:100%" value="'+(r.kg||'')+'" onchange="'+H('kg')+'"></td>'+
+          '<td data-l="Tarif"><input class="pin n money" inputmode="numeric" style="width:100%" value="'+moneyInp(r.tarif)+'" onchange="'+H('tarif')+'"></td>'+
+          '<td data-l="Jumlah" class="num"><b>'+fmt0(shipLainJumlah(r))+'</b></td>'+
+          '<td data-l="Keterangan"><input class="pin" style="width:100%" value="'+esc(r.ket)+'" placeholder="mis. 30 pcs ke venue" onchange="'+H('ket')+'"></td>'+
+          '<td><button class="xrow" onclick="shipLainDel('+jsArg(o.id)+','+jsArg(r.id)+')">✕</button></td></tr>';}).join('')+
+      '<tr><td colspan="5" style="text-align:right;font-weight:800">Total tujuan lain</td><td class="num" style="font-weight:800">'+fmt0(shipLainTotal(o))+'</td><td colspan="2"></td></tr></tbody></table></div>'):'')+
+    '</div>';}
+
 /* ================= PILIHAN ONGKIR =================
    Master → Pengiriman: satu baris per ekspedisi × layanan × kota (tarif/kg,
    lama kirim). Semua baris ke kota tujuan ditawarkan di quotation kecuali
@@ -5699,12 +5764,31 @@ function dokWarna(o,r){
   return '';}
 /* lampiran quotation: yang dilampirkan Sales/Creative di Brief (slot
    quoFiles), kalau kosong preview sketsa, kalau kosong gambar produk & kemasan */
-function dokLampiran(o){
+/* lampiran spesifikasi (catatan revisi quotation 5a): tiap produk utama dulu, baru
+   collateral — gambar + catatan spesifikasi (bahasa dokumen client) di bawahnya */
+function dokLampiranSpek(o){
+  var tiles=[],L=(((o.pricing||{}).lines)||[]);
+  var catatan=function(jenis,l){var out=[];
+    var mat=(l.bahan&&l.bahan!=='Katalog'&&l.bahan!=='Collateral')?l.bahan:'';if(mat)out.push('Material: '+mat);
+    var r={jenis:jenis,l:l,termasuk:[],jb:null};
+    var w='';try{w=dokWarna(o,r);}catch(e){}if(w)out.push('Colour: '+w);
+    var c='';try{c=dokCatatanBaris(o,r);}catch(e){}
+    c.split(String.fromCharCode(10)).forEach(function(x){x=String(x||'').trim();if(x&&!/^Colour:/.test(x))out.push(x);});
+    var p='';try{p=dokPerso(o,r);}catch(e){}if(p&&p!=='-')out.push('Personalization: '+p);
+    var q=(l.qty||0);if(q)out.push('Quantity: '+q+' pcs');
+    return out;};
+  lineProduk(o).forEach(function(x){var l=x.l;tiles.push({img:lineImg(l)||'',cap:l.produk||'Product',notes:catatan('produk',l)});});
+  L.filter(function(l){return (l.qty||0)>0&&(l.coll||lineJenis(l)==='coll');}).forEach(function(l){
+    var img=lineImg(l)||((COLLAT_IMG&&l.coll)?(COLLAT_IMG[l.coll]||''):'');
+    tiles.push({img:img,cap:l.produk||'Collateral',notes:catatan('coll',l)});});
+  return tiles.length?{nama:'Product & Collateral Specification',tiles:tiles}:null;}
+function dokLampiran(o,tanpaSpek){
   var b=briefGet(o),out=[];
   (b.quoFiles||[]).forEach(function(f){out.push({nama:f.nama||'Attachment',data:f.data||'',tipe:f.tipe||''});});
   if(!out.length)(b.previewFiles||[]).forEach(function(f){out.push({nama:f.nama||'Preview',data:f.data||'',tipe:f.tipe||''});});
-  if(!out.length){var t=[];try{t=refTiles(o,true);}catch(e){}
-    if(t.length)out.push({nama:'Product & Collateral Images',tiles:t});}
+  /* spesifikasi selalu ikut sebagai lampiran terakhir — produk utama dulu, lalu collateral */
+  var spek=null;try{spek=dokLampiranSpek(o);}catch(e){}
+  if(spek&&!tanpaSpek)out.push(spek);
   return out;}
 /* lampiran invoice pelunasan: foto barang jadi (QC) lalu foto terpacking */
 function dokLampiranPel(o){
@@ -13545,7 +13629,7 @@ function orderTotals(o){
   var jasa=jasaTotal(o);sub+=jasa;          // add-on & live service ikut ditagih
   var lain=0;try{lain=biayaTagih(o);}catch(e){}sub+=lain;   // biaya di luar HPP ditagih, dilebur ke produk utama
   var disc=(P.discType==='pct')?Math.round(sub*(P.disc||0)/100):+(P.disc||0);
-  var ship=+(P.ship||0);
+  var ship=+(P.ship||0)+shipLainTotal(o);          // tujuan utama + tujuan lain (multi kota)
   var dpp=sub-disc+ship;                               // dasar pengenaan pajak
   var pj=pajakGet(o),pct=+pj.pct||0;
   var ppn=pj.kena?Math.round(dpp*pct/100):0;
@@ -14647,6 +14731,7 @@ function ongkirBlok(o){
         '<input class="pin n money" style="width:96px;margin-top:3px" inputmode="numeric" data-id="'+esc(o.id)+'" data-field="ship" value="'+moneyInp(P.ship)+'" oninput="priceInput(this)"></label>'+
     '</div>'+
     (ket?('<div style="font-size:9.5px;color:var(--muted);margin-top:6px">'+ket+'</div>'):'')+
+    shipLainBlok(o)+
     '</div>';}
 function profitPanel(o){
   /* Dulu di sini ada profitSiapkan(o) — ia MENULIS l.jual lalu save(), jadi
@@ -17863,24 +17948,25 @@ function genDoc(id,type){
   const discItem=(((oDok.pricing||{}).lines)||[]).reduce((s,l)=>s+((lineJenis(l)==='jasa'||!(l.qty>0))?0:lineDisc(l,mDoc)*(l.qty||0)),0);
   const dpTgl=((o.pay||{}).dpDate)||'';
   const judulDok=title.charAt(0)+title.slice(1).toLowerCase();
-  const tabelOpsi=S.map(s=>{const oc=s.klon,rows=dokBaris(oc,dokJ),Tc=orderTotals(oc),ships=isInv?[]:shipOpsiUntuk(oc);
+  const tabelOpsi=S.map(s=>{const oc=s.klon,rows=dokBaris(oc,dokJ),Tc=orderTotals(oc),ships=isInv?[]:shipOpsiUntuk(oc),lain=isInv?[]:(oc.shipLain||[]).filter(r=>(+r.kg>0&&+r.tarif>0));
     const judul=S.length>1?(esc(s.nama)+' '):'';
     return `<div class="djt">${judul}PRODUCT / SERVICE LIST</div>
    <table class="dtable grid"><thead><tr><th class="num wno">No.</th><th class="wprod">Product / Service</th><th class="wmat">Material</th><th class="wcol">Color</th><th class="wperso">Personalization</th><th class="num wharga">Price / Unit</th><th class="num wqty">Qty</th><th class="num wjml">Amount</th></tr></thead><tbody>
    ${rows.map((r,i)=>`<tr><td class="num">${i+1}</td><td>${esc(r.nama)}${r.termasuk.length?'<div class="dket">Including: '+esc(r.termasuk.join(', '))+'</div>':''}</td><td>${esc(dokMaterial(oc,r))||'-'}</td><td>${esc(dokWarna(oc,r))||'-'}</td><td>${esc(dokPerso(oc,r))||'-'}</td><td class="num">${idr(r.harga)}</td><td class="num">${r.qty}</td><td class="num">${idr(r.amount)}</td></tr>`).join('')}
    <tr class="dsub"><td colspan="7">SUB TOTAL PROJECT</td><td class="num">${idr(Tc.sub)}</td></tr></tbody></table>
    ${(Tc.disc>0&&!pasti)?`<div class="dtot"><span>Discount${P.discType==='pct'?(' ('+(P.disc||0)+'%)'):''}</span><span>${idr(Tc.disc)}</span></div>`:''}
-   ${isInv?'':(ships.length?`<div class="djt">${judul}SHIPPING INFORMATION</div>
-   <table class="dtable grid"><thead><tr><th class="num wno">No.</th><th>Expedition</th><th>Service</th><th>Delivery Time</th><th class="num">Price / kg</th><th class="num">Weight</th><th class="num">Amount</th></tr></thead><tbody>
-   ${ships.map((x,i)=>`<tr><td class="num">${i+1}</td><td>${esc(x.ekspedisi)}</td><td>${esc(x.layanan)||'-'}</td><td>${esc(x.lama)||'-'}</td><td class="num">${idr(x.tarif)}</td><td class="num">${x.kg?String(x.kg).replace('.',','):'-'}</td><td class="num">${idr(x.amount)}</td></tr>`).join('')}</tbody></table>`
+   ${isInv?'':((ships.length||lain.length)?`<div class="djt">${judul}SHIPPING INFORMATION</div>
+   <table class="dtable grid"><thead><tr><th class="num wno">No.</th><th>Destination</th><th>Expedition</th><th>Service</th><th>Delivery Time</th><th class="num">Price / kg</th><th class="num">Weight</th><th class="num">Amount</th></tr></thead><tbody>
+   ${ships.map((x,i)=>`<tr><td class="num">${i+1}</td><td>${esc(oc.shipKota||'-')}</td><td>${esc(x.ekspedisi)}</td><td>${esc(x.layanan)||'-'}</td><td>${esc(x.lama)||'-'}</td><td class="num">${idr(x.tarif)}</td><td class="num">${x.kg?String(x.kg).replace('.',','):'-'}</td><td class="num">${idr(x.amount)}</td></tr>`).join('')}
+   ${lain.map((r,i)=>`<tr><td class="num">${ships.length+i+1}</td><td>${esc(r.kota)}${r.ket?('<div class="dket">'+esc(r.ket)+'</div>'):''}</td><td>${esc(r.eksp)||'-'}</td><td>${esc(r.layanan)||'-'}</td><td>${esc(r.lama)||'-'}</td><td class="num">${idr(r.tarif)}</td><td class="num">${String(r.kg).replace('.',',')}</td><td class="num">${idr(shipLainJumlah(r))}</td></tr>`).join('')}</tbody></table>`
    :`<div class="dket" style="margin:2px 0 8px">Shipping cost: optional — quoted separately.</div>`)}`;}).join('');
   const totalPasti=pasti?`<div class="dtotwrap">
    <div class="dtot"><span>Sub Total</span><span>${idr(sub+discItem)}</span></div>
-   ${ship>0?`<div class="dtot"><span>Shipping Cost${o.shipEksp?(' — '+esc([o.shipEksp,o.shipLayanan].filter(Boolean).join(' · '))):''}</span><span>${idr(ship)}</span></div>`:`<div class="dtot"><span>Shipping Cost (optional — quoted separately)</span><span>-</span></div>`}
+   ${ship>0?`<div class="dtot"><span>Shipping Cost${o.shipEksp?(' — '+esc([o.shipEksp,o.shipLayanan].filter(Boolean).join(' · '))):''}${(oDok.shipLain||[]).filter(r=>(+r.kg>0&&+r.tarif>0)).length?(' + '+(oDok.shipLain||[]).filter(r=>(+r.kg>0&&+r.tarif>0)).length+' other destination(s)'):''}</span><span>${idr(ship)}</span></div>`:`<div class="dtot"><span>Shipping Cost (optional — quoted separately)</span><span>-</span></div>`}
    ${(disc+discItem)>0?`<div class="dtot"><span>Discount${(disc>0&&P.discType==='pct')?(' ('+(P.disc||0)+'%)'):''}${discItem>0?' (incl. per-item discount)':''}${(disc>0&&P.discKet)?(' — '+esc(P.discKet)):''}</span><span>− ${idr(disc+discItem)}</span></div>`:''}
    ${T.kena?`<div class="dtot"><span>DPP</span><span>${idr(T.dpp)}</span></div><div class="dtot"><span>PPN ${T.pctPpn}%</span><span>${idr(T.ppn)}</span></div>`:''}
    <div class="dtot g"><span>GRAND TOTAL</span><span>${idr(grand)}</span></div></div>`:'';
-  const L=isPel?dokLampiranPel(o):dokLampiran(o);
+  const L=isPel?dokLampiranPel(o):dokLampiran(o,isInv);   // lampiran spesifikasi hanya di quotation
   const ttd=dokTtd(o);
   const kop=`<div class="dhrow"><div><img src="${LOGO_ROVE.lockup}" alt="ROVE" style="height:46px"></div>
      <div class="dkop"><b>ROVE - FAVORS AND GIFTS</b><br>Jl. Tenggilis Barat I No.21, Kel. Kendangsari, Kec. Tenggilis Mejoyo, Surabaya, Jawa Timur 60292<br>+62 812-9965-1010<br>@rove gift<br>www.rovegift.com</div></div>
@@ -17889,24 +17975,31 @@ function genDoc(id,type){
   /* Billing Information: nilai proyek, riwayat billing (I DP, II settlement),
      lalu tagihan invoice ini */
   const billingHTML=isInv?(function(){
-    const satu=(dpPct>=100),pelAmt=grand-dpAmt;
+    /* bentuk sesuai lembar Excel Rove: riwayat 4 termin tetap, lalu tiga baris
+       total, lalu TOTAL BILLING untuk invoice ini */
+    const satu=(dpPct>=100),pay=o.pay||{},pelAmt=grand-dpAmt;
+    const adaDp=(+pay.dp||0)>0,adaPel=(+pay.pel||0)>0;
     const rows=satu
-      ?[['I','Full Payment',grand,100,isPel?'paid':'this invoice']]
-      :[['I','Down Payment',dpAmt,dpPct,isPel?('paid'+(dpTgl?(' '+tglDMY(dpTgl)):'')):'this invoice'],
-        ['II','Settlement',pelAmt,pelPct,isPel?'this invoice':'next invoice']];
-    const untuk=satu?'I — Full Payment':(isPel?'II — Settlement':'I — Down Payment');
+      ?[['Full Payment',adaDp?tglDMY(pay.dpDate||''):'-',100,adaDp?(+pay.dp):null],
+        ['2nd Installment','-',0,null],['3rd Installment','-',0,null],['Settlement','-',0,null]]
+      :[['Down Payment',adaDp?tglDMY(pay.dpDate||''):'-',dpPct,adaDp?(+pay.dp):null],
+        ['2nd Installment','-',0,null],['3rd Installment','-',0,null],
+        ['Settlement',adaPel?tglDMY(pay.pelDate||''):'-',pelPct,adaPel?(+pay.pel):null]];
+    const received=orderPaid(o);
+    const untuk=satu?'Full Payment':(isPel?'Settlement':'Down Payment');
     const pctIni=satu?100:(isPel?pelPct:dpPct);
     const due=isPel?remaining:(satu?grand:dpAmt);
     return `<div class="dsec">Billing Information</div>
-   <table class="dinfotbl">${info('Grand Total Project',idr(grand))}</table>
    <div class="djt">BILLING HISTORY</div>
-   <table class="dtable grid"><thead><tr><th class="num wno">No.</th><th>Billing</th><th class="num wjml">Amount</th><th class="num">% of Project</th><th>Status</th></tr></thead><tbody>
-   ${rows.map(r=>`<tr><td class="num">${r[0]}</td><td>${esc(r[1])}</td><td class="num">${idr(r[2])}</td><td class="num">${r[3]}%</td><td>${esc(r[4])}</td></tr>`).join('')}
+   <table class="dtable grid"><thead><tr><th class="num wno">No.</th><th>Payment Terms</th><th style="width:20%">Payment Date</th><th class="num" style="width:9%">%</th><th class="num" style="width:20%">Amount</th></tr></thead><tbody>
+   ${rows.map((r,i)=>`<tr><td class="num">${i+1}</td><td>${esc(r[0])}</td><td>${esc(r[1])}</td><td class="num">${r[2]}%</td><td class="num">${r[3]!=null?idr(r[3]):'-'}</td></tr>`).join('')}
+   <tr><td colspan="4" style="font-weight:800">PAYMENT ALREADY RECEIVED</td><td class="num">${received>0?idr(received):'IDR -'}</td></tr>
+   <tr style="background:#e6e6e6"><td colspan="4" style="font-weight:800">GRAND TOTAL PROJECT</td><td class="num" style="font-weight:800">${idr(grand)}</td></tr>
+   <tr><td colspan="4" style="font-weight:800">REMAINING PROJECT BILLING</td><td class="num" style="font-weight:800">${idr(Math.max(0,grand-received))}</td></tr>
    </tbody></table>
    <div class="djt">TOTAL BILLING</div>
-   <table class="dinfotbl">${info('Billing for',untuk)}${info('% of Total Project',pctIni+'%')}</table>
-   <div class="dtotwrap"><div class="dtot g"><span>TOTAL BILLING DUE</span><span>${idr(due)}</span></div>
-   <div class="dtot"><span>REMAINING PAYMENT after this billing</span><span>${idr(Math.max(0,grand-(isPel?orderPaid(o):0)-due))}</span></div></div>`;})():'';
+   <table class="dinfotbl">${info('Billing For',untuk)}${info('% of Total Project',pctIni+'%')}</table>
+   <div class="dtotwrap"><div class="dtot g dmerah"><span>TOTAL BILLING DUE</span><span>Rp&nbsp;&nbsp;${String(fmt0(due)).replace(/^Rp\s?/,'')}</span></div></div>`;})():'';
   const htmlDok=`${kop}
    <div class="dsec">${isInv?'Invoice':'Order'} Information</div>
    <table class="dinfotbl">${info(isInv?'Invoice Number':'Quotation Number',no)}${(isInv&&(o.docs||{}).quoNo)?info('Quotation Number',o.docs.quoNo):''}${info(isInv?'Invoice Date':'Quotation Date',tglDoc)}${info(isInv?'Due Date':'Quotation Due Date',tglDue)}</table>
@@ -17922,7 +18015,7 @@ function genDoc(id,type){
    ${L.length?`<div class="dsec">Attachment Information</div><div class="djt">Attachments & Notes</div><ol class="dol">${L.map(a=>'<li>'+esc(a.nama)+'</li>').join('')}</ol>`:''}
    <div class="dsign2">Regards,${ttd.ttd?'<div><img src="'+ttd.ttd+'" alt="" style="height:64px;margin:6px 0 2px"></div>':'<div style="height:52px"></div>'}<div class="nm">${esc(ttd.nama)}</div></div>
    ${kaki}
-   ${L.map((a,i)=>`<div style="page-break-before:always;height:1px"></div>${kop}<div class="djt">Attachments ${i+1} : ${esc(a.nama)}</div>${a.tiles?('<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:10px">'+a.tiles.map(function(x){return '<div style="text-align:center">'+(x.img?imgTag(x.img,'width:100%;max-height:300px;object-fit:contain;border:1px solid #ddd;border-radius:8px'):'')+'<div style="font-size:11px;color:#333;margin-top:6px">'+esc(x.cap)+'</div></div>';}).join('')+'</div>'):((a.data&&a.data.indexOf('data:image')===0)?('<img src="'+a.data+'" alt="" style="max-width:100%;max-height:220mm;object-fit:contain;display:block;margin:8px auto">'):('<div class="dket">'+esc(a.nama)+' (file)</div>'))}${kaki}`).join('')}`;
+   ${L.map((a,i)=>`<div style="page-break-before:always;height:1px"></div>${kop}<div class="djt">Attachments ${i+1} : ${esc(a.nama)}</div>${a.tiles?('<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:10px">'+a.tiles.map(function(x){return '<div style="text-align:center">'+(x.img?imgTag(x.img,'width:100%;max-height:300px;object-fit:contain;border:1px solid #ddd;border-radius:8px'):'')+'<div style="font-size:11px;color:#333;margin-top:6px;font-weight:700">'+esc(x.cap)+'</div>'+((x.notes&&x.notes.length)?('<ul class="dol" style="text-align:left;font-size:10.5px;margin:4px 0 0 18px">'+x.notes.map(function(n){return '<li>'+esc(n)+'</li>';}).join('')+'</ul>'):'')+'</div>';}).join('')+'</div>'):((a.data&&a.data.indexOf('data:image')===0)?('<img src="'+a.data+'" alt="" style="max-width:100%;max-height:220mm;object-fit:contain;display:block;margin:8px auto">'):('<div class="dket">'+esc(a.nama)+' (file)</div>'))}${kaki}`).join('')}`;
   $('#docbody').innerHTML=htmlDok;ST._docHtml=htmlDok;   // salinan terakhir — dibaca uji & pratinjau
   /* quotation tak boleh diedit di layar — ubah datanya di HUB lalu generate ulang */
   const kunci=(type==='quotation');ST._dokKunci=kunci;
