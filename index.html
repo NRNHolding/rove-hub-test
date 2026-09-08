@@ -531,7 +531,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20260908-093835';
+const VERSI='20260908-095058';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -7981,12 +7981,13 @@ function renderMaster(){
   const SEC={
    users:`<div class="rcard" style="max-width:1060px"><h3>Users / Akun (${M.users.length})</h3>
      <div style="font-size:10.5px;color:var(--muted);margin-bottom:9px">Akun login. Akses ditentukan <b>jabatan</b>, bukan nama. <b>Satu orang boleh lebih dari satu jabatan</b> — akses, tugas, dan checklist jadi gabungan semuanya. (Prototype: password tersimpan lokal — ganti mekanisme aman saat backend.)</div>
-     <div class="xscroll"><table class="rtable" style="table-layout:fixed"><thead><tr><th style="width:118px">Username</th><th style="width:126px">Password</th><th>Jabatan (boleh lebih dari satu)</th><th style="width:150px">Nama lengkap</th><th style="width:170px">Tanda tangan</th><th style="width:46px;text-align:center">Aktif</th><th style="width:38px"></th></tr></thead>
+     <div class="xscroll"><table class="rtable" style="table-layout:fixed"><thead><tr><th style="width:118px">Username</th><th style="width:126px">Password</th><th>Jabatan (boleh lebih dari satu)</th><th style="width:150px">Nama lengkap</th><th style="width:170px">Tanda tangan</th><th style="width:54px;text-align:center" title="urutan kotak &quot;Disetujui oleh&quot; di dokumen PO (1–4); kosong = tak ikut">TTD PO</th><th style="width:46px;text-align:center">Aktif</th><th style="width:38px"></th></tr></thead>
      <tbody>${M.users.map((u,i)=>`<tr><td><input class="pin" value="${esc(u.username)}" onchange="mEdit('users',${i},'username',this.value)" placeholder="username"></td>
        <td><input class="pin" type="password" value="" onchange="setUserPw(${i},this.value)" placeholder="${u.pwHash?'•••• (isi utk ganti)':'set password'}"></td>
        <td>${jabatanSel(i,u)}</td>
        <td><input class="pin" value="${esc(u.namaLengkap||'')}" onchange="mEdit('users',${i},'namaLengkap',this.value)" placeholder="untuk dokumen"></td>
        <td>${u.ttd?('<img src="'+u.ttd+'" alt="" style="height:28px;vertical-align:middle;background:#fff;border:1px solid var(--line);border-radius:4px;margin-right:4px"><button class="xrow" title="hapus tanda tangan" onclick="mEdit(\'users\',${i},\'ttd\',\'\')">✕</button>'):''}<input type="file" accept="image/*" style="font-size:9px;width:128px" onchange="setUserTtd(${i},this)"></td>
+       <td style="text-align:center"><input class="pin n" type="number" min="0" max="9" style="width:44px" value="${u.poTtd||''}" title="urutan tanda tangan di PO" onchange="mEdit('users',${i},'poTtd',this.value)"></td>
        <td style="text-align:center"><input type="checkbox" ${u.aktif?'checked':''} onchange="mEdit('users',${i},'aktif',this.checked)" style="accent-color:var(--brand)"></td>
        <td><button class="xrow" onclick="mDel('users',${i})">✕</button></td></tr>`).join('')}</tbody></table></div>
      <button class="btn ghost sm" style="margin-top:9px" onclick="mAdd('users')">＋ Tambah akun</button></div>`,
@@ -8866,14 +8867,26 @@ function sodRows(){var out=[];expReady().forEach(function(o){
 function roman(n){var r=[[10,'X'],[9,'IX'],[5,'V'],[4,'IV'],[1,'I']],s='';r.forEach(function(p){while(n>=p[0]){s+=p[1];n-=p[0];}});return s;}
 function aisPoNo(dateISO,seq){var d=new Date(dateISO);if(isNaN(d))d=new Date();
   return 'ROVE/PO'+d.getFullYear()+'/'+roman(d.getMonth()+1)+'/000'+seq;}
+/* Nomor PO dokumen mengikuti AIS: ROVE/PO<tahun>/<bulan romawi>/<7 angka>.
+   Finance mengisi angka berikutnya (baris terakhir PO-H) di tab Laporan;
+   tanpa itu HUB memakai urutan lokalnya sendiri. */
+function poNoNext(){return (ST.master&&ST.master.poNext)||'';}
+function poNoSet(v){if(!ST.master)return;ST.master.poNext=String(v||'').trim();saveMaster();render();}
+function poNoAngka(s){var m=String(s||'').match(/(\d+)\s*$/);return m?+m[1]:0;}
+function poNoBaru(dateISO){
+  var d=new Date(dateISO||Date.now());if(isNaN(d))d=new Date();
+  var n=poNoAngka(poNoNext());
+  if(n>0){ST.master.poNext=String(n+1);try{saveMaster();}catch(e){}}
+  else{n=(+localStorage.getItem('rovehub_seq_po')||0)+1;localStorage.setItem('rovehub_seq_po',String(n));}
+  return 'ROVE/PO'+d.getFullYear()+'/'+roman(d.getMonth()+1)+'/'+String(n).padStart(7,'0');}
 function poList(){ // satu entri per (order × vendor) yang PO-nya sudah digenerate
   var out=[];
   expOrders().forEach(function(o){
     var kulit=((ST.master.vendors||[]).find(function(v){return v.tipe==='Kulit';})||{}).nama||'Radja Leather';
     if(o.po&&o.po.generated){var ls=((o.pricing&&o.pricing.lines)||[]).filter(function(l){return l.sumber===kulit&&(l.qty||0)>0;});
-      if(ls.length)out.push({o:o,vendor:kulit,deadline:o.po.deadline||'',note:o.po.note||'',packing:o.po.packing||'',lines:ls});}
+      if(ls.length)out.push({o:o,vendor:kulit,deadline:o.po.deadline||'',note:o.po.note||'',packing:o.po.packing||'',lines:ls,poNo:o.po.poNo||''});}
     Object.keys(o.vpo||{}).forEach(function(v){var p=o.vpo[v];if(!p.generated)return;
-      var ls=vendorLines(o,v);if(ls.length)out.push({o:o,vendor:v,deadline:p.deadline||'',note:p.note||'',packing:p.packing||'',lines:ls});});
+      var ls=vendorLines(o,v);if(ls.length)out.push({o:o,vendor:v,deadline:p.deadline||'',note:p.note||'',packing:p.packing||'',lines:ls,poNo:p.poNo||''});});
   });return out;}
 const POH_COLS=['Date','Vendor','Note','Deadline','Notes'];                                   // kolom E..I
 const POD_C_COLS=['No. PO'];                                                                  // kolom C
@@ -8890,7 +8903,7 @@ function poBarisEkspor(p){
     if((+l.hppFix||0)>0)out.push({l:l,tetap:true});});
   return out;}
 function podCRows(){var seq=+(ST._poSeq||0),out=[];
-  poList().forEach(function(p,i){var no=seq?aisPoNo(dmyToISO(p.o.date),seq+i):'(isi No. PO)';
+  poList().forEach(function(p,i){var no=(p.poNo&&p.poNo.indexOf('ROVE/PO')===0)?p.poNo:(seq?aisPoNo(dmyToISO(p.o.date),seq+i):'(isi No. PO)');
     poBarisEkspor(p).forEach(function(){out.push([no]);});});return out;}
 function podRows(){var out=[];
   poList().forEach(function(p){poBarisEkspor(p).forEach(function(x){
@@ -8954,6 +8967,8 @@ function expPanel(){
       No. SO berikutnya (lihat baris terakhir kolom D di sheet SO-H):
       <input class="pin" style="width:130px;display:inline-block;margin:0 6px" value="${esc(soNoNext())}" onchange="soNoSet(this.value)" placeholder="SO2072800">
       <button class="btn sm" onclick="soAssign()">🔢 Tetapkan ke ${belum} order baru</button>
+      <div style="margin-top:6px">No. PO berikutnya (angka terakhir kolom No. PO di PO-H, dipakai dokumen PO HUB — mis. 1808 → ROVE/PO2026/IX/0001808):
+        <input class="pin" style="width:110px;display:inline-block;margin:0 6px" value="${esc(poNoNext())}" onchange="poNoSet(this.value)" placeholder="1808"></div>
       <div style="margin-top:6px;color:${belum?'var(--warn)':'var(--ok)'};font-weight:700">${belum?(belum+' order belum bernomor — tetapkan dulu sebelum menyalin.'):'✓ Semua order pada periode ini sudah bernomor.'}</div>
       ${belumList.length?`<div style="margin-top:8px;border-top:1px dashed var(--line);padding-top:7px">
         <div style="color:var(--muted);margin-bottom:4px">Masa transisi? Tetapkan <b>satu per satu</b> — nomor berikutnya lanjut sendiri:</div>
@@ -18507,7 +18522,8 @@ function genPO(id){
   const o=ST.orders.find(x=>x.id===id);if(!o)return;
   if(poMissing(o).length){alert('Draft PO belum lengkap — tombol terkunci sampai semua field wajib terisi.');return;}
   const p=o.po;
-  if(!p.poNo){const n=(+localStorage.getItem('rovehub_seq_po')||0)+1;localStorage.setItem('rovehub_seq_po',String(n));p.poNo='PO / '+new Date().getFullYear()+' / '+String(n).padStart(4,'0');}
+  if(!p.poNo)p.poNo=poNoBaru();
+  if(!p.tglPO)p.tglPO=hariIni();
   p.generated=true;
   o.trello={created:true,po:true};
   (o.disc=o.disc||[]).push({cat:['radja','TURUN PO'],who:'Bot',txt:'PO sudah tercantum di trello. Kartu: <b>'+esc(poCardName(o))+'</b>'});
@@ -18575,7 +18591,8 @@ function genVPO(id,v){
   var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
   if(vpoMissing(o,v).length){alert('Lengkapi dulu: '+vpoMissing(o,v).join(', '));return;}
   var p=vpoGet(o,v);
-  if(!p.poNo){var n=(+localStorage.getItem('rovehub_seq_po')||0)+1;localStorage.setItem('rovehub_seq_po',String(n));p.poNo='PO / '+new Date().getFullYear()+' / '+String(n).padStart(4,'0');}
+  if(!p.poNo)p.poNo=poNoBaru();
+  if(!p.tglPO)p.tglPO=hariIni();
   p.generated=true;p.date=nowStr();
   logHist(o,'PO '+v+' digenerate ('+p.poNo+')');
   var ls=vendorLines(o,v),qt=ls.reduce(function(s,l){return s+poQty(l);},0);
@@ -18598,60 +18615,114 @@ function vpoGambarHTML(o,v){
       if(!src||ada[src])return;ada[src]=1;G.push({src:src,cap:x.cap||x.f.nama||''});});});
   if(G.length)out+='<div class="dsec">Gambar Acuan</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:10px">'+G.map(function(x){return kotak(x.src,x.cap);}).join('')+'</div>';
   return out;}
+/* ================= DOKUMEN PO — bentuk sesuai PO Rove (PDF) =================
+   Kop ROVE · PURCHASE ORDER · Order Information · Vendor Information ·
+   PURCHASE LIST (No, Item, Color, Service, Price/Unit, Qty, Amount; 14 baris)
+   · SUB TOTAL / DISCOUNT / SHIPPING COST / GRAND TOTAL · Additional Information
+   (catatan + gambar) · Diterima oleh (vendor) + Disetujui oleh ×N · footer.
+   Spesifikasi lengkap dari Brief menyusul sebagai lampiran. */
+const ROVE_ALAMAT_PO='Jl. Tenggilis Barat I No.21, Kel. Kendangsari, Kec. Tenggilis Mejoyo, Surabaya, Jawa Timur 60292';
+function tglInggris(iso){var d=new Date(iso||Date.now());if(isNaN(d))d=new Date();
+  try{return d.toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',year:'numeric'});}catch(e){return String(iso||'');}}
+function dokKopPO(){
+  return '<div class="dhrow"><div><img src="'+LOGO_ROVE.lockup+'" alt="ROVE" style="height:46px"></div>'+
+    '<div class="dkop"><b>ROVE - Favors and Gifts</b><br>'+ROVE_ALAMAT_PO+'<br>+62 822-3347-7899<br><u>www.rovegift.com</u></div></div>';}
+/* penanda tangan "Disetujui oleh": user dengan urutan TTD PO (Master → Users);
+   tanpa pengaturan, dipakai Purchasing → PM → Finance → Direktur Utama */
+function poPenandaTangan(){
+  var U=((ST.master||{}).users||[]).filter(function(u){return u.aktif!==false;});
+  var P=U.filter(function(u){return (+u.poTtd||0)>0;}).sort(function(a,b){return (+a.poTtd)-(+b.poTtd);});
+  if(!P.length){['Purchasing','Project Manager','Finance','Direktur Utama'].forEach(function(j){
+    var u=U.find(function(x){return P.indexOf(x)<0&&((x.jabatans&&x.jabatans.length)?x.jabatans:[x.jabatan]).indexOf(j)>=0;});if(u)P.push(u);});}
+  return P.slice(0,4).map(function(u){var n=String(u.namaLengkap||'').trim()||u.username||'';
+    return {nama:n.charAt(0).toUpperCase()+n.slice(1),ttd:u.ttd||'',jabatan:u.jabatan||''};});}
+function poWarnaBaris(o,l){
+  var j=lineJenis(l),w='';
+  try{w=String(dokWarna(o,{l:l,jenis:(j==='coll'||l.coll)?'coll':'produk'})||'');}catch(e){}
+  var mat=(j==='produk')?(((l.spek||{}).mainMat)||briefGet(o).mainMat||''):(l.bahan||'');
+  if(mat==='-'||mat==='Katalog'||mat==='Collateral')mat='';
+  if(w&&mat&&w.toLowerCase().indexOf(mat.toLowerCase())>=0)mat='';
+  return [mat,w].filter(Boolean).join(' ');}
+/* kolom Service: produk = jasa add-on yang dikerjakan padanya; jasa = teknik & letak; collateral = tali / ukuran */
+function poServiceBaris(o,l){
+  var j=lineJenis(l);
+  if(j==='jasa'){var nm=namaJasaBaris(l);return [jasaTeknikOrder(o,nm)||l.perso||'',svcLetak(o,nm)].filter(function(x){return x&&x!=='-';}).join(' — ');}
+  if(j==='produk'){var S=[];try{S=liveList(o.svc);}catch(e){}return S.map(function(n){return jasaNamaAsli(n);}).filter(Boolean).join(', ');}
+  return [l.tali&&l.tali!=='-'?'Tali: '+l.tali:'',l.ukuran&&l.ukuran!=='-'?'Ukuran: '+l.ukuran:'',l.finishing&&l.finishing!=='-'?l.finishing:''].filter(Boolean).join(' · ');}
+function poBarisDari(o,ls){
+  var rows=[];
+  ls.forEach(function(l){
+    rows.push({l:l,item:l.produk||'',color:(lineJenis(l)==='jasa')?'':poWarnaBaris(o,l),service:poServiceBaris(o,l),harga:lineHppVendor(l),qty:poQty(l)});
+    if((+l.hppFix||0)>0)rows.push({l:l,item:(l.produk||'')+' — biaya tetap (plat / setup)',color:'',service:'sekali per order',harga:+l.hppFix,qty:1});});
+  return rows;}
+function poBarisRadja(o){
+  return poBarisDari(o,(((o.pricing||{}).lines)||[]).filter(function(l){return (l.qty||0)>0&&!l.svcFee&&isLeatherVendor(l.sumber||'');}));}
+function poBarisVendor(o,v){return poBarisDari(o,vendorLines(o,v));}
+function poGambar(o,ls,v){
+  var G=[],ada={};
+  (ls||[]).forEach(function(l){if(!l)return;lineImgs(l).forEach(function(im){if(!im||ada[im])return;ada[im]=1;G.push({src:im,cap:l.produk||''});});});
+  if(v){var b=briefGet(o),san=vpoSlot(v);
+    [['vpoFinal_','Gambar final'],['vpoLogo_','Logo']].forEach(function(s){(b[s[0]+san]||[]).filter(fileGambar).forEach(function(f){if(!f.data||ada[f.data])return;ada[f.data]=1;G.push({src:f.data,cap:s[1]+(f.nama?(' — '+f.nama):'')});});});}
+  return G;}
+function poDokHTML(o,v,p,rows,X){
+  X=X||{};var vm=((ST.master||{}).vendors||[]).find(function(x){return x.nama===v;})||{};
+  var info=function(k,val){return '<tr><td class="k" style="width:150px">'+k+'</td><td>: '+(esc(val)||'-')+'</td></tr>';};
+  var sub=rows.reduce(function(s,r){return s+(r.harga||0)*(r.qty||0);},0),disc=+(p.diskon||0),ship=+(p.ongkir||0),grand=sub-disc+ship;
+  var isi=rows.map(function(r,i){return '<tr><td class="num">'+(i+1)+'</td><td>'+esc(r.item)+'</td><td>'+esc(r.color||'')+'</td><td>'+esc(r.service||'')+'</td><td class="num">'+idr(r.harga||0)+'</td><td class="num">'+(r.qty||0)+'</td><td class="num">'+idr((r.harga||0)*(r.qty||0))+'</td></tr>';});
+  for(var i=rows.length;i<14;i++)isi.push('<tr><td class="num">'+(i+1)+'</td><td>&nbsp;</td><td></td><td></td><td></td><td></td><td class="num" style="color:#888">IDR -</td></tr>');
+  var kotak=function(judul,nama,img){return '<div style="text-align:center;flex:1;min-width:110px"><div style="font-size:10px;color:#444">'+judul+'</div>'+(img?('<img src="'+img+'" alt="" style="height:54px;margin:6px 0 2px">'):'<div style="height:54px"></div>')+'<div style="font-size:10.5px;font-weight:800">'+esc(nama)+'</div></div>';};
+  var ttd=poPenandaTangan(),kop=dokKopPO();
+  var catatan=(X.catatan||[]).filter(Boolean),gambar=(X.gambar||[]).slice(0,4);
+  return kop+'<div class="djudul" style="font-size:18px">PURCHASE ORDER</div>'+
+    '<div class="dsec">Order Information</div><table class="dinfotbl">'+info('PO Number',p.poNo||'')+info('PO Day, Date',tglInggris(p.tglPO||hariIni()))+info('Deadline',p.deadline?(tglInggris(p.deadline)+' ('+tglDMY(p.deadline)+')'):'')+'</table>'+
+    '<div class="dsec">Vendor Information</div><table class="dinfotbl">'+info('Name',v)+info('Address',vm.alamat||vm.kota||'')+info('Phone',vm.hp||'')+((vm.kontak&&vm.kontak!=='-')?info('Contact person',vm.kontak):'')+'</table>'+
+    '<div class="dsec">Purchase Information</div><div class="djt">PURCHASE LIST'+(X.subjudul?(' — '+esc(X.subjudul)):'')+'</div>'+
+    '<table class="dtable grid"><thead><tr><th class="num wno">No.</th><th>Item</th><th style="width:16%">Color</th><th style="width:17%">Service</th><th class="num" style="width:13%">Price / Unit</th><th class="num wqty">Qty</th><th class="num" style="width:15%">Amount</th></tr></thead><tbody>'+isi.join('')+
+      '<tr><td colspan="6" style="text-align:right;font-weight:800">SUB TOTAL PURCHASE</td><td class="num" style="font-weight:800">'+idr(sub)+'</td></tr>'+
+      '<tr><td colspan="6" style="text-align:right;font-weight:800">DISCOUNT</td><td class="num">'+(disc?('- '+idr(disc)):'IDR -')+'</td></tr>'+
+      '<tr><td colspan="6" style="text-align:right;font-weight:800">SHIPPING COST</td><td class="num">'+(ship?idr(ship):'IDR -')+'</td></tr>'+
+      '<tr style="background:#e6e6e6"><td colspan="6" style="font-weight:800">GRAND TOTAL PURCHASE</td><td class="num" style="font-weight:800">'+idr(grand)+'</td></tr></tbody></table>'+
+    '<div class="dsec">Additional Information</div><div class="dbox" style="display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap;padding:8px 10px">'+
+      '<div style="flex:1;min-width:200px;font-size:11px;line-height:1.6;white-space:pre-wrap">'+(catatan.length?catatan.map(esc).join('\n'):'-')+'</div>'+
+      (gambar.length?('<div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end;max-width:62%">'+gambar.map(function(g){return '<div style="text-align:center;width:150px">'+imgTag(g.src,'width:150px;height:110px;object-fit:contain;background:#fff;border:1px solid #eee')+'<div style="font-size:9px;color:#555">'+esc(g.cap||'')+'</div></div>';}).join('')+'</div>'):'')+'</div>'+
+    '<div style="display:flex;gap:10px;margin-top:22px;flex-wrap:wrap">'+kotak('Diterima oleh,',X.diterima||v,'')+ttd.map(function(t){return kotak('Disetujui oleh,',t.nama,t.ttd);}).join('')+'</div>'+
+    '<div class="dfoot2"><span>Rove Gifts and Favors</span><span>Purchase Order</span><span>1</span></div>'+
+    (X.lampiran?('<div style="page-break-before:always;height:1px"></div>'+kop+'<div class="djudul" style="font-size:15px">LAMPIRAN PO '+esc(p.poNo||'')+' — SPESIFIKASI</div>'+X.lampiran):'');}
 function showVPODoc(o,v){
-  var p=vpoGet(o,v),ls=vendorLines(o,v);
-  var tgl=new Date().toLocaleDateString('id-ID',{day:'2-digit',month:'long',year:'numeric'});
+  var p=vpoGet(o,v),ls=vendorLines(o,v),vm=((ST.master||{}).vendors||[]).find(function(x){return x.nama===v;})||{};
   var info=function(k,val){return '<tr><td class="k">'+k+'</td><td>'+(esc(val)||'-')+'</td></tr>';};
-  $('#docbody').innerHTML=
-   '<div class="dhrow"><div><div class="dbrand">ROVE</div><div class="dbsub">Purchase Order → '+esc(v)+'</div></div>'+
-     '<div class="dtitle">PURCHASE ORDER<div class="dno">'+esc(p.poNo)+'<br>'+tgl+'</div></div></div>'+
-   '<div class="dsec">Project Information</div>'+
-   '<table class="dinfotbl">'+info('Vendor',v+(vendorTipe(v)?(' ('+vendorTipe(v)+')'):''))+info('Kontak vendor',vendorKontak(v))+info('Customer',o.customer)+info('Order',o.product)+info('Deadline',p.deadline?tglDMY(p.deadline):'')+'</table>'+
-   '<div class="dsec">Item Pesanan</div>'+
-   '<table class="dtable"><thead><tr><th class="num">No</th><th>Item</th><th>Bahan</th><th>Finishing</th><th class="num">Qty</th></tr></thead><tbody>'+
-     ls.map(function(l,i){var ex=[l.tali&&l.tali!=='-'?'Tali: '+l.tali:'',l.ukuran&&l.ukuran!=='-'?'Ukuran: '+l.ukuran:''].filter(Boolean).join(' · ');
-       return '<tr><td class="num">'+(i+1)+'</td><td>'+(lineImg(l)?imgTag(lineImg(l),'width:34px;height:34px;object-fit:cover;border-radius:4px;vertical-align:middle;margin-right:7px'):'')+esc(l.produk)+(ex?'<div style="font-size:9px;color:#888;margin-top:2px">'+esc(ex)+'</div>':'')+varianHTML(l)+'</td><td>'+(esc(l.bahan)||'-')+'</td><td>'+(esc(l.perso)||'-')+'</td><td class="num">'+poQtyTeks(l)+(lineSpare(l)?('<div style="font-size:9px;color:#888">client '+(l.qty||0)+' + spare '+lineSpare(l)+'</div>'):'')+'</td></tr>';}).join('')+
-   '</tbody></table>'+
-   /* spesifikasi tiap item — himpunan yang sama dengan lembar permintaan harga */
-   ls.map(function(l){var R=[];try{R=rfqDocSpek(o,l);}catch(e){}if(!R.length)return '';
+  var rows=poBarisVendor(o,v),catatan=[];
+  if(p.note)catatan.push(p.note);if(p.packing)catatan.push('Packing: '+p.packing);
+  /* lampiran: spesifikasi tiap item — himpunan yang sama dengan lembar permintaan harga */
+  var lampiran=ls.map(function(l){var R=[];try{R=rfqDocSpek(o,l);}catch(e){}if(!R.length)return '';
      return '<div class="dsec">Spesifikasi — '+esc(l.produk||'')+'</div><table class="dinfotbl">'+R.map(function(r){return info(r[0],r[1]);}).join('')+'</table>';}).join('')+
    ((p.packing||p.note)?('<div class="dsec">Packing &amp; Catatan</div><table class="dinfotbl">'+(p.packing?info('Packing',p.packing):'')+(p.note?info('Catatan',p.note):'')+'</table>'):'')+
-   vpoGambarHTML(o,v)+
-   (false?('<div class="dsec">Referensi Gambar</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:8px">'+ls.filter(function(l){return lineImg(l);}).map(function(l){return '<div style="text-align:center">'+imgTag(lineImg(l),'width:100%;max-height:240px;object-fit:contain;border:1px solid #ddd;border-radius:8px')+'<div style="font-size:11px;color:#333;margin-top:6px">'+esc(l.produk)+'</div></div>';}).join('')+'</div>'):'')+
-   '<div class="dsign">Disetujui,<div class="nm">Purchasing · Rove</div></div>'+
-   '<div class="dfoot">PO dari ROVE HUB · notif terkirim ke channel Discord order ini. Kirim dokumen ini ke vendor (WhatsApp / email).</div>';
+   vpoGambarHTML(o,v);
+  var html=poDokHTML(o,v,p,rows,{catatan:catatan,gambar:poGambar(o,ls,v),lampiran:lampiran,diterima:(vm.kontak&&vm.kontak!=='-')?vm.kontak:v});
+  $('#docbody').innerHTML=html;ST._docHtml=html;
   ST._doc={type:'po'};
   trDOM(document.getElementById('docbody'));$('#docov').classList.add('show');loadImages();
 }
 function showPODoc(o){
-  const p=o.po,{jualT}=priceTotals(o);
-  const tgl=new Date().toLocaleDateString('id-ID',{day:'2-digit',month:'long',year:'numeric'});
-  const bulan=new Date().toLocaleDateString('id-ID',{month:'long',year:'numeric'});
-  const info=(k,v)=>`<tr><td class="k">${k}</td><td>${esc(v)||'-'}</td></tr>`;
-  const spec=(k,v)=>(v&&v!=='-')?`<tr><td class="k">${k}</td><td>${esc(v)}</td></tr>`:'';
-  $('#docbody').innerHTML=`
-   <div class="dhrow"><div><div class="dbrand">ROVE</div><div class="dbsub">Purchase Order → Radja Leather</div></div>
-     <div class="dtitle">PURCHASE ORDER<div class="dno">${esc(p.poNo)}<br>${tgl}</div></div></div>
-   <div style="font-size:10.5px;color:#555;margin-bottom:4px"><b>Kartu Trello:</b> ${esc(poCardName(o))}</div>
-   <div class="dsec">Project Information</div>
-   <table class="dinfotbl">${info('Customer',o.customer)}${info('Produk',o.product)}${info('Total Qty',o.qty+' pcs')}${info('Deadline Produksi',p.deadline?tglDMY(p.deadline):'')}${info('Barang Titipan Klien',p.titipan?'Ada':'Tidak')}</table>
-   <div class="dsec">Harga yang Disetujui</div>
-   <table class="dtable grid"><thead><tr><th class="num wno">No.</th><th>Item</th><th class="num wqty">Qty</th><th class="num wharga">HPP / pcs</th><th class="num">Biaya tetap</th><th class="num wjml">Total</th></tr></thead><tbody>
-   ${(((o.pricing||{}).lines)||[]).filter(function(l){return (l.qty||0)>0&&!l.svcFee&&isLeatherVendor(l.sumber||'');}).map(function(l,i){var q=poQty(l),hv=lineHppVendor(l),fx=+l.hppFix||0;return '<tr><td class="num">'+(i+1)+'</td><td>'+esc(l.produk||'')+'</td><td class="num">'+poQtyTeks(l)+'</td><td class="num">'+fmt0(hv)+'</td><td class="num">'+(fx?fmt0(fx):'-')+'</td><td class="num">'+fmt0(hv*q+fx)+'</td></tr>';}).join('')}
-   </tbody></table>
-   <div class="dsec">Spesifikasi Produk (dari Brief)</div>
-   ${lineProduk(o).map(function(x){var R=spekDokBaris(o,x.l);return '<div class="djt">'+esc(x.l.produk||'Produk')+' — '+(x.l.qty||0)+' pcs</div><table class="dinfotbl">'+(R.length?R.map(function(r){return info(r[0],r[1]);}).join(''):info('Spesifikasi','belum diisi di Brief'))+'</table>';}).join('')}
-   ${(function(){var J=[];try{liveList(o.svc).forEach(function(n){J.push([n,[jasaTeknikOrder(o,n),svcLetak(o,n)].filter(Boolean).join(' — ')||'-']);});}catch(e){}
-     return J.length?('<div class="djt">Personalization</div><table class="dinfotbl">'+J.map(function(r){return info(r[0],r[1]);}).join('')+'</table>'):'';})()}
-   <div class="dsec">Gambar Produk / Sketch</div>
-   ${refTiles(o).length?`<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:6px">${refTiles(o).map(function(x){return '<div style="text-align:center">'+(x.img?imgTag(x.img,'width:100%;max-height:240px;object-fit:contain;border:1px solid #ddd;border-radius:8px'):'')+'<div style="font-size:11px;color:#333;margin-top:6px">'+esc(x.cap)+'</div></div>';}).join('')}</div>`:'<div style="border:1px dashed #bbb;border-radius:8px;height:120px;display:flex;align-items:center;justify-content:center;color:#aaa;font-size:11px;margin-bottom:4px">[ Belum ada gambar — tambahkan di Pricing / Referensi ]</div>'}
-   ${(function(){var b=o.brief||{};var r2=[];
+  var p=o.po||{},v=kulitVendorNama(),vm=((ST.master||{}).vendors||[]).find(function(x){return x.nama===v;})||{};
+  var info=function(k,val){return '<tr><td class="k">'+k+'</td><td>'+(esc(val)||'-')+'</td></tr>';};
+  var spec=function(k,val){return (val&&val!=='-')?('<tr><td class="k">'+k+'</td><td>'+esc(val)+'</td></tr>'):'';};
+  var L=(((o.pricing||{}).lines)||[]).filter(function(l){return (l.qty||0)>0&&!l.svcFee&&isLeatherVendor(l.sumber||'');});
+  var rows=poBarisRadja(o),catatan=[];
+  if(p.note)catatan.push(p.note);if(p.packing)catatan.push('Packing: '+p.packing);if(p.titipan)catatan.push('Barang titipan klien: ada');
+  var lampiran='<table class="dinfotbl">'+info('Customer',o.customer)+info('Produk',o.product)+info('Total Qty',(o.qty||0)+' pcs')+info('Deadline Produksi',p.deadline?tglDMY(p.deadline):'')+'</table>'+
+   '<div class="dsec">Spesifikasi Produk (dari Brief)</div>'+
+   lineProduk(o).map(function(x){var R=spekDokBaris(o,x.l);return '<div class="djt">'+esc(x.l.produk||'Produk')+' — '+(x.l.qty||0)+' pcs</div><table class="dinfotbl">'+(R.length?R.map(function(r){return info(r[0],r[1]);}).join(''):info('Spesifikasi','belum diisi di Brief'))+'</table>';}).join('')+
+   (function(){var J=[];try{liveList(o.svc).forEach(function(n){J.push([n,[jasaTeknikOrder(o,n),svcLetak(o,n)].filter(Boolean).join(' — ')||'-']);});}catch(e){}
+     return J.length?('<div class="djt">Personalization</div><table class="dinfotbl">'+J.map(function(r){return info(r[0],r[1]);}).join('')+'</table>'):'';})()+
+   (refTiles(o).length?('<div class="dsec">Gambar Produk / Sketch</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:6px">'+refTiles(o).map(function(x){return '<div style="text-align:center">'+(x.img?imgTag(x.img,'width:100%;max-height:240px;object-fit:contain;border:1px solid #ddd;border-radius:8px'):'')+'<div style="font-size:11px;color:#333;margin-top:4px">'+esc(x.cap)+'</div></div>';}).join('')+'</div>'):'')+
+   (function(){var b=o.brief||{};var r2=[];
      if(b.proses&&b.proses!=='-')r2.push(['Proses produksi',b.proses]);
      var ft=(b.fitur||[]).filter(Boolean);if(ft.length)r2.push(['Fitur diminta',ft.join(' · ')]);
-     return r2.length?('<div class="dsec">Brief dari Client</div><table class="dinfotbl">'+r2.map(function(x){return info(x[0],x[1]);}).join('')+'</table>'):'';})()}
-   ${(p.packing||p.note)?`<div class="dsec">Packing & Catatan Produksi</div><table class="dinfotbl">${spec('Cara & tambahan packing',p.packing)}${spec('Catatan produksi',p.note)}</table>`:''}
-   <div class="dsign">Disetujui,<div class="nm">Purchasing · Rove</div></div>
-   <div class="dfoot">PO valid dari ROVE HUB · board Trello PO ROVE kolom PO ${bulan} · notif terkirim ke Discord Radja.</div>`;
+     return r2.length?('<div class="dsec">Brief dari Client</div><table class="dinfotbl">'+r2.map(function(x){return info(x[0],x[1]);}).join('')+'</table>'):'';})()+
+   ((p.packing||p.note)?('<div class="dsec">Packing &amp; Catatan Produksi</div><table class="dinfotbl">'+spec('Cara &amp; tambahan packing',p.packing)+spec('Catatan produksi',p.note)+'</table>'):'');
+  var html=poDokHTML(o,v,p,rows,{catatan:catatan,gambar:poGambar(o,L),lampiran:lampiran,subjudul:'Harga yang Disetujui',diterima:(vm.kontak&&vm.kontak!=='-')?vm.kontak:v});
+  $('#docbody').innerHTML=html;ST._docHtml=html;
   ST._doc={type:'po'};
   trDOM(document.getElementById('docbody'));$('#docov').classList.add('show');loadImages();
 }
