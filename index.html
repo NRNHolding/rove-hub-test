@@ -175,6 +175,10 @@
   .notegrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
   .nlbl{font-size:10px;font-weight:800;color:var(--muted);display:block;margin-bottom:3px}
   .sj{font-size:12.5px;font-weight:800;color:var(--brand);margin:0 0 5px;letter-spacing:.3px;text-transform:uppercase}
+  .kecil{font-size:9.5px;color:var(--muted)}
+  .hj .kecil{font-size:8.5px;line-height:1.35}
+  .hj tfoot td{background:var(--bg);font-weight:800;font-size:11px}
+  .hj tfoot tr.pct td{font-weight:400;font-size:9.5px;color:var(--muted)}
   .nta{width:100%;min-height:52px;padding:7px 9px;border:1px solid var(--line);border-radius:7px;font-size:11px;font-family:inherit;background:var(--bg);resize:vertical}
   .nta:focus{outline:none;border-color:var(--brand)}
   /* document (quotation/invoice) */
@@ -527,7 +531,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20260907-172459';
+const VERSI='20260908-093835';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -4960,12 +4964,14 @@ function diskonBarisSet(id,i,f,v){
   logHist(o,'Diskon '+(l.produk||'item')+': '+(l.dc?((l.dcT==='pct')?(l.dc+'%'):(fmt0(l.dc)+'/pcs')):'dihapus'));
   o._m=Date.now();save();render();}
 /* kotak diskon per pcs di kolom tabel item (Rp atau %) */
-function diskonSel(o,l,i){
-  var m=((o.pricing||{}).margin||0)/100;
-  return '<div style="display:flex;gap:4px"><select class="pin" style="width:52px;padding:6px 2px" onchange="diskonBarisSet('+jsArg(o.id)+','+i+',\'dcT\',this.value)"><option value="rp"'+((l.dcT||'rp')==='rp'?' selected':'')+'>Rp</option><option value="pct"'+(l.dcT==='pct'?' selected':'')+'>%</option></select>'+
-    ((l.dcT==='pct')?('<input class="pin n" type="number" style="width:56px" value="'+(l.dc||'')+'" placeholder="0" onchange="diskonBarisSet('+jsArg(o.id)+','+i+',\'dc\',this.value)">')
-                    :('<input class="pin n money" inputmode="numeric" style="width:90px" value="'+(l.dc?moneyInp(l.dc):'')+'" placeholder="Rp 0" onchange="diskonBarisSet('+jsArg(o.id)+','+i+',\'dc\',this.value)">'))+'</div>'+
-    (l.dc?('<div style="font-size:8.5px;color:var(--muted)">jadi '+fmt0(lineNet(l,m))+'/pcs</div>'):'');}
+function diskonSel(o,l,i,opId,k){
+  var m=((o.pricing||{}).margin||0)/100,op=!!(opId&&opId!=='utama');
+  var hT=op?('opsiSet('+jsArg(o.id)+','+jsArg(opId)+',\'dcT\','+jsArg(k)+',this.value)'):('diskonBarisSet('+jsArg(o.id)+','+i+',\'dcT\',this.value)');
+  var hD=op?('opsiSet('+jsArg(o.id)+','+jsArg(opId)+',\'dc\','+jsArg(k)+',this.value)'):('diskonBarisSet('+jsArg(o.id)+','+i+',\'dc\',this.value)');
+  return '<div style="display:flex;gap:4px"><select class="pin" style="width:52px;padding:6px 2px" onchange="'+hT+'"><option value="rp"'+((l.dcT||'rp')==='rp'?' selected':'')+'>Rp</option><option value="pct"'+(l.dcT==='pct'?' selected':'')+'>%</option></select>'+
+    ((l.dcT==='pct')?('<input class="pin n" type="number" style="width:56px" value="'+(l.dc||'')+'" placeholder="0" onchange="'+hD+'">')
+                    :('<input class="pin n money" inputmode="numeric" style="width:90px" value="'+(l.dc?moneyInp(l.dc):'')+'" placeholder="Rp 0" onchange="'+hD+'">'))+'</div>'+
+    (l.dc?('<div class="kecil">jadi '+fmt0(lineNet(l,m))+'/pcs</div>'):'');}
 /* payment terms: DP % dan settlement — masuk syarat bayar quotation & invoice */
 function terminBlok(o){
   var dp=(o.dpPct==null?50:o.dpPct),T=orderTotals(o),nDp=Math.round(T.grand*dp/100);
@@ -4974,41 +4980,6 @@ function terminBlok(o){
       '<span class="pill" style="display:inline-flex;align-items:center;gap:6px;padding:4px 10px">DP <input class="pin n" type="number" min="0" max="100" style="width:58px" value="'+dp+'" onchange="dpSet('+jsArg(o.id)+',this.value)">% · <b>'+fmt0(nDp)+'</b></span>'+
       '<span class="pill" style="padding:4px 10px">Settlement '+(100-dp)+'% · <b>'+fmt0(T.grand-nDp)+'</b></span>'+
       '<span style="font-size:9.5px;color:var(--muted)">masuk syarat bayar quotation &amp; invoice; 100% = bayar penuh sebelum produksi</span></div></div>';}
-/* opsi quotation untuk pembaca (Profitability): angkanya saja, bukan editor */
-function opsiRingkasBaca(o){
-  var S=[];try{S=opsiSemua(o);}catch(e){}if(S.length<2)return '';
-  return '<div data-f="opsiRingkas" style="border-top:1px solid var(--line);margin-top:13px;padding-top:11px"><div class="sj">Opsi quotation</div>'+
-    '<div style="font-size:10px;color:var(--muted);margin-bottom:6px">Angka tiap opsi — client memilih satu saat Deal.</div>'+
-    '<div class="xscroll"><table class="rtable mstack"><thead><tr><th>Opsi</th><th class="num">Sub total</th><th class="num">HPP</th><th class="num">Profit</th><th class="num">Profit %</th></tr></thead><tbody>'+
-    S.map(function(s){var T=orderTotals(s.klon),P=profitTotals(s.klon);
-      return '<tr><td><b>'+esc(s.nama||'Utama')+'</b></td><td data-l="Sub total" class="num">'+fmt0(T.sub)+'</td><td data-l="HPP" class="num">'+fmt0(P.hpp)+'</td><td data-l="Profit" class="num" style="color:'+profitWarna(P.pct)+'">'+fmt0(P.profit)+'</td><td data-l="Profit %" class="num">'+P.pct+'%</td></tr>';}).join('')+
-    '</tbody></table></div></div>';}
-function diskonBlok(o,baca){
-  var P=o.pricing||{},m=(P.margin||0)/100,T=orderTotals(o),pct=(P.discType==='pct'),R=o._revisiQuo;
-  var L=(P.lines||[]).map(function(l,i){return {l:l,i:i};}).filter(function(x){return (x.l.qty||0)>0&&lineJenis(x.l)!=='jasa';});
-  var baris=L.map(function(x){var l=x.l,d=lineDisc(l,m);
-    return '<tr><td><b>'+esc(l.produk||'-')+'</b><div style="font-size:9px;color:var(--muted)">'+(l.qty||0)+' × '+fmt0(lineJual(l,m))+'</div></td>'+
-      '<td data-l="Diskon per pcs">'+(baca?(l.dc?((l.dcT==='pct')?(l.dc+'%'):(fmt0(l.dc)+'/pcs')):'—')
-        :('<div style="display:flex;gap:4px"><select class="pin" style="width:52px;padding:6px 2px" onchange="diskonBarisSet('+jsArg(o.id)+','+x.i+',\'dcT\',this.value)"><option value="rp"'+((l.dcT||'rp')==='rp'?' selected':'')+'>Rp</option><option value="pct"'+(l.dcT==='pct'?' selected':'')+'>%</option></select>'+
-          ((l.dcT==='pct')?('<input class="pin n" type="number" style="width:64px" value="'+(l.dc||'')+'" placeholder="0" onchange="diskonBarisSet('+jsArg(o.id)+','+x.i+',\'dc\',this.value)">')
-                         :('<input class="pin n money" inputmode="numeric" style="width:100px" value="'+(l.dc?moneyInp(l.dc):'')+'" placeholder="Rp 0" onchange="diskonBarisSet('+jsArg(o.id)+','+x.i+',\'dc\',this.value)">'))+'</div>'))+'</td>'+
-      '<td data-l="Potongan" class="num">'+(d?('−'+fmt0(d*(l.qty||0))):'—')+'</td>'+
-      '<td data-l="Jadi" class="num"><b>'+fmt0(lineNet(l,m)*(l.qty||0))+'</b></td></tr>';}).join('');
-  return '<div data-f="diskon" style="border-top:1px solid var(--line);margin-top:13px;padding-top:11px">'+
-    '<div class="sj">Diskon total</div>'+
-    '<div style="font-size:10px;color:var(--muted);margin-bottom:8px;line-height:1.55">Diskon per item diisi di kolom Diskon/pcs pada tabel item. Diskon dari total diisi di sini — biasanya diminta client sesudah quotation terkirim (kartunya kembali ke sini dari fase Menunggu approval quotation); keduanya masuk quotation revisi.</div>'+
-    (R?('<div style="border:1px solid var(--warn);background:var(--warn-bg);border-radius:9px;padding:8px 11px;margin-bottom:9px;font-size:10.5px;line-height:1.55"><b>✎ Client minta revisi</b> ('+esc(tglID(R.tgl)||'')+(R.oleh?(' · '+esc(R.oleh)):'')+'): '+esc(R.alasan||'')+'</div>'):'')+
-    '<div style="display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;margin-top:10px">'+
-      '<label style="font-size:11px;font-weight:700;color:var(--muted)">Diskon dari total'+
-        (baca?('<div class="pin n" style="width:130px;margin-top:3px;background:var(--bg);color:var(--muted)">'+(pct?((P.disc||0)+'%'):fmt0(P.disc||0))+'</div>')
-             :('<div style="display:flex;gap:4px;margin-top:3px"><select class="pin" style="width:52px;padding:6px 2px" onchange="diskonOrderSet('+jsArg(o.id)+',\'discType\',this.value)"><option value="rp"'+(!pct?' selected':'')+'>Rp</option><option value="pct"'+(pct?' selected':'')+'>%</option></select>'+
-               (pct?('<input class="pin n" type="number" style="width:64px" value="'+(P.disc||'')+'" placeholder="0" onchange="diskonOrderSet('+jsArg(o.id)+',\'disc\',this.value)">')
-                   :('<input class="pin n money" inputmode="numeric" style="width:110px" value="'+(P.disc?moneyInp(P.disc):'')+'" placeholder="Rp 0" onchange="diskonOrderSet('+jsArg(o.id)+',\'disc\',this.value)">'))+'</div>'))+'</label>'+
-      '<div style="margin-left:auto;font-size:11px;text-align:right;line-height:1.7">Sub total <b>'+fmt0(T.sub)+'</b>'+
-        (T.disc?('<br>Diskon dari total <b style="color:var(--warn)">−'+fmt0(T.disc)+'</b>'):'')+(T.ship?('<br>Ongkir <b>'+fmt0(T.ship)+'</b>'):'')+(T.ppn?('<br>PPN <b>'+fmt0(T.ppn)+'</b>'):'')+
-        '<br><span style="font-size:12.5px">Grand total <b style="color:var(--brand)">'+fmt0(T.grand)+'</b></span></div>'+
-    '</div></div>';}
-
 /* live service yang dikerjakan tim sendiri tak punya baris vendor — harga
    jualnya tetap harus terlihat di panel harga jual */
 /* Live service yang dikerjakan tim sendiri: ada di order, tapi tak punya
@@ -5046,50 +5017,8 @@ function jasaJualLompat(id){
     t=cari();}
   if(t){try{t.scrollIntoView({block:'center',behavior:'smooth'});}catch(e){}kedip(t);try{t.focus();}catch(e){}}
   return t;}
-function liveJualBlok(o){
-  var S=jasaLiveSendiri(o);
-  if(!S.length)return '';
-  var fee=0;try{fee=jasaBiayaTim(o);}catch(e){}
-  var qty=0;try{qty=jasaBaris(o)[0]?jasaBaris(o)[0].qty:0;}catch(e){}
-  var jualTotal=0;
-  var baris=S.map(function(n){var H=jasaHargaOrder(o,n),pcs=((+H.perPc||0)>0)&&!((+H.fix||0)>0),jual=pcs?H.perPc:H.fix,omset=pcs?jual*qty:jual;jualTotal+=omset;
-    return '<tr><td><b>'+esc(n)+'</b><div style="font-size:9px;color:var(--muted)">tim sendiri · '+(pcs?'per pcs':'per event')+(H.sendiri?' · harga order ini':(jual>0?' · standar master':''))+'</div></td>'+
-      '<td data-l="Harga jual" class="num"><input class="pin n money" inputmode="numeric" style="width:110px" data-f="jualLive_'+esc(n)+'" value="'+moneyInp(jual)+'" placeholder="Rp 0"'+
-        ' title="harga jual ke client '+(pcs?'per pcs':'per event')+' — berlaku untuk order ini; kosong = harga standar master"'+
-        ' onchange="jasaJualLiveSet('+jsArg(o.id)+','+jsArg(n)+',this.value)">'+(jual>0?'':'<div style="font-size:8.5px;color:var(--warn);font-weight:700">belum ada harga</div>')+'</td>'+
-      '<td data-l="Omset" class="num">'+fmt0(omset)+'</td></tr>';}).join('');
-  var untung=jualTotal-fee,pct=jualTotal>0?Math.round(untung/jualTotal*100):0,mg=fee>0?Math.round(untung/fee*100):null;
-  return '<div data-f="jualJasaLive" style="border-top:1px solid var(--line);margin-top:13px;padding-top:11px">'+
-    '<div class="sj">Live service (tim sendiri)</div><div style="font-size:9.5px;color:var(--muted);margin:-3px 0 6px">Live service (tim sendiri) — harga jual ke client; biayanya fee operator (tab Live service), bukan vendor</div>'+
-    '<div class="xscroll"><table class="rtable mstack"><thead><tr><th>Live service</th><th class="num" style="width:130px">Harga jual</th><th class="num" style="width:120px">Omset</th></tr></thead><tbody>'+baris+
-    '<tr style="background:var(--bg)"><td><b>Biaya ke tim (fee operator)</b><div style="font-size:9px;color:var(--muted)">HPP live service tim sendiri</div></td><td data-l="HPP" class="num"><b>'+fmt0(fee)+'</b></td><td data-l="Margin" class="num">'+(mg===null?'<span style="color:var(--muted)">margin — (fee belum diisi)</span>':('margin <b>'+mg+'%</b>'))+'</td></tr>'+
-    '<tr><td><b>Profit live service</b></td><td class="num"></td><td data-l="Profit" class="num" style="font-weight:800;color:'+profitWarna(pct)+'">'+fmt0(untung)+' · '+pct+'%</td></tr>'+
-    '</tbody></table></div></div>';}
-
 /* tabel harga jual versi baca-saja — kolomnya sama dengan Penentuan harga jual */
-function hargaJualTabelBaca(o){
-  var L=(((o.pricing||{}).lines)||[]).filter(function(l){return (l.qty||0)>0;});
-  var m=((o.pricing||{}).margin||0)/100;
-  if(!L.length)return '<div style="color:var(--muted);font-size:11px">Belum ada baris pricing.</div>';
-  return '<div class="xscroll"><table class="rtable mstack"><thead><tr>'+
-    '<th style="min-width:150px">Item</th><th class="num" style="width:70px">Qty client</th><th class="num" style="width:82px">Qty vendor</th>'+
-    '<th class="num" style="width:110px">HPP/pcs</th><th class="num" style="width:70px">Margin %</th><th class="num" style="width:110px">Harga jual/pcs</th><th class="num" style="width:96px">Diskon/pcs</th>'+
-    '<th class="num" style="width:100px">Profit/pcs</th><th class="num" style="width:70px">Profit %</th><th class="num" style="width:116px">Profit total</th></tr></thead><tbody>'+
-    L.map(function(l){
-      var JJ=jasaJualBaris(o,l);l._jualJasa=JJ?JJ.jual:null;l._platJasa=JJ?JJ.plat:0;var d=lineProfit(l,m);delete l._jualJasa;delete l._platJasa;
-      var mg=null;try{mg=lineMarginEfektif(l,m,o);}catch(e){}
-      return '<tr><td><b>'+esc(l.produk||'-')+'</b>'+(l.bahan?('<div style="font-size:9px;color:var(--muted)">'+esc(l.bahan)+'</div>'):'')+(l.sumber?('<div style="font-size:9px;color:var(--muted)">'+esc(l.sumber)+'</div>'):'')+itemDetail(o,l)+'</td>'+
-        '<td data-l="Qty client" class="num">'+(l.qty||0)+'</td>'+
-        '<td data-l="Qty vendor" class="num">'+lineQtyPO(l)+(d.spare?('<div style="font-size:8.5px;color:var(--warn);font-weight:700">+'+d.spare+' spare</div>'):'')+'</td>'+
-        '<td data-l="HPP/pcs" class="num">'+fmt0(d.hpp)+((+l.hppFix||0)>0?('<div style="font-size:8.5px;color:var(--muted)" title="biaya tetap per order dari jawaban vendor (mis. plat logo) — dibayar sekali per order, bukan per pcs; sudah dikurangkan di Profit total">+ tetap '+fmt0(l.hppFix)+' /order</div>'):'')+'</td>'+
-        '<td data-l="Margin %" class="num">'+((mg===null||mg===undefined||mg==='')?'—':(mg+'%'))+'</td>'+
-        '<td data-l="Harga jual/pcs" class="num"><b>'+fmt0(d.jual)+'</b>'+((d.jasa&&jasaSatuan(l)!=='pcs')?'<div style="font-size:8.5px;color:var(--muted)">per event</div>':'')+
-          ((d.jasa&&(+d.plat||0)>0)?('<div style="font-size:8.5px;color:var(--muted)" title="harga plat yang ditagih ke client, sekali per order">+ plat '+fmt0(d.plat)+' /order</div>'):'')+'</td>'+
-        '<td data-l="Diskon/pcs" class="num">'+((lineJenis(l)!=='jasa'&&l.dc)?((l.dcT==='pct')?(l.dc+'%'):fmt0(l.dc)):'—')+'</td>'+
-        '<td data-l="Profit/pcs" class="num" style="color:'+profitWarna(d.pct)+'">'+((d.adaHpp&&!l.svcFee)?fmt0(d.perPcs):'—')+'</td>'+
-        '<td data-l="Profit %" class="num" style="font-weight:800;color:'+profitWarna(d.pct)+'">'+((d.adaHpp&&!l.svcFee)?(d.pct+'%'):'—')+'</td>'+
-        '<td data-l="Profit total" class="num" style="font-weight:800">'+((d.adaHpp&&!l.svcFee)?fmt0(d.jasa?d.untungTotal:d.total):'—')+'</td></tr>';}).join('')+
-    '</tbody></table></div>';}
+function hargaJualTabelBaca(o){return hargaOpsiTabel(o,opsiSemua(o)[0],true);}
 
 /* ================= FASE QUOTATION — ringkasan baca-saja + generate ================= */
 function quoPanel(o){
@@ -5449,13 +5378,26 @@ function opsiKlon(o,op){
   oc.pricing.lines.forEach(function(l){
     var k=opsiKunci(l),qLama=+l.qty||0;
     if(op.qty&&op.qty[k]!=null)l.qty=Math.max(0,+op.qty[k]||0);
+    /* qty vendor opsi ini; kalau qty client berubah, spare Opsi 1 tak berlaku lagi */
+    if(op.qtyPO&&(+op.qtyPO[k]||0)>0)l.qtyPO=+op.qtyPO[k];
+    else if(op.qty&&op.qty[k]!=null&&(+l.qty||0)!==qLama)l.qtyPO=0;
     if(op.jual&&(+op.jual[k]||0)>0){l.jual=+op.jual[k];}
     else if(l.fixed&&(+l.qty||0)!==qLama&&(+l.qty||0)>0){
       /* katalog: harga vendor ikut tier qty; harga jual memakai rasio yang
          sama dengan opsi utama supaya marginnya tak berubah diam-diam */
       var it=K.find(function(c){return c.name===l.produk;});
       if(it){var hLama=+l.hpp||0,jLama=lineJual(l,m),hBaru=catPrice(it,l.qty||1);
-        if(hBaru>0){l.hpp=hBaru;if(hLama>0&&jLama>0)l.jual=Math.round(hBaru*jLama/hLama/500)*500;}}}});
+        if(hBaru>0){l.hpp=hBaru;if(hLama>0&&jLama>0)l.jual=Math.round(hBaru*jLama/hLama/500)*500;}}}
+    if(op.hpp&&(+op.hpp[k]||0)>0)l.hpp=+op.hpp[k];
+    /* margin opsi ini: harga jual dihitung dari HPP × (1+margin), kecuali harganya diketik sendiri */
+    if(op.mg&&op.mg[k]!=null&&op.mg[k]!==''){l.mg=+op.mg[k]||0;if(!(op.jual&&(+op.jual[k]||0)>0))l.jual=0;}
+    if(op.dc&&op.dc[k]!=null){l.dc=+op.dc[k]||0;l.dcT=((op.dcT||{})[k])||l.dcT||'rp';}});
+  if(op.discType!=null||op.disc!=null){oc.pricing.discType=op.discType||'rp';oc.pricing.disc=+op.disc||0;}
+  if(op.discKet!=null)oc.pricing.discKet=op.discKet;
+  if(Array.isArray(op.biaya))oc.pricing.biaya=op.biaya;
+  /* ongkir opsi: ditimpa tangan, atau otomatis dari berat opsi ini × tarif ekspedisi Opsi 1 */
+  if(op.ship!=null)oc.pricing.ship=+op.ship||0;
+  else if((+o.shipTarif||0)>0&&o._shipKgAuto!==false){try{var e=shipEstimasi(oc);if(e.kg>0)oc.pricing.ship=Math.round(e.kg*(+o.shipTarif||0));}catch(x){}}
   return oc;}
 function opsiSemua(o){
   var out=[{id:'utama',nama:opsiNamaUtama(o),klon:opsiKlon(o,null),utama:true}];
@@ -5476,13 +5418,30 @@ function opsiTambah(id,qtyBaru){
   o.opsi.push(op);
   logHist(o,'Opsi quotation ditambah: '+op.nama);
   o._m=Date.now();save();render();}
+function opsiCari(o,opId){return opsiDaftar(o).find(function(x){return x.id===opId;});}
 function opsiSet(id,opId,f,k,v){
   var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
-  if(opId==='utama'){if(f==='nama'){o.opsiUtamaNama=String(v||'').trim();o._m=Date.now();save();render();}return;}
-  var op=opsiDaftar(o).find(function(x){return x.id===opId;});if(!op)return;
+  if(opId==='utama'){
+    if(f==='nama'){o.opsiUtamaNama=String(v||'').trim();}
+    else if(f==='discKet'){if(!o.pricing)o.pricing={lines:[],margin:30};o.pricing.discKet=String(v||'').trim();}
+    else return;
+    o._m=Date.now();save();render();return;}
+  var op=opsiCari(o,opId);if(!op)return;
+  var uang=function(x){return Math.max(0,moneyVal(x));};
   if(f==='nama')op.nama=String(v||'').trim();
   else if(f==='qty'){if(!op.qty)op.qty={};op.qty[k]=Math.max(0,+v||0);}
-  else if(f==='jual'){if(!op.jual)op.jual={};var h=Math.max(0,moneyVal(v));if(h>0)op.jual[k]=h;else delete op.jual[k];}
+  else if(f==='qtyPO'){if(!op.qtyPO)op.qtyPO={};var q=Math.max(0,+v||0);if(q>0)op.qtyPO[k]=q;else delete op.qtyPO[k];}
+  else if(f==='hpp'){if(!hppBolehEdit()){alert('Sales tidak mengubah HPP langsung — pakai tombol Nego harga di baris itemnya.');render();return;}
+    if(!op.hpp)op.hpp={};var hh=uang(v);if(hh>0)op.hpp[k]=hh;else delete op.hpp[k];}
+  else if(f==='mg'){if(!op.mg)op.mg={};if(String(v==null?'':v).trim()==='')delete op.mg[k];else{op.mg[k]=Math.max(0,+v||0);if(op.jual)delete op.jual[k];}}
+  else if(f==='jual'){if(!op.jual)op.jual={};var hj=uang(v);if(hj>0){op.jual[k]=hj;if(op.mg)delete op.mg[k];}else delete op.jual[k];}
+  else if(f==='dcT'){if(!op.dcT)op.dcT={};if(!op.dc)op.dc={};op.dcT[k]=(v==='pct')?'pct':'rp';op.dc[k]=0;}
+  else if(f==='dc'){if(!op.dc)op.dc={};op.dc[k]=Math.max(0,(((op.dcT||{})[k])==='pct')?(+v||0):uang(v));}
+  else if(f==='discType'){op.discType=(v==='pct')?'pct':'rp';op.disc=0;}
+  else if(f==='disc'){op.disc=Math.max(0,(op.discType==='pct')?(+v||0):uang(v));}
+  else if(f==='discKet'){op.discKet=String(v||'').trim();}
+  else if(f==='ship'){var sv=String(v==null?'':v).trim();op.ship=(sv==='')?null:uang(sv);}
+  else return;
   o._m=Date.now();save();render();}
 function opsiHapus(id,opId){
   var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
@@ -5498,35 +5457,180 @@ function opsiTerapkan(o,opId){
     var op=D.find(function(x){return x.id===opId;});
     if(op){var oc=opsiKlon(o,op);
       o.pricing.lines=oc.pricing.lines;
+      if(op.disc!=null||op.discType!=null){o.pricing.disc=oc.pricing.disc;o.pricing.discType=oc.pricing.discType;}
+      if(op.discKet!=null)o.pricing.discKet=op.discKet;
+      if(Array.isArray(op.biaya))o.pricing.biaya=op.biaya;
+      if(op.ship!=null){o.pricing.ship=+op.ship||0;o._shipKgAuto=false;}
+      else if((+o.shipTarif||0)>0&&o._shipKgAuto!==false){try{var es=shipEstimasi(o);if(es.kg>0){o.shipKg=es.kg;o.pricing.ship=Math.round(es.kg*(+o.shipTarif||0));}}catch(x){}}
       o.qty=lineProduk(o).reduce(function(s,x){return s+(x.l.qty||0);},0)||o.qty;
       o.opsiUtamaNama=op.nama;
       logHist(o,'Client memilih '+op.nama+' — jadi harga & qty yang berlaku');}}
   else logHist(o,'Client memilih '+opsiNamaUtama(o));
   o.opsiRiwayat=D;o.opsi=[];}
 function opsiBlok(o,baca){
-  var S=opsiSemua(o),m=((o.pricing||{}).margin||0)/100;
-  var tabel=S.slice(1).map(function(s){var op=s.op,oc=s.klon,T=orderTotals(oc),P=profitTotals(oc);
-    return '<div style="border:1px solid var(--line);border-radius:9px;padding:9px 11px;margin-top:8px">'+
-      '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:6px">'+
-        (baca?('<b>'+esc(s.nama)+'</b>'):('<input class="pin" style="width:220px;font-weight:800" value="'+esc(s.nama)+'" onchange="opsiSet('+jsArg(o.id)+','+jsArg(op.id)+',\'nama\',\'\',this.value)">'))+
-        '<span style="font-size:10.5px;color:var(--muted)">sub total <b>'+fmt0(T.sub)+'</b> · profit <b style="color:'+profitWarna(P.pct)+'">'+fmt0(P.profit)+' ('+P.pct+'%)</b></span>'+
-        (baca?'':('<button class="btn ghost sm" style="margin-left:auto;font-size:9.5px" onclick="opsiHapus('+jsArg(o.id)+','+jsArg(op.id)+')">✕ Hapus opsi</button>'))+'</div>'+
-      '<div class="xscroll"><table class="rtable mstack"><thead><tr><th>Item</th><th class="num" style="width:80px">Qty</th><th class="num" style="width:120px">Harga/unit</th><th class="num" style="width:120px">Jumlah</th></tr></thead><tbody>'+
-      oc.pricing.lines.map(function(l){var k=opsiKunci(l),q=l.qty||0,jasa=(lineJenis(l)==='jasa'),jl=jasa?null:lineNet(l,m);
-        return '<tr'+(q?'':' style="opacity:.5"')+'><td><b>'+esc(l.produk||'-')+'</b>'+(jasa?'<div style="font-size:9px;color:var(--muted)">jasa — harganya dari Harga jual jasa</div>':(l.fixed?'<div style="font-size:9px;color:var(--muted)">katalog — HPP ikut tier qty</div>':''))+'</td>'+
-          '<td data-l="Qty" class="num">'+(baca?q:('<input class="pin n" type="number" style="width:70px" value="'+q+'" onchange="opsiSet('+jsArg(o.id)+','+jsArg(op.id)+',\'qty\','+jsArg(k)+',this.value)">'))+'</td>'+
-          '<td data-l="Harga/unit" class="num">'+(jl===null?'—':(baca?fmt0(jl):('<input class="pin n money" inputmode="numeric" style="width:110px" value="'+moneyInp(jl)+'" onchange="opsiSet('+jsArg(o.id)+','+jsArg(op.id)+',\'jual\','+jsArg(k)+',this.value)">')))+'</td>'+
-          '<td data-l="Jumlah" class="num"><b>'+(jl===null?'—':fmt0(jl*q))+'</b></td></tr>';}).join('')+
-      '</tbody></table></div></div>';}).join('');
+  var S=opsiSemua(o);
   return '<div data-f="opsi" style="border-top:1px solid var(--line);margin-top:13px;padding-top:11px">'+
     '<div class="sj">Opsi quotation</div>'+
-    '<div style="font-size:10px;color:var(--muted);margin-bottom:8px;line-height:1.55">Untuk client yang minta beberapa pilihan dalam satu quotation — set barang berbeda (qty 0 = tidak ikut) atau qty berbeda (harga katalog ikut tier). Tabel di atas = <b>'+esc(S[0].nama)+'</b>. Selama ada lebih dari satu opsi, quotation tak memuat grand total; saat Deal client memilih satu, dan itulah yang berlaku.</div>'+
+    '<div class="kecil" style="margin-bottom:8px;line-height:1.55">Untuk client yang minta beberapa pilihan dalam satu quotation — tiap opsi punya tabel yang sama dengan Opsi 1 (qty, qty vendor, margin, harga, diskon per pcs, diskon total, ongkir, dan biaya lain sendiri; qty 0 = item tidak ikut; harga katalog ikut tier qty). Selama ada lebih dari satu opsi, quotation tak memuat grand total sampai client memilih saat Deal.</div>'+
     (baca?'':('<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:6px">'+
-      '<input class="pin" style="width:220px" value="'+esc(S[0].nama)+'" title="nama opsi utama di quotation" onchange="opsiSet('+jsArg(o.id)+',\'utama\',\'nama\',\'\',this.value)">'+
-      '<button class="btn ghost sm" onclick="opsiTambah('+jsArg(o.id)+',0)">＋ Opsi set barang (salin dari utama)</button>'+
+      '<button class="btn ghost sm" onclick="opsiTambah('+jsArg(o.id)+',0)">＋ Opsi set barang (salin dari Opsi 1)</button>'+
       '<span style="display:inline-flex;gap:4px;align-items:center"><input class="pin n" type="number" id="opsiQty_'+esc(o.id)+'" style="width:80px" placeholder="qty">'+
         '<button class="btn ghost sm" onclick="opsiTambah('+jsArg(o.id)+',(document.getElementById(\'opsiQty_'+esc(o.id)+'\')||{}).value)">＋ Opsi qty</button></span></div>'))+
-    (tabel||(baca?'<div style="font-size:10.5px;color:var(--muted)">Satu opsi saja — quotation memuat grand total.</div>':''))+'</div>';}
+    (S.length>1?S.slice(1).map(function(s){return hargaOpsiBlok(o,s,baca);}).join(''):'<div style="font-size:10.5px;color:var(--muted)">Satu opsi saja — quotation memuat grand total.</div>')+'</div>';}
+
+/* ================= PENENTUAN HARGA JUAL — SATU TABEL PER OPSI =================
+   Opsi 1 = order utama (isiannya langsung ke baris pricing); Opsi 2.. = pilihan
+   untuk client, tiap kolomnya boleh beda (disimpan sebagai override di o.opsi).
+   Kolom: No · Item · Qty vendor · HPP/pcs · Qty client · Margin % · Harga jual
+   kotor/pcs · Diskon/pcs · Harga jual bersih/pcs · Profit/pcs · Total profit ·
+   Profit %; baris Total + "% of Net Sales". Di bawah tabel: Diskon total
+   (+keterangan), Ongkir, Biaya lain. Paling bawah: % Profit by Opsi. */
+function opsiBiayaList(o,opId){
+  if(!opId||opId==='utama')return biayaList(o);
+  var op=opsiCari(o,opId);if(!op)return [];
+  if(!Array.isArray(op.biaya))op.biaya=JSON.parse(JSON.stringify(biayaList(o)));   // mulai dari salinan Opsi 1
+  return op.biaya;}
+function opsiBiayaAdd(id,opId){
+  var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
+  opsiBiayaList(o,opId).push({kat:BIAYA_KAT[0],nama:'',nominal:0});o._m=Date.now();save();render();}
+function opsiBiayaSet(id,opId,i,f,v){
+  var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
+  var b=opsiBiayaList(o,opId)[i];if(!b)return;
+  b[f]=(f==='nominal')?Math.max(0,moneyVal(v)):v;o._m=Date.now();save();if(f!=='nama')render();}
+function opsiBiayaDel(id,opId,i){
+  var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
+  var L=opsiBiayaList(o,opId);if(!L[i])return;L.splice(i,1);o._m=Date.now();save();render();}
+function biayaBacaBlok(oc){
+  var L=(((oc||{}).pricing||{}).biaya)||[],tot=L.reduce(function(s,b){return s+(+b.nominal||0);},0);
+  return '<div style="margin-top:12px"><div class="sj">Biaya lain</div>'+
+    (L.length?('<div class="xscroll"><table class="rtable mstack"><tbody>'+L.map(function(b){return '<tr><td>'+esc(b.kat||'')+(b.nama?(' — '+esc(b.nama)):'')+'</td><td data-l="Nominal" class="num" style="width:130px"><b>'+fmt0(b.nominal||0)+'</b></td></tr>';}).join('')+
+      '<tr><td style="font-weight:800">Total biaya lain</td><td class="num" style="font-weight:800">'+fmt0(tot)+'</td></tr></tbody></table></div>')
+      :('<div style="font-size:10.5px;color:var(--muted)">'+(((oc||{}).pricing||{}).biayaLainNol?'✓ tak ada biaya lain':'belum dicatat')+'</div>'))+'</div>';}
+function ongkirOpsiBlok(o,s,baca){
+  var oc=s.klon,utama=!!s.utama,T=orderTotals(oc);
+  if(utama&&!baca)return '<div style="margin-top:12px"><div class="sj">Ongkir</div>'+ongkirBlok(o)+shipTawarBlok(o)+'</div>';
+  var e={kg:0};try{e=shipEstimasi(oc);}catch(x){}
+  /* berat: estimasi dari ukuran produk opsi ini; kalau belum ada, berat Opsi 1 (yang diketik) */
+  var kgE=(utama&&o.shipKg>0&&o._shipKgAuto===false)?0:(e.kg||0),kg=kgE>0?kgE:(+o.shipKg||0);
+  var auto=(s.op&&s.op.ship!=null)?Math.round(kg*(+o.shipTarif||0)):T.ship;
+  var ket=(o.shipEksp?(esc(o.shipEksp)+(o.shipLayanan?(' '+esc(o.shipLayanan)):'')+' · '):'')+(kg?(kg+' kg'+(kgE>0?'':' (berat Opsi 1)')+' × '+fmt0(+o.shipTarif||0)+'/kg = '+fmt0(auto)):'berat / tarif belum ada — atur di Ongkir Opsi 1');
+  if(baca)return '<div style="margin-top:12px"><div class="sj">Ongkir</div><div style="font-size:11px">'+(T.ship>0?('<b>'+fmt0(T.ship)+'</b> <span class="kecil">'+ket+'</span>'):'<span style="color:var(--muted)">0 — opsional, di dokumen tertulis "quoted separately"</span>')+'</div></div>';
+  var op=s.op;
+  return '<div data-f="ongkir_'+esc(op.id)+'" style="margin-top:12px"><div class="sj">Ongkir</div>'+
+    '<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:11px"><input class="pin n money" inputmode="numeric" style="width:120px" value="'+(op.ship!=null?moneyInp(op.ship):'')+'" placeholder="'+esc(fmt0(auto))+'" title="kosong = otomatis dari berat opsi ini × tarif ekspedisi Opsi 1; ketik untuk menimpa" onchange="opsiSet('+jsArg(o.id)+','+jsArg(op.id)+',\'ship\',\'\',this.value)">'+
+    '<span class="kecil">'+(op.ship!=null?('ditimpa tangan · otomatis '+fmt0(auto)+' ('+ket+') — kosongkan untuk kembali otomatis'):('otomatis · '+ket))+'</span></div></div>';}
+function diskonTotalBlok(o,s,baca){
+  var oc=s.klon,P=oc.pricing||{},utama=!!s.utama,opId=utama?'utama':s.op.id,T=orderTotals(oc),pct=(P.discType==='pct'),R=utama?o._revisiQuo:null;
+  var hT=utama?('diskonOrderSet('+jsArg(o.id)+',\'discType\',this.value)'):('opsiSet('+jsArg(o.id)+','+jsArg(opId)+',\'discType\',\'\',this.value)');
+  var hD=utama?('diskonOrderSet('+jsArg(o.id)+',\'disc\',this.value)'):('opsiSet('+jsArg(o.id)+','+jsArg(opId)+',\'disc\',\'\',this.value)');
+  var hK='opsiSet('+jsArg(o.id)+','+jsArg(opId)+',\'discKet\',\'\',this.value)';
+  return '<div data-f="'+(utama?'diskon':('diskon_'+esc(opId)))+'" style="margin-top:12px"><div class="sj">Diskon total</div>'+
+    '<div class="kecil" style="margin-bottom:6px;line-height:1.5">Diskon per item diisi di kolom Diskon/pcs pada tabel. Diskon dari total diisi di sini beserta keterangannya (ikut tercetak di quotation &amp; invoice) — biasanya diminta client sesudah quotation terkirim.</div>'+
+    (R?('<div style="border:1px solid var(--warn);background:var(--warn-bg);border-radius:9px;padding:8px 11px;margin-bottom:9px;font-size:10.5px;line-height:1.55"><b>✎ Client minta revisi</b> ('+esc(tglID(R.tgl)||'')+(R.oleh?(' · '+esc(R.oleh)):'')+'): '+esc(R.alasan||'')+'</div>'):'')+
+    (baca?('<div style="font-size:11px">'+(T.disc?('<b style="color:var(--warn)">−'+fmt0(T.disc)+'</b>'+(pct?(' ('+(P.disc||0)+'%)'):'')):'<span style="color:var(--muted)">tanpa diskon dari total</span>')+(P.discKet?(' · '+esc(P.discKet)):'')+'</div>')
+      :('<div style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end">'+
+        '<label class="nlbl">Diskon dari total<div style="display:flex;gap:4px;margin-top:3px"><select class="pin" style="width:52px;padding:6px 2px" onchange="'+hT+'"><option value="rp"'+(!pct?' selected':'')+'>Rp</option><option value="pct"'+(pct?' selected':'')+'>%</option></select>'+
+          (pct?('<input class="pin n" type="number" style="width:64px" value="'+(P.disc||'')+'" placeholder="0" onchange="'+hD+'">'):('<input class="pin n money" inputmode="numeric" style="width:110px" value="'+(P.disc?moneyInp(P.disc):'')+'" placeholder="Rp 0" onchange="'+hD+'">'))+'</div></label>'+
+        '<label class="nlbl" style="flex:1;min-width:200px">Keterangan diskon<input class="pin" data-f="discKet'+(utama?'':('_'+esc(opId)))+'" style="width:100%;margin-top:3px" value="'+esc(P.discKet||'')+'" placeholder="mis. diskon repeat order / paket wedding" onchange="'+hK+'"></label>'+
+        (T.disc?('<span style="font-size:11px;padding-bottom:6px">= <b style="color:var(--warn)">−'+fmt0(T.disc)+'</b></span>'):'')+'</div>'))+'</div>';}
+function hargaOpsiTabel(o,s,baca){
+  var oc=s.klon,op=s.op,utama=!!s.utama,opId=utama?'utama':op.id,edit=!baca,editHpp=edit&&hppBolehEdit();
+  var m=((oc.pricing||{}).margin||0)/100;
+  var L=(((oc.pricing||{}).lines)||[]).map(function(l,i){return {l:l,i:i};}).filter(function(x){return (x.l.qty||0)>0;});
+  var S=[];try{S=jasaLiveSendiri(oc);}catch(e){}
+  if(!L.length&&!S.length)return '<div style="color:var(--muted);font-size:11px">Belum ada baris pricing.</div>';
+  var H=function(f,k,i){
+    if(utama){if(f==='qtyPO')return 'spareSet(\''+o.id+'\','+i+',this.value)';return 'profitSet(\''+o.id+'\','+i+',\''+f+'\',this.value)';}
+    return 'opsiSet('+jsArg(o.id)+','+jsArg(opId)+','+jsArg(f)+','+jsArg(k)+',this.value)';};
+  var n=0,tKotor=0,tDisk=0,tBersih=0,tProfit=0;
+  var rows=L.map(function(x){var l=x.l,i=x.i,k=opsiKunci(l);n++;
+    var JJ=jasaJualBaris(oc,l);l._jualJasa=JJ?JJ.jual:null;l._platJasa=JJ?JJ.plat:0;var d=lineProfit(l,m);delete l._jualJasa;delete l._platJasa;
+    var jasa=(lineJenis(l)==='jasa'),mg=null;try{mg=lineMarginEfektif(l,m,oc);}catch(e){}
+    var q=l.qty||0,kotor=jasa?(+d.jual||0):lineJual(l,m),disk=jasa?0:lineDisc(l,m),bersih=jasa?(+d.jual||0):lineNet(l,m);
+    if(jasa){if(!l.svcFee){var omJ=kotor*jasaKali(l)+(+d.plat||0);tKotor+=omJ;tBersih+=omJ;}}else{tKotor+=kotor*q;tDisk+=disk*q;tBersih+=bersih*q;}
+    var adaUntung=(d.adaHpp&&!l.svcFee),untung=adaUntung?(jasa?d.untungTotal:d.total):0;if(adaUntung)tProfit+=untung;
+    var cHpp=(editHpp?('<input class="pin n money" inputmode="numeric" style="width:110px" value="'+moneyInp(d.hpp)+'" onchange="'+H('hpp',k,i)+'">')
+        :('<b style="font-size:11px">'+fmt0(d.hpp)+'</b>'+(edit?'<div class="kecil">nego lewat tombol Nego harga</div>':'')))+
+      ((jasa&&jasaSatuan(l)!=='pcs')?('<div class="kecil">HPP per event: <b>'+fmt0(lineHppVendor(l)*jasaKali(l)+(+l.hppFix||0))+'</b></div>'):'')+
+      ((+l.hppFix||0)>0?('<div class="kecil" title="biaya tetap per order dari jawaban vendor (mis. plat logo) — dibayar sekali per order, bukan per pcs; sudah dikurangkan di Profit total">+ tetap '+fmt0(l.hppFix)+' /order</div>'):'');
+    var cMg=(edit&&!(jasa&&!utama)&&!l.svcFee)?('<input class="pin n" type="number" style="width:70px" value="'+(mg===null?'':mg)+'" placeholder="—" title="'+(lineHppVendor(l)?'ubah margin → harga jual ikut dihitung':'isi HPP vendor dulu')+'" onchange="'+H('mg',k,i)+'">'):((mg===null||mg===undefined||mg==='')?'—':(mg+'%'));
+    var cKotor;
+    if(l.svcFee)cKotor=edit?('<button class="btn ghost sm" style="font-size:9px" title="fee operator adalah biaya ke tim; harga jual live service diisi di baris live service-nya" onclick="jasaJualLompat('+jsArg(o.id)+')">harga jual live service →</button>'):'—';
+    else if(jasa){
+      cKotor=(edit&&utama)?('<input class="pin n money" inputmode="numeric" style="width:110px" data-f="jualJasa_'+i+'" value="'+moneyInp(d.jual)+'" title="harga jual ke client '+(jasaSatuan(l)==='pcs'?'per pcs':'per event')+' — berlaku untuk order ini; master jadi harga standar" onchange="'+H('jual',k,i)+'">'):('<b>'+fmt0(d.jual)+'</b>');
+      cKotor+=(jasaSatuan(l)!=='pcs')?'<div class="kecil">per event</div>':'';
+      if(jasaSatuan(l)==='pcs'){cKotor+=(edit&&utama)?('<div style="display:flex;align-items:center;gap:4px;margin-top:3px;white-space:nowrap;font-size:8.5px;color:var(--muted)" title="harga plat / biaya tetap yang ditagih ke client, sekali per order — kosong = tak ditagih; masuk quotation, invoice, dan profit">+ plat <input class="pin n money" inputmode="numeric" style="width:96px" data-f="platJasa_'+i+'" value="'+((+d.plat||0)>0?moneyInp(d.plat):'')+'" placeholder="Rp 0" onchange="'+H('plat',k,i)+'"> /order</div>')
+        :((+d.plat||0)>0?('<div class="kecil" title="harga plat yang ditagih ke client, sekali per order">+ plat '+fmt0(d.plat)+' /order</div>'):'');}}
+    else cKotor=edit?('<input class="pin n money" inputmode="numeric" style="width:110px" value="'+moneyInp(kotor)+'" onchange="'+H('jual',k,i)+'">'):('<b>'+fmt0(kotor)+'</b>');
+    var cDisk=jasa?'<span style="color:var(--muted)">—</span>':(edit?diskonSel(oc,l,i,opId,k):(l.dc?((l.dcT==='pct')?(l.dc+'%'):fmt0(l.dc)):'—'));
+    return '<tr><td class="num">'+n+'</td><td><b>'+esc(l.produk||'-')+'</b>'+
+        (l.bahan?('<div class="kecil">'+esc(l.bahan)+'</div>'):'')+(l.sumber?('<div class="kecil">'+esc(l.sumber)+'</div>'):'')+itemDetail(o,l)+((utama&&edit)?negoLencana(o,l,i):'')+'</td>'+
+      '<td data-l="Qty vendor" class="num">'+(edit?('<input class="pin n" type="number" style="width:74px" value="'+lineQtyPO(l)+'" title="jumlah yang dipesan ke vendor — selisihnya jadi spare" onchange="'+H('qtyPO',k,i)+'">'):lineQtyPO(l))+(d.spare?('<div class="kecil" style="color:var(--warn);font-weight:700">+'+d.spare+' spare</div>'):'')+'</td>'+
+      '<td data-l="HPP/pcs" class="num">'+cHpp+'</td>'+
+      '<td data-l="Qty client" class="num">'+(edit?('<input class="pin n" type="number" style="width:64px" value="'+q+'" onchange="'+H('qty',k,i)+'">'):q)+'</td>'+
+      '<td data-l="Margin %" class="num">'+cMg+'</td>'+
+      '<td data-l="Harga jual kotor/pcs" class="num">'+cKotor+'</td>'+
+      '<td data-l="Diskon/pcs">'+cDisk+'</td>'+
+      '<td data-l="Harga jual bersih/pcs" class="num"><b>'+(l.svcFee?'—':fmt0(bersih))+'</b></td>'+
+      '<td data-l="Profit/pcs" class="num" style="color:'+profitWarna(d.pct)+'">'+(adaUntung?fmt0(d.perPcs):'—')+'</td>'+
+      '<td data-l="Total profit" class="num" style="font-weight:800">'+(adaUntung?fmt0(untung):'—')+'</td>'+
+      '<td data-l="Profit %" class="num" style="font-weight:800;color:'+profitWarna(d.pct)+'">'+(adaUntung?(d.pct+'%'):'—')+'</td>'+
+      (edit?((utama)?('<td><button class="xrow" title="hapus item" onclick="profitHapus('+jsArg(o.id)+','+i+')">✕</button></td>'):'<td></td>'):'')+'</tr>';}).join('');
+  /* live service tim sendiri: tak punya baris vendor — biayanya fee operator (tab Live service) */
+  var fee=0;try{fee=jasaBiayaTim(o);}catch(e){}
+  var qtyJ=0;try{var jb=jasaBaris(oc);qtyJ=jb[0]?jb[0].qty:0;}catch(e){}
+  var jualLive=0;
+  var rowsLive=S.map(function(nm,j){var Hh=jasaHargaOrder(o,nm),pcs=((+Hh.perPc||0)>0)&&!((+Hh.fix||0)>0),jual=pcs?(+Hh.perPc||0):(+Hh.fix||0),omset=pcs?jual*qtyJ:jual;jualLive+=omset;n++;
+    var hppRow=(j===0)?fee:0,untung=omset-hppRow,mgL=(hppRow>0&&omset>0)?Math.round(untung/hppRow*100):null,pctL=omset>0?Math.round(untung/omset*100):0;
+    return '<tr data-f="jualJasaLive"><td class="num">'+n+'</td><td><b>'+esc(nm)+'</b><div class="kecil">live service tim sendiri · '+(pcs?'per pcs':'per event')+(Hh.sendiri?' · harga order ini':(jual>0?' · standar master':''))+'</div></td>'+
+      '<td data-l="Qty vendor" class="num">'+(pcs?qtyJ:1)+'</td>'+
+      '<td data-l="HPP/pcs" class="num">'+(j===0?('<b>'+fmt0(fee)+'</b><div class="kecil">Biaya ke tim (fee operator)</div>'):'<span class="kecil">— sudah di baris live service pertama</span>')+'</td>'+
+      '<td data-l="Qty client" class="num">'+(pcs?qtyJ:1)+'</td>'+
+      '<td data-l="Margin %" class="num">'+(mgL===null?'—':(mgL+'%'))+'</td>'+
+      '<td data-l="Harga jual kotor/pcs" class="num">'+((edit&&utama)?('<input class="pin n money" inputmode="numeric" style="width:110px" data-f="jualLive_'+esc(nm)+'" value="'+moneyInp(jual)+'" placeholder="Rp 0" title="harga jual ke client '+(pcs?'per pcs':'per event')+' — berlaku untuk order ini; kosong = harga standar master" onchange="jasaJualLiveSet('+jsArg(o.id)+','+jsArg(nm)+',this.value)">'):('<b>'+fmt0(jual)+'</b>'))+
+        (jual>0?'':'<div class="kecil" style="color:var(--warn);font-weight:700">belum ada harga</div>')+(pcs?'':'<div class="kecil">per event</div>')+'</td>'+
+      '<td data-l="Diskon/pcs"><span style="color:var(--muted)">—</span></td>'+
+      '<td data-l="Harga jual bersih/pcs" class="num"><b>'+fmt0(jual)+'</b></td>'+
+      '<td data-l="Profit/pcs" class="num">'+((pcs&&j===0&&qtyJ>0)?fmt0(Math.round(untung/qtyJ)):'—')+'</td>'+
+      '<td data-l="Total profit" class="num" style="font-weight:800;color:'+profitWarna(pctL)+'">'+fmt0(untung)+'</td>'+
+      '<td data-l="Profit %" class="num" style="font-weight:800;color:'+profitWarna(pctL)+'">'+pctL+'%</td>'+
+      (edit?'<td></td>':'')+'</tr>';}).join('');
+  var untungLive=jualLive-(S.length?fee:0);
+  tKotor+=jualLive;tBersih+=jualLive;tProfit+=untungLive;
+  var pctT=tBersih>0?Math.round(tProfit/tBersih*100):0,pk=function(v){return tBersih>0?(Math.round(v/tBersih*100)+'%'):'—';};
+  var foot='<tr class="tot"><td colspan="6" style="text-align:right">Total</td><td class="num">'+fmt0(tKotor)+'</td><td class="num">'+(tDisk?('−'+fmt0(tDisk)):'—')+'</td><td class="num">'+fmt0(tBersih)+'</td><td></td><td class="num" style="color:'+profitWarna(pctT)+'">'+fmt0(tProfit)+'</td><td class="num" style="color:'+profitWarna(pctT)+'">'+pctT+'%</td>'+(edit?'<td></td>':'')+'</tr>'+
+    '<tr class="pct"><td colspan="6" style="text-align:right">% of Net Sales</td><td class="num">'+pk(tKotor)+'</td><td class="num">'+(tDisk?pk(tDisk):'—')+'</td><td class="num">100%</td><td></td><td class="num">'+pk(tProfit)+'</td><td></td>'+(edit?'<td></td>':'')+'</tr>';
+  return '<div class="xscroll"><table class="rtable mstack hj" data-f="tabelOpsi_'+esc(opId)+'"><thead><tr>'+
+    '<th style="width:26px">No</th><th style="min-width:140px">Item</th><th class="num" style="width:70px">Qty vendor</th><th class="num" style="width:110px">HPP/pcs</th><th class="num" style="width:62px">Qty client</th><th class="num" style="width:64px">Margin %</th>'+
+    '<th class="num" style="width:112px">Harga jual kotor/pcs</th><th style="width:132px">Diskon/pcs</th><th class="num" style="width:96px">Harga jual bersih/pcs</th><th class="num" style="width:92px">Profit/pcs</th><th class="num" style="width:104px">Total profit</th><th class="num" style="width:60px">Profit %</th>'+
+    (edit?'<th style="width:30px"></th>':'')+'</tr></thead><tbody>'+rows+rowsLive+'</tbody><tfoot>'+foot+'</tfoot></table></div>';}
+function hargaOpsiBlok(o,s,baca){
+  var oc=s.klon,utama=!!s.utama,opId=utama?'utama':s.op.id,T=orderTotals(oc),P=profitTotals(oc),edit=!baca;
+  var judul=edit?('<input class="pin" style="width:250px;font-weight:800;font-size:12px" value="'+esc(s.nama)+'" title="nama opsi ini di quotation" onchange="opsiSet('+jsArg(o.id)+','+jsArg(opId)+',\'nama\',\'\',this.value)">'):('<b style="font-size:12.5px;color:var(--brand)">'+esc(s.nama)+'</b>');
+  return '<div data-f="opsi_'+esc(opId)+'" style="border:1px solid var(--line);border-radius:10px;padding:11px 13px;margin-top:12px">'+
+    '<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:8px">'+judul+
+      '<span style="font-size:10.5px;color:var(--muted)">sub total <b>'+fmt0(T.sub)+'</b> · profit <b style="color:'+profitWarna(P.pct)+'">'+fmt0(P.profit)+' ('+P.pct+'%)</b></span>'+
+      ((edit&&!utama)?('<button class="btn ghost sm" style="margin-left:auto;font-size:9.5px" onclick="opsiHapus('+jsArg(o.id)+','+jsArg(opId)+')">✕ Hapus opsi</button>'):'')+'</div>'+
+    hargaOpsiTabel(o,s,baca)+diskonTotalBlok(o,s,baca)+ongkirOpsiBlok(o,s,baca)+(baca?biayaBacaBlok(oc):biayaBlok(o,opId))+
+    '<div style="margin-top:10px;border-top:1px dashed var(--line);padding-top:8px;font-size:11px;text-align:right;line-height:1.7">Sub total <b>'+fmt0(T.sub)+'</b>'+
+      (T.disc?('<br>Diskon dari total <b style="color:var(--warn)">−'+fmt0(T.disc)+'</b>'+((oc.pricing||{}).discKet?(' <span class="kecil">('+esc(oc.pricing.discKet)+')</span>'):'')):'')+(T.ship?('<br>Ongkir <b>'+fmt0(T.ship)+'</b>'):'')+(T.ppn?('<br>PPN <b>'+fmt0(T.ppn)+'</b>'):'')+
+      '<br><span style="font-size:12.5px">Grand total <b style="color:var(--brand)">'+fmt0(T.grand)+'</b></span></div></div>';}
+/* angka tiap opsi untuk "% Profit by Opsi" */
+function opsiAngka(oc){
+  var T=orderTotals(oc),P=profitTotals(oc),m=((oc.pricing||{}).margin||0)/100,discItem=0;
+  (((oc.pricing||{}).lines)||[]).forEach(function(l){if((l.qty||0)>0&&lineJenis(l)!=='jasa')discItem+=lineDisc(l,m)*(l.qty||0);});
+  var gross=T.sub+discItem,disc=discItem+T.disc,net=T.sub-T.disc,hpp=P.hpp,kotor=net-hpp,lain=P.biayaLain,bersih=kotor-lain;
+  return {gross:gross,disc:disc,net:net,hpp:hpp,kotor:kotor,lain:lain,bersih:bersih,pct:net>0?Math.round(bersih/net*100):0,ship:T.ship};}
+function opsiProfitTabel(o,baca){
+  var S=opsiSemua(o);
+  return '<div data-f="opsiProfit" style="border-top:1px solid var(--line);margin-top:13px;padding-top:11px"><div class="sj">% Profit by Opsi</div>'+
+    '<div class="kecil" style="margin-bottom:6px">Gross revenue = semua item sebelum diskon (termasuk jasa &amp; biaya lain yang ditagih); Net revenue = sesudah diskon per pcs &amp; diskon total; Gross profit = net revenue − HPP; Net profit = gross profit − biaya lain. Ongkir tak ikut (ditagih apa adanya).</div>'+
+    '<div class="xscroll"><table class="rtable mstack hj"><thead><tr><th style="width:30px">No</th><th>Opsi</th><th class="num">Total Gross Revenue</th><th class="num">Total Discount</th><th class="num">Total Net Revenue</th><th class="num">Total HPP</th><th class="num">Total Gross Profit</th><th class="num">Total Biaya Lain</th><th class="num">Total Net Profit</th><th class="num" style="width:56px">%</th></tr></thead><tbody>'+
+    S.map(function(s,i){var a=opsiAngka(s.klon);
+      return '<tr><td class="num">'+(i+1)+'</td><td><b>'+esc(s.nama)+'</b></td><td data-l="Total Gross Revenue" class="num">'+fmt0(a.gross)+'</td><td data-l="Total Discount" class="num">'+(a.disc?('−'+fmt0(a.disc)):'—')+'</td><td data-l="Total Net Revenue" class="num"><b>'+fmt0(a.net)+'</b></td>'+
+        '<td data-l="Total HPP" class="num">'+fmt0(a.hpp)+'</td><td data-l="Total Gross Profit" class="num">'+fmt0(a.kotor)+'</td><td data-l="Total Biaya Lain" class="num">'+(a.lain?('−'+fmt0(a.lain)):'—')+'</td>'+
+        '<td data-l="Total Net Profit" class="num" style="font-weight:800;color:'+profitWarna(a.pct)+'">'+fmt0(a.bersih)+'</td><td data-l="%" class="num" style="font-weight:800;color:'+profitWarna(a.pct)+'">'+a.pct+'%</td></tr>';}).join('')+
+    '</tbody></table></div></div>';}
 
 /* ================= PILIHAN ONGKIR =================
    Master → Pengiriman: satu baris per ekspedisi × layanan × kota (tarif/kg,
@@ -13474,11 +13578,15 @@ function biayaNol(id){
   o.pricing.biayaLainNol=!o.pricing.biayaLainNol;
   logHist(o,o.pricing.biayaLainNol?'Dipastikan tak ada biaya di luar HPP':'Tanda "tak ada biaya lain" dicabut');
   o._m=Date.now();save();render();}
-function biayaBlok(o){
-  var L=biayaList(o),tot=biayaTotal(o);
+function biayaBlok(o,opId){
+  var utama=(!opId||opId==='utama'),L=utama?biayaList(o):opsiBiayaList(o,opId);
+  var tot=utama?biayaTotal(o):L.reduce(function(s,b){return s+(+b.nominal||0);},0);
+  var hAdd=utama?('biayaAdd('+jsArg(o.id)+')'):('opsiBiayaAdd('+jsArg(o.id)+','+jsArg(opId)+')');
+  var hSet=function(i,f){return utama?('biayaSet('+jsArg(o.id)+','+i+','+jsArg(f)+',this.value)'):('opsiBiayaSet('+jsArg(o.id)+','+jsArg(opId)+','+i+','+jsArg(f)+',this.value)');};
+  var hDel=function(i){return utama?('biayaDel('+jsArg(o.id)+','+i+')'):('opsiBiayaDel('+jsArg(o.id)+','+jsArg(opId)+','+i+')');};
   /* fee operator sudah masuk HPP lewat baris svcFee — mencatatnya lagi di sini
      membuat satu bayaran terhitung dua kali */
-  var fee=(((o.pricing||{}).lines)||[]).filter(function(l){return l.svcFee;});
+  var fee=utama?(((o.pricing||{}).lines)||[]).filter(function(l){return l.svcFee;}):[];
   var feeTot=fee.reduce(function(t,l){return t+(+l.hpp||0);},0);
   var awasFee=fee.length?('<div style="font-size:10px;color:var(--ink-soft);line-height:1.6;'+
     'border:1px solid var(--warn);background:var(--warn-bg);border-radius:8px;padding:7px 10px;margin-bottom:9px">'+
@@ -13486,22 +13594,22 @@ function biayaBlok(o){
     fee.length+' orang, '+fmt0(feeTot)+', lewat "Ajukan pembayaran" di tab Live service. '+
     'Itu yang masuk PO dan ekspor AIS. <b>Jangan dicatat lagi di sini</b>, nanti terhitung dua kali.</div>'):'';
   var rows=L.map(function(b,i){
-    return '<tr><td data-l="Kategori"><select class="pin" style="min-width:150px" onchange="biayaSet(\'' + o.id + '\','+i+',\'kat\',this.value)">'+
+    return '<tr><td data-l="Kategori"><select class="pin" style="min-width:150px" onchange="'+hSet(i,'kat')+'">'+
         BIAYA_KAT.map(function(k){return '<option '+(b.kat===k?'selected':'')+'>'+esc(k)+'</option>';}).join('')+'</select></td>'+
       '<td data-l="Keterangan"><input class="pin" style="width:100%;min-width:150px" value="'+esc(b.nama||'')+
-        '" placeholder="mis. tiket + hotel 2 operator" onchange="biayaSet(\'' + o.id + '\','+i+',\'nama\',this.value)"></td>'+
+        '" placeholder="mis. tiket + hotel 2 operator" onchange="'+hSet(i,'nama')+'"></td>'+
       '<td data-l="Nominal" class="num"><input class="pin n money" inputmode="numeric" style="width:110px" value="'+moneyInp(b.nominal)+
-        '" onchange="biayaSet(\'' + o.id + '\','+i+',\'nominal\',this.value)"></td>'+
-      '<td><button class="xrow" onclick="biayaDel(\'' + o.id + '\','+i+')">✕</button></td></tr>';}).join('');
-  return '<div style="border:1px dashed var(--line);border-radius:9px;padding:11px 13px;margin-top:12px;background:var(--bg)">'+
+        '" onchange="'+hSet(i,'nominal')+'"></td>'+
+      '<td><button class="xrow" onclick="'+hDel(i)+'">✕</button></td></tr>';}).join('');
+  return '<div data-f="'+(utama?'biayaLain':('biayaLain_'+esc(opId)))+'" style="border:1px dashed var(--line);border-radius:9px;padding:11px 13px;margin-top:12px;background:var(--bg)">'+
     '<div style="display:flex;flex-wrap:wrap;gap:9px;align-items:center;margin-bottom:'+(L.length?'8px':'0')+'">'+
       '<b style="font-size:12.5px;color:var(--brand)"><span>💸 </span><span>BIAYA DI LUAR HPP</span></b>'+
-      '<span style="font-size:10px;color:var(--muted)">ongkir alat, akomodasi operator, sample — potong profit tapi bukan HPP vendor</span>'+
+      '<span style="font-size:10px;color:var(--muted)">'+(utama?'ongkir alat, akomodasi operator, sample — ditagih ke client (dilebur ke produk utama), memotong profit kalau tak ditagih':'biaya lain khusus opsi ini — mulai dari salinan Opsi 1')+'</span>'+
       '<span style="margin-left:auto;display:flex;gap:8px;align-items:center">'+
         (tot?('<b style="font-size:12px;color:var(--warn)">−'+fmt0(tot)+'</b>'):'')+
-        (L.length?'':('<button class="btn ghost sm" onclick="biayaNol(\'' + o.id + '\')">'+
-          ((o.pricing||{}).biayaLainNol?'✓ tak ada biaya lain':'Tak ada biaya lain')+'</button>'))+
-        '<button class="btn ghost sm" onclick="biayaAdd(\'' + o.id + '\')">＋ Tambah biaya</button></span></div>'+
+        ((utama&&!L.length)?('<button class="btn ghost sm" onclick="biayaNol('+jsArg(o.id)+')">'+
+          ((o.pricing||{}).biayaLainNol?'✓ tak ada biaya lain':'Tak ada biaya lain')+'</button>'):'')+
+        '<button class="btn ghost sm" onclick="'+hAdd+'">＋ Tambah biaya</button></span></div>'+
     awasFee+
     (L.length?('<div class="xscroll"><table class="rtable mstack"><thead><tr><th style="width:170px">Kategori</th><th>Keterangan</th>'+
       '<th class="num" style="width:120px">Nominal</th><th style="width:34px"></th></tr></thead><tbody>'+rows+'</tbody></table></div>'):'')+
@@ -13575,9 +13683,13 @@ function profitTotals(o){
      tinggal ongkos retur */
   var tagih=0;try{tagih=biayaTagih(o);}catch(e){}P.tagih=tagih;P.jual+=tagih;
   P.kotor=P.profit+P.jasa+tagih;
+  /* diskon dari total memotong omset yang benar-benar dibayar client — dulu
+     terlewat, jadi order berdiskon terlihat lebih untung dari kenyataannya */
+  var disc=0;try{disc=orderTotals(o).disc;}catch(e){}
+  P.disc=disc;P.kotor-=disc;P.net=P.jual-disc;
   P.biayaLain=biayaTotal(o);
   P.profit=P.kotor-P.biayaLain;
-  P.pct=P.jual>0?Math.round(P.profit/P.jual*100):0;
+  P.pct=P.net>0?Math.round(P.profit/P.net*100):0;
   return P;}
 /* ---- qty client vs qty vendor ----
    Client pesan 100, Rove pesan 105 ke vendor (spare untuk reject/sample).
@@ -14308,7 +14420,7 @@ function ringkasPanel(o){
     tandaMarginDiskon(o)+
     '<div style="font-size:10.5px;color:var(--muted);margin-bottom:10px;line-height:1.6">Tak ada yang bisa diubah dari sini. Kalau ada angka yang salah, <b>tolak</b> ordernya — HUB mengembalikannya ke fase yang tepat sesuai alasanmu.</div>'+
     /* tabel yang sama persis dengan Penentuan harga jual — cuma tak bisa diubah */
-    hargaJualTabelBaca(o)+diskonBlok(o,true)+opsiRingkasBaca(o)+dokItemBlok(o,true)+
+    hargaOpsiBlok(o,opsiSemua(o)[0],true)+opsiBlok(o,true)+opsiProfitTabel(o,true)+dokItemBlok(o,true)+
     '<div style="margin-top:11px;border-top:1px solid var(--line);padding-top:9px">'+
       dirBaris('Omset (sebelum diskon &amp; ongkir)',fmt0(P.jual))+
       dirBaris('HPP vendor','− '+fmt0(P.hpp))+
@@ -14565,54 +14677,7 @@ function profitPanel(o){
           :'item masih bisa ditambah/dikurangi di sini — setelah Quotation sudah terkunci')+'</span>'+
     '</div>'+
     (((ST._catBuka||{})[o.id])?catalogPicker(o,'profit'):''))+
-    '<div class="sj" style="margin-top:8px">Item &amp; harga jual</div>'+
-    (L.length?'<div class="xscroll"><table class="rtable mstack"><thead><tr>'+
-      '<th style="min-width:150px">Item</th><th style="width:70px">Qty client</th><th style="width:82px">Qty vendor</th>'+
-      '<th style="width:118px" class="num">HPP/pcs</th><th style="width:78px" class="num">Margin %</th>'+
-      '<th style="width:118px" class="num">Harga jual/pcs</th><th style="width:150px">Diskon/pcs</th>'+
-      '<th style="width:104px" class="num">Profit/pcs</th><th style="width:78px" class="num">Profit %</th>'+
-      '<th style="width:120px" class="num">Profit total</th><th style="width:30px"></th></tr></thead><tbody>'+
-      L.map(function(l){var i=o.pricing.lines.indexOf(l);
-        /* baris jasa: harga jual dibaca dari harga jasa order/master, dititipkan
-           sementara supaya lineProfit bisa menampilkannya */
-        var JJ=jasaJualBaris(o,l);l._jualJasa=JJ?JJ.jual:null;l._platJasa=JJ?JJ.plat:0;
-        var d=lineProfit(l,m);delete l._jualJasa;delete l._platJasa;
-        return '<tr><td><b>'+esc(l.produk||'-')+'</b>'+
-            (l.bahan?('<div style="font-size:9px;color:var(--muted)">'+esc(l.bahan)+'</div>'):'')+
-            (l.sumber?('<div style="font-size:9px;color:var(--muted)">'+esc(l.sumber)+'</div>'):'')+
-            /* rinciannya dibaca DI SINI — tabel pricing cukup memuat angkanya */
-            itemDetail(o,l)+negoLencana(o,l,i)+'</td>'+
-          '<td data-l="Qty client"><input class="pin n" type="number" style="width:64px" value="'+(l.qty||0)+'" onchange="profitSet(\''+o.id+'\','+i+',\'qty\',this.value)"></td>'+
-          '<td data-l="Qty vendor"><input class="pin n" type="number" style="width:74px" value="'+lineQtyPO(l)+'" title="jumlah yang dipesan ke vendor — selisihnya jadi spare" onchange="spareSet(\''+o.id+'\','+i+',this.value)">'+
-            (d.spare?('<div style="font-size:8.5px;color:var(--warn);font-weight:700">+'+d.spare+' spare</div>'):'')+'</td>'+
-          '<td data-l="HPP/pcs">'+(hppBolehEdit()
-            ?('<input class="pin n money" inputmode="numeric" style="width:110px" value="'+moneyInp(d.hpp)+'" onchange="profitSet(\''+o.id+'\','+i+',\'hpp\',this.value)">')
-            :('<b style="font-size:11px">'+fmt0(d.hpp)+'</b><div style="font-size:8.5px;color:var(--muted)">nego lewat tombol Nego harga</div>'))+
-            ((lineJenis(l)==='jasa'&&jasaSatuan(l)!=='pcs')?('<div style="font-size:8.5px;color:var(--muted)">HPP per event: <b>'+fmt0(lineHppVendor(l)*jasaKali(l)+(+l.hppFix||0))+'</b></div>'):'')+
-            /* biaya tetap vendor (plat logo, fee per event) dicatat saat RFQ dan
-               ikut dihitung di Profit total — ditulis juga di sini supaya sama
-               dengan tabel Profitability & Pricing terkunci */
-            ((+l.hppFix||0)>0?('<div style="font-size:8.5px;color:var(--muted)" title="biaya tetap per order dari jawaban vendor (mis. plat logo) — dibayar sekali per order, bukan per pcs; sudah dikurangkan di Profit total">+ tetap '+fmt0(l.hppFix)+' /order</div>'):'')+'</td>'+
-          '<td data-l="Margin %"><input class="pin n" type="number" style="width:70px" value="'+(lineMarginEfektif(l,m,o)===null?'':lineMarginEfektif(l,m,o))+'" placeholder="—" title="'+(lineHppVendor(l)?'ubah margin → harga jual ikut dihitung':'isi HPP vendor dulu')+'" onchange="profitSet(\''+o.id+'\','+i+',\'mg\',this.value)"></td>'+
-          (l.svcFee
-            /* fee operator = biaya ke tim; harga jual live service-nya di
-               blok Live service (tim sendiri) atau di baris jasanya sendiri */
-            ? '<td data-l="Harga jual/pcs"><button class="btn ghost sm" style="font-size:9px" title="fee operator adalah biaya ke tim; harga jual live service diisi di blok Live service (tim sendiri) atau di baris jasanya" onclick="jasaJualLompat('+jsArg(o.id)+')">harga jual live service →</button></td>'
-            : '<td data-l="Harga jual/pcs"><input class="pin n money" inputmode="numeric" style="width:110px" data-f="jualJasa_'+i+'" value="'+moneyInp(d.jual)+'"'+
-              (d.jasa?(' title="harga jual ke client '+(jasaSatuan(l)==='pcs'?'per pcs':'per event')+' — berlaku untuk order ini; master jadi harga standar"'):'')+
-              ' onchange="profitSet(\''+o.id+'\','+i+',\'jual\',this.value)">'+
-              ((d.jasa&&jasaSatuan(l)!=='pcs')?'<div style="font-size:8.5px;color:var(--muted)">per event</div>':'')+
-              /* add-on per pcs: harga plat yang ditagih ke client, sekali per
-                 order — pasangan dari biaya tetap vendor di kolom HPP */
-              ((d.jasa&&jasaSatuan(l)==='pcs')?('<div style="display:flex;align-items:center;gap:4px;margin-top:3px;white-space:nowrap;font-size:8.5px;color:var(--muted)" title="harga plat / biaya tetap yang ditagih ke client, sekali per order — kosong = tak ditagih; masuk quotation, invoice, dan profit">+ plat <input class="pin n money" inputmode="numeric" style="width:88px;font-size:9.5px;padding:2px 5px" data-f="platJasa_'+i+'" value="'+moneyInp(d.plat)+'" placeholder="Rp 0" onchange="profitSet(\''+o.id+'\','+i+',\'plat\',this.value)"> /order</div>'):'')+'</td>')+
-          (lineJenis(l)==='jasa'?'<td data-l="Diskon/pcs" class="num" style="color:var(--muted)">—</td>':('<td data-l="Diskon/pcs">'+diskonSel(o,l,i)+'</td>'))+
-          '<td data-l="Profit/pcs" class="num" style="color:'+profitWarna(d.pct)+'">'+((d.adaHpp&&!l.svcFee)?fmt0(d.perPcs):'—')+'</td>'+
-          '<td data-l="Profit %" class="num" style="font-weight:800;color:'+profitWarna(d.pct)+'">'+((d.adaHpp&&!l.svcFee)?(d.pct+'%'):'—')+'</td>'+
-          '<td data-l="Profit total" class="num" style="font-weight:800">'+((d.adaHpp&&!l.svcFee)?fmt0(d.jasa?d.untungTotal:d.total):'—')+'</td>'+
-          '<td><button class="xrow" title="hapus item" onclick="profitHapus(\u0027'+o.id+'\u0027,'+i+')">✕</button></td></tr>';}).join('')+
-      '</tbody></table></div>'
-      :'<div style="color:var(--muted);font-size:11px">Belum ada baris pricing.</div>')+
-    liveJualBlok(o)+diskonBlok(o)+terminBlok(o)+opsiBlok(o)+dokItemBlok(o)+ongkirBlok(o)+shipTawarBlok(o)+biayaBlok(o)+
+    hargaOpsiBlok(o,opsiSemua(o)[0],false)+opsiBlok(o)+opsiProfitTabel(o)+terminBlok(o)+dokItemBlok(o)+
     '<div class="sj" style="margin-top:13px;padding-top:11px;border-top:1px solid var(--line)">Total</div>'+
     '<div style="display:flex;flex-wrap:wrap;gap:18px;font-size:11px">'+
       '<div><div style="color:var(--muted);font-size:10px;font-weight:700">TOTAL JUAL</div><b style="font-size:15px">'+fmt0(P.jual)+'</b></div>'+
@@ -17797,7 +17862,7 @@ function genDoc(id,type){
   const totalPasti=pasti?`<div class="dtotwrap">
    <div class="dtot"><span>Sub Total</span><span>${idr(sub+discItem)}</span></div>
    ${ship>0?`<div class="dtot"><span>Shipping Cost${o.shipEksp?(' — '+esc([o.shipEksp,o.shipLayanan].filter(Boolean).join(' · '))):''}</span><span>${idr(ship)}</span></div>`:`<div class="dtot"><span>Shipping Cost (optional — quoted separately)</span><span>-</span></div>`}
-   ${(disc+discItem)>0?`<div class="dtot"><span>Discount${(disc>0&&P.discType==='pct')?(' ('+(P.disc||0)+'%)'):''}${discItem>0?' (incl. per-item discount)':''}</span><span>− ${idr(disc+discItem)}</span></div>`:''}
+   ${(disc+discItem)>0?`<div class="dtot"><span>Discount${(disc>0&&P.discType==='pct')?(' ('+(P.disc||0)+'%)'):''}${discItem>0?' (incl. per-item discount)':''}${(disc>0&&P.discKet)?(' — '+esc(P.discKet)):''}</span><span>− ${idr(disc+discItem)}</span></div>`:''}
    ${T.kena?`<div class="dtot"><span>DPP</span><span>${idr(T.dpp)}</span></div><div class="dtot"><span>PPN ${T.pctPpn}%</span><span>${idr(T.ppn)}</span></div>`:''}
    <div class="dtot g"><span>GRAND TOTAL</span><span>${idr(grand)}</span></div></div>`:'';
   const L=isPel?dokLampiranPel(o):dokLampiran(o);
