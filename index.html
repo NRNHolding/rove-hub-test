@@ -582,7 +582,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20260909-110724';
+const VERSI='20260909-114236';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -4764,7 +4764,7 @@ function contohBuatDasar(n){
    lalu fasenya ditutup dengan applyTrigger seperti tombol "Selesai". */
 /* Naikkan tiap kali bentuk kartu contoh berubah (fase bertambah, isian baru):
    kartu contoh yang tersimpan di browser tiap orang diganti sendiri saat HUB dibuka. */
-const CONTOH_V='23b';
+const CONTOH_V='23c';
 const CONTOH_ISI=[
  /* 0 Inquiry — PM merinci; Sales menjawab warna, logo, dan letaknya */
  function(o){var K=CONTOH_W,b=briefGet(o);
@@ -4793,6 +4793,7 @@ const CONTOH_ISI=[
    ['box','pouch','card'].forEach(function(k){var s=packSpec(o,k);Object.assign(s,packSpecBawaan(k));s.Warna=warnaK[k];});},
  /* 1 Project Costing — semua vendor menjawab; harga NAIK dari katalog */
  function(o){var K=CONTOH_W,t=hariIni();
+   (o.disc=o.disc||[]).push({cat:PH[1].cat,who:'Radja',t:contohHari(-1)+' 09.40',txt:'Harga Irvine Card Wallet <b>Rp 72.500/pcs</b> (naik dari katalog), MOQ 50 pcs, lead time 14 hari kerja. Kulit chromium coklat tua <b>ready</b>.'});
    (o.pricing.lines||[]).forEach(function(l){
      var baru=null;
      if(lineJenis(l)==='produk'){var dasar=(+l.hpp||0)||95000;baru=Math.round(dasar*1.06/500)*500+500;}   // beda dari katalog
@@ -4866,6 +4867,13 @@ const CONTOH_ISI=[
    b['bvBukti_'+vpoSlot(x.v)+'_1']=[contohFoto('transfer','bukti-dp-vendor.jpg',contohSvg('TRF 1','#e8f1e8','#1f6b3a'))];});},
  /* 11 Produksi — foto sample, sample disetujui, collateral terkirim, progres berjalan */
  function(o){var t=hariIni(),b=briefGet(o);
+   /* jawaban Radja & vendor collateral di channel Discord — berfoto, sudah dipakai ke slotnya */
+   (o.disc=o.disc||[]).push(
+     {cat:PH[12].cat,who:'Radja',t:contohHari(-9)+' 15.20',txt:'Sample / first article sudah jadi — cek fotonya. Kalau oke, lanjut potong massal.',files:[contohFoto('produksi1','sample-jadi.jpg',null)].filter(Boolean),dipakai:{0:'sampleFiles'}},
+     {cat:PH[12].cat,who:'Radja',t:contohHari(-6)+' 11.05',txt:'Bahan sudah dipotong & skiving 100 pcs + spare.',files:[contohFoto('produksi2','setelah-potong.jpg',null)].filter(Boolean),dipakai:{0:'potongFiles'}},
+     {cat:PH[12].cat,who:'BoxMaker',t:contohHari(-5)+' 13.30',txt:'Box 100 pcs + 5 spare sudah dikirim ke Radja.',files:[contohFoto('prevBox','box-vendor.jpg',null)].filter(Boolean),dipakai:{0:'collFoto_box'}},
+     {cat:PH[12].cat,who:'Radja',t:contohHari(-2)+' 16.45',txt:'QC 100 pcs lolos, 2 pcs retur jahitan sudah diganti.',files:[contohFoto('produksi3','barang-qc.jpg',null)].filter(Boolean),dipakai:{0:'qcFiles'}},
+     {cat:PH[12].cat,who:'Radja',t:contohHari(-1)+' 10.10',txt:'Packing per 25 pcs, siap kirim.',files:[contohFoto('prevBox','terpacking.jpg',null)].filter(Boolean),dipakai:{0:'packFiles'}});
    b.sampleFiles=[contohFoto('produksi1','sample-jadi.jpg',contohSvg('SAMPLE','#f1ece2','#6b4718'))];
    b.potongFiles=[contohFoto('produksi2','setelah-potong.jpg',contohSvg('POTONG','#efe7d8','#9a6a2f'))];
    b.qcFiles=[contohFoto('produksi3','barang-qc.jpg',contohSvg('QC OK','#fdf1e2','#a3541b'))];
@@ -10074,7 +10082,7 @@ function renderDetail(){
   $('#main').innerHTML=`
    <div style="display:flex;justify-content:space-between;align-items:center"><div class="back" onclick="closeOrder()">‹ Kembali ke pipeline</div>${isVip(o)?vipLencana():''}${bolehAturVip()?vipTombol(o,'order'):''}${revisiAll(o).length?`<span style="background:var(--accent);color:#2b1d0e;border-radius:5px;padding:1px 7px;font-size:9px;font-weight:800">✎ R${revisiAll(o).length}</span>`:''}${(o.phase===0&&o.status!=='Deal')?`<button class="btn ghost sm" style="color:#d9534f" onclick="delOrder('${o.id}')">🗑 Hapus order</button>`:''}</div>
    <div class="dhead">
-     <div><h2># ${nm}</h2><div class="meta">${o.type} · ${o.product} · <b>${o.qty} pcs</b> · ${o.mat}${o.soNo?` · <span style="color:#8fd4a8;font-weight:700;cursor:pointer" onclick="soSetManual('${o.id}')" title="klik untuk ubah No. SO">SO ${esc(o.soNo)}</span> <span style="cursor:pointer;opacity:.6" onclick="soClear('${o.id}')" title="batalkan nomor SO">✕</span>`:` · <span style="cursor:pointer;opacity:.75;border:1px dashed rgba(255,255,255,.35);border-radius:5px;padding:1px 6px;font-size:10px" onclick="soSetManual('${o.id}')" title="tetapkan No. SO manual (untuk order pertama saat transisi)">＋ No. SO</span>`}</div></div>
+     <div><h2># ${nm}</h2>${discordMeta(o)}<div class="meta">${o.type} · ${o.product} · <b>${o.qty} pcs</b> · ${o.mat}${o.soNo?` · <span style="color:#8fd4a8;font-weight:700;cursor:pointer" onclick="soSetManual('${o.id}')" title="klik untuk ubah No. SO">SO ${esc(o.soNo)}</span> <span style="cursor:pointer;opacity:.6" onclick="soClear('${o.id}')" title="batalkan nomor SO">✕</span>`:` · <span style="cursor:pointer;opacity:.75;border:1px dashed rgba(255,255,255,.35);border-radius:5px;padding:1px 6px;font-size:10px" onclick="soSetManual('${o.id}')" title="tetapkan No. SO manual (untuk order pertama saat transisi)">＋ No. SO</span>`}</div></div>
      <div class="right"><div class="phasetag">${selesai?'Status <b>SELESAI</b>':`Fase <b>${o.phase+1}/${PH.length}</b> · ${ph?ph.n+' · PIC '+ph.pic:''}`}</div>
        <div class="progbar">${segs}</div>
        <div style="margin-top:6px"><span style="font-size:10px;color:#c7cbe0;font-weight:700;margin-right:6px">Status order</span>
@@ -10087,6 +10095,7 @@ function renderDetail(){
    ${peringatanBlok(o)}
    ${ringkasSebelumBlok(o)}
    ${panelStack(o)}
+   ${discordPanel(o)}
    ${histPanel(o)}`;
 }
 /* ================= STATUS IKUT FASE & DOKUMEN =================
@@ -11780,12 +11789,74 @@ function panelStack(o){
     out.push('<div id="pnl_'+p.k+'">'+html+'</div>');});
   return out.join('');}
 
-function groupDisc(disc){
+/* Slot HUB yang bisa diisi dari foto kiriman vendor di channel Discord */
+const DISC_SLOTS=[['sampleFiles','Foto sample awal'],['potongFiles','Foto setelah potong'],['qcFiles','Foto QC'],['packFiles','Foto packing'],
+  ['collFoto_box','Foto collateral box'],['collFoto_pouch','Foto collateral pouch'],['collFoto_card','Foto collateral card'],
+  ['terimaFiles','Foto barang diterima'],['refFiles','Referensi client'],['dokProdukFiles','Dokumentasi produk'],['dokumentasiFiles','Dokumentasi penutupan']];
+const DISC_SLOT_LABEL=DISC_SLOTS.reduce(function(a,s){a[s[0]]=s[1];return a;},{});
+function discPakaiSel(o,i,j,m){
+  var sudah=((m.dipakai||{})[j]);
+  if(sudah)return '<div class="kecil" style="color:var(--ok);font-weight:700;margin-top:3px">✓ dipakai: '+esc(DISC_SLOT_LABEL[sudah]||sudah)+'</div>';
+  return '<select class="pin" data-f="discPakai" style="font-size:10px;padding:3px 4px;margin-top:3px" onchange="discPakai('+jsArg(o.id)+','+i+','+j+',this.value)"><option value="">Pakai sebagai…</option>'+
+    DISC_SLOTS.map(function(s){return '<option value="'+s[0]+'">'+esc(s[1])+'</option>';}).join('')+'</select>';}
+function discPakai(id,i,j,slot){
+  var o=ST.orders.find(function(x){return x.id===id;});if(!o||!slot)return;
+  var m=(o.disc||[])[i];var f=m&&(m.files||[])[j];if(!f)return;
+  var b=briefGet(o);if(!Array.isArray(b[slot]))b[slot]=[];
+  if(!b[slot].some(function(x){return x.data===f.data&&x.nama===f.nama;}))b[slot].push({nama:f.nama,tipe:f.tipe,kb:f.kb,data:f.data,t:nowStr(),by:(ST.userName||ST.user||''),dari:m.who});
+  if(!m.dipakai)m.dipakai={};m.dipakai[j]=slot;
+  if(o.prod){o.prod.updated=nowStr();o.prod.updatedTs=Date.now();delete o.prod.ingatTs;}   // kabar produksi terbaca dari foto yang masuk
+  logHist(o,'Foto dari '+m.who+' dipakai sebagai '+(DISC_SLOT_LABEL[slot]||slot));o._m=Date.now();save();render();}
+/* Log channel Discord order. Pesan vendor yang berlampiran foto bisa langsung
+   dipakai ke slot HUB (Pakai sebagai…) — inilah bentuk "output vendor" di HUB. */
+function groupDisc(disc,o){
   let html='',lastCat='';
-  disc.forEach(m=>{const key=m.cat.join('|');if(key!==lastCat){html+=catChip(m.cat);lastCat=key;}
-    const a=teamOf(m.who);html+=`<div class="msg">${av(m.who)}<div><div class="who">${a[2]}<span>${m.who==='Bot'?'BOT':''}</span></div><div class="txt">${m.txt}</div></div></div>`;});
+  disc.forEach((m,i)=>{const key=(m.cat||[]).join('|');if(key!==lastCat){html+=catChip(m.cat||['rove','']);lastCat=key;}
+    const a=teamOf(m.who);var files=(m.files||[]);
+    html+=`<div class="msg">${av(m.who)}<div><div class="who">${a[2]}<span>${m.who==='Bot'?'BOT':''}</span>${m.t?'<span style="margin-left:6px;font-weight:400;color:var(--muted)">'+esc(m.t)+'</span>':''}</div><div class="txt">${m.txt}</div>`+
+      (files.length?('<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:6px">'+files.map(function(f,j){var gbr=fileGambar(f);
+        return '<div style="width:100px">'+(gbr?('<img src="'+gambarSrc(f.data)+'" style="width:100px;height:74px;object-fit:cover;border-radius:6px;border:1px solid var(--line);cursor:zoom-in;display:block" onclick="lbGambar(this)">')
+                                            :('<div style="height:74px;display:flex;align-items:center;justify-content:center;border:1px solid var(--line);border-radius:6px;font-size:22px">📄</div>'))+
+          '<div class="kecil" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+esc(f.nama||'')+'">'+esc(f.nama||'')+'</div>'+
+          ((o&&gbr&&m.who!=='Bot')?discPakaiSel(o,i,j,m):'')+'</div>';}).join('')+'</div>'):'')+
+      `</div></div>`;});
   return html;
 }
+/* Ke mana HUB mengirim untuk order ini: channel & kategori Discord sekarang, kartu Trello. */
+function discordKini(o){
+  var selesai=o.done||(o.phase||0)>=PH.length;
+  var kat=(selesai||((o.arsip||{}).tgl))?'ARCHIVED':(((o.phase||0)>=6)?dealCat(o):preCat(o));
+  var ph=PH[Math.min(o.phase||0,PH.length-1)]||{},c=ph.cat||[];
+  return {channel:chName(o),server:'ROVE',kat:kat,radja:(c[0]==='radja')?c[1]:'',trello:(o.trello&&o.trello.created)?poCardName(o):''};}
+function discordMeta(o){var d=discordKini(o);
+  return '<div class="meta" style="font-size:10.5px;opacity:.9;margin-bottom:3px">💬 Discord <b>#'+esc(d.channel)+'</b> · '+esc(d.kat)+(d.radja?(' · Radja: '+esc(d.radja)):'')+
+    (d.trello?(' &nbsp;·&nbsp; 📋 Trello: <b>'+esc(d.trello)+'</b>'):'')+'</div>';}
+var DT_BUKA={};
+function dtToggle(id,k){var key=id+':'+k;DT_BUKA[key]=!DT_BUKA[key];render();}
+function trelloBlok(o){
+  if(!(o.trello&&o.trello.created))return '<div style="font-size:10.5px;color:var(--muted)">Kartu Trello Production dibuat otomatis saat PO Radja di-generate (fase Purchase Order Issuing).</div>';
+  var done=(o.checks||[]).length,total=CHECK.length,pct=Math.round(done/total*100);
+  return '<div class="tcard"><div class="tt"># '+esc(poCardName(o))+'</div>'+
+    '<div class="trow"><span class="k">Board</span><span class="v">Production (Radja)</span></div>'+
+    '<div class="trow"><span class="k">Progres</span><span class="v">'+pct+'% · '+done+'/'+total+' tahap</span></div>'+
+    '<div class="prog"><i style="width:'+pct+'%"></i></div>'+
+    CHECK.map(function(c){var on=(o.checks||[]).indexOf(c)>=0;return '<div class="cl '+(on?'on':'')+'"><span class="box">'+(on?'✓':'')+'</span><span class="lb">'+esc(c)+'</span></div>';}).join('')+
+    '<div class="tfoot"><span class="chip">🔗 HUB '+esc(o.id)+'</span><span>'+((ST.cfg&&ST.cfg.live&&ST.cfg.url)?'sinkron dari Trello':'masa uji: progres diisi HUB saat fase ditutup')+'</span></div></div>';}
+function discordPanel(o){
+  var d=discordKini(o),D=(o.disc||[]),n=D.length,masuk=D.filter(function(m){return m.who!=='Bot'&&(m.files||[]).length;}).length;
+  var bukaD=!!DT_BUKA[o.id+':disc'],bukaT=!!DT_BUKA[o.id+':trello'],hidup=!!(ST.cfg&&ST.cfg.live&&ST.cfg.url);
+  return '<div class="card actcard" style="margin-top:14px"><div class="ch"><span class="ico" style="background:#5865F2">#</span>'+
+    '<div><div class="t">Discord &amp; Trello</div><div class="s">CHANNEL #'+esc(d.channel).toUpperCase()+' · '+esc(d.server)+' · '+esc(d.kat).toUpperCase()+(d.radja?(' · RADJA · '+esc(d.radja).toUpperCase()):'')+'</div></div>'+
+    '<span style="margin-left:auto;display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end">'+
+      '<button class="btn ghost sm" data-f="dtDisc" onclick="dtToggle('+jsArg(o.id)+',\'disc\')">'+(bukaD?'▴ Sembunyikan channel':('💬 Lihat channel ('+n+' pesan'+(masuk?(', '+masuk+' berfoto dari vendor'):'')+')'))+'</button>'+
+      '<button class="btn ghost sm" data-f="dtTrello" onclick="dtToggle('+jsArg(o.id)+',\'trello\')">'+(bukaT?'▴ Sembunyikan Trello':(d.trello?'📋 Lihat kartu Trello':'📋 Trello: belum ada kartu'))+'</button></span></div>'+
+    '<div class="body">'+
+    '<div style="font-size:10.5px;color:var(--muted);line-height:1.6">Kabar tiap fase, dokumen, permintaan foto, dan pengingat dikirim HUB ke channel <b>#'+esc(d.channel)+'</b> (server Rove, kategori <b>'+esc(d.kat)+'</b>'+
+      (d.radja?('; fase ini dipegang Radja — di server Radja kategori <b>'+esc(d.radja)+'</b>'):'')+'). Jawaban vendor — harga, foto tiap tahap, kabar progres — masuk lewat channel yang sama; foto dari vendor dipakai ke slotnya lewat <b>Pakai sebagai…</b>, harga dicatat di panel Minta harga vendor.'+
+      (hidup?'':' <b>Masa uji:</b> relay Discord mati — tak ada yang benar-benar terkirim; log di bawah adalah simulasi HUB.')+'</div>'+
+    (bukaD?('<div class="sj" style="margin-top:12px">Channel #'+esc(d.channel)+'</div>'+(n?groupDisc(D,o):'<div style="font-size:10.5px;color:var(--muted)">Belum ada pesan.</div>')):'')+
+    (bukaT?('<div class="sj" style="margin-top:12px">Trello — board Production (Radja)</div>'+trelloBlok(o)):'')+
+    '</div></div>';}
 function collList(c){c=c||{};const a=[];if(c.box)a.push('Box');if(c.pouch)a.push('Soft Pouch');if(c.card)a.push('Thank You Card');if(c.others)a.push(c.others+' ⚑vendor');return a;}
 function liveList(l){return Array.isArray(l)?l.slice():[];}
 
@@ -12516,7 +12587,7 @@ function prodPanel(o){const pr=o.prod||{stage:'',note:''};const dl=(o.po&&o.po.d
       '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:4px"><b style="font-size:11px">'+(i+1)+'. '+esc(t[1])+'</b><span style="font-size:9.5px;color:var(--muted)">'+esc(t[2])+'</span>'+
         '<span style="margin-left:auto;font-size:9.5px;font-weight:800;color:'+(ada?'var(--ok)':'var(--warn)')+'">'+(ada?('✓ '+ada+' foto'):'belum ada foto')+'</span></div>'+
       '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:4px">'+
-        '<button class="btn ghost sm" data-f="mintaFoto_'+t[0]+'" onclick="prodMintaFoto('+jsArg(o.id)+','+jsArg(t[0])+')">📷 Minta foto ke Radja (Discord)</button>'+
+        '<button class="btn ghost sm" data-f="mintaFoto_'+t[0]+'" onclick="prodMintaFoto('+jsArg(o.id)+','+jsArg(t[0])+')">📷 Minta foto ke Radja (Discord #'+esc(chName(o))+')</button>'+
         (m?('<span style="font-size:9.5px;color:var(--muted)">diminta '+esc(m.tgl)+' · '+esc(m.oleh)+'</span>'):'')+'</div>'+
       lampiranBlok(o,t[0],'Foto '+t[1]+' dari Radja')+'</div>';}).join('');
   const kol=collDipilih(o).map(function(c){var q=(pr.collTanya||{})[c.k],K=((pr.collKirim)||{})[c.k];
