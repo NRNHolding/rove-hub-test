@@ -582,7 +582,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20260909-150945';
+const VERSI='20260909-162517';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -3191,6 +3191,12 @@ function finData(){
   if(!ST.fin.kas)ST.fin.kas=[];
   if(!ST.fin.jurnal)ST.fin.jurnal=[];
   if(!ST.fin.proyeksi)ST.fin.proyeksi={masukLain:0,keluarLain:0,saldoAwal:0};
+  if(!ST.fin.cf)ST.fin.cf={saldo:0,tgl:'',bulan:4,sembunyiDone:false};        // Cashflow projection (patch137)
+  if(!Array.isArray(ST.fin.rutin))ST.fin.rutin=cfRutinBawaan();
+  if(!ST.fin.rutinBayar)ST.fin.rutinBayar={};
+  if(!ST.fin.rutinUbah)ST.fin.rutinUbah={};
+  if(!Array.isArray(ST.fin.manual))ST.fin.manual=[];
+  if(ST.fin.kasAuto==null)ST.fin.kasAuto=false;
   return ST.fin;}
 function saveFin(){localStorage.setItem(FIN_KEY,JSON.stringify(finData()));}
 function finTab(v){ST._finTab=v;render();}
@@ -3210,13 +3216,14 @@ function finPembayaran(){
   (ST.orders||[]).forEach(function(o){
     if(o.deleted)return;var p=o.pay||{};
     if((+p.dp||0)>0)out.push({id:o.id+':dp',order:o,jenis:'DP',nom:+p.dp,tgl:p.dpDate||'',via:p.via||'',cocok:!!(p.dpCocok)});
+    if((+p.dp2||0)>0)out.push({id:o.id+':dp2',order:o,jenis:'Termin 2',nom:+p.dp2,tgl:p.dp2Date||'',via:p.via||'',cocok:!!(p.dp2Cocok)});
     if((+p.pel||0)>0)out.push({id:o.id+':pel',order:o,jenis:'Pelunasan',nom:+p.pel,tgl:p.pelDate||'',via:p.via||'',cocok:!!(p.pelCocok)});});
   return out.sort(function(a,b){return (b.tgl||'').localeCompare(a.tgl||'');});}
 function finCocok(oid,jenis){
   var o=ST.orders.find(function(x){return x.id===oid;});if(!o)return;
   if(!bolehUang()){tolakUang('Pencocokan dengan rekening');return;}
   if(!o.pay)o.pay={};
-  var k=(jenis==='DP')?'dpCocok':'pelCocok';
+  var k=(jenis==='DP')?'dpCocok':((jenis==='Termin 2')?'dp2Cocok':'pelCocok');
   o.pay[k]=!o.pay[k];o._m=Date.now();
   logHist(o,(jenis)+' '+(o.pay[k]?'dicocokkan':'dibatalkan pencocokannya')+' dengan rekening');
   save();render();}
@@ -3243,17 +3250,38 @@ function kasSaldo(){
   var s=+(finData().proyeksi.saldoAwal||0);
   finData().kas.forEach(function(k){s+=(k.arah==='Masuk'?1:-1)*(+k.nom||0);});
   finPembayaran().forEach(function(p){if(p.cocok)s+=p.nom;});
+  if(finData().kasAuto)kasAutoRows().forEach(function(k){s-=(+k.nom||0);});
   return s;}
+/* Uang keluar yang sudah tercatat di HUB (pembayaran vendor tahap 1–3, komisi & biaya rutin yang
+   ditandai dibayar). Ikut mengurangi saldo kas hanya bila saklar kasAuto hidup — dihitung, bukan
+   disalin, jadi tak pernah dobel. */
+function kasAutoRows(){
+  var out=[],F=finData();
+  (ST.orders||[]).forEach(function(o){if(o.deleted)return;
+    var B=o.bayarVendor||{};Object.keys(B).forEach(function(v){(B[v]||[]).forEach(function(b){
+      var vm=((ST.master||{}).vendors||[]).find(function(x){return x.nama===v;})||{};
+      out.push({id:'',tgl:b.tgl||'',arah:'Keluar',akun:'',ket:'Bayar vendor '+v+' tahap '+b.tahap+' — '+(o.customer||''),nom:+b.nominal||0,pos:vm.cogs||'Main Product',auto:true});});});
+    var K=(o.komisi||{}).bayar||{};['sales','wo'].forEach(function(k){var b=K[k];if(!b)return;
+      out.push({id:'',tgl:b.tgl||'',arah:'Keluar',akun:'',ket:'Komisi '+(k==='wo'?'WO':'Sales')+' — '+(o.customer||''),nom:+b.nom||0,pos:'Management Expense',auto:true});});});
+  Object.keys(F.rutinBayar||{}).forEach(function(key){var b=F.rutinBayar[key],p=key.split(':'),r=(F.rutin||[]).find(function(x){return x.id===p[1];})||{};
+    out.push({id:'',tgl:b.tgl||'',arah:'Keluar',akun:'',ket:(r.nama||'Biaya rutin')+' '+bulanNama(p[2]||''),nom:+b.nom||0,pos:r.pos||'',auto:true});});
+  return out;}
+function kasAutoSet(v){if(!cfBoleh()){alert('Diatur Finance.');return;}finData().kasAuto=!!v;saveFin();render();}
+function kasAutoBlok(){var on=!!finData().kasAuto,n=kasAutoRows().length;
+  return '<div style="border:1px dashed var(--line);border-radius:9px;padding:8px 11px;margin-bottom:11px;font-size:10.5px;line-height:1.6;display:flex;gap:10px;align-items:flex-start;flex-wrap:wrap">'+
+    '<label style="display:flex;align-items:center;gap:7px;font-weight:700;white-space:nowrap"><input type="checkbox" style="width:auto" '+(on?'checked':'')+' onchange="kasAutoSet(this.checked)"'+(cfBoleh()?'':' disabled')+'> Pembayaran vendor, komisi &amp; biaya rutin otomatis masuk kas</label>'+
+    '<span style="color:var(--muted);flex:1;min-width:220px">Kalau hidup: pembayaran vendor tahap 1–3, komisi, dan biaya rutin yang ditandai dibayar ikut mengurangi saldo di sini dan masuk jurnal — tanpa dicatat dua kali ('+n+' transaksi tercatat di HUB). Kalau mati: saldo hanya dari transaksi yang dicatat manual di sini dan pembayaran client yang cocok.</span></div>';}
 /* --- jurnal: dibentuk otomatis dari transaksi yang sudah ada --- */
 function jurnalOtomatis(){
   var J=[];
   finPembayaran().forEach(function(p){
     J.push({tgl:p.tgl,ref:chName(p.order),ket:p.jenis+' — '+p.order.customer,
-      debit:'Kas / Bank',kredit:(p.jenis==='DP'?'Uang Muka Penjualan':'Piutang Usaha'),nom:p.nom,auto:true});});
+      debit:'Kas / Bank',kredit:(p.jenis==='Pelunasan'?'Piutang Usaha':'Uang Muka Penjualan'),nom:p.nom,auto:true});});
   finData().kas.forEach(function(k){
     J.push({tgl:k.tgl,ref:k.akun||'-',ket:k.ket,
       debit:(k.arah==='Masuk'?'Kas / Bank':(k.pos||'Beban Lain')),
       kredit:(k.arah==='Masuk'?'Pendapatan Lain':'Kas / Bank'),nom:+k.nom||0,auto:true});});
+  if(finData().kasAuto)kasAutoRows().forEach(function(k){J.push({tgl:k.tgl,ref:'HUB',ket:k.ket,debit:(k.pos||'Beban Lain'),kredit:'Kas / Bank',nom:+k.nom||0,auto:true});});
   return J.concat(finData().jurnal).sort(function(a,b){return (b.tgl||'').localeCompare(a.tgl||'');});}
 function jurnalTambah(){
   askForm({judul:'Jurnal manual',sub:'untuk penyesuaian yang tak datang dari transaksi HUB',
@@ -3268,7 +3296,122 @@ function jurnalTambah(){
       finData().jurnal.unshift({tgl:v.tgl,ket:v.ket,debit:v.debit,kredit:v.kredit,nom:v.nom,ref:v.ref||'-',
         by:(ST.userName||ST.user||'-')});
       saveFin();render();}});}
-/* --- proyeksi arus kas: dari piutang order & tenggat pajak --- */
+/* ================= CASHFLOW PROJECTION (format lembar Excel Rove) =================
+   Satu baris per uang masuk / keluar, urut tanggal, saldo berjalan dari "Saldo saat ini" (kotak sendiri).
+   Baris proyeksi mengubah saldo; Done (sudah tercatat di HUB) dan Cancel tidak. Sumber baris:
+   termin client (terminDaftar), termin vendor (vtermDaftar), komisi (komisiNilai), template biaya
+   rutin bulanan (rutinBayar/rutinUbah per kejadian), dan baris manual. Finance mengisi; Direktur &
+   Holding melihat (fitur Keuangan). */
+function cfBoleh(){return rolePunya('Finance');}
+function cfRutinBawaan(){
+  /* nama dari lembar cashflow; nominal CONTOH (data karangan) — diganti Finance */
+  return [['Gaji',27,25000000,'Management Expense'],['Gaji tambahan',27,1000000,'Management Expense'],['Akronim',24,4000000,'Management Expense'],
+    ['NRN Fee',15,15000000,'Management Expense'],['Utility',4,1500000,'Rent Expense'],['CC',4,1500000,'Management Expense'],
+    ['Pajak',15,1000000,'Income Tax Expense'],['Ads',15,1000000,'Management Expense'],['Tenshi',15,2000000,'Management Expense'],
+    ['Designer magang',27,1500000,'Management Expense']].map(function(r,i){return {id:'R'+(i+1),nama:r[0],hari:r[1],nominal:r[2],pos:r[3],aktif:true};});}
+function bulanNama(ym){var p=String(ym||'').split('-'),N=['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];return ((N[(+p[1]||1)-1])||'')+(p[0]?(' '+p[0]):'');}
+function cfBulanList(n){var out=[],d=new Date();d.setDate(1);for(var i=0;i<n;i++){out.push(d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'));d.setMonth(d.getMonth()+1);}return out;}
+function cfRutinTgl(r,ym){var p=ym.split('-'),y=+p[0],m=+p[1],last=new Date(y,m,0).getDate();return ymd(y,m,Math.min(Math.max(1,+r.hari||1),last));}
+function cfBaris(){
+  var F=finData(),R=[],cf=F.cf;
+  (ST.orders||[]).forEach(function(o){if(o.deleted)return;var batal=(o.status==='Cancel'),nama=o.customer||'';
+    /* kartu contoh = order yang sama di 23 fase; cukup tiga (sebelum Deal, produksi, selesai) supaya tak 23 baris kembar */
+    if(o._contoh&&[2,12,22].indexOf(+o.phase)<0)return;
+    var G=0;try{G=orderGrand(o);}catch(e){}
+    if(G>0)terminDaftar(o).forEach(function(d){
+      R.push({key:'cl:'+o.id+':'+d.k,tgl:d.dibayar?(d.bayarTgl||d.tgl):d.tgl,ket:'Client '+nama+' — '+d.label+(d.k!=='pel'?(' '+d.pct+'%'):''),masuk:d.dibayar?d.bayarNom:d.nom,keluar:0,status:d.dibayar?'done':(batal?'cancel':''),sumber:'client',oid:o.id});});
+    if((o.phase||0)>=1&&G>0)vendorTagihan(o).forEach(function(x){if(!(x.total>0))return;vtermDaftar(o,x.v).forEach(function(d){
+      R.push({key:'vd:'+o.id+':'+x.v+':'+d.tahap,tgl:d.dibayar?(d.bayarTgl||d.tgl):d.tgl,ket:'Payment '+nama+' — '+x.v+' tahap '+d.tahap,masuk:0,keluar:d.dibayar?d.bayarNom:d.nom,status:d.dibayar?'done':(batal?'cancel':''),sumber:'vendor',oid:o.id});});});
+    if(G>0)['sales','wo'].forEach(function(k){var n=komisiNilai(o,k),b=(komisiGet(o).bayar||{})[k];if(!(n>0)&&!b)return;
+      R.push({key:'km:'+o.id+':'+k,tgl:b?b.tgl:komisiTgl(o,k),ket:'Payment '+nama+' — Komisi '+(k==='wo'?'WO':'Sales'),masuk:0,keluar:b?b.nom:n,status:b?'done':(batal?'cancel':''),sumber:'komisi',oid:o.id,k:k});});});
+  cfBulanList(+cf.bulan||4).forEach(function(ym){(F.rutin||[]).forEach(function(r){if(r.aktif===false)return;var key='rt:'+r.id+':'+ym,u=F.rutinUbah[key]||{},b=F.rutinBayar[key];
+    R.push({key:key,tgl:b?b.tgl:(u.tgl||cfRutinTgl(r,ym)),ket:(r.nama||'Biaya rutin')+' '+bulanNama(ym),masuk:0,keluar:b?b.nom:(u.nom!=null?u.nom:(+r.nominal||0)),status:b?'done':'',sumber:'rutin',rid:r.id,ym:ym,ubah:!!(u.tgl||u.nom!=null)});});});
+  (F.manual||[]).forEach(function(m){R.push({key:'mn:'+m.id,tgl:m.tgl||'',ket:m.ket||'',masuk:+m.masuk||0,keluar:+m.keluar||0,status:m.status||'',sumber:'manual',mid:m.id});});
+  R.sort(function(a,b){return (a.tgl||'9999').localeCompare(b.tgl||'9999')||a.key.localeCompare(b.key);});
+  var saldo=+cf.saldo||0;R.forEach(function(x,i){x.no=i+1;if(!x.status)saldo+=x.masuk-x.keluar;x.saldo=saldo;});
+  return R;}
+function cfSet(f,v){if(!cfBoleh()&&f!=='sembunyiDone'&&f!=='bulan'){alert('Diisi Finance.');return;}var cf=finData().cf;
+  if(f==='saldo')cf.saldo=moneyVal(v);else if(f==='tgl')cf.tgl=String(v||'');else if(f==='bulan')cf.bulan=Math.max(1,Math.min(12,+v||4));else if(f==='sembunyiDone')cf.sembunyiDone=!!v;
+  saveFin();render();}
+function cfManualAdd(){if(!cfBoleh())return;
+  askForm({judul:'Baris manual',sub:'uang masuk / keluar di luar order & biaya rutin — mis. Trip to Bali, pinjaman, pajak tahunan',fields:[
+    {k:'tgl',label:'Tanggal',type:'date',val:hariIni(),req:true},{k:'ket',label:'Keterangan',type:'text',req:true},
+    {k:'arah',label:'Arah',type:'select',opts:['Keluar','Masuk'],val:'Keluar'},{k:'nom',label:'Nominal',type:'money',req:true}],
+    ok:function(v){finData().manual.push({id:'C'+Math.random().toString(36).slice(2,7),tgl:v.tgl,ket:v.ket,masuk:v.arah==='Masuk'?moneyVal(v.nom):0,keluar:v.arah==='Masuk'?0:moneyVal(v.nom),status:''});saveFin();render();}});}
+function cfManualSet(id,f,v){if(!cfBoleh())return;var m=finData().manual.find(function(x){return x.id===id;});if(!m)return;
+  if(f==='masuk'||f==='keluar')m[f]=moneyVal(v);else m[f]=String(v||'');saveFin();render();}
+function cfManualDel(id){if(!cfBoleh())return;var F=finData(),m=F.manual.find(function(x){return x.id===id;});if(!m)return;
+  if(!confirm('Hapus baris "'+m.ket+'"?'))return;F.manual=F.manual.filter(function(x){return x.id!==id;});saveFin();render();}
+function cfRutinUbah(key,f,v){if(!cfBoleh())return;var F=finData(),u=F.rutinUbah[key]||{};
+  if(f==='tgl')u.tgl=String(v||'');else u.nom=moneyVal(v);
+  if(!u.tgl&&u.nom==null)delete F.rutinUbah[key];else F.rutinUbah[key]=u;saveFin();render();}
+function cfRutinBayar(key){if(!cfBoleh()){alert('Ditandai Finance.');return;}var F=finData(),R=cfBaris().find(function(x){return x.key===key;});if(!R)return;
+  askForm({judul:'Tandai dibayar — '+R.ket,tanpaDraf:true,fields:[{k:'nominal',label:'Nominal dibayar',type:'money',req:true,val:R.keluar},{k:'tgl',label:'Tanggal bayar',type:'date',req:true,val:hariIni()}],
+    ok:function(v){F.rutinBayar[key]={tgl:v.tgl,nom:moneyVal(v.nominal),oleh:(ST.userName||ST.user||'')};saveFin();render();}});}
+function cfRutinBatal(key){if(!cfBoleh())return;var F=finData();if(!F.rutinBayar[key])return;if(!confirm('Batalkan tanda dibayar?'))return;delete F.rutinBayar[key];saveFin();render();}
+function cfRutinTemplateAdd(){if(!cfBoleh())return;finData().rutin.push({id:'R'+Math.random().toString(36).slice(2,7),nama:'',hari:1,nominal:0,pos:'',aktif:true});saveFin();render();}
+function cfRutinTemplateSet(id,f,v){if(!cfBoleh())return;var r=finData().rutin.find(function(x){return x.id===id;});if(!r)return;
+  if(f==='nominal')r.nominal=moneyVal(v);else if(f==='hari')r.hari=Math.max(1,Math.min(31,+v||1));else if(f==='aktif')r.aktif=!!v;else r[f]=String(v||'');saveFin();render();}
+function cfRutinTemplateDel(id){if(!cfBoleh())return;var F=finData(),r=F.rutin.find(function(x){return x.id===id;});if(!r)return;
+  if(!confirm('Hapus "'+r.nama+'" dari template biaya rutin?'))return;F.rutin=F.rutin.filter(function(x){return x.id!==id;});saveFin();render();}
+function cfPanel(){
+  var F=finData(),cf=F.cf,R=cfBaris(),boleh=cfBoleh();
+  var proyeksi=R.filter(function(x){return !x.status;});
+  var masukP=proyeksi.reduce(function(a,x){return a+x.masuk;},0),keluarP=proyeksi.reduce(function(a,x){return a+x.keluar;},0);
+  var akhir=(+cf.saldo||0)+masukP-keluarP,minSaldo=proyeksi.length?Math.min.apply(null,proyeksi.map(function(x){return x.saldo;})):(+cf.saldo||0);
+  var tampil=cf.sembunyiDone?R.filter(function(x){return x.status!=='done';}):R;
+  var dis=boleh?'':' disabled',SUM={client:'termin client',vendor:'termin vendor',komisi:'komisi',rutin:'biaya rutin',manual:'manual'};
+  var stat=function(x){return x.status==='done'?'<span style="color:var(--ok);font-weight:800">Done</span>':(x.status==='cancel'?'<span style="color:var(--muted);font-weight:800">Cancel</span>':'<span style="color:var(--warn);font-weight:700">proyeksi</span>');};
+  var aksi=function(x){
+    if(x.sumber==='client'||x.sumber==='vendor')return '<a href="#" onclick="openOrder('+jsArg(x.oid)+');return false" style="color:var(--brand);font-weight:700;text-decoration:none;font-size:10px">buka order</a>';
+    if(x.sumber==='komisi')return x.status==='done'?(boleh?('<button class="xrow" title="batalkan tanda dibayar" onclick="komisiBatal('+jsArg(x.oid)+','+jsArg(x.k)+')">✕</button>'):''):((boleh&&x.status!=='cancel')?('<button class="btn ghost sm" style="font-size:9.5px" onclick="komisiBayar('+jsArg(x.oid)+','+jsArg(x.k)+')">Tandai dibayar</button>'):'');
+    if(x.sumber==='rutin')return x.status==='done'?(boleh?('<button class="xrow" title="batalkan tanda dibayar" onclick="cfRutinBatal('+jsArg(x.key)+')">✕</button>'):''):(boleh?('<button class="btn ghost sm" style="font-size:9.5px" onclick="cfRutinBayar('+jsArg(x.key)+')">Tandai dibayar</button>'):'');
+    if(x.sumber==='manual')return boleh?('<select class="pin" style="width:92px" onchange="cfManualSet('+jsArg(x.mid)+',\'status\',this.value)"><option value="" '+(!x.status?'selected':'')+'>proyeksi</option><option value="done" '+(x.status==='done'?'selected':'')+'>Done</option><option value="cancel" '+(x.status==='cancel'?'selected':'')+'>Cancel</option></select> <button class="xrow" onclick="cfManualDel('+jsArg(x.mid)+')">✕</button>'):'';
+    return '';};
+  var selTgl=function(x){
+    if(x.sumber==='rutin'&&x.status!=='done'&&boleh)return '<input type="date" class="pin" style="width:118px;padding:3px 4px" value="'+esc(x.tgl)+'" onchange="cfRutinUbah('+jsArg(x.key)+',\'tgl\',this.value)">';
+    if(x.sumber==='manual'&&boleh)return '<input type="date" class="pin" style="width:118px;padding:3px 4px" value="'+esc(x.tgl)+'" onchange="cfManualSet('+jsArg(x.mid)+',\'tgl\',this.value)">';
+    return x.tgl?tglID(x.tgl):'<span style="color:var(--warn)">tanggal?</span>';};
+  var selNom=function(x,arah){var v=(arah==='masuk')?x.masuk:x.keluar;
+    if(x.sumber==='rutin'&&arah==='keluar'&&x.status!=='done'&&boleh)return '<input class="pin n money" inputmode="numeric" style="width:104px;text-align:right;padding:3px 5px" value="'+moneyInp(v)+'" onchange="cfRutinUbah('+jsArg(x.key)+',\'nom\',this.value)">';
+    if(x.sumber==='manual'&&boleh)return '<input class="pin n money" inputmode="numeric" style="width:104px;text-align:right;padding:3px 5px" value="'+(v?moneyInp(v):'')+'" onchange="cfManualSet('+jsArg(x.mid)+',\''+arah+'\',this.value)">';
+    return v?('<b>'+fmt0(v)+'</b>'):'';};
+  var selKet=function(x){if(x.sumber==='manual'&&boleh)return '<input class="pin" style="width:100%" value="'+esc(x.ket)+'" onchange="cfManualSet('+jsArg(x.mid)+',\'ket\',this.value)">';return esc(x.ket)+(x.ubah?' <span style="font-size:9px;color:var(--muted)">(diubah)</span>':'');};
+  return tabNote('Format seperti lembar Cashflow Projection: satu baris per uang masuk / keluar, urut tanggal, saldo berjalan. Baris <b>proyeksi</b> mengubah saldo; <b>Done</b> (sudah tercatat di HUB) dan <b>Cancel</b> tidak. Sumbernya: termin client (Payment terms di Penentuan harga jual), termin vendor (Form PO), komisi Sales &amp; WO, template biaya rutin, dan baris manual. Finance yang mengisi; Direktur &amp; Holding melihat.')+
+    '<div class="rcard"><h3>Cashflow projection</h3>'+
+    '<div style="display:flex;flex-wrap:wrap;gap:18px;margin-bottom:12px;font-size:12px;align-items:flex-end">'+
+      '<div><div style="color:var(--muted);font-size:10px;font-weight:700">SALDO SAAT INI</div><input class="pin n money" inputmode="numeric" data-f="cfSaldo" style="width:150px;margin-top:3px" value="'+moneyInp(cf.saldo||0)+'" onchange="cfSet(\'saldo\',this.value)"'+dis+'></div>'+
+      '<div><div style="color:var(--muted);font-size:10px;font-weight:700">PER TANGGAL</div><input type="date" class="pin" style="margin-top:3px" value="'+esc(cf.tgl||'')+'" onchange="cfSet(\'tgl\',this.value)"'+dis+'></div>'+
+      '<div><div style="color:var(--muted);font-size:10px;font-weight:700">PROYEKSI MASUK</div><b style="font-size:15px;color:var(--ok)">'+fmt0(masukP)+'</b></div>'+
+      '<div><div style="color:var(--muted);font-size:10px;font-weight:700">PROYEKSI KELUAR</div><b style="font-size:15px;color:var(--warn)">'+fmt0(keluarP)+'</b></div>'+
+      '<div><div style="color:var(--muted);font-size:10px;font-weight:700">SALDO AKHIR</div><b style="font-size:17px;color:'+(akhir<0?'var(--red,#d9534f)':'var(--ok)')+'">'+fmt0(akhir)+'</b></div>'+
+      '<div><div style="color:var(--muted);font-size:10px;font-weight:700">SALDO TERENDAH</div><b style="font-size:13px;color:'+(minSaldo<0?'var(--red,#d9534f)':'var(--ink)')+'">'+fmt0(minSaldo)+'</b></div>'+
+    '</div>'+
+    '<div style="display:flex;flex-wrap:wrap;gap:9px;align-items:center;margin-bottom:10px;font-size:11px">'+
+      '<label>Biaya rutin <select class="pin" style="width:auto" onchange="cfSet(\'bulan\',this.value)">'+[1,2,3,4,6,9,12].map(function(n){return '<option value="'+n+'" '+((+cf.bulan||4)===n?'selected':'')+'>'+n+' bulan ke depan</option>';}).join('')+'</select></label>'+
+      '<label style="display:flex;align-items:center;gap:6px"><input type="checkbox" style="width:auto" '+(cf.sembunyiDone?'checked':'')+' onchange="cfSet(\'sembunyiDone\',this.checked)"> sembunyikan yang Done</label>'+
+      (boleh?'<button class="btn sm" style="margin-left:auto" data-f="cfManualAdd" onclick="cfManualAdd()">＋ Baris manual</button>':'<span style="margin-left:auto;font-size:10px;color:var(--muted)">hanya Finance yang bisa mengubah</span>')+
+    '</div>'+
+    (tampil.length?('<div class="xscroll"><table class="rtable" style="font-size:11px"><thead><tr><th style="width:30px">No.</th><th style="width:124px">Tanggal</th><th>Keterangan</th><th class="num" style="width:112px">Masuk</th><th class="num" style="width:112px">Keluar</th><th style="width:70px">Status</th><th class="num" style="width:118px">Saldo</th><th style="width:108px"></th></tr></thead><tbody>'+
+      tampil.map(function(x){return '<tr data-cf="'+esc(x.key)+'"'+(x.status==='done'?' style="opacity:.6"':(x.status==='cancel'?' style="opacity:.45;text-decoration:line-through"':''))+'><td>'+x.no+'</td><td>'+selTgl(x)+'</td><td>'+selKet(x)+'<div style="font-size:9px;color:var(--muted)">'+(SUM[x.sumber]||'')+'</div></td>'+
+        '<td class="num" style="color:var(--ok)">'+selNom(x,'masuk')+'</td><td class="num" style="color:var(--warn)">'+selNom(x,'keluar')+'</td><td>'+stat(x)+'</td>'+
+        '<td class="num" style="font-weight:800;color:'+(x.saldo<0?'var(--red,#d9534f)':'inherit')+'">'+fmt0(x.saldo)+'</td><td>'+aksi(x)+'</td></tr>';}).join('')+
+      '</tbody></table></div>'):'<div style="color:var(--muted);font-size:11px">Belum ada baris — isi order (payment terms, PO) atau template biaya rutin.</div>')+
+    '</div>'+cfRutinTemplate(boleh);}
+function cfRutinTemplate(boleh){
+  var R=finData().rutin,POS=['—'].concat(listArr('cogs'),['Rent Expense','Management Expense','Photo/Video Shoot Expense','Interest Expense','Income Tax Expense','Lainnya']);
+  return '<div class="rcard" style="margin-top:14px"><h3>Template biaya rutin bulanan</h3>'+
+    '<div style="font-size:10.5px;color:var(--muted);margin-bottom:9px;line-height:1.6">Tiap bulan otomatis jadi baris proyeksi di Cashflow (tanggal = hari ke-N bulan itu). Nominal bawaan hanya contoh — ganti dengan yang sebenarnya. Tiap kejadian bulanannya bisa diubah tanggal / nominalnya di tabel atas, lalu <b>Tandai dibayar</b>.</div>'+
+    (R.length?('<div class="xscroll"><table class="rtable" style="font-size:11px"><thead><tr><th>Nama</th><th style="width:80px">Hari ke-</th><th class="num" style="width:130px">Nominal / bulan</th><th style="width:190px">Pos biaya (AIS)</th><th style="width:60px">Aktif</th><th style="width:30px"></th></tr></thead><tbody>'+
+      R.map(function(r){var A=jsArg(r.id),d=boleh?'':' disabled';return '<tr'+(r.aktif===false?' style="opacity:.5"':'')+'><td><input class="pin" style="width:100%" value="'+esc(r.nama)+'" onchange="cfRutinTemplateSet('+A+',\'nama\',this.value)"'+d+'></td>'+
+        '<td><input class="pin n" type="number" min="1" max="31" style="width:60px" value="'+(+r.hari||1)+'" onchange="cfRutinTemplateSet('+A+',\'hari\',this.value)"'+d+'></td>'+
+        '<td class="num"><input class="pin n money" inputmode="numeric" style="width:120px;text-align:right" value="'+moneyInp(r.nominal||0)+'" onchange="cfRutinTemplateSet('+A+',\'nominal\',this.value)"'+d+'></td>'+
+        '<td><select class="pin" style="width:100%" onchange="cfRutinTemplateSet('+A+',\'pos\',this.value)"'+d+'>'+POS.map(function(p){var v=(p==='—')?'':p;return '<option value="'+esc(v)+'" '+((r.pos||'')===v?'selected':'')+'>'+esc(p)+'</option>';}).join('')+'</select></td>'+
+        '<td style="text-align:center"><input type="checkbox" style="width:auto" '+(r.aktif===false?'':'checked')+' onchange="cfRutinTemplateSet('+A+',\'aktif\',this.checked)"'+d+'></td>'+
+        '<td>'+(boleh?('<button class="xrow" onclick="cfRutinTemplateDel('+A+')">✕</button>'):'')+'</td></tr>';}).join('')+
+      '</tbody></table></div>'):'<div style="color:var(--muted);font-size:11px">Belum ada template.</div>')+
+    (boleh?'<button class="btn ghost sm" style="margin-top:9px" onclick="cfRutinTemplateAdd()">＋ Tambah biaya rutin</button>':'')+'</div>';}
+/* --- proyeksi arus kas lama (dipertahankan untuk rujukan) --- */
 function proyeksiSet(f,v){finData().proyeksi[f]=Math.max(0,moneyVal(v));saveFin();render();}
 function proyeksiBaris(){
   var B=[],kini=new Date();
@@ -3461,7 +3604,7 @@ function mutasiCocokkan(baris){
     var calon=[],kunci=String(r.ket||'').toLowerCase();
     hidup.forEach(function(o){
       var G=orderGrand(o);if(G<=0)return;
-      var pay=o.pay||{},sisa=Math.max(0,G-((+pay.dp||0)+(+pay.pel||0)));
+      var pay=o.pay||{},sisa=Math.max(0,G-orderPaid(o));
       var namaAwal=String(o.customer||'').toLowerCase().split(/\s+/)[0];
       var namaCocok=!!(namaAwal&&namaAwal.length>=3&&kunci.indexOf(namaAwal)>=0);
       var uji=function(jenis,harap){
@@ -3470,6 +3613,7 @@ function mutasiCocokkan(baris){
         if(beda<=Math.max(50000,harap*0.02)||namaCocok)
           calon.push({id:o.id,nama:o.customer,jenis:jenis,harap:harap,beda:beda,namaCocok:namaCocok});};
       if(!(+pay.dp>0))uji('dp',Math.round(G*((+o.dpPct||50)/100)));
+      else if(terminN(o)===3&&!(+pay.dp2>0))uji('dp2',Math.min(sisa,terminNominal(o)[1]||0));
       else if(!(+pay.pel>0))uji('pel',sisa);});
     calon.sort(function(a,b){return (b.namaCocok?1:0)-(a.namaCocok?1:0)||a.beda-b.beda;});
     return {r:r,calon:calon.slice(0,3),selesai:false};});}
@@ -3513,7 +3657,7 @@ function mutasiGambar(){
                     return '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:10.5px">'+
                       '<button class="btn sm" onclick="mutasiCatat('+i+','+j+')">Catat</button>'+
                       '<b>'+esc(c.nama)+'</b>'+
-                      '<span style="color:var(--muted)">'+(c.jenis==='dp'?'DP':'Pelunasan')+' · diharapkan '+fmt0(c.harap)+
+                      '<span style="color:var(--muted)">'+terminLabel(c.jenis)+' · diharapkan '+fmt0(c.harap)+
                         (c.beda?(' · selisih '+fmt0(c.beda)):' · pas')+
                         (c.namaCocok?' · nama cocok':'')+'</span></div>';}).join('')+
                 '</div>'
@@ -3525,16 +3669,16 @@ function mutasiCatat(i,j){
   var d=_mutasi.hasil[i];if(!d||d.selesai)return;
   var c=d.calon[j];if(!c)return;
   var o=ST.orders.find(function(x){return x.id===c.id;});if(!o)return;
-  var dp=(c.jenis==='dp');
-  if(!confirm('Catat '+(dp?'DP':'pelunasan')+' '+fmt0(d.r.nom)+' untuk order '+o.customer+'?\n\n'+
+  var kk=c.jenis,lbl=terminLabel(kk);
+  if(!confirm('Catat '+lbl+' '+fmt0(d.r.nom)+' untuk order '+o.customer+'?\n\n'+
       'Tanggal '+d.r.tgl+'\n'+(d.r.ket||'')))return;
   if(!o.pay)o.pay={dp:0,pel:0,dpDate:'',pelDate:''};
-  o.pay[dp?'dp':'pel']=d.r.nom;
-  o.pay[dp?'dpDate':'pelDate']=d.r.tgl;
-  o.pay[dp?'dpNote':'pelNote']='dari mutasi rekening: '+String(d.r.ket||'').slice(0,120);
-  var lunas=((+o.pay.dp||0)+(+o.pay.pel||0))>=orderGrand(o)-1;
-  logHist(o,(dp?'DP':'Pelunasan')+' dicatat dari impor mutasi '+fmt0(d.r.nom)+' tgl '+d.r.tgl);
-  notifyOrder(o,'💰 **'+(dp?'DP diterima':'Pelunasan diterima')+'** '+fmt0(d.r.nom)+' — '+o.customer+
+  o.pay[kk]=d.r.nom;
+  o.pay[kk+'Date']=d.r.tgl;
+  o.pay[kk+'Note']='dari mutasi rekening: '+String(d.r.ket||'').slice(0,120);
+  var lunas=orderPaid(o)>=orderGrand(o)-1;
+  logHist(o,lbl+' dicatat dari impor mutasi '+fmt0(d.r.nom)+' tgl '+d.r.tgl);
+  notifyOrder(o,'💰 **'+lbl+' diterima** '+fmt0(d.r.nom)+' — '+o.customer+
     '\nTanggal masuk: '+d.r.tgl+'\n(dicocokkan dari mutasi rekening)'+(lunas?'\n✅ Order LUNAS':''));
   d.selesai=true;o._m=Date.now();save();
   mutasiGambar();render();}
@@ -3565,9 +3709,9 @@ function renderFin(){
         '</tbody></table></div>'+batasBtn('rekon',P.length):'<div style="color:var(--muted);font-size:11px">Belum ada pembayaran tercatat. DP &amp; pelunasan dicatat di panel Pembayaran tiap order.</div>')+
       '</div>';
   } else if(t==='kas'){
-    var K=F.kas,masuk=K.filter(function(k){return k.arah==='Masuk';}).reduce(function(s,k){return s+(+k.nom||0);},0);
+    var K=F.kas.concat(F.kasAuto?kasAutoRows():[]).sort(function(a,b){return (b.tgl||'').localeCompare(a.tgl||'');}),masuk=K.filter(function(k){return k.arah==='Masuk';}).reduce(function(s,k){return s+(+k.nom||0);},0);
     var keluar=K.filter(function(k){return k.arah==='Keluar';}).reduce(function(s,k){return s+(+k.nom||0);},0);
-    isi=tabNote('Transaksi kas &amp; bank di luar pembayaran order — sewa, gaji, beli alat, dan sebagainya. Pembayaran order yang sudah dicocokkan otomatis ikut ke saldo.')+
+    isi=tabNote('Transaksi kas &amp; bank di luar pembayaran order — sewa, gaji, beli alat, dan sebagainya. Pembayaran order yang sudah dicocokkan otomatis ikut ke saldo.')+kasAutoBlok()+
       '<div class="rcard"><h3>Kas &amp; bank</h3>'+
       '<div style="display:flex;flex-wrap:wrap;gap:18px;margin-bottom:12px;font-size:12px;align-items:flex-end">'+
         '<div><div style="color:var(--muted);font-size:10px;font-weight:700">SALDO AWAL</div>'+
@@ -3582,7 +3726,7 @@ function renderFin(){
           '<td><span style="font-weight:800;color:'+(k.arah==='Masuk'?'var(--ok)':'var(--warn)')+'">'+esc(k.arah)+'</span></td>'+
           '<td>'+esc(k.akun||'-')+'</td><td>'+esc(k.ket)+'</td><td style="font-size:10px;color:var(--muted)">'+(esc(k.pos)||'—')+'</td>'+
           '<td class="num"><b>'+fmt0(k.nom)+'</b></td>'+
-          '<td><button class="xrow" onclick="kasHapus(\''+k.id+'\')">✕</button></td></tr>';}).join('')+
+          '<td>'+(k.auto?'<span style="font-size:9px;color:var(--muted)">otomatis</span>':('<button class="xrow" onclick="kasHapus(\''+k.id+'\')">✕</button>'))+'</td></tr>';}).join('')+
         '</tbody></table></div>':'<div style="color:var(--muted);font-size:11px">Belum ada transaksi.</div>')+
       '</div>';
   } else if(t==='jurnal'){
@@ -3599,28 +3743,7 @@ function renderFin(){
         '</tbody></table></div>'+batasBtn('jurnal',J.length):'<div style="color:var(--muted);font-size:11px">Belum ada jurnal.</div>')+
       '</div>';
   } else {
-    var B=proyeksiBaris(),saldo=kasSaldo();
-    var masukP=B.filter(function(b){return b.jenis==='masuk';}).reduce(function(s,b){return s+b.nom;},0)+(+F.proyeksi.masukLain||0);
-    var keluarP=B.filter(function(b){return b.jenis==='keluar';}).reduce(function(s,b){return s+b.nom;},0)+(+F.proyeksi.keluarLain||0);
-    var akhir=saldo+masukP-keluarP;
-    isi=tabNote('Perkiraan arus kas dari order yang sedang jalan: sisa tagihan sebagai uang masuk, HPP vendor sebagai uang keluar. Tanggalnya memakai estimasi selesai tiap order.')+
-      '<div class="rcard"><h3>Cashflow projection</h3>'+
-      '<div style="display:flex;flex-wrap:wrap;gap:18px;margin-bottom:12px;font-size:12px;align-items:flex-end">'+
-        '<div><div style="color:var(--muted);font-size:10px;font-weight:700">SALDO SEKARANG</div><b style="font-size:15px">'+fmt0(saldo)+'</b></div>'+
-        '<div><div style="color:var(--muted);font-size:10px;font-weight:700">PERKIRAAN MASUK</div><b style="font-size:15px;color:var(--ok)">'+fmt0(masukP)+'</b></div>'+
-        '<div><div style="color:var(--muted);font-size:10px;font-weight:700">PERKIRAAN KELUAR</div><b style="font-size:15px;color:var(--warn)">'+fmt0(keluarP)+'</b></div>'+
-        '<div><div style="color:var(--muted);font-size:10px;font-weight:700">PROYEKSI SALDO</div><b style="font-size:17px;color:'+(akhir<0?'var(--red,#d9534f)':'var(--ok)')+'">'+fmt0(akhir)+'</b></div>'+
-      '</div>'+
-      '<div style="display:flex;flex-wrap:wrap;gap:14px;margin-bottom:13px">'+
-        '<label class="nlbl">Masuk lain (perkiraan)<input class="pin n money" inputmode="numeric" style="width:140px;margin-top:3px" value="'+moneyInp(F.proyeksi.masukLain)+'" onchange="proyeksiSet(\'masukLain\',this.value)"></label>'+
-        '<label class="nlbl">Keluar lain (perkiraan)<input class="pin n money" inputmode="numeric" style="width:140px;margin-top:3px" value="'+moneyInp(F.proyeksi.keluarLain)+'" onchange="proyeksiSet(\'keluarLain\',this.value)"></label>'+
-      '</div>'+
-      (B.length?'<div class="xscroll"><table class="rtable mstack"><thead><tr><th>Keterangan</th><th style="width:110px">Perkiraan tanggal</th><th style="width:90px">Arah</th><th class="num" style="width:126px">Nominal</th></tr></thead><tbody>'+
-        batasKe('proyeksi',B).map(function(b){return '<tr><td><b>'+esc(b.ket)+'</b></td><td data-l="Perkiraan tanggal">'+tglID(b.tgl)+'</td>'+
-          '<td data-l="Arah" style="font-weight:800;color:'+(b.jenis==='masuk'?'var(--ok)':'var(--warn)')+'">'+(b.jenis==='masuk'?'Masuk':'Keluar')+'</td>'+
-          '<td data-l="Nominal" class="num"><b>'+fmt0(b.nom)+'</b></td></tr>';}).join('')+
-        '</tbody></table></div>'+batasBtn('proyeksi',B.length):'<div style="color:var(--muted);font-size:11px">Belum ada order berjalan yang bisa diproyeksikan.</div>')+
-      '</div>';
+    isi=cfPanel();
   }
   $('#main').innerHTML='<div class="topbar"><h1>Keuangan</h1><span class="demo">PROTOTYPE · data lokal</span></div>'+
     '<div style="display:flex;flex-wrap:wrap;gap:7px;margin-bottom:14px">'+
@@ -5134,14 +5257,59 @@ function diskonSel(o,l,i,opId,k){
     ((l.dcT==='pct')?('<input class="pin n" type="number" style="width:56px" value="'+(l.dc||'')+'" placeholder="0" onchange="'+hD+'">')
                     :('<input class="pin n money" inputmode="numeric" style="width:90px" value="'+(l.dc?moneyInp(l.dc):'')+'" placeholder="Rp 0" onchange="'+hD+'">'))+'</div>'+
     (l.dc?('<div class="kecil">jadi '+fmt0(lineNet(l,m))+'/pcs</div>'):'');}
-/* payment terms: DP % dan settlement — masuk syarat bayar quotation & invoice */
+/* ================= TERMS PEMBAYARAN CLIENT: 2x (DP + pelunasan) atau 3x (DP, termin 2, pelunasan) =================
+   Persen: dpPct (DP) dan dp2Pct (termin 2, hanya 3x); pelunasan = sisanya. Tanggal tiap termin
+   otomatis (DP = Deal + 3 hari, termin 2 = H-30 acara, pelunasan = H-7 sebelum tanggal kirim) dan
+   boleh diganti lewat pemilih tanggal (o.termTgl). Dipakai quotation/invoice, Billing History, Cashflow. */
+function terminN(o){return (+o.termin===3)?3:2;}
+function terminPct(o){
+  var dp=(o.dpPct==null?50:(+o.dpPct||0));
+  if(terminN(o)===3){var d2=(o.dp2Pct==null?40:(+o.dp2Pct||0));return [dp,d2,Math.max(0,100-dp-d2)];}
+  return [dp,Math.max(0,100-dp)];}
+function terminKunci(o){return terminN(o)===3?['dp','dp2','pel']:['dp','pel'];}
+function terminLabel(k){return {dp:'DP',dp2:'Termin 2',pel:'Pelunasan'}[k]||k;}
+function terminTglOtomatis(o,k){
+  var b=briefGet(o),acara=o.eventDate||b.tglAcara||'',kirim=b.tglKirim||'';
+  if(k==='dp')return ((o.quo||{}).tgl)?tglGeser(o.quo.tgl,3):(o.quoDue?tglGeser(o.quoDue,3):tglGeser(hariIni(),10));   // belum Deal: perkiraan
+  if(k==='dp2')return acara?tglGeser(acara,-30):(kirim?tglGeser(kirim,-30):'');
+  return kirim?tglGeser(kirim,-7):(acara?tglGeser(acara,-7):'');}
+function terminTgl(o,k){var m=((o.termTgl||{})[k])||'';return m||terminTglOtomatis(o,k);}
+function terminNominal(o){
+  var G=orderGrand(o),Pp=terminPct(o),N=Pp.map(function(p){return Math.round(G*p/100);});
+  if(N.length)N[N.length-1]=Math.max(0,G-N.slice(0,-1).reduce(function(x,y){return x+y;},0));   // sisa ke termin terakhir
+  return N;}
+function terminDaftar(o){
+  var K=terminKunci(o),Pp=terminPct(o),N=terminNominal(o),pay=o.pay||{};
+  return K.map(function(k,i){var nom=+pay[k]||0;
+    return {k:k,label:terminLabel(k),pct:Pp[i],nom:N[i],tgl:terminTgl(o,k),manual:!!((o.termTgl||{})[k]),
+      dibayar:nom>0,bayarNom:nom,bayarTgl:pay[k+'Date']||''};});}
+function terminSet(id,n){var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
+  n=(+n===3)?3:2;o.termin=n;
+  if(n===3){if(o.dp2Pct==null)o.dp2Pct=40;if(o.dpPct==null||+o.dpPct===50)o.dpPct=30;}
+  logHist(o,'Terms pembayaran client: '+n+'x ('+terminPct(o).join('/')+'%)');o._m=Date.now();save();render();}
+function dp2Set(id,v){var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
+  o.dp2Pct=Math.max(0,Math.min(100,+v||0));save();render();}
+function terminTglSet(id,k,v){var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
+  if(!o.termTgl)o.termTgl={};o.termTgl[k]=String(v||'');if(!o.termTgl[k])delete o.termTgl[k];
+  logHist(o,'Tanggal '+terminLabel(k)+(v?(' diganti jadi '+tglID(v)):' kembali otomatis'));o._m=Date.now();save();render();}
+/* payment terms: termin, persen, nominal, tanggal — masuk syarat bayar quotation & invoice dan Cashflow */
 function terminBlok(o){
-  var dp=(o.dpPct==null?50:o.dpPct),T=orderTotals(o),nDp=Math.round(T.grand*dp/100);
+  var n=terminN(o),D=terminDaftar(o),T=orderTotals(o);
+  var chip=function(v,l){return '<button class="btn '+(n===v?'':'ghost')+' sm" style="font-size:10px" onclick="terminSet('+jsArg(o.id)+','+v+')">'+l+'</button>';};
+  var KET={dp:((o.quo||{}).tgl)?'Deal + 3 hari':'perkiraan — belum Deal (quotation due + 3 hari, atau 10 hari dari sekarang)',dp2:'H-30 acara',pel:'H-7 sebelum kirim'};
   return '<div data-f="termin" style="border-top:1px solid var(--line);margin-top:13px;padding-top:11px"><div class="sj">Payment terms</div>'+
-    '<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:11px">'+
-      '<span class="pill" style="display:inline-flex;align-items:center;gap:6px;padding:4px 10px">DP <input class="pin n" type="number" min="0" max="100" style="width:58px" value="'+dp+'" onchange="dpSet('+jsArg(o.id)+',this.value)">% · <b>'+fmt0(nDp)+'</b></span>'+
-      '<span class="pill" style="padding:4px 10px">Settlement '+(100-dp)+'% · <b>'+fmt0(T.grand-nDp)+'</b></span>'+
-      '<span style="font-size:9.5px;color:var(--muted)">masuk syarat bayar quotation &amp; invoice; 100% = bayar penuh sebelum produksi</span></div></div>';}
+    '<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:8px">'+chip(2,'2× — DP + pelunasan')+chip(3,'3× — DP, termin 2, pelunasan')+
+      '<span style="font-size:9.5px;color:var(--muted)">masuk syarat bayar quotation &amp; invoice dan Cashflow projection; DP 100% = bayar penuh sebelum produksi</span></div>'+
+    '<div class="xscroll"><table class="rtable" style="font-size:11px"><thead><tr><th>Termin</th><th style="width:96px">%</th><th class="num" style="width:130px">Nominal</th><th style="width:170px">Tanggal (otomatis, boleh diganti)</th><th>Status</th></tr></thead><tbody>'+
+    D.map(function(d){
+      var inp=(d.k==='pel')?('<b>'+d.pct+'%</b> <span style="font-size:9px;color:var(--muted)">sisa</span>')
+        :('<input class="pin n" type="number" min="0" max="100" style="width:58px" value="'+d.pct+'" onchange="'+(d.k==='dp'?'dpSet':'dp2Set')+'('+jsArg(o.id)+',this.value)">%');
+      return '<tr><td><b>'+esc(d.label)+'</b></td><td>'+inp+'</td><td class="num"><b>'+fmt0(d.nom)+'</b></td>'+
+        '<td><input type="date" class="pin" style="width:100%" value="'+esc(d.tgl)+'" data-f="terminTgl_'+d.k+'" onchange="terminTglSet('+jsArg(o.id)+','+jsArg(d.k)+',this.value)">'+
+          '<div style="font-size:9px;color:var(--muted)">'+(d.manual?('manual · <a href="#" onclick="terminTglSet('+jsArg(o.id)+','+jsArg(d.k)+','+jsArg('')+');return false">otomatis lagi</a>'):(d.tgl?('otomatis: '+KET[d.k]):'belum bisa dihitung — isi tanggal Deal / acara / kirim'))+'</div></td>'+
+        '<td>'+(d.dibayar?('<span style="color:var(--ok);font-weight:800">✓ diterima '+fmt0(d.bayarNom)+(d.bayarTgl?(' · '+tglID(d.bayarTgl)):'')+'</span>'):'<span style="color:var(--muted)">belum</span>')+'</td></tr>';}).join('')+
+    '</tbody></table></div>'+
+    '<div style="font-size:9.5px;color:var(--muted);margin-top:4px">Grand total '+fmt0(T.grand)+'. Termin 2 punya invoice sendiri (panel Invoice DP → Generate Invoice termin 2) sesudah DP masuk.</div></div>';}
 /* live service yang dikerjakan tim sendiri tak punya baris vendor — harga
    jualnya tetap harus terlihat di panel harga jual */
 /* Live service yang dikerjakan tim sendiri: ada di order, tapi tak punya
@@ -5288,11 +5456,13 @@ function invPanel(o){
       '<br>Ongkir <b>'+(T.ship?fmt0(T.ship):'—')+'</b>'+
       (T.kena?('<br>PPN '+T.pctPpn+'% <b>'+fmt0(T.ppn)+'</b>'):'')+
       '<br><span style="font-size:12.5px">Grand total <b style="color:var(--brand)">'+fmt0(T.grand)+'</b></span>'+
-      '<br>DP '+dpPct+'% <b>'+fmt0(dpAmt)+'</b> · sisa pelunasan <b>'+fmt0(T.grand-dpAmt)+'</b></div>'+
+      '<br>'+terminDaftar(o).map(function(d){return d.label+' '+d.pct+'% <b>'+fmt0(d.nom)+'</b>'+(d.tgl?(' <span style="color:var(--muted);font-size:9.5px">'+tglDMY(d.tgl)+'</span>'):'');}).join(' · ')+'</div>'+
     '<div data-f="pajakBlok">'+pajakBlok(o)+'</div>'+
     '<div style="display:flex;flex-wrap:wrap;gap:9px;align-items:center;margin-top:12px;border-top:1px solid var(--line);padding-top:11px">'+
       '<button class="btn" data-f="genInv" onclick="genDoc('+jsArg(o.id)+',\'invoice\')">💳 '+(D.invoice?'Lihat / generate ulang invoice DP':'Generate Invoice DP')+'</button>'+
       (D.invoice?('<span style="font-size:10.5px;color:var(--ok);font-weight:700">✓ Invoice '+esc(D.invoiceDate||'')+'</span>'):'<span style="font-size:10.5px;color:var(--muted)">dokumen tersimpan ke folder bulan saat digenerate</span>')+
+      (terminN(o)===3?('<button class="btn ghost" data-f="genInv2" '+(((o.pay||{}).dp>0)?'':'disabled title="menunggu DP masuk"')+' onclick="genDoc('+jsArg(o.id)+',\'invoice2\')">💳 '+(D.invoice2?'Lihat / generate ulang invoice termin 2':'Generate Invoice termin 2')+'</button>'+
+        (D.invoice2?('<span style="font-size:10.5px;color:var(--ok);font-weight:700">✓ Termin 2 '+esc(D.invoice2Date||'')+'</span>'):'<span style="font-size:9.5px;color:var(--muted)">'+(terminPct(o)[1]||0)+'% · '+fmt0(terminNominal(o)[1]||0)+' · jatuh tempo '+(terminTgl(o,'dp2')?tglDMY(terminTgl(o,'dp2')):'—')+'</span>')):'')+
       (D.quotation?('<button class="btn ghost sm" style="margin-left:auto" onclick="genDoc('+jsArg(o.id)+',\'quotation\')">📄 Lihat quotation</button>'):'')+
     '</div><div data-f="invKirim">'+invBar(o)+'</div></div></div>';}
 
@@ -5781,16 +5951,16 @@ function hargaOpsiBlok(o,s,baca){
 function opsiAngka(oc){
   var T=orderTotals(oc),P=profitTotals(oc),m=((oc.pricing||{}).margin||0)/100,discItem=0;
   (((oc.pricing||{}).lines)||[]).forEach(function(l){if((l.qty||0)>0&&lineJenis(l)!=='jasa')discItem+=lineDisc(l,m)*(l.qty||0);});
-  var gross=T.sub+discItem,disc=discItem+T.disc,net=T.sub-T.disc,hpp=P.hpp,kotor=net-hpp,lain=P.biayaLain,bersih=kotor-lain;
-  return {gross:gross,disc:disc,net:net,hpp:hpp,kotor:kotor,lain:lain,bersih:bersih,pct:net>0?Math.round(bersih/net*100):0,ship:T.ship};}
+  var gross=T.sub+discItem,disc=discItem+T.disc,net=T.sub-T.disc,hpp=P.hpp,kotor=net-hpp,lain=P.biayaLain,komisi=P.komisi||0,bersih=kotor-lain-komisi;
+  return {gross:gross,disc:disc,net:net,hpp:hpp,kotor:kotor,lain:lain,komisi:komisi,bersih:bersih,pct:net>0?Math.round(bersih/net*100):0,ship:T.ship};}
 function opsiProfitTabel(o,baca){
   var S=opsiSemua(o);
   return '<div data-f="opsiProfit" style="border-top:1px solid var(--line);margin-top:13px;padding-top:11px"><div class="sj">% Profit by Opsi</div>'+
-    '<div class="kecil" style="margin-bottom:6px">Gross revenue = semua item sebelum diskon (termasuk jasa &amp; biaya lain yang ditagih); Net revenue = sesudah diskon per pcs &amp; diskon total; Gross profit = net revenue − HPP; Net profit = gross profit − biaya lain. Ongkir tak ikut (ditagih apa adanya).</div>'+
-    '<div class="xscroll"><table class="rtable mstack hj"><thead><tr><th style="width:30px">No</th><th>Opsi</th><th class="num">Total Gross Revenue</th><th class="num">Total Discount</th><th class="num">Total Net Revenue</th><th class="num">Total HPP</th><th class="num">Total Gross Profit</th><th class="num">Total Biaya Lain</th><th class="num">Total Net Profit</th><th class="num" style="width:56px">%</th></tr></thead><tbody>'+
+    '<div class="kecil" style="margin-bottom:6px">Gross revenue = semua item sebelum diskon (termasuk jasa &amp; biaya lain yang ditagih); Net revenue = sesudah diskon per pcs &amp; diskon total; Gross profit = net revenue − HPP; Net profit = gross profit − biaya lain − komisi Sales &amp; WO. Ongkir tak ikut (ditagih apa adanya).</div>'+
+    '<div class="xscroll"><table class="rtable mstack hj"><thead><tr><th style="width:30px">No</th><th>Opsi</th><th class="num">Total Gross Revenue</th><th class="num">Total Discount</th><th class="num">Total Net Revenue</th><th class="num">Total HPP</th><th class="num">Total Gross Profit</th><th class="num">Total Biaya Lain</th><th class="num">Total Komisi</th><th class="num">Total Net Profit</th><th class="num" style="width:56px">%</th></tr></thead><tbody>'+
     S.map(function(s,i){var a=opsiAngka(s.klon);
       return '<tr><td class="num">'+(i+1)+'</td><td><b>'+esc(s.nama)+'</b></td><td data-l="Total Gross Revenue" class="num">'+fmt0(a.gross)+'</td><td data-l="Total Discount" class="num">'+(a.disc?('−'+fmt0(a.disc)):'—')+'</td><td data-l="Total Net Revenue" class="num"><b>'+fmt0(a.net)+'</b></td>'+
-        '<td data-l="Total HPP" class="num">'+fmt0(a.hpp)+'</td><td data-l="Total Gross Profit" class="num">'+fmt0(a.kotor)+'</td><td data-l="Total Biaya Lain" class="num">'+(a.lain?('−'+fmt0(a.lain)):'—')+'</td>'+
+        '<td data-l="Total HPP" class="num">'+fmt0(a.hpp)+'</td><td data-l="Total Gross Profit" class="num">'+fmt0(a.kotor)+'</td><td data-l="Total Biaya Lain" class="num">'+(a.lain?('−'+fmt0(a.lain)):'—')+'</td><td data-l="Total Komisi" class="num">'+(a.komisi?('−'+fmt0(a.komisi)):'—')+'</td>'+
         '<td data-l="Total Net Profit" class="num" style="font-weight:800;color:'+profitWarna(a.pct)+'">'+fmt0(a.bersih)+'</td><td data-l="%" class="num" style="font-weight:800;color:'+profitWarna(a.pct)+'">'+a.pct+'%</td></tr>';}).join('')+
     '</tbody></table></div></div>';}
 
@@ -8098,6 +8268,7 @@ function loadMaster(){try{ST.master=JSON.parse(localStorage.getItem('rovehub_mas
    if(!ST.master.collDim){ST.master.collDim=defCollDim();saveMaster();}
    if(!ST.master.kurs){ST.master.kurs=defKurs();saveMaster();}
    if(ST.master.royaltiAU==null){ST.master.royaltiAU=10;saveMaster();}   // % royalti order Rove AU
+   if(ST.master.komisiSales==null){ST.master.komisiSales=1;ST.master.komisiWO=10;saveMaster();}   // komisi bawaan (patch137)
    if(!ST.master.jasa){ST.master.jasa=defJasa();saveMaster();}
    if(!ST.master.volDiv){ST.master.volDiv=5000;ST.master.packFactor=1.05;saveMaster();}
    /* Daftar 'eksp' lama dibuang — ekspedisi kini dibaca dari tabel Pengiriman. */
@@ -8220,7 +8391,7 @@ function renderMaster(){
   /* table-layout:fixed — tanpa ini lebar kolom mengikuti isi terpanjang,
      jadi tabel melar dan halaman minta digeser kanan-kiri. */
   const tbl=(sec,cols,rows,idx)=>`<table class="rtable" style="table-layout:fixed"><thead><tr><th style="width:24px"></th>${cols.map(c=>`<th${c[2]==='img'?' style="width:80px;font-size:9px"':''}>${c[1]}</th>`).join('')}<th style="width:120px;font-size:9px">Diubah</th><th style="width:60px"></th></tr></thead>
-    <tbody>${rows.map((r,n)=>{const i=idx?idx[n]:n;return `<tr ondragover="mSeretLewat(event)" ondrop="mSeretJatuh('${sec}',${i},event)"${r&&r._del?' style="opacity:.55;background:var(--warn-bg)"':''}><td draggable="true" ondragstart="mSeretMulai('${sec}',${i},event)" style="cursor:grab;color:var(--muted);text-align:center;font-size:12px;user-select:none" title="seret untuk mengubah urutan">⣿</td>${cols.map(c=>{if(c[2]==='img')return mImgCell(sec,i,r);if(c[2]==='tekpilih')return tekListCell(i,r);if(c[2]==='venpilih')return venListCell(i,r);if(Array.isArray(c[2]))return '<td><select class="pin" onchange="mEdit(\''+sec+'\','+i+',\''+c[0]+'\',this.value)">'+c[2].map(function(op){var v=Array.isArray(op)?op[0]:op,l=Array.isArray(op)?op[1]:op;return '<option value="'+esc(v)+'" '+(r[c[0]]===v?'selected':'')+'>'+esc(l)+'</option>';}).join('')+'</select></td>';var mny=c[2]==='money',num=c[2]==='number';
+    <tbody>${rows.map((r,n)=>{const i=idx?idx[n]:n;return `<tr ondragover="mSeretLewat(event)" ondrop="mSeretJatuh('${sec}',${i},event)"${r&&r._del?' style="opacity:.55;background:var(--warn-bg)"':''}><td draggable="true" ondragstart="mSeretMulai('${sec}',${i},event)" style="cursor:grab;color:var(--muted);text-align:center;font-size:12px;user-select:none" title="seret untuk mengubah urutan">⣿</td>${cols.map(c=>{if(c[2]==='img')return mImgCell(sec,i,r);if(c[2]==='tekpilih')return tekListCell(i,r);if(c[2]==='venpilih')return venListCell(i,r);if(c[2]==='terminpilih')return vterminCell(i,r);if(Array.isArray(c[2]))return '<td><select class="pin" onchange="mEdit(\''+sec+'\','+i+',\''+c[0]+'\',this.value)">'+c[2].map(function(op){var v=Array.isArray(op)?op[0]:op,l=Array.isArray(op)?op[1]:op;return '<option value="'+esc(v)+'" '+(r[c[0]]===v?'selected':'')+'>'+esc(l)+'</option>';}).join('')+'</select></td>';var mny=c[2]==='money',num=c[2]==='number';
        /* 'datalist:nama' = ketik bebas, tapi nilai yang sudah dipakai muncul sebagai saran */
        var dl=(typeof c[2]==='string'&&c[2].slice(0,9)==='datalist:')?c[2].slice(9):'';
        return '<td><input class="pin'+(mny?' n money':(num?' n':''))+'" '+(dl?('list="'+dl+'" '):'')+(mny?'inputmode="numeric" ':(num?'type="number" ':''))+'value="'+(mny?moneyInp(r[c[0]]):esc(r[c[0]]))+'" onchange="'+(mny?'mEditM':'mEdit')+'(\''+sec+'\','+i+',\''+c[0]+'\',this.value)" placeholder="'+esc(c[1])+'"></td>';}).join('')}<td style="font-size:9px;color:var(--muted)">${fmtStamp(r)}</td>${actCell(sec,i,r)}</tr>`;}).join('')}</tbody></table>`;
@@ -8347,7 +8518,7 @@ function renderMaster(){
      <div style="font-size:10.5px;color:var(--muted);margin-bottom:10px"><b>COGS Type</b> mengikuti AIS — menentukan biaya masuk ke Main Product, Packaging, atau Service. Tim live service didaftarkan di sini juga (tipe <b>${esc(tipeLabel('Live Service'))}</b>, COGS <b>Service</b>). Pilihan <b>Tipe</b> &amp; <b>Bank</b> bisa ditambah atau diganti namanya di <b>Opsi form</b> — HUB mengikuti nama yang ada di master.</div>
      <div style="display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px">${chip('ALL',V.length)}${kat.map(function(k){
        return chip(k,V.filter(function(v){return jenis(v)===k;}).length);}).join('')}</div>
-     ${idx.length?`<div class="xscroll">${tbl('vendors',[['nama','Nama'],['tipe','Tipe',tipeOpts()],['cogs','COGS Type',listArr('cogs')],['kontak','Contact person'],['hp','No. HP'],['kota','Kota'],['disc','Channel Discord (kosongkan kalau lewat WhatsApp)'],['bank','Bank',listArr('bank')],['rek','No. rekening'],['alamat','Alamat']],idx.map(function(i){return V[i];}),idx)}</div>`
+     ${idx.length?`<div class="xscroll">${tbl('vendors',[['nama','Nama'],['tipe','Tipe',tipeOpts()],['cogs','COGS Type',listArr('cogs')],['termin','Termin bayar','terminpilih'],['kontak','Contact person'],['hp','No. HP'],['kota','Kota'],['disc','Channel Discord (kosongkan kalau lewat WhatsApp)'],['bank','Bank',listArr('bank')],['rek','No. rekening'],['alamat','Alamat']],idx.map(function(i){return V[i];}),idx)}</div>`
        :'<div style="color:var(--muted);font-size:11px;padding:6px 0">Belum ada vendor pada kategori ini.</div>'}
      <button class="btn ghost sm" style="margin-top:9px" onclick="mAdd('vendors')">＋ Tambah vendor${(f!=='ALL'&&f!=='Tanpa tipe')?(' '+esc(tipeLabel(f))):''}</button>
      ${f!=='ALL'?'<span style="font-size:9.5px;color:var(--muted);margin-left:8px">Vendor baru langsung masuk kategori ini.</span>':''}</div>`;})(),
@@ -8538,7 +8709,11 @@ function renderMaster(){
        '<div class="xscroll">'+tbl('kurs',[['kode','Mata uang'],['nilai','Nilai (Rp)','money']],M.kurs||[])+'</div>'+
        '<button class="btn ghost sm" style="margin-top:9px" onclick="mAdd(\'kurs\')">＋ Tambah kurs</button>'+
        '<label class="nlbl" style="margin-top:14px;max-width:300px">Royalti Rove AU — % dari invoice Rove AU ke client-nya (dipakai Laporan penutupan order AU)'+
-         '<input class="pin n" style="margin-top:3px" value="'+royaltiPctDefault()+'" onchange="royaltiAUSet(this.value)"></label>';
+         '<input class="pin n" style="margin-top:3px" value="'+royaltiPctDefault()+'" onchange="royaltiAUSet(this.value)"></label>'+
+       '<div style="display:flex;flex-wrap:wrap;gap:12px;margin-top:12px;border-top:1px solid var(--line);padding-top:12px">'+
+         '<label class="nlbl" style="max-width:300px">Komisi Sales — % dari total project sesudah diskon (tanpa ongkir &amp; PPN)<input class="pin n" style="margin-top:3px" value="'+komisiDef('sales')+'" onchange="komisiDefSet(\'sales\',this.value)"></label>'+
+         '<label class="nlbl" style="max-width:300px">Komisi WO / EO — % dari total project (hanya order lewat WO/EO)<input class="pin n" style="margin-top:3px" value="'+komisiDef('wo')+'" onchange="komisiDefSet(\'wo\',this.value)"></label>'+
+         '<span style="font-size:9.5px;color:var(--muted);flex:1;min-width:190px">Bawaan untuk order baru — di tiap order bisa diganti % atau nominal (Penentuan harga jual → Komisi). Memotong profit dan masuk Cashflow.</span></div>';
      else isi=
        '<div style="font-size:10.5px;color:var(--muted);margin-bottom:9px">Satu baris per ekspedisi × layanan × kota. Semua layanan ke kota tujuan ditawarkan di quotation (tabel Shipping Information) — client memilih saat Deal; tarif × berat jadi ongkirnya.</div>'+
        (idx.length?('<div class="xscroll">'+tbl('shipping',[['ekspedisi','Ekspedisi','datalist:eksplist'],['layanan','Layanan (Regular / Economy / Sea Freight)'],['kota','Kota'],['lama','Lama kirim (mis. 4-5 Days)'],['tarif','Tarif per kg (Rp)','money']],idx.map(function(i){return S[i];}),idx)+'</div>')
@@ -9010,7 +9185,7 @@ function rp(n){return 'Rp '+n.toLocaleString('id-ID')+' jt'}
 function orderGrand(o){const P=o.pricing;if(!P||!P.lines||!P.lines.length)return (o.nilai||0)*1e6;
   return orderTotals(o).grand;}
 function orderHPP(o){const P=o.pricing;if(!P||!P.lines)return 0;return priceTotals(o).hppT;}
-function orderPaid(o){const p=o.pay||{};return (+p.dp||0)+(+p.pel||0);}
+function orderPaid(o){const p=o.pay||{};return (+p.dp||0)+(+p.dp2||0)+(+p.pel||0);}
 /* ================= EKSPOR KE AIS (SO-H / SO-D) =================
    Kolom mengikuti sheet AIS Rove Gift. HANYA kolom sumber yang diisi —
    kolom hitung (Grand Total, AR, WIP, COGS by date, dst) tetap rumus di AIS. */
@@ -12339,6 +12514,76 @@ function bvHapus(id,v,i){
   var D=bvDaftar(o,v),x=D[i];if(!x)return;
   if(!confirm('Hapus catatan pembayaran '+fmt0(x.nominal)+' ke '+v+'?'))return;
   D.splice(i,1);logHist(o,'↺ Catatan pembayaran vendor dihapus — '+v+' '+fmt0(x.nominal));o._m=Date.now();save();render();}
+/* ================= TERMIN PEMBAYARAN KE VENDOR =================
+   Bawaan per vendor di Master → Vendors (kolom Termin bayar); order menyalinnya sekali (o.vterm[vendor])
+   lalu boleh diubah: persen, dasar tanggal (PO turun / barang jadi / diterima Rove), tanggal manual.
+   Nominal = % × total PO vendor (HPP × qty PO + biaya tetap); sisa pembulatan ke termin terakhir.
+   Dicetak di PO (Payment Terms) dan jadi baris keluar di Cashflow. */
+const VTERM_DASAR={po:'saat PO turun',jadi:'saat barang jadi (deadline vendor)',terima:'saat barang diterima Rove'};
+const VTERM_DASAR_EN={po:'upon PO issue',jadi:'when the goods are finished',terima:'upon receipt at Rove'};
+function vterminDefault(kode){return (kode==='Kulit')?[{pct:50,dasar:'po'},{pct:50,dasar:'jadi'}]:[{pct:100,dasar:'jadi'}];}
+function vterminMaster(nama){var vm=((ST.master||{}).vendors||[]).find(function(x){return x.nama===nama;})||{};
+  var t=(Array.isArray(vm.termin)&&vm.termin.length)?vm.termin:vterminDefault(vm.tipe);
+  return t.slice(0,3).map(function(x){return {pct:+x.pct||0,dasar:VTERM_DASAR[x.dasar]?x.dasar:'jadi'};});}
+function vterminTeks(T){return (T||[]).map(function(x,i){return (i+1)+') '+x.pct+'% '+(VTERM_DASAR[x.dasar]||x.dasar);}).join(' · ');}
+function vterminCell(i,r){var T=vterminMaster(r.nama),S={po:'PO',jadi:'jadi',terima:'terima'};
+  return '<td style="min-width:150px"><button class="btn ghost sm" style="width:100%;text-align:left;font-size:10px;white-space:nowrap" title="'+esc(vterminTeks(T))+' — dipakai tiap order, boleh diubah per order" onclick="vterminEdit('+i+')">'+
+    esc(T.map(function(x){return x.pct+'% '+(S[x.dasar]||x.dasar);}).join(' · '))+((Array.isArray(r.termin)&&r.termin.length)?'':' <span style="color:var(--muted)">(bawaan)</span>')+'</button></td>';}
+function vterminEdit(i){var r=(ST.master.vendors||[])[i];if(!r)return;var T=vterminMaster(r.nama);
+  var F=[{k:'n',label:'Jumlah termin (mentok 3)',type:'select',opts:['1','2','3'],val:String(T.length)}];
+  for(var t=0;t<3;t++){var x=T[t]||{pct:0,dasar:'jadi'};
+    F.push({k:'p'+t,label:'Tahap '+(t+1)+' — persen',type:'number',val:x.pct});
+    F.push({k:'d'+t,label:'Tahap '+(t+1)+' — tanggalnya dihitung dari',type:'select',opts:Object.keys(VTERM_DASAR).map(function(k){return {v:k,l:VTERM_DASAR[k]};}),val:x.dasar});}
+  askForm({judul:'Termin pembayaran — '+r.nama,sub:'Persen dari total PO (HPP × qty + biaya tetap). Tanggal tiap termin dihitung dari dasarnya; di order bisa diganti manual.',fields:F,
+    ok:function(v){var n=Math.max(1,Math.min(3,+v.n||1)),out=[],tot=0;
+      for(var t=0;t<n;t++){var p=Math.max(0,+v['p'+t]||0);out.push({pct:p,dasar:VTERM_DASAR[v['d'+t]]?v['d'+t]:'jadi'});tot+=p;}
+      if(Math.round(tot)!==100){alert('Jumlah persennya harus 100% (sekarang '+tot+'%).');return;}
+      r.termin=out;stampRow(r);saveMaster();render();}});}
+function vtermGet(o,v){if(!o.vterm)o.vterm={};
+  if(!Array.isArray(o.vterm[v])||!o.vterm[v].length)o.vterm[v]=vterminMaster(v).map(function(x){return {pct:x.pct,dasar:x.dasar,tgl:''};});
+  return o.vterm[v];}
+function vtermTglOtomatis(o,v,x){
+  var radja=isLeatherVendor(v),p=radja?(o.po||{}):(((o.vpo||{})[v])||{}),vt=((o.vendorTgl||{})[v])||{};
+  var deadline=p.deadline||vt.deadline||'';
+  if(x.dasar==='po')return p.tglPO||vt.tglPOMax||(deadline?tglGeser(deadline,-14):'');
+  if(x.dasar==='terima')return deadline?tglGeser(deadline,2):'';
+  return deadline;}
+function vtermDaftar(o,v){
+  var T=vtermGet(o,v),total=bvTotal(o,v),D=bvDaftar(o,v),N=T.map(function(x){return Math.round(total*(+x.pct||0)/100);});
+  if(N.length)N[N.length-1]=Math.max(0,total-N.slice(0,-1).reduce(function(a,b){return a+b;},0));
+  return T.map(function(x,i){var bayar=D.filter(function(b){return +b.tahap===i+1;}),nomB=bayar.reduce(function(a,b){return a+(+b.nominal||0);},0);
+    return {i:i,tahap:i+1,pct:+x.pct||0,dasar:x.dasar,nom:N[i],tgl:x.tgl||vtermTglOtomatis(o,v,x),manual:!!x.tgl,
+      dibayar:nomB>0,bayarNom:nomB,bayarTgl:bayar.length?bayar[bayar.length-1].tgl:''};});}
+function vtermSet(id,v,i,f,val){var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;var T=vtermGet(o,v),x=T[i];if(!x)return;
+  if(f==='pct')x.pct=Math.max(0,Math.min(100,+val||0));else if(f==='tgl')x.tgl=String(val||'');else if(f==='dasar'){if(VTERM_DASAR[val])x.dasar=val;}
+  logHist(o,'Termin '+(i+1)+' '+v+': '+(f==='tgl'?(val?('tanggal '+tglID(val)):'tanggal otomatis lagi'):(f==='pct'?(x.pct+'%'):(VTERM_DASAR[x.dasar]||''))));
+  o._m=Date.now();save();render();}
+function vtermN(id,v,n){var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;var T=vtermGet(o,v);n=Math.max(1,Math.min(3,+n||1));
+  while(T.length<n)T.push({pct:0,dasar:'jadi',tgl:''});T.length=n;
+  var lain=T.slice(0,-1).reduce(function(a,x){return a+(+x.pct||0);},0);T[T.length-1].pct=Math.max(0,100-lain);
+  logHist(o,'Termin '+v+' jadi '+n+'x');o._m=Date.now();save();render();}
+function vtermReset(id,v){var o=ST.orders.find(function(x){return x.id===id;});if(!o||!o.vterm)return;delete o.vterm[v];
+  logHist(o,'Termin '+v+' kembali ke bawaan Master');o._m=Date.now();save();render();}
+function vtermBlok(o,v,baca){
+  var D=vtermDaftar(o,v),total=bvTotal(o,v),tot=D.reduce(function(a,d){return a+d.pct;},0);
+  var A=jsArg(o.id)+','+jsArg(v);
+  return '<div data-f="vterm_'+esc(vpoSlot(v))+'" style="border-top:1px dashed var(--line);margin-top:10px;padding-top:9px">'+
+    '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:5px"><b style="font-size:10.5px">Termin pembayaran ke '+esc(v)+'</b>'+
+      '<span class="kecil">bawaan dari Master → Vendors · total PO '+fmt0(total)+' · dicetak di PO · masuk Cashflow</span>'+
+      (baca?'':('<span style="margin-left:auto;font-size:10px">'+[1,2,3].map(function(n){return '<button class="btn '+(D.length===n?'':'ghost')+' sm" style="font-size:9.5px;padding:2px 7px" onclick="vtermN('+A+','+n+')">'+n+'×</button>';}).join(' ')+
+        ' <button class="btn ghost sm" style="font-size:9.5px;padding:2px 7px" title="kembali ke termin bawaan vendor" onclick="vtermReset('+A+')">↺ bawaan</button></span>'))+'</div>'+
+    '<div class="xscroll"><table class="rtable" style="font-size:10.5px"><thead><tr><th style="width:60px">Tahap</th><th style="width:84px">%</th><th class="num" style="width:120px">Nominal</th><th style="width:190px">Tanggal dihitung dari</th><th style="width:160px">Tanggal</th><th>Status</th></tr></thead><tbody>'+
+    D.map(function(d){var B=A+','+d.i;
+      return '<tr><td>tahap '+d.tahap+'</td>'+
+        '<td style="white-space:nowrap">'+(baca?(d.pct+'%'):('<input class="pin n" type="number" min="0" max="100" style="width:56px" value="'+d.pct+'" onchange="vtermSet('+B+',\'pct\',this.value)">%'))+'</td>'+
+        '<td class="num"><b>'+fmt0(d.nom)+'</b></td>'+
+        '<td>'+(baca?esc(VTERM_DASAR[d.dasar]||d.dasar):('<select class="pin" style="width:100%" onchange="vtermSet('+B+',\'dasar\',this.value)">'+Object.keys(VTERM_DASAR).map(function(k){return '<option value="'+k+'" '+(d.dasar===k?'selected':'')+'>'+esc(VTERM_DASAR[k])+'</option>';}).join('')+'</select>'))+'</td>'+
+        '<td>'+(baca?(d.tgl?tglID(d.tgl):'—'):('<input type="date" class="pin" style="width:100%" value="'+esc(d.tgl)+'" onchange="vtermSet('+B+',\'tgl\',this.value)">'+
+          '<div style="font-size:9px;color:var(--muted)">'+(d.manual?('manual · <a href="#" onclick="vtermSet('+B+',\'tgl\',\'\');return false">otomatis lagi</a>'):(d.tgl?'otomatis dari dasarnya':'belum bisa dihitung — isi deadline / tanggal PO'))+'</div>'))+'</td>'+
+        '<td>'+(d.dibayar?('<span style="color:var(--ok);font-weight:800">✓ dibayar '+fmt0(d.bayarNom)+(d.bayarTgl?(' · '+tglID(d.bayarTgl)):'')+'</span>'):'<span style="color:var(--muted)">belum</span>')+'</td></tr>';}).join('')+
+    '</tbody></table></div>'+(tot!==100?('<div style="font-size:9.5px;color:var(--warn);font-weight:700;margin-top:3px">Jumlah persen '+tot+'% — harus 100%.</div>'):'')+'</div>';}
+function vtermInfoPO(o,v){var D=[];try{D=vtermDaftar(o,v);}catch(e){}if(!D.length)return '';
+  return D.map(function(d){return '<tr><td class="k" style="width:150px">'+(d.i===0?'Payment Terms':'')+'</td><td>: '+esc('Stage '+d.tahap+': '+d.pct+'% — '+idr(d.nom)+' '+(VTERM_DASAR_EN[d.dasar]||d.dasar)+(d.tgl?(', '+tglDMY(d.tgl)):''))+'</td></tr>';}).join('');}
 function bayarVendorPanel(o,tahap){
   var V=vendorTagihan(o),lunas=bvLunasSemua(o),nLunas=V.filter(function(x){return bvSisa(o,x.v,x.total)<=0;}).length;
   var judul={1:'sesudah PO turun — DP / termin pertama',2:'sesudah barang diterima Rove — termin kedua',3:'sesudah barang berangkat / live event — pelunasan semua vendor'}[tahap];
@@ -12354,6 +12599,7 @@ function bayarVendorPanel(o,tahap){
         '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:7px">'+
           (sisa>0?(bvBoleh()?('<button class="btn sm" data-f="bvCatat_'+esc(vpoSlot(x.v))+'" onclick="bvCatat('+jsArg(o.id)+','+jsArg(x.v)+','+tahap+')">＋ Catat pembayaran tahap '+tahap+'</button>'):'<span style="font-size:10px;color:var(--muted)">dicatat Finance</span>'):'')+
         '</div>'+
+        vtermBlok(o,x.v,true)+
         '<div style="margin-top:6px">'+lampiranBlok(o,'bvBukti_'+vpoSlot(x.v)+'_'+tahap,'Bukti transfer ke '+x.v+' — tahap '+tahap)+'</div>'+
       '</div>';}).join(''):'<div style="font-size:10.5px;color:var(--muted)">Belum ada baris vendor di pricing.</div>')+
     (tahap===3&&!lunas?'<div style="font-size:10.5px;color:var(--warn);font-weight:700;margin-top:6px">Fase ini baru bisa ditutup setelah semua vendor lunas.</div>':'')+
@@ -12705,26 +12951,27 @@ function bayarCatat(id,jenis,dariBukti){
   var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
   if(!bolehUang()){tolakUang(jenis==='dp'?'DP':'Pelunasan');return;}
   var G=orderGrand(o),pay=o.pay||{dp:0,pel:0};
-  var sudah=(+pay.dp||0)+(+pay.pel||0),sisa=Math.max(0,G-sudah);
+  var sudah=orderPaid(o),sisa=Math.max(0,G-sudah);
   if(G<=0){alert('Grand total masih 0 — isi baris pricing dulu sebelum mencatat pembayaran.');return;}
-  var dp=(jenis==='dp');
+  var dp=(jenis==='dp'),t2=(jenis==='dp2'),kk=dp?'dp':(t2?'dp2':'pel'),lbl=dp?'DP':(t2?'Termin 2':'Pelunasan');
   if(dp&&(+pay.dp||0)>0){alert('DP sudah tercatat '+fmt0(pay.dp)+' pada '+(pay.dpDate||'-')+'.\n\nPakai "Ubah" kalau nominalnya keliru.');return;}
+  if(t2&&(+pay.dp2||0)>0){alert('Termin 2 sudah tercatat '+fmt0(pay.dp2)+' pada '+(pay.dp2Date||'-')+'.');return;}
   /* tanpa DP boleh, ASAL lewat surat PO resmi yang sudah disetujui Direktur —
      aturan yang sama dipakai gerbang fase Menunggu DP, jadi tak bisa berbeda */
   if(!dp&&!dpTerpenuhi(o)){
     alert('Catat DP dulu sebelum pelunasan.\n\nKalau order ini memang berjalan tanpa DP, '+
       'lampirkan surat PO client dan minta Direktur menyetujuinya dulu di fase First Payment Processing.');return;}
   if(!dp&&sisa<=0){alert('Sudah lunas — tak ada sisa tagihan.');return;}
-  var saran=dp?Math.round(G*((+o.dpPct||50)/100)):sisa;
+  var saran=dp?Math.round(G*((+o.dpPct||50)/100)):(t2?Math.min(sisa,terminNominal(o)[1]||0):sisa);
   var bk=buktiGet(o),dariTeks=dariBukti?angkaDariTeks(bk.teks):0;
   if(dariTeks>0)saran=dariTeks;
-  askForm({judul:dp?'Catat DP masuk':'Catat pelunasan masuk',
+  askForm({judul:dp?'Catat DP masuk':(t2?'Catat termin 2 masuk':'Catat pelunasan masuk'),
     sub:o.customer+' · grand total '+fmt0(G)+(dp?'':(' · sisa '+fmt0(sisa)))+
       (dariBukti&&bk.teks?('   ·   kata client: "'+bk.teks+'"'):''),
     fields:[
       {k:'nominal',label:'Nominal diterima',type:'money',val:saran,req:true,
        hint:dariTeks>0?('Terbaca '+fmt0(dariTeks)+' dari kabar client. Pastikan sama dengan rekening sebelum disimpan.')
-            :(dp?('Saran '+(o.dpPct||50)+'% dari grand total. Ubah kalau client bayar beda.'):'Sisa tagihan sampai lunas.')},
+            :(dp?('Saran '+(o.dpPct||50)+'% dari grand total. Ubah kalau client bayar beda.'):(t2?('Saran '+(terminPct(o)[1]||0)+'% sesuai payment terms. Ubah kalau client bayar beda.'):'Sisa tagihan sampai lunas.'))},
       {k:'tgl',label:'Tanggal uang masuk',type:'date',val:hariIni(),req:true,
        hint:'Pilih dari kalender — tanggal rekening koran, bukan tanggal invoice.'},
       {k:'via',label:'Masuk ke',type:'select',opts:bankOpts(),val:(pay.via||'')},
@@ -12733,31 +12980,31 @@ function bayarCatat(id,jenis,dariBukti){
       /* nominal & tanggal sudah ditahan askForm lewat req — di sini tinggal cek kewajaran */
       if(v.nominal>sisa+1&&!confirm('Nominal '+fmt0(v.nominal)+' melebihi sisa tagihan '+fmt0(sisa)+'.\n\nTetap catat?'))return;
       if(!o.pay)o.pay={dp:0,pel:0,dpDate:'',pelDate:''};
-      o.pay[dp?'dp':'pel']=v.nominal;
-      o.pay[dp?'dpDate':'pelDate']=v.tgl;
+      o.pay[kk]=v.nominal;
+      o.pay[kk+'Date']=v.tgl;
       o.pay.via=v.via||'';
-      if(v.catatan)o.pay[dp?'dpNote':'pelNote']=v.catatan;
-      var lunas=((+o.pay.dp||0)+(+o.pay.pel||0))>=G-1;
-      logHist(o,(dp?'DP':'Pelunasan')+' diterima '+fmt0(v.nominal)+' tgl '+v.tgl+(v.via?(' via '+v.via):''));
-      notifyOrder(o,'💰 **'+(dp?'DP diterima':'Pelunasan diterima')+'** '+fmt0(v.nominal)+' — '+o.customer+
+      if(v.catatan)o.pay[kk+'Note']=v.catatan;
+      var lunas=orderPaid(o)>=G-1;
+      logHist(o,lbl+' diterima '+fmt0(v.nominal)+' tgl '+v.tgl+(v.via?(' via '+v.via):''));
+      notifyOrder(o,'💰 **'+lbl+' diterima** '+fmt0(v.nominal)+' — '+o.customer+
         '\nTanggal masuk: '+v.tgl+(v.via?('\nRekening: '+v.via):'')+(lunas?'\n✅ Order LUNAS':''));
       o._m=Date.now();save();render();}});}
 function bayarHapus(id,jenis){
   var o=ST.orders.find(function(x){return x.id===id;});if(!o||!o.pay)return;
   if(!bolehUang()){tolakUang('Pembatalan catatan uang');return;}
-  var dp=(jenis==='dp'),n=dp?o.pay.dp:o.pay.pel;
+  var kk=(jenis==='dp'||jenis==='dp2'||jenis==='pel')?jenis:'pel',n=o.pay[kk],lbl=terminLabel(kk).toLowerCase();
   if(!(+n>0))return;
-  if(!confirm('Batalkan catatan '+(dp?'DP':'pelunasan')+' '+fmt0(n)+'?\n\nDipakai kalau salah catat — riwayat tetap tersimpan.'))return;
-  o.pay[dp?'dp':'pel']=0;o.pay[dp?'dpDate':'pelDate']='';
-  logHist(o,'Catatan '+(dp?'DP':'pelunasan')+' '+fmt0(n)+' dibatalkan');
+  if(!confirm('Batalkan catatan '+lbl+' '+fmt0(n)+'?\n\nDipakai kalau salah catat — riwayat tetap tersimpan.'))return;
+  o.pay[kk]=0;o.pay[kk+'Date']='';
+  logHist(o,'Catatan '+lbl+' '+fmt0(n)+' dibatalkan');
   o._m=Date.now();save();render();}
 function hariIni(){var d=new Date();return ymd(d.getFullYear(),d.getMonth()+1,d.getDate());}
 function bankOpts(){var b=((ST.master&&ST.master.bank)||[]).map(function(x){return x.v;});
   return [''].concat(b);}
 
 function payEdit(id,f,v){const o=ST.orders.find(x=>x.id===id);if(!o)return;
-  if((f==='dp'||f==='pel')&&!bolehUang()){tolakUang('Nominal uang masuk');return;}if(!o.pay)o.pay={dp:0,pel:0,dpDate:'',pelDate:''};
-  o.pay[f]=(f==='dp'||f==='pel')?Math.max(0,moneyVal(v)):v;
+  if((f==='dp'||f==='dp2'||f==='pel')&&!bolehUang()){tolakUang('Nominal uang masuk');return;}if(!o.pay)o.pay={dp:0,pel:0,dpDate:'',pelDate:''};
+  o.pay[f]=(f==='dp'||f==='dp2'||f==='pel')?Math.max(0,moneyVal(v)):v;
   if(f==='dp'&&+o.pay.dp>0)notifyOrder(o,'💰 **DP diterima** '+fmt0(o.pay.dp)+' — '+o.customer);
   if(f==='pel'&&+o.pay.pel>0)notifyOrder(o,'💰 **Pelunasan diterima** '+fmt0(o.pay.pel)+' — '+o.customer);
   save();updateTotals&&updateTotals(id);render();}
@@ -14140,6 +14387,60 @@ function tandaMarginDiskon(o){
   return '<div style="border:1px solid var(--warn);background:var(--warn-bg);border-radius:9px;padding:9px 12px;margin-bottom:11px">'+
     out.map(function(t){return '<div style="font-size:11px;font-weight:800;color:var(--warn)">⚠ '+t+'</div>';}).join('')+
     '<div style="font-size:9.5px;color:var(--ink-soft);margin-top:3px">Tak menahan apa-apa — sekadar supaya terlihat sebelum di-approve.</div></div>';}
+/* ================= KOMISI SALES & WO =================
+   Dasar = total project sesudah diskon, tanpa ongkir & PPN (net revenue). Bawaan dari Master
+   (Sales 1%, WO 10% — WO hanya bila order lewat WO/EO); per order boleh % atau nominal.
+   Memotong profit (Project Pricing, Profitability Checking, laporan) dan masuk Cashflow sebagai
+   uang keluar: sesudah order dikirim & lunas, atau sesudah live event. Finance menandai dibayar. */
+function komisiDef(k){var M=ST.master||{};var v=(k==='wo')?M.komisiWO:M.komisiSales;return (v==null||v==='')?(k==='wo'?10:1):(+v||0);}
+function komisiDefSet(k,v){v=Math.max(0,Math.min(100,+String(v).replace(',','.')||0));if(k==='wo')ST.master.komisiWO=v;else ST.master.komisiSales=v;saveMaster();render();}
+function komisiGet(o){if(!o.komisi)o.komisi={};var K=o.komisi;
+  if(!K.sales)K.sales={mode:'pct',nilai:null};if(!K.wo)K.wo={mode:'pct',nilai:null};if(!K.tgl)K.tgl={};if(!K.bayar)K.bayar={};return K;}
+function adaWO(o){var b=(o&&o.brief)||{};return !!(String(b.woNama||'').trim()||String(b.woHp||'').trim());}
+function komisiDasar(o){var T=orderTotals(o);return Math.max(0,(+T.sub||0)-(+T.disc||0));}
+function komisiNilai(o,k){var K=komisiGet(o),x=K[k]||{},kosong=(x.nilai==null||x.nilai==='');
+  if(k==='wo'&&!adaWO(o)&&kosong)return 0;
+  var nilai=kosong?komisiDef(k):(+x.nilai||0);
+  return (x.mode==='nom')?Math.round(nilai):Math.round(komisiDasar(o)*nilai/100);}
+function komisiTotal(o){try{return komisiNilai(o,'sales')+komisiNilai(o,'wo');}catch(e){return 0;}}
+function komisiTglOtomatis(o){var b=briefGet(o),acara=o.eventDate||b.tglAcara||'';
+  if(adaLive(o)&&acara)return tglGeser(acara,1);
+  var pel=((o.pay||{}).pelDate)||'',kirim=b.tglKirim||'',d=(pel>kirim)?pel:kirim;
+  return d?tglGeser(d,1):(acara?tglGeser(acara,1):'');}
+function komisiTgl(o,k){var K=komisiGet(o);return (K.tgl[k])||komisiTglOtomatis(o);}
+function komisiSet(id,k,f,v){var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;var K=komisiGet(o);
+  if(f==='mode')K[k].mode=(v==='nom')?'nom':'pct';
+  else if(f==='nilai'){var t=String(v==null?'':v).trim();K[k].nilai=(t==='')?null:(K[k].mode==='nom'?Math.max(0,moneyVal(t)):Math.max(0,+t.replace(',','.')||0));}
+  else if(f==='tgl'){K.tgl[k]=String(v||'');if(!K.tgl[k])delete K.tgl[k];}
+  logHist(o,'Komisi '+(k==='wo'?'WO':'Sales')+' — '+f+': '+((v===''||v==null)?'bawaan':v));o._m=Date.now();save();render();}
+function komisiBayar(id,k){var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
+  if(!cfBoleh()){alert('Komisi ditandai dibayar oleh Finance.');return;}
+  var K=komisiGet(o),nom=komisiNilai(o,k);
+  askForm({judul:'Tandai komisi '+(k==='wo'?'WO / EO':'Sales')+' dibayar',sub:o.customer+' · '+fmt0(nom),tanpaDraf:true,fields:[
+      {k:'nominal',label:'Nominal dibayar',type:'money',req:true,val:nom},
+      {k:'tgl',label:'Tanggal bayar',type:'date',req:true,val:hariIni()},
+      {k:'cat',label:'Catatan',type:'text',ph:'mis. transfer BCA'}],
+    ok:function(v){K.bayar[k]={tgl:v.tgl,nom:moneyVal(v.nominal),catatan:String(v.cat||'').trim(),oleh:(ST.userName||ST.user||'')};
+      logHist(o,'💸 Komisi '+(k==='wo'?'WO':'Sales')+' dibayar '+fmt0(moneyVal(v.nominal))+' tgl '+v.tgl);o._m=Date.now();save();render();}});}
+function komisiBatal(id,k){var o=ST.orders.find(function(x){return x.id===id;});if(!o||!o.komisi||!o.komisi.bayar)return;
+  if(!cfBoleh())return;if(!confirm('Batalkan tanda komisi dibayar?'))return;delete o.komisi.bayar[k];
+  logHist(o,'Tanda komisi '+(k==='wo'?'WO':'Sales')+' dibayar dibatalkan');o._m=Date.now();save();render();}
+function komisiBlok(o,baca){
+  var K=komisiGet(o),dasar=komisiDasar(o),boleh=cfBoleh()&&!baca;
+  var baris=function(k,label){var x=K[k],nilai=komisiNilai(o,k),def=komisiDef(k),pakaiDef=(x.nilai==null||x.nilai===''),bayar=K.bayar[k],A=jsArg(o.id)+','+jsArg(k);
+    var ket=(k==='wo'&&!adaWO(o)&&pakaiDef)?'tak ada WO/EO di order ini — 0 (isi manual kalau ada)':(pakaiDef?('bawaan Master '+def+'%'):'diisi manual');
+    return '<tr><td><b>'+label+'</b><div style="font-size:9px;color:var(--muted)">'+ket+'</div></td>'+
+      '<td>'+(baca?((x.mode==='nom')?fmt0(x.nilai||0):((pakaiDef?def:x.nilai)+'%'))
+        :('<select class="pin" style="width:62px" onchange="komisiSet('+A+',\'mode\',this.value)"><option value="pct" '+(x.mode!=='nom'?'selected':'')+'>%</option><option value="nom" '+(x.mode==='nom'?'selected':'')+'>Rp</option></select> '+
+          '<input class="pin n" style="width:96px" data-f="komisi_'+k+'" placeholder="'+(x.mode==='nom'?'nominal':('bawaan '+def))+'" value="'+(pakaiDef?'':(x.mode==='nom'?moneyInp(x.nilai):x.nilai))+'" onchange="komisiSet('+A+',\'nilai\',this.value)">'))+'</td>'+
+      '<td class="num"><b>'+fmt0(nilai)+'</b></td>'+
+      '<td>'+(baca?(komisiTgl(o,k)?tglID(komisiTgl(o,k)):'—'):('<input type="date" class="pin" style="width:100%" value="'+esc(komisiTgl(o,k))+'" onchange="komisiSet('+A+',\'tgl\',this.value)"><div style="font-size:9px;color:var(--muted)">'+(K.tgl[k]?('manual · <a href="#" onclick="komisiSet('+A+',\'tgl\',\'\');return false">otomatis lagi</a>'):'otomatis: sehari sesudah kirim & lunas, atau sesudah live event')+'</div>'))+'</td>'+
+      '<td>'+(bayar?('<span style="color:var(--ok);font-weight:800">✓ dibayar '+fmt0(bayar.nom)+' · '+tglID(bayar.tgl)+'</span>'+(boleh?(' <button class="xrow" title="batalkan" onclick="komisiBatal('+A+')">✕</button>'):''))
+        :(nilai>0?(boleh?('<button class="btn ghost sm" style="font-size:9.5px" onclick="komisiBayar('+A+')">Tandai dibayar</button>'):'<span style="color:var(--muted)">belum dibayar</span>'):'<span style="color:var(--muted)">—</span>'))+'</td></tr>';};
+  return '<div data-f="komisi" style="border-top:1px solid var(--line);margin-top:13px;padding-top:11px"><div class="sj">Komisi Sales &amp; WO</div>'+
+    '<div class="kecil" style="margin-bottom:6px">Dasar = total project sesudah diskon, tanpa ongkir &amp; PPN: <b>'+fmt0(dasar)+'</b>. Memotong profit dan masuk Cashflow sebagai uang keluar (Finance yang menandai dibayar).</div>'+
+    '<div class="xscroll"><table class="rtable" style="font-size:11px"><thead><tr><th>Untuk</th><th style="width:180px">Besaran</th><th class="num" style="width:120px">Komisi</th><th style="width:170px">Jatuh tempo</th><th>Status</th></tr></thead><tbody>'+
+    baris('sales','Sales')+baris('wo','WO / EO')+'</tbody></table></div></div>';}
 function profitTotals(o){
   var m=((o.pricing||{}).margin||0)/100,P={jual:0,hpp:0,profit:0,kurang:0,spare:0};
   (((o.pricing||{}).lines)||[]).forEach(function(l){
@@ -14165,7 +14466,8 @@ function profitTotals(o){
   var disc=0;try{disc=orderTotals(o).disc;}catch(e){}
   P.disc=disc;P.kotor-=disc;P.net=P.jual-disc;
   P.biayaLain=biayaTotal(o);
-  P.profit=P.kotor-P.biayaLain;
+  P.komisi=komisiTotal(o);                 // komisi Sales & WO memotong profit (patch137)
+  P.profit=P.kotor-P.biayaLain-P.komisi;
   P.pct=P.net>0?Math.round(P.profit/P.net*100):0;
   return P;}
 /* ---- qty client vs qty vendor ----
@@ -14897,11 +15199,12 @@ function ringkasPanel(o){
     tandaMarginDiskon(o)+
     '<div style="font-size:10.5px;color:var(--muted);margin-bottom:10px;line-height:1.6">Tak ada yang bisa diubah dari sini. Kalau ada angka yang salah, <b>tolak</b> ordernya — HUB mengembalikannya ke fase yang tepat sesuai alasanmu.</div>'+
     /* tabel yang sama persis dengan Penentuan harga jual — cuma tak bisa diubah */
-    hargaOpsiBlok(o,opsiSemua(o)[0],true)+opsiBlok(o,true)+opsiProfitTabel(o,true)+dokItemBlok(o,true)+
+    hargaOpsiBlok(o,opsiSemua(o)[0],true)+opsiBlok(o,true)+opsiProfitTabel(o,true)+komisiBlok(o,true)+dokItemBlok(o,true)+
     '<div style="margin-top:11px;border-top:1px solid var(--line);padding-top:9px">'+
       dirBaris('Omset (sebelum diskon &amp; ongkir)',fmt0(P.jual))+
       dirBaris('HPP vendor','− '+fmt0(P.hpp))+
       dirBaris('Biaya di luar HPP'+(((o.retur||{}).biaya)?' (termasuk retur '+fmt0(o.retur.biaya)+')':''),'− '+fmt0(P.biayaLain))+
+      dirBaris('Komisi Sales &amp; WO','− '+fmt0(P.komisi||0))+
       dirBaris('Profit bersih',fmt0(P.profit)+' · '+P.pct+'%',true)+
     '</div>'+
     '<div style="margin-top:11px;border-top:1px solid var(--line);padding-top:9px">'+
@@ -15155,7 +15458,7 @@ function profitPanel(o){
           :'item masih bisa ditambah/dikurangi di sini — setelah Quotation sudah terkunci')+'</span>'+
     '</div>'+
     (((ST._catBuka||{})[o.id])?catalogPicker(o,'profit'):''))+
-    hargaOpsiBlok(o,opsiSemua(o)[0],false)+opsiBlok(o)+opsiProfitTabel(o)+terminBlok(o)+dokItemBlok(o)+
+    hargaOpsiBlok(o,opsiSemua(o)[0],false)+opsiBlok(o)+opsiProfitTabel(o)+terminBlok(o)+komisiBlok(o)+dokItemBlok(o)+
     '<div class="sj" style="margin-top:13px;padding-top:11px;border-top:1px solid var(--line)">Total</div>'+
     '<div style="display:flex;flex-wrap:wrap;gap:18px;font-size:11px">'+
       '<div><div style="color:var(--muted);font-size:10px;font-weight:700">TOTAL JUAL</div><b style="font-size:15px">'+fmt0(P.jual)+'</b></div>'+
@@ -15667,7 +15970,7 @@ function kirimPanel(o){
     '</div></div>';}
 
 function payPanel(o){const T=orderTotals(o);const grand=T.grand;
-  const pay=o.pay||{dp:0,pel:0};const paid=(+pay.dp||0)+(+pay.pel||0);const sisa=grand-paid;
+  const pay=o.pay||{dp:0,pel:0};const paid=orderPaid(o);const sisa=grand-paid;
   return `<div class="card actcard" style="margin-top:14px"><div class="ch"><span class="ico" style="background:#2f8f5b">Rp</span><div><div class="t">Pembayaran</div><div class="s">${(o.phase||0)>=15?'TRACKING DP &amp; PELUNASAN':'TRACKING DP'}</div></div>
     <span style="margin-left:auto;font-size:12px;font-weight:800;color:${sisa<=0?'var(--ok)':'var(--warn)'}">${sisa<=0?'LUNAS':'Sisa '+fmt0(sisa)}</span></div>
     <div class="body">
@@ -15675,6 +15978,7 @@ function payPanel(o){const T=orderTotals(o);const grand=T.grand;
       ${vipDpBlok(o)}
       <div style="display:flex;flex-wrap:wrap;gap:11px;align-items:stretch">
         ${bayarKotak(o,'dp','DP',pay.dp,pay.dpDate,grand)}
+        ${(terminN(o)===3||(+pay.dp2||0)>0)?bayarKotak(o,'dp2','Termin 2',pay.dp2,pay.dp2Date,grand):''}
         ${((o.phase||0)>=15||(+pay.pel||0)>0)?bayarKotak(o,'pel','Pelunasan',pay.pel,pay.pelDate,grand):''}
         <div style="margin-left:auto;text-align:right;font-size:11px;align-self:center"><div>Grand total: <b>${fmt0(grand)}</b></div><div>Dibayar: <b style="color:var(--ok)">${fmt0(paid)}</b></div><div style="font-size:13px">Sisa: <b style="color:${sisa<=0?'var(--ok)':'var(--warn)'}">${fmt0(sisa)}</b></div></div>
       </div></div></div>`;
@@ -18229,9 +18533,9 @@ function pricingPanel(o){
 function docNo(o,type){
   /* invoicePel = invoice pelunasan: dokumen tersendiri, nomornya sendiri, tapi
      tetap di deret INVOICE yang sama supaya penomoran Finance tak bercabang */
-  const key=(type==='invoice')?'invNo':(type==='invoicePel')?'invPelNo':'quoNo';
+  const key=(type==='invoice')?'invNo':(type==='invoicePel')?'invPelNo':(type==='invoice2')?'inv2No':'quoNo';
   if(o.docs&&o.docs[key])return o.docs[key];
-  const seqKey='rovehub_seq_'+((type==='invoicePel')?'invoice':type);
+  const seqKey='rovehub_seq_'+((type==='invoicePel'||type==='invoice2')?'invoice':type);
   const n=(+localStorage.getItem(seqKey)||0)+1;localStorage.setItem(seqKey,String(n));
   const now=new Date();const label=(type==='quotation')?'QUOTATION':'INVOICE';
   const s=(type==='quotation')
@@ -18243,14 +18547,14 @@ function genDoc(id,type){
   const o=ST.orders.find(x=>x.id===id);if(!o)return;
   /* invoice order multi produk: produk yang tak dicentang "masuk invoice"
      tak ditagih di dokumen ini (qty 0 di tiruannya) */
-  const oDok=(type==='invoice'||type==='invoicePel')?invKlon(o):o;
+  const oDok=(type==='invoice'||type==='invoicePel'||type==='invoice2')?invKlon(o):o;
   if(type==='invoicePel'&&!fotoJadiLengkap(o)){alert('Invoice pelunasan wajib melampirkan foto barang jadi (QC) dan foto barang terpacking.'+String.fromCharCode(10)+String.fromCharCode(10)+'Minta ke Radja & unggah dulu di panel Produksi (tahap 3 & 4).');return;}
   const lines=(o.pricing&&o.pricing.lines)||[];const paid=lines.filter(l=>(l.qty||0)>0);
   if(!paid.length&&!jasaBaris(o).length){alert('Isi minimal 1 baris pricing (qty > 0) sebelum generate.');return;}
   const P=o.pricing;
   const T=orderTotals(oDok);const ship=T.ship,sub=T.sub,disc=T.disc,grand=T.grand;
-  const isPel=type==='invoicePel';
-  const isInv=(type==='invoice')||isPel;const title=isInv?'INVOICE':'QUOTATION';
+  const isPel=type==='invoicePel',isT2=type==='invoice2';
+  const isInv=(type==='invoice')||isPel||isT2;const title=isInv?'INVOICE':'QUOTATION';
   const no=docNo(o,type);
   const tgl=new Date().toLocaleDateString('id-ID',{day:'2-digit',month:'long',year:'numeric'});
   /* dokumen berbahasa Inggris, semua tanggal dd/mm/yyyy; quotation berlaku
@@ -18266,13 +18570,15 @@ function genDoc(id,type){
   const pasti=isInv||(S.length===1&&tawar.length<=1);
   const info=(k,v)=>`<tr><td class="k">${k}</td><td class="c">:</td><td>${esc(v)||'-'}</td></tr>`;
   const isAU=orderAU(o);
-  const dpPct=(o.dpPct==null?50:o.dpPct), pelPct=100-dpPct;
-  const dpAmt=Math.round(grand*dpPct/100);
+  const dpPct=(o.dpPct==null?50:o.dpPct), D3=terminDaftar(o), pelPct=terminPct(o).slice(-1)[0];
+  const dpAmt=Math.round(grand*dpPct/100), dp2Amt=(D3.length===3)?D3[1].nom:0;
   const notePel=(orderKategori(o)==='Wedding')?'before the goods are shipped':'within 7 days after the goods are received';
+  const jatuh=(d)=>d.tgl?(' (due '+tglDMY(d.tgl)+')'):'';
   const syarat=(dpPct>=100)
     ?['100% settlement payment, after invoice issuance, before production start.']
-    :[dpPct+'% down payment after invoice issuance, before production start.',pelPct+'% balance payment '+notePel+'.'];
-  const received=isPel?orderPaid(o):(isInv?dpAmt:0), remaining=Math.max(0,grand-received);
+    :D3.map((d,i)=>(i===0)?(d.pct+'% down payment after invoice issuance, before production start'+jatuh(d)+'.')
+        :((i===D3.length-1)?(d.pct+'% balance payment '+notePel+jatuh(d)+'.'):(d.pct+'% second installment'+jatuh(d)+'.')));
+  const received=isPel?orderPaid(o):(isT2?(+((o.pay||{}).dp)||0):(isInv?dpAmt:0)), remaining=Math.max(0,grand-received);
   /* diskon per pcs ditampilkan sebagai total diskon: Sub Total ditulis sebelum diskon */
   const mDoc=((oDok.pricing||{}).margin||0)/100;
   const discItem=(((oDok.pricing||{}).lines)||[]).reduce((s,l)=>s+((lineJenis(l)==='jasa'||!(l.qty>0))?0:lineDisc(l,mDoc)*(l.qty||0)),0);
@@ -18308,17 +18614,17 @@ function genDoc(id,type){
     /* bentuk sesuai lembar Excel Rove: riwayat 4 termin tetap, lalu tiga baris
        total, lalu TOTAL BILLING untuk invoice ini */
     const satu=(dpPct>=100),pay=o.pay||{},pelAmt=grand-dpAmt;
-    const adaDp=(+pay.dp||0)>0,adaPel=(+pay.pel||0)>0;
+    const adaDp=(+pay.dp||0)>0,adaPel=(+pay.pel||0)>0,adaT2=(+pay.dp2||0)>0,tiga=(D3.length===3);
     const rows=satu
       ?[['Full Payment',adaDp?tglDMY(pay.dpDate||''):'-',100,adaDp?(+pay.dp):null],
         ['2nd Installment','-',0,null],['3rd Installment','-',0,null],['Settlement','-',0,null]]
       :[['Down Payment',adaDp?tglDMY(pay.dpDate||''):'-',dpPct,adaDp?(+pay.dp):null],
-        ['2nd Installment','-',0,null],['3rd Installment','-',0,null],
+        ['2nd Installment',tiga?(adaT2?tglDMY(pay.dp2Date||''):'-'):'-',tiga?D3[1].pct:0,(tiga&&adaT2)?(+pay.dp2):null],['3rd Installment','-',0,null],
         ['Settlement',adaPel?tglDMY(pay.pelDate||''):'-',pelPct,adaPel?(+pay.pel):null]];
     const received=orderPaid(o);
-    const untuk=satu?'Full Payment':(isPel?'Settlement':'Down Payment');
-    const pctIni=satu?100:(isPel?pelPct:dpPct);
-    const due=isPel?remaining:(satu?grand:dpAmt);
+    const untuk=satu?'Full Payment':(isPel?'Settlement':(isT2?'2nd Installment':'Down Payment'));
+    const pctIni=satu?100:(isPel?pelPct:(isT2?D3[1].pct:dpPct));
+    const due=isPel?remaining:(satu?grand:(isT2?dp2Amt:dpAmt));
     return `<div class="dsec">Billing Information</div>
    <div class="djt">BILLING HISTORY</div>
    <table class="dtable grid"><thead><tr><th class="num wno">No.</th><th>Payment Terms</th><th style="width:20%">Payment Date</th><th class="num" style="width:9%">%</th><th class="num" style="width:20%">Amount</th></tr></thead><tbody>
@@ -18923,6 +19229,7 @@ function poPanel(o){
         ${ta('packing','Cara packing & tambahan packing','how to pack + packing tambahan yang seperti apa')}
         ${ta('note','Catatan produksi (opsional)','detail teknik untuk Radja bila perlu: groover, prong, jangka, benang, chemical, dll.')}
       </div>
+      ${vtermBlok(o,kulitVendorNama())}
       <div style="display:flex;flex-wrap:wrap;gap:9px;align-items:center;margin-top:12px">
         <button class="btn" onclick="genPO('${o.id}')" ${ready?'':'disabled'} style="${ready?'':'opacity:.5;cursor:not-allowed'}">⚡ Generate PO (PDF + Trello)</button>
         ${ready?(p.generated?`<span style="font-size:10.5px;color:var(--ok);font-weight:700">✓ ${p.poNo} · kartu Trello terisi · notif Radja terkirim</span>`:'<span style="font-size:10.5px;color:var(--muted)">draft lengkap — siap generate</span>'):`<span style="font-size:10.5px;color:var(--warn)">🔒 lengkapi dulu: ${miss.join(', ')}</span>`}
@@ -18996,7 +19303,7 @@ function vpoPanel(o){
           '<label style="flex:1;min-width:150px;font-size:11px;font-weight:700;color:var(--muted)">Packing<br><input class="pin" style="width:100%;margin-top:3px" value="'+esc(p.packing)+'" onchange="vpoSet('+jsArg(o.id)+','+jsArg(v)+','+'packing'+',this.value)" placeholder="mis. per 50 pcs / kardus"></label>'+
           '<label style="flex:1;min-width:150px;font-size:11px;font-weight:700;color:var(--muted)">Catatan<br><input class="pin" style="width:100%;margin-top:3px" value="'+esc(p.note)+'" onchange="vpoSet('+jsArg(o.id)+','+jsArg(v)+','+'note'+',this.value)" placeholder="catatan khusus"></label>'+
           '<span style="font-size:11px;font-weight:700">Total HPP: <b style="color:var(--brand)">'+fmt0(tot)+'</b></span>'+
-        '</div>'+
+        '</div>'+vtermBlok(o,v)+
         '<div style="display:flex;flex-wrap:wrap;gap:9px;align-items:center;margin-top:10px">'+
           '<button class="btn sm" onclick="genVPO('+jsArg(o.id)+','+jsArg(v)+')" '+(ready?'':'disabled style="opacity:.5;cursor:not-allowed"')+'>⚡ Generate PO '+esc(v)+'</button>'+
           (p.generated?'<span style="font-size:10.5px;color:var(--ok);font-weight:700">✓ '+esc(p.poNo)+' terkirim</span>':(ready?'<span style="font-size:10.5px;color:var(--muted)">siap generate</span>':'<span style="font-size:10.5px;color:var(--warn)">🔒 isi deadline dulu</span>'))+
@@ -19097,7 +19404,7 @@ function poDokHTML(o,v,p,rows,X){
   var ttd=poPenandaTangan(),kop=dokKopPO();
   var catatan=(X.catatan||[]).filter(Boolean),gambar=(X.gambar||[]).slice(0,4);
   return kop+'<div class="djudul" style="font-size:18px">PURCHASE ORDER</div>'+
-    '<div class="dsec">Order Information</div><table class="dinfotbl">'+info('PO Number',p.poNo||'')+info('PO Day, Date',tglInggris(p.tglPO||hariIni()))+info('Deadline',p.deadline?(tglInggris(p.deadline)+' ('+tglDMY(p.deadline)+')'):'')+'</table>'+
+    '<div class="dsec">Order Information</div><table class="dinfotbl">'+info('PO Number',p.poNo||'')+info('PO Day, Date',tglInggris(p.tglPO||hariIni()))+info('Deadline',p.deadline?(tglInggris(p.deadline)+' ('+tglDMY(p.deadline)+')'):'')+vtermInfoPO(o,v)+'</table>'+
     '<div class="dsec">Vendor Information</div><table class="dinfotbl">'+info('Name',v)+info('Address',vm.alamat||vm.kota||'')+info('Phone',vm.hp||'')+((vm.kontak&&vm.kontak!=='-')?info('Contact person',vm.kontak):'')+'</table>'+
     '<div class="dsec">Purchase Information</div><div class="djt">PURCHASE LIST'+(X.subjudul?(' — '+esc(X.subjudul)):'')+'</div>'+
     '<table class="dtable grid"><thead><tr><th class="num wno">No.</th><th>Item</th><th style="width:16%">Color</th><th style="width:17%">Service</th><th class="num" style="width:13%">Price / Unit</th><th class="num wqty">Qty</th><th class="num" style="width:15%">Amount</th></tr></thead><tbody>'+isi.join('')+
