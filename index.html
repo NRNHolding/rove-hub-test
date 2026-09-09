@@ -582,7 +582,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20260909-105017';
+const VERSI='20260909-110724';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -2912,7 +2912,6 @@ function leadPanel(){
              +'<button class="btn ghost sm" style="color:#d9534f" onclick="leadBatal(\''+l.id+'\')">✕ Batal</button>')
             :(l.status==='Batal'?'<button class="btn ghost sm" onclick="leadAktifkan(\''+l.id+'\')">↺ Aktifkan lagi</button>':''))+
           vipTombol(l,'lead')+
-        '<button class="btn ghost sm" onclick="leadNote(\''+l.id+'\')">✎ Catatan</button>'+
           '<button class="xrow" onclick="leadDel(\''+l.id+'\')">✕</button></span></div>'+
       '<div class="body">'+
       '<div class="sj">1. Kontak &amp; minat</div>'+
@@ -2928,6 +2927,8 @@ function leadPanel(){
             ? 'Produknya lebih dari satu — yang berlaku jumlah tiap produk di bawah, bukan angka ini.'
             : 'Angka ini dan kolom Qty produknya satu hal — mengisi salah satunya mengisi yang lain.')+'"></label>'+
         '<label class="nlbl">Estimasi nilai<input class="pin n money" inputmode="numeric" style="margin-top:3px" value="'+moneyInp(l.estimasi)+'" onchange="leadSet(\''+l.id+'\',\'estimasi\',this.value)"></label>'+
+        /* catatan = kotak teks (dulu tombol ✎ Catatan → prompt); terbawa ke Inquiry sebagai "Catatan lain" */
+        '<label class="nlbl" style="grid-column:1/-1">Catatan — kebutuhan client &amp; hasil follow-up<textarea class="nta" data-f="leadCatatan" style="margin-top:3px" placeholder="mis. minta katalog, mau diskusi dengan pasangan; warna earth tone; nama tamu menyusul" onchange="leadSet(\''+l.id+'\',\'catatan\',this.value)">'+esc(l.catatan||'')+'</textarea></label>'+
         /* Status tak lagi diisi tangan: tak satu pun dari Baru/Ditanggapi/
            Follow-up mengubah perilaku apa pun, dan umur prospek sudah terbaca
            di kepala kartu ("didiamkan 5 hari"). Yang berarti cuma Batal dan
