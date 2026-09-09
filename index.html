@@ -582,7 +582,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20260909-114236';
+const VERSI='20260909-121418';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -9959,7 +9959,8 @@ function papanProspek(){
     if(l.status==='Jadi order')return false;  // sudah jadi kartu order di kolom berikutnya
     if(l.status==='Batal'&&ST._bhide)return false;   // ikut "Sembunyikan selesai & cancel"
     if(q&&[l.nama,l.kontak,l.produk,l.pic].concat(leadSpecRingkas(l)).join(' ').toLowerCase().indexOf(q)<0)return false;
-    return true;}).sort(function(a,b){return ((leadAktif(b)?1:0)-(leadAktif(a)?1:0))||(leadDiam(b)-leadDiam(a));});}
+    /* VIP paling atas (seperti kartu order di kolomnya), lalu yang paling lama didiamkan; Batal di bawah */
+    return true;}).sort(function(a,b){return ((leadAktif(b)?1:0)-(leadAktif(a)?1:0))||((isVip(b)?1:0)-(isVip(a)?1:0))||(leadDiam(b)-leadDiam(a));});}
 function bukaProspek(id){
   papanSimpanPosisi();
   ST.view='leads';ST.cur=null;
