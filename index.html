@@ -582,7 +582,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20260909-121418';
+const VERSI='20260909-124257';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -980,8 +980,8 @@ const EN={
 'WO / EO / perantara':'WO / EO / intermediary',
 '↩ Mundur ke':'↩ Back to',
 'KATEGORI':'CATEGORY','BRIEF SINGKAT UNTUK PM':'SHORT BRIEF FOR THE PM','ubah':'change',
-'cara menghargainya':'how it is priced','nama client sebenarnya belum diisi':'the real client name is not filled in yet',
-'KATEGORI CLIENT':'CLIENT CATEGORY','JENIS ORDER — cara menghargainya':'ORDER TYPE — how it is priced',
+'cara menentukan harganya':'how it is priced','nama client sebenarnya belum diisi':'the real client name is not filled in yet',
+'KATEGORI CLIENT':'CLIENT CATEGORY','JENIS ORDER — cara menentukan harganya':'ORDER TYPE — how it is priced',
 'Kategori client':'Client category','Nama perusahaan':'Company name','Nama client utama':'Main client name',
 'Wedding':'Wedding','Corporate':'Corporate','Custom':'Custom',
 '☆ Ajukan VIP':'☆ Propose VIP','⧗ Menunggu Direktur':'⧗ Awaiting the Director',
@@ -2404,12 +2404,12 @@ function leadPilihJenis(l){
       '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:9px 0 0">'+
         '<span style="font-size:9.5px;font-weight:800;color:var(--muted);letter-spacing:.03em">JENIS ORDER</span>'+
         '<span class="tlabel" style="background:#6a6f8a">'+esc(l.jenis)+'</span>'+
-        '<span style="font-size:10px;color:var(--muted)">cara menghargainya</span>'+
+        '<span style="font-size:10px;color:var(--muted)">cara menentukan harganya</span>'+
         '<button class="xrow" style="margin-left:auto;font-size:10px;color:var(--muted)" '+
           'title="ganti jenis order" onclick="leadJenisUbah(\''+l.id+'\')">ubah</button>'+
       '</div>';
   return leadPilihKategori(l)+
-    '<div style="font-size:10px;font-weight:800;color:var(--muted);margin:11px 0 5px;letter-spacing:.03em">JENIS ORDER — cara menghargainya</div>'+
+    '<div style="font-size:10px;font-weight:800;color:var(--muted);margin:11px 0 5px;letter-spacing:.03em">JENIS ORDER — cara menentukan harganya</div>'+
     '<div class="pilihan">'+
     LEAD_JENIS.map(function(j){var on=(l.jenis===j);
       return '<button onclick="leadJenisSet(\''+l.id+'\',\''+(on?'':j)+'\')" style="flex:1;min-width:96px;border:1px solid '+
@@ -2581,7 +2581,7 @@ function leadAdd(){
       {k:'clientUtama2',label:'Nama client utama',type:'text',ph:'mis. Ibu Ratna',
         jika:function(v){return v.kategori==='Custom';}},
       {k:'jenis',label:'Jenis order',type:'select',val:'',opts:['','Katalog','Custom','Mix'],
-        hint:'Cara menghargainya — beda dari kategori di atas. Boleh dikosongkan dulu kalau belum jelas.'}],
+        hint:'Cara menentukan harganya — beda dari kategori di atas. Boleh dikosongkan dulu kalau belum jelas.'}],
     ok:function(v){
       var idBaru='L'+Math.random().toString(36).slice(2,7);leadsAll().unshift({id:idBaru,nama:v.nama,kontak:v.kontak,
         channel:v.channel,produk:v.produk,qty:Math.max(0,+v.qty||0),estimasi:+v.estimasi||0,status:'Baru',
@@ -10284,7 +10284,7 @@ const PH_CHECK=[
   {auto:function(o){return salesBelum(o).length===0;},
    k:'terjemah', t:'Terjemahkan catatan Sales jadi spesifikasi bahan & collateral',
    en:'Turn the sales notes into a material & collateral specification',
-   guna:'supaya Purchasing bisa minta harga — vendor tak bisa menghargai "elegant"',
+   guna:'supaya Purchasing bisa minta harga — vendor tidak bisa memberi harga dari kata "elegant"',
    gunaEn:'so Purchasing can request quotes — no vendor can price "elegant"',
    pic:'PM', w:true, jika:'dariSales'},
   {auto:function(o){var b=(o.brief||{});var isi=function(x){x=String(x||'').trim();return !!x&&x!=='-';};
@@ -13589,7 +13589,7 @@ function rfqUkuranProduk(o){
     if(!d&&l.ukuran)d=String(l.ukuran);
     out.push({nama:l.produk||'produk',ukuran:d,qty:l.qty||0,l:l});});
   return out;}
-/* Yang dimasukkan ke kemasan ini — vendor kemasan menghargai dari ISInya.
+/* Yang dimasukkan ke kemasan ini — vendor kemasan memberi harga dari ISInya.
    Box: produk + soft pouch + thank you card (yang dipakai order); soft
    pouch: produk + thank you card; thank you card: tak berisi apa-apa.
    Ukuran pouch/kartu dari Master → Pengiriman → Ukuran & berat collateral. */
@@ -16272,7 +16272,7 @@ function vendorGambar(o,l){
       if(url)out.push({slot:slotDrive,i:i,drive:true,nama:nama||'',
         f:{nama:(nama||lx.produk||'gambar')+' (Drive)',tipe:'image/*',data:url}});});}catch(e){}};
   /* 1) yang dihargai vendor adalah PRODUKNYA — gambar produk lebih dulu.
-     Vendor kemasan menghargai dari isinya: produk (+ pouch / kartu untuk box). */
+     Vendor kemasan memberi harga dari isinya: produk (+ pouch / kartu untuk box). */
   if(jenis==='kemasan'){
     isiKemasan(o,kemasanKey(l)).forEach(function(u){if(u.l)gambarBaris(u.l,'_isi','_isiDrive',u.nama);});
     gambarBaris(l,'_line','_drive');
@@ -16386,7 +16386,7 @@ function vendorGambarBlok(o,l,kunci,baris){
   ST._gmb={};ST._gmb[kunci]=G;
   if(!G.length)return '<div style="border:1px dashed var(--line);border-radius:9px;padding:9px 11px;margin-bottom:12px;'+
     'font-size:10px;color:var(--muted);line-height:1.55">Belum ada gambar produk untuk baris ini. '+
-    'Vendor menghargai dari gambar produknya — muat katalog Cost Estimator (foto produk ikut) atau unggah gambar di baris pricing (📷).</div>';
+    'Vendor memberi harga dari gambar produknya — muat katalog Cost Estimator (foto produk ikut) atau unggah gambar di baris pricing (📷).</div>';
   return '<div style="border:1px solid var(--line);border-radius:9px;padding:9px 11px;margin-bottom:12px;background:var(--bg)">'+
     '<div style="display:flex;gap:9px;align-items:center;flex-wrap:wrap;margin-bottom:7px">'+
       '<b style="font-size:10.5px">Gambar yang perlu ikut</b>'+
