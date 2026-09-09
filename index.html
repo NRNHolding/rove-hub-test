@@ -582,7 +582,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20260909-100057';
+const VERSI='20260909-103216';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -2583,7 +2583,7 @@ function leadAdd(){
       {k:'jenis',label:'Jenis order',type:'select',val:'',opts:['','Katalog','Custom','Mix'],
         hint:'Cara menghargainya — beda dari kategori di atas. Boleh dikosongkan dulu kalau belum jelas.'}],
     ok:function(v){
-      leadsAll().unshift({id:'L'+Math.random().toString(36).slice(2,7),nama:v.nama,kontak:v.kontak,
+      var idBaru='L'+Math.random().toString(36).slice(2,7);leadsAll().unshift({id:idBaru,nama:v.nama,kontak:v.kontak,
         channel:v.channel,produk:v.produk,qty:Math.max(0,+v.qty||0),estimasi:+v.estimasi||0,status:'Baru',
         masuk:new Date().toISOString().slice(0,10),jenis:v.jenis||'',kategori:v.kategori||'Corporate',
         tglAcara:v.tglAcara||'',tglKirim:v.tglKirim||'',
@@ -2595,7 +2595,7 @@ function leadAdd(){
         woHp:(v.kontakOleh==='WO / EO / perantara')?(v.kontak||''):'',
         items:[],pic:(ST.userName||ST.user||''),
         catatan:'',touch:new Date().toISOString().slice(0,10),log:[],_m:Date.now()});
-      saveLeads();render();}});}
+      saveLeads();bukaProspek(idBaru);}});}
 function leadSet(id,f,v){var l=leadsAll().find(function(x){return x.id===id;});if(!l)return;
   l[f]=(f==='qty')?Math.max(0,+v||0):(f==='estimasi')?Math.max(0,moneyVal(v)):v;
   /* arah sebaliknya, dengan syarat yang sama: selama produknya baru satu,
@@ -2878,7 +2878,7 @@ function vipToggle(jenis,id){
     save();}
   render();}
 
-function lepasFokusProspek(){ST._lfokus=null;render();}
+function lepasFokusProspek(){ST._lfokus=null;ST.view='board';ST.cur=null;render();}
 function leadPanel(){
   var L=leadsHidup().slice();
   var q=(ST._lq||'').toLowerCase(),fs=ST._lst||'';
@@ -2945,11 +2945,11 @@ function leadPanel(){
     /* satu client saja — persis seperti membuka satu order, lengkap dengan
        jalan kembalinya. Penyaring & ringkasan sengaja disembunyikan: yang
        sedang dilihat cuma satu, tak ada yang perlu disaring. */
-    return '<div class="back" onclick="lepasFokusProspek()">‹ Kembali ke semua prospek</div>'+
+    return '<div class="back" onclick="lepasFokusProspek()">‹ Kembali ke pipeline</div>'+
       '<div class="topbar" style="margin-top:8px"><h1>'+esc(fokus.nama||'(tanpa nama)')+'</h1>'+
         '<span class="demo">'+esc(fokus.status)+'</span>'+
         (isVip(fokus)?('<span style="margin-left:8px">'+vipLencana()+'</span>'):'')+
-        '<div class="sp"></div><button class="btn ghost sm" onclick="lepasFokusProspek()">Lihat semua prospek ('+L.length+')</button></div>'+
+        '<div class="sp"></div></div>'+
       baris;
   return '<div class="back" onclick="ST.view=\'board\';ST.cur=null;render()">‹ Kembali ke pipeline</div>'+
     '<div class="topbar"><h1>Project Prospecting</h1><span class="demo">'+aktif+' aktif</span>'+
@@ -2962,7 +2962,11 @@ function leadPanel(){
       '<label style="display:flex;align-items:center;gap:5px;font-size:11px;font-weight:700;color:var(--muted);cursor:pointer"><input type="checkbox" '+(ST._lhide?'checked':'')+' onchange="ST._lhide=this.checked;render()" style="width:auto;accent-color:var(--brand)"> Sembunyikan yang selesai/batal</label>'+
       '<span style="margin-left:auto;font-size:11px;font-weight:800;color:var(--brand)">Nilai prospek aktif: '+fmt0(nilai)+'</span></div>'+
     (baris||'<div style="color:var(--muted);font-size:12px">Belum ada prospek. Klik <b>＋ Prospek baru</b>.</div>');}
-function renderLeads(){$('#main').innerHTML=leadPanel();}
+/* Tak ada halaman daftar prospek (permintaan user 9 Sep 2026): semua prospek ada di
+   kolom 0 papan. Halaman ini hanya untuk SATU prospek yang diklik; tanpa fokus → papan. */
+function renderLeads(){
+  if(!ST._lfokus||!leadsHidup().some(function(l){return l.id===ST._lfokus;})){ST._lfokus=null;ST.view='board';ST._omTab='board';renderOM();return;}
+  $('#main').innerHTML=leadPanel();}
 /* ================= INVENTORY & WAREHOUSE (flow VI) =================
    Barang masuk → input stok → picking order → packing → stock opname.
    Stok TIDAK disimpan sebagai angka; selalu dihitung dari riwayat pergerakan
@@ -9777,7 +9781,7 @@ function boardMatch(o){
   return true;
 }
 /* ---- Order Management memayungi Pipeline, Tugas, dan Prospek ---- */
-const OM_TABS=[['board','Pipeline'],['ov','Overview order'],['tasks','Tugas saya'],['leads','Project Prospecting']];
+const OM_TABS=[['board','Pipeline'],['ov','Overview order'],['tasks','Tugas saya']];   // prospek: kolom 0 papan, bukan tab sendiri
 function omTab(v){ST._omTab=v;render();}
 function renderOM(){
   var t=ST._omTab||'board';
@@ -9908,9 +9912,10 @@ function papanProspek(){
   if(!can('leads'))return [];                 // jabatan yang tak berurusan dengan prospek tak perlu melihatnya
   var q=(ST._bq||'').toLowerCase();
   return leadsHidup().filter(function(l){
-    if(!leadAktif(l))return false;            // yang batal & sudah jadi order tak menggantung di papan
+    if(l.status==='Jadi order')return false;  // sudah jadi kartu order di kolom berikutnya
+    if(l.status==='Batal'&&ST._bhide)return false;   // ikut "Sembunyikan selesai & cancel"
     if(q&&[l.nama,l.kontak,l.produk,l.pic].concat(leadSpecRingkas(l)).join(' ').toLowerCase().indexOf(q)<0)return false;
-    return true;}).sort(function(a,b){return leadDiam(b)-leadDiam(a);});}
+    return true;}).sort(function(a,b){return ((leadAktif(b)?1:0)-(leadAktif(a)?1:0))||(leadDiam(b)-leadDiam(a));});}
 function bukaProspek(id){
   papanSimpanPosisi();
   ST.view='leads';ST.cur=null;
@@ -9928,7 +9933,7 @@ function kartuProspek(l){
      lencana status seperti sebelumnya. */
   var diam=(u==='biasa')?''
     :('<div style="margin-top:5px;font-size:10px;font-weight:800;color:'+leadWarna(l)+'">⏱ '+esc(leadKet(l))+'</div>');
-  return '<div class="oc" style="border-left-color:'+(u==='merah'?'#d9534f':(u==='kuning'?'#c78a24':pfColor(p)))+
+  return '<div class="oc'+(l.status==='Batal'?' cancel':'')+'" style="border-left-color:'+(u==='merah'?'#d9534f':(u==='kuning'?'#c78a24':pfColor(p)))+
       '" onclick="bukaProspek(\''+l.id+'\')">'+
     '<div class="on"><span class="pf" style="background:'+pfColor(p)+'">'+p.toUpperCase()+'</span>'+
       esc(l.nama||'(tanpa nama)')+(isVip(l)?(' '+vipLencana(true)):'')+
@@ -9940,6 +9945,7 @@ function kartuProspek(l){
       '<span>'+esc(l.channel||'')+'</span></div>'+
     '<div class="om" style="margin-top:5px">'+
       '<span class="stbadge stlead">'+esc(leadKategori(l))+' · '+esc(l.jenis||'jenis belum dipilih')+'</span>'+
+      (l.status==='Batal'?'<span class="stbadge st-Cancel" style="margin-left:4px">Batal</span>':'')+
       '<span>'+collIcons(leadColl(l))+'</span>'+
     '</div>'+diam+'</div>';}
 function renderBoard(){
@@ -9975,7 +9981,7 @@ function renderBoard(){
        '<div class="col-h"><span class="cn">0. Project Prospecting</span><span class="ct">'+P.length+'</span></div>'+
        (P.length?P.map(kartuProspek).join('')
                :'<div style="font-size:10.5px;color:var(--muted);padding:8px 2px;line-height:1.55">Belum ada prospek aktif.</div>')+
-       '<button class="btn ghost sm" style="width:100%;margin-top:8px;font-size:10px" onclick="papanSimpanPosisi();ST.view=\'leads\';ST.cur=null;ST._lfokus=null;render();leadAdd()">＋ Prospek baru</button>'+
+       '<button class="btn ghost sm" style="width:100%;margin-top:8px;font-size:10px" onclick="leadAdd()">＋ Prospek baru</button>'+
      '</div>';})()}${cols.map(c=>`
      <div class="col"><div class="col-h"><span class="cn">${c.i<PH.length?(c.i+1)+'. ':''}${c.p.n}</span><span class="ct">${c.items.length}</span></div>
        ${c.items.length?c.items.filter(o=>!seen.has(o.id)&&seen.add(o.id)).map(o=>`
@@ -11242,6 +11248,47 @@ function leadSpecRingkasDari(d){
 /* Tersembunyi dulu (permintaan 8 Sep 2026) — dibuka lewat tombolnya. */
 var RINGKAS_BUKA={};
 function ringkasToggle(id){RINGKAS_BUKA[id]=!RINGKAS_BUKA[id];render();}
+/* Gambar yang lahir di tiap tahap — ikut di Ringkasan langkah sebelumnya (permintaan
+   user 9 Sep 2026), tersembunyi dulu: baris "Gambar — Lihat N gambar" per tahap. Thumbnail
+   dibangun hanya saat dibuka supaya halaman order tak dua kali lebih berat. */
+var RINGKAS_GBR={};
+function ringkasGbrToggle(id,i){var k=id+':'+i;RINGKAS_GBR[k]=!RINGKAS_GBR[k];RINGKAS_BUKA[id]=true;render();}
+function lbGambar(el){var s=el&&el.src;if(s&&s.indexOf('data:image/svg')!==0)openLB(s);else if(s)openLB(s);}
+function ringkasGambarFase(o,i){
+  var b=briefGet(o),out=[];
+  var tambah=function(judul,arr){arr=(arr||[]).filter(function(f){return fileGambar(f);});if(arr.length)out.push({judul:judul,files:arr});};
+  if(i===0){
+    var gp=[];try{lineProduk(o).forEach(function(x){var id=lineImg(x.l);if(id)gp.push({nama:x.l.produk||'produk',id:id});});}catch(e){}
+    if(gp.length)out.push({judul:'Produk',ids:gp});
+    tambah('Referensi client',b.refFiles);tambah('Logo client',b.logoFiles);
+    Object.keys(b).forEach(function(k){if(k.indexOf('svcF_')===0)tambah('Logo / acuan jasa '+k.slice(5),b[k]);});
+    tambah('Acuan personalisasi',b.persoFiles);}
+  else if(i===4)tambah('Preview di quotation',b.quoFiles);
+  else if(i===6){tambah('Preview sketsa',b.previewFiles);tambah('Logo soft pouch',b.logoPouchFiles);tambah('Logo box',b.logoBoxFiles);tambah('Logo thank you card',b.logoCardFiles);}
+  else if(i===9)tambah('Bukti transfer',(o.bukti||{}).files);
+  else if(i===10){var V=[];try{V=poVendors(o);}catch(e){}V.forEach(function(v){tambah('Gambar final PO '+v,b['vpoFinal_'+vpoSlot(v)]);tambah('Logo PO '+v,b['vpoLogo_'+vpoSlot(v)]);});}
+  else if(i===11||i===15||i===20){var t=(i===11)?1:(i===15)?2:3;var T=[];try{T=vendorTagihan(o);}catch(e){}
+    T.forEach(function(x){tambah('Bukti bayar vendor tahap '+t+' — '+x.v,b['bvBukti_'+vpoSlot(x.v)+'_'+t]);});}
+  else if(i===12){tambah('Sample awal',b.sampleFiles);tambah('Setelah potong',b.potongFiles);tambah('QC',b.qcFiles);tambah('Packing',b.packFiles);tambah('Panduan packing',b.packGuideFiles);
+    Object.keys(b).forEach(function(k){if(k.indexOf('collFoto_')===0)tambah('Foto collateral '+k.slice(9),b[k]);});}
+  else if(i===13)tambah('Barang diterima Rove',b.terimaFiles);
+  else if(i===14){tambah('Dokumentasi produk',b.dokProdukFiles);tambah('Dokumentasi kemasan & set',b.dokKemasanFiles);}
+  else if(i===21)tambah('Dokumentasi penutupan',b.dokumentasiFiles);
+  else if(i===22)tambah('Serah terima',b.kirimFiles);
+  return out;}
+function ringkasGambarHTML(o,i){
+  var G=ringkasGambarFase(o,i);if(!G.length)return '';
+  var n=G.reduce(function(s,g){return s+(g.files?g.files.length:g.ids.length);},0);
+  var buka=!!RINGKAS_GBR[o.id+':'+i];
+  var st='width:88px;height:88px;object-fit:cover;border-radius:7px;border:1px solid var(--line);cursor:zoom-in;display:block;background:#fff';
+  var ket=function(t){return '<div class="kecil" style="margin-top:2px;width:88px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+esc(t)+'">'+esc(t)+'</div>';};
+  return '<tr data-f="ringkasGbr_'+i+'"><td style="width:210px;color:var(--muted);font-size:10.5px">Gambar</td><td>'+
+    '<button class="btn ghost sm" data-f="ringkasGbr" onclick="ringkasGbrToggle('+jsArg(o.id)+','+i+')">'+(buka?'▴ Sembunyikan gambar':('🖼 Lihat '+n+' gambar'))+'</button>'+
+    (buka?('<div style="margin-top:8px;display:flex;flex-direction:column;gap:9px">'+G.map(function(g){
+      return '<div><div class="kecil" style="font-weight:700;margin-bottom:4px">'+esc(g.judul)+'</div><div style="display:flex;flex-wrap:wrap;gap:8px">'+
+        (g.files?g.files.map(function(f){return '<div><img src="'+gambarSrc(f.data)+'" style="'+st+'" onclick="lbGambar(this)">'+ket(f.nama||'')+'</div>';}).join('')
+                :g.ids.map(function(x){return '<div>'+imgTag(x.id,st,'onclick="lbGambar(this)"')+ket(x.nama)+'</div>';}).join(''))+
+        '</div></div>';}).join('')+'</div>'):'')+'</td></tr>';}
 function ringkasSebelumBlok(o){
   var f=o.phase||0;
   if(o.status==='Cancel'||f>=PH.length)return '';
@@ -11263,10 +11310,11 @@ function ringkasSebelumBlok(o){
         if(!r[1]){if(i===f-1)kosong++;return;}
         if(ada[p[0]]){ada[p[0]][1]=r[1];ada[p[0]][2]=r[2];ada[p[0]][3]=PH[i].n;return;}
         ada[p[0]]=r;rows.push(r);});
-      if(rows.length)seksi.push({judul:PH[i].n+' — PIC '+PH[i].pic,rows:rows});}
+      var gbr='';try{gbr=ringkasGambarHTML(o,i);}catch(e){gbr='';}
+      if(rows.length||gbr)seksi.push({judul:PH[i].n+' — PIC '+PH[i].pic,rows:rows,gbr:gbr});}
   }
   var judul=(f===0)?seksi[0].judul:('Semua tahap sebelumnya — terakhir '+PH[f-1].n+' (PIC '+PH[f-1].pic+')');
-  var adaIsi=seksi.some(function(s){return s.rows.length;});
+  var adaIsi=seksi.some(function(s){return s.rows.length||s.gbr;});
   var buka=!!RINGKAS_BUKA[o.id];
   return '<div class="card actcard" style="margin-top:14px"><div class="ch" style="cursor:pointer" onclick="ringkasToggle('+jsArg(o.id)+')">'+
     '<span class="ico" style="background:#6a6f8a">↩</span>'+
@@ -11285,7 +11333,7 @@ function ringkasSebelumBlok(o){
                 '<td style="font-weight:600">'+esc(b[1])+(b[3]?('<span style="font-size:9px;color:var(--muted);font-weight:400"> · diperbarui di '+esc(b[3])+'</span>'):'')+'</td></tr>'+
                 (b[2]||[]).map(function(r){
                   return '<tr><td style="padding-left:22px;font-size:10px;color:var(--muted)">↳ '+esc(r[0])+'</td>'+
-                    '<td style="font-size:10.5px;font-weight:500'+(r[2]?(';color:'+r[2]):'')+'">'+esc(r[1])+'</td></tr>';}).join('');}).join('');}).join('')+
+                    '<td style="font-size:10.5px;font-weight:500'+(r[2]?(';color:'+r[2]):'')+'">'+esc(r[1])+'</td></tr>';}).join('');}).join('')+(s.gbr||'');}).join('')+
         '</tbody></table></div>'
       : '<div style="font-size:10.5px;color:var(--muted)">Langkah sebelumnya belum meninggalkan isian apa pun.</div>')+
     '</div></div>';}
