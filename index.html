@@ -582,7 +582,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20260908-161517';
+const VERSI='20260909-100057';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -2951,7 +2951,8 @@ function leadPanel(){
         (isVip(fokus)?('<span style="margin-left:8px">'+vipLencana()+'</span>'):'')+
         '<div class="sp"></div><button class="btn ghost sm" onclick="lepasFokusProspek()">Lihat semua prospek ('+L.length+')</button></div>'+
       baris;
-  return '<div class="topbar"><h1>Project Prospecting</h1><span class="demo">'+aktif+' aktif</span>'+
+  return '<div class="back" onclick="ST.view=\'board\';ST.cur=null;render()">‹ Kembali ke pipeline</div>'+
+    '<div class="topbar"><h1>Project Prospecting</h1><span class="demo">'+aktif+' aktif</span>'+
       (telat?'<span style="margin-left:auto;background:var(--warn-bg);color:var(--warn);border-radius:20px;padding:5px 13px;font-size:11px;font-weight:800">🔔 '+telat+' perlu di-follow up</span>':'')+
       '<div class="sp"></div><button class="btn" onclick="leadAdd()">＋ Prospek baru</button></div>'+
     tabNote('Calon client yang <b>belum jadi order</b> — dari WhatsApp, Instagram, email, dsb. <b>Semua prospek aktif perlu ditindaklanjuti tiap hari</b>; yang paling lama didiamkan naik ke atas dan memerah. Buka <b>Brief singkat untuk PM</b>, pilih jenisnya (Katalog / Custom / Mix), lalu klik <b>→ Kirim ke Inquiry</b> — seluruh isinya ikut terbawa. Prospek gagal jangan dihapus — ubah status jadi <b>Batal</b> supaya jadi bahan evaluasi.')+
@@ -8801,7 +8802,7 @@ function renderTasks(){
      </div>
      <div class="rcard" style="max-width:660px"><h3>Data uji — contoh order</h3>
        <div style="font-size:11.5px;color:var(--muted);margin-bottom:9px;line-height:1.6">Satu client wedding (<b>Sarah &amp; Kevin</b> — 100 pcs produk katalog (Irvine Card Wallet kalau ada di katalog), box + soft pouch + thank you card dengan logo yang sama, add-on logo, engrave 3 nama, live calligraphy) dengan data <b>persis sama</b> di 15 kartu: satu kartu per fase, tiap kartu terisi lengkap sampai fase kartunya sendiri (semua harga vendor tercatat, semua persetujuan ada) — tinggal tombol Selesai. Logo Rove asli: monogram di produk, ROVE GIFTS di kemasan. Harga vendor sengaja beda dari katalog. Isinya karangan; kartu contoh lama diganti, order lain tak disentuh.</div>
-       <button class="btn sm" onclick="seedContohMuat()">＋ Muat contoh order — 1 client × 15 fase</button> <button class="btn ghost sm" onclick="if(confirm('Hapus semua kartu contoh Sarah & Kevin?'))seedContohHapus()">Hapus kartu contoh</button>
+       <button class="btn sm" onclick="seedContohMuat()">＋ Muat contoh order — 1 client × ${PH.length} fase</button> <button class="btn ghost sm" onclick="if(confirm('Hapus semua kartu contoh Sarah & Kevin?'))seedContohHapus()">Hapus kartu contoh</button>
      </div>
      <div class="rcard" style="max-width:660px"><h3>Integrasi backend (Discord / Trello)</h3>
        <div style="font-size:11.5px;color:var(--muted);margin-bottom:11px;line-height:1.6">Tempel URL Apps Script Web App (yang meneruskan ke relay Discord/Trello). Saat <b>mode live</b> aktif, aksi <b>Generate PO</b> &amp; <b>trigger fase</b> dikirim ke backend. Kosong = tetap simulasi lokal.</div>
@@ -9974,7 +9975,7 @@ function renderBoard(){
        '<div class="col-h"><span class="cn">0. Project Prospecting</span><span class="ct">'+P.length+'</span></div>'+
        (P.length?P.map(kartuProspek).join('')
                :'<div style="font-size:10.5px;color:var(--muted);padding:8px 2px;line-height:1.55">Belum ada prospek aktif.</div>')+
-       '<button class="btn ghost sm" style="width:100%;margin-top:8px;font-size:10px" onclick="ST.view=\'leads\';render()">＋ Prospek baru</button>'+
+       '<button class="btn ghost sm" style="width:100%;margin-top:8px;font-size:10px" onclick="papanSimpanPosisi();ST.view=\'leads\';ST.cur=null;ST._lfokus=null;render();leadAdd()">＋ Prospek baru</button>'+
      '</div>';})()}${cols.map(c=>`
      <div class="col"><div class="col-h"><span class="cn">${c.i<PH.length?(c.i+1)+'. ':''}${c.p.n}</span><span class="ct">${c.items.length}</span></div>
        ${c.items.length?c.items.filter(o=>!seen.has(o.id)&&seen.add(o.id)).map(o=>`
