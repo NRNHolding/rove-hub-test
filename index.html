@@ -582,7 +582,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20260909-173248';
+const VERSI='20260910-103408';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -1380,6 +1380,10 @@ const EN={
 'Semua jenis':'All types','Semua status':'All statuses','Aktif':'Active',
 '⊘ sinkron mati — data cuma di browser ini':'⊘ sync off — data stays in this browser only','Sembunyikan selesai & cancel':'Hide done & cancelled',
 'Sembunyikan yang selesai':'Hide completed','Sembunyikan yang selesai/batal':'Hide completed/cancelled',
+'belum ada order selesai':'no completed orders yet','Belum ada order selesai. Jalankan sebuah order sampai Project Archiving (fase 23).':'No completed orders yet. Take an order through to Project Archiving (phase 23).',
+'Mulai pantau dari periode':'Track from period','Periode sebelum bulan ini tak ditampilkan & tak dihitung — untuk masa sebelum HUB dipakai. Kosong = 12 bulan terakhir.':'Periods before this month are hidden and not counted — for the months before HUB was in use. Empty = last 12 months.',
+'Masa sebelum HUB dipakai bisa dilewati lewat':'Months before HUB was in use can be skipped via','Pengaturan → Mulai pantau':'Settings → Track from',
+'Belum ada periode yang dipantau — periode pertama muncul setelah bulan "Mulai pantau" lewat.':'No period is being tracked yet — the first one appears once the "Track from" month has passed.',
 '＋ Order baru':'＋ New order','✕ Reset':'✕ Reset','Semua':'All','Semua bulan':'All months','Semua kanal':'All channels',
 'Klik':'Click','Klik kartu':'Click a card','kanan atas.':'top right.','Inquiry sampai Selesai':'Inquiry through Completed',
 'untuk buka detail — di dalamnya ada langkah berikutnya, pricing, pembayaran, PO, dan produksi. Order baru? Klik':
@@ -3255,8 +3259,14 @@ function kasSaldo(){
 /* Uang keluar yang sudah tercatat di HUB (pembayaran vendor tahap 1–3, komisi & biaya rutin yang
    ditandai dibayar). Ikut mengurangi saldo kas hanya bila saklar kasAuto hidup — dihitung, bukan
    disalin, jadi tak pernah dobel. */
-/* kartu contoh = order yang sama di 23 fase; cukup tiga (sebelum Deal, produksi, selesai) supaya tak 23 baris kembar */
-function cfOrderIkut(o){return !o._contoh||[2,12,22].indexOf(+o.phase)>=0;}
+/* Kartu contoh = order yang sama di 23 fase. Daftar lintas-order (Cashflow, piutang, ekspor, Live service)
+   cukup memakai beberapa kartu supaya tak 23 baris kembar. Order sungguhan selalu ikut. */
+function contohIkut(o,daftar){return !o||!o._contoh||daftar.indexOf(+o.phase)>=0;}
+function cfOrderIkut(o){return contohIkut(o,[2,12,22]);}          // sebelum Deal, produksi, selesai
+function expContohIkut(o){return contohIkut(o,[4,12,22]);}        // ekspor AIS & piutang: quotation terbit, DP masuk, lunas
+/* Live service: satu kartu saja (Live Event Processing) — semua kartu contoh bertanggal acara sama,
+   dua saja sudah terbaca "bentrok" di jadwal dan operator */
+function liveContohIkut(o){return contohIkut(o,[19]);}
 function kasAutoRows(){
   var out=[],F=finData();
   (ST.orders||[]).forEach(function(o){if(o.deleted||!cfOrderIkut(o))return;
@@ -4234,7 +4244,7 @@ const TAX_STEPS=[
   {k:'setor', n:'Setor PPh',           d:'Bayar via e-Billing / m-banking',         hari:null},
   {k:'lapor', n:'Lapor SPT Masa',      d:'Lapor lewat DJP Online',                  hari:null}];
 function taxCfg(){var c=(ST.master&&ST.master.taxCfg)||{};
-  return {setor:+c.setor||10,lapor:+c.lapor||20,tahunan:c.tahunan||'04-30'};}
+  return {setor:+c.setor||10,lapor:+c.lapor||20,tahunan:c.tahunan||'04-30',mulai:String(c.mulai||'')};}
 function taxCfgSet(f,v){if(!ST.master.taxCfg)ST.master.taxCfg={};ST.master.taxCfg[f]=v;saveMaster();render();}
 function taxAll(){return ST.tax||(ST.tax=[]);}
 function saveTax(){localStorage.setItem(TAX_KEY,JSON.stringify(ST.tax||[]));cloudSave();}
@@ -4260,9 +4270,11 @@ function taxFind(p){ // baca saja — jangan bikin baris baru (dipakai badge/hit
 function taxLate(p){ // langkah yang lewat tenggat & belum beres
   var t=taxFind(p);return TAX_STEPS.filter(function(s){
     if(taxDone(t,s.k))return false;var dn=dLeft(taxDue(p,s.k));return dn!==null&&dn<0;});}
-function taxPeriods(){ // 12 bulan terakhir yang sudah lewat
+function taxPeriods(){ // 12 bulan terakhir yang sudah lewat, dipangkas setelan "Mulai pantau" (masa sebelum HUB dipakai tak dihitung)
   var out=[],d=new Date();d.setDate(1);
   for(var i=0;i<12;i++){d.setMonth(d.getMonth()-1);out.push(d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'));}
+  var mulai=taxCfg().mulai;
+  if(/^[0-9]{4}-[0-9]{2}$/.test(mulai))out=out.filter(function(p){return p>=mulai;});
   return out;}
 function taxLateTotal(){return taxPeriods().reduce(function(s,p){return s+taxLate(p).length;},0);}
 function taxYearFind(y){ // baca saja, untuk render
@@ -4353,14 +4365,19 @@ function renderTax(){
       '<label class="nlbl">Lapor SPT Masa — tanggal<input class="pin n" type="number" style="width:64px;margin-top:3px" value="'+c.lapor+'" onchange="taxCfgSet(\'lapor\',+this.value)"></label>'+
       '<label class="nlbl">SPT Tahunan (MM-DD)<input class="pin" style="width:88px;margin-top:3px" value="'+esc(c.tahunan)+'" onchange="taxCfgSet(\'tahunan\',this.value)"></label>'+
       '<span style="font-size:9.5px;color:var(--muted);flex:1;min-width:180px">Nilai bawaan mengikuti ketentuan umum DJP (setor tgl 10, lapor tgl 20, SPT Tahunan badan 30 April). <b>Cek ulang</b> — aturan bisa berubah.</span>'+
+    '</div>'+
+    '<div style="display:flex;flex-wrap:wrap;gap:14px;align-items:flex-end;font-size:11px;margin-top:12px;padding-top:11px;border-top:1px dashed var(--line)">'+
+      '<label class="nlbl">Mulai pantau dari periode<input class="pin" type="month" style="width:150px;margin-top:3px" value="'+esc(c.mulai)+'" onchange="taxCfgSet(\'mulai\',this.value)"></label>'+
+      '<span style="font-size:9.5px;color:var(--muted);flex:1;min-width:180px">Periode sebelum bulan ini tak ditampilkan &amp; tak dihitung — untuk masa sebelum HUB dipakai. Kosong = 12 bulan terakhir.</span>'+
     '</div></div>';
   else {
     var daftar=ST._txHide?ps.filter(function(p){var t=taxFind(p);return !TAX_STEPS.every(function(s){return taxDone(t,s.k);});}):ps;
     isi=cur?('<div style="margin-bottom:12px"><button class="btn ghost sm" onclick="taxTutup()">← Semua periode</button></div>'+taxKartu(cur))
-      :(tabNote('Pengingat kewajiban pajak bulanan. <b>HUB tidak menghitung pajak</b> — angkanya kamu isi dari hasil hitungan e-SPT/konsultan, HUB yang menjaga jangan sampai lewat tenggat dan menyimpan bukti (NTPN &amp; BPE).')+
+      :(tabNote('Pengingat kewajiban pajak bulanan. <b>HUB tidak menghitung pajak</b> — angkanya kamu isi dari hasil hitungan e-SPT/konsultan, HUB yang menjaga jangan sampai lewat tenggat dan menyimpan bukti (NTPN &amp; BPE). Masa sebelum HUB dipakai bisa dilewati lewat <b>Pengaturan → Mulai pantau</b>.')+
         '<div class="rcard"><h3>Periode masa pajak ('+daftar.length+')'+
         '<label style="float:right;display:flex;align-items:center;gap:5px;font-size:10.5px;font-weight:700;color:var(--muted);cursor:pointer"><input type="checkbox" '+(ST._txHide?'checked':'')+' onchange="ST._txHide=this.checked;render()" style="width:auto;accent-color:var(--brand)"> Sembunyikan yang selesai</label></h3>'+
-        (daftar.length?taxDaftar(daftar):'<div style="color:var(--muted);font-size:12px">Semua periode sudah selesai. 🎉</div>')+'</div>');}
+        (daftar.length?taxDaftar(daftar):(ps.length?'<div style="color:var(--muted);font-size:12px">Semua periode sudah selesai. 🎉</div>'
+          :'<div style="color:var(--muted);font-size:12px">Belum ada periode yang dipantau — periode pertama muncul setelah bulan "Mulai pantau" lewat.</div>'))+'</div>');}
   var lt=taxLateTotal();
   $('#main').innerHTML='<div class="topbar"><h1>Pajak &amp; Kepatuhan</h1><span class="demo">Holding</span>'+
       (lt?'<span style="margin-left:auto;background:var(--warn-bg);color:var(--warn);border-radius:20px;padding:5px 13px;font-size:11px;font-weight:800">⚠ '+lt+' kewajiban lewat tenggat</span>':'')+'</div>'+
@@ -4825,7 +4842,7 @@ function preCat(o){return orderAU(o)?'PRE-DEAL ROVE AU':'PRE-DEAL';}
 function dealCat(o){if(!o.eventDate)return 'PRE-DEAL';var d=new Date(o.eventDate);if(isNaN(d))return 'PRE-DEAL';return 'Deal Bulan '+MONTHS[d.getMonth()]+' '+d.getFullYear();}
 
 /* ================= CONTOH ORDER — satu client wedding, satu kartu per fase =================
-   Data uji karangan. Satu customer dengan data PERSIS sama di 15 kartu: kartu
+   Data uji karangan. Satu customer dengan data PERSIS sama di 23 kartu: kartu
    fase N berisi semua isian fase 0..N (termasuk fase kartunya sendiri: semua
    harga vendor tercatat, semua persetujuan ada) dan dibuat lewat jalur yang
    sama dengan yang dipakai orang (prospek → Inquiry → isi → tutup fase),
@@ -6812,8 +6829,10 @@ function opTarifSel(i,r){
 /* kunci datanya tetap `stamper` (warisan) — hanya sebutannya yang netral */
 function opCanJob(op,job){return (job==='Operator utama'||job==='Stamper')?!!op.stamper:!!op.assist;}
 function opPlots(nama,tgl,exceptId){ // order lain yang sudah memakai operator ini di tanggal sama
+  var me=exceptId?ST.orders.find(function(x){return x.id===exceptId;}):null;
   return ST.orders.filter(function(o){
     if(o.deleted||o.status==='Cancel'||o.id===exceptId)return false;
+    if(o._contoh&&(me&&me._contoh||!liveContohIkut(o)))return false;   // kartu contoh = order yang sama, bukan bentrok
     if(!o.eventDate||o.eventDate!==tgl)return false;
     return ((o.event&&o.event.ops)||[]).some(function(x){return x.nama===nama;});});}
 function opCity(o){return (o.event&&o.event.venue)||o.shipKota||o.venue||'';}
@@ -6924,7 +6943,7 @@ function opDel(id,i){var o=ST.orders.find(function(x){return x.id===id;});if(!o|
   o._m=Date.now();save();render();}
 function opLoad(){ // beban kerja tiap operator — biar Event Management lihat siapa penuh
   var tally={};
-  ST.orders.forEach(function(o){if(o.deleted||o.status==='Cancel')return;
+  ST.orders.forEach(function(o){if(o.deleted||o.status==='Cancel'||!liveContohIkut(o))return;
     ((o.event&&o.event.ops)||[]).forEach(function(x){
       (tally[x.nama]=tally[x.nama]||[]).push({t:o.eventDate||'-',c:o.customer,j:x.job});});});
   var ks=Object.keys(tally);if(!ks.length)return '';
@@ -6968,7 +6987,7 @@ function vendorJasaLive(nama){
 function jadwalLive(){
   var today=hariIni();
   return ST.orders.filter(function(o){
-    if(o.deleted||o.status==='Cancel'||!o.eventDate)return false;
+    if(o.deleted||o.status==='Cancel'||!o.eventDate||!liveContohIkut(o))return false;
     if(!(liveList(o.liveSvc||[]).length||((o.event||{}).ops||[]).length))return false;
     return o.eventDate>=today;})
     .sort(function(a,b){return a.eventDate<b.eventDate?-1:1;});}
@@ -6991,7 +7010,7 @@ function timVendorBlok(){
     V.map(function(v){
       var jasa=vendorJasaLive(v.nama);
       var plots=ST.orders.filter(function(o){
-        if(o.deleted||o.status==='Cancel'||!o.eventDate||o.eventDate<today)return false;
+        if(o.deleted||o.status==='Cancel'||!o.eventDate||o.eventDate<today||!liveContohIkut(o))return false;
         return (((o.pricing||{}).lines)||[]).some(function(l){return l.jasa==='Live service'&&(l.sumber||'')===v.nama;});});
       return '<tr><td style="font-weight:700">'+esc(v.nama)+'</td>'+
         '<td>'+esc(v.kota||'\u2014')+'</td>'+
@@ -9059,10 +9078,9 @@ function renderTasks(){
          <button class="btn" onclick="ST.view='report';ST.cur=null;render()">▤ Buka Laporan</button>
          <button class="btn ghost" onclick="ST.view='board';ST.cur=null;render()">▦ Lihat Pipeline</button>
        </div>
-       <div style="font-size:10.5px;color:var(--muted);margin-top:12px">Admin database &amp; edit master data menyusul di Tahap 7 (app admin Holding).</div>
      </div>
      <div class="rcard" style="max-width:660px"><h3>Data uji — contoh order</h3>
-       <div style="font-size:11.5px;color:var(--muted);margin-bottom:9px;line-height:1.6">Satu client wedding (<b>Sarah &amp; Kevin</b> — 100 pcs produk katalog (Irvine Card Wallet kalau ada di katalog), box + soft pouch + thank you card dengan logo yang sama, add-on logo, engrave 3 nama, live calligraphy) dengan data <b>persis sama</b> di 15 kartu: satu kartu per fase, tiap kartu terisi lengkap sampai fase kartunya sendiri (semua harga vendor tercatat, semua persetujuan ada) — tinggal tombol Selesai. Logo Rove asli: monogram di produk, ROVE GIFTS di kemasan. Harga vendor sengaja beda dari katalog. Isinya karangan; kartu contoh lama diganti, order lain tak disentuh.</div>
+       <div style="font-size:11.5px;color:var(--muted);margin-bottom:9px;line-height:1.6">Satu client wedding (<b>Sarah &amp; Kevin</b> — 100 pcs produk katalog (Irvine Card Wallet kalau ada di katalog), box + soft pouch + thank you card dengan logo yang sama, add-on logo, engrave 3 nama, live calligraphy) dengan data <b>persis sama</b> di ${PH.length} kartu: satu kartu per fase, tiap kartu terisi lengkap sampai fase kartunya sendiri (semua harga vendor tercatat, semua persetujuan ada) — tinggal tombol Selesai. Logo Rove asli: monogram di produk, ROVE GIFTS di kemasan. Harga vendor sengaja beda dari katalog. Isinya karangan; kartu contoh lama diganti, order lain tak disentuh.</div>
        <button class="btn sm" onclick="seedContohMuat()">＋ Muat contoh order — 1 client × ${PH.length} fase</button> <button class="btn ghost sm" onclick="if(confirm('Hapus semua kartu contoh Sarah & Kevin?'))seedContohHapus()">Hapus kartu contoh</button>
        <div style="font-size:11.5px;color:var(--muted);margin:12px 0 8px;line-height:1.6"><b>Contoh data keuangan</b> (angka karangan): saldo saat ini, kas &amp; bank, biaya rutin bulan ini yang sudah dibayar, dua baris manual — supaya Cashflow projection &amp; Kas &amp; bank punya gambaran sehat. Ikut dimuat bersama kartu contoh bila data keuangan masih kosong; <b>otomatis dikosongkan</b> saat HUB ditandai dipakai sungguhan (Integrasi backend).</div>
        <button class="btn sm" onclick="finContohMuat()">＋ Muat contoh keuangan</button> <button class="btn ghost sm" onclick="finKosongkanTombol()">Kosongkan data keuangan</button>
@@ -9264,7 +9282,8 @@ function expOrders(){var m=ST._expM||'';
   return ST.orders.filter(function(o){
     if(o.deleted||o.status==='Cancel')return false;
     if(!(o.pricing&&o.pricing.lines&&o.pricing.lines.some(function(l){return (l.qty||0)>0;})))return false;
-    if(o.phase<2)return false;                       // minimal sudah sampai Quotation
+    if(o.phase<4)return false;                       // minimal sudah sampai Quotation Issuing (fase 4) — sesuai teks syaratnya
+    if(!expContohIkut(o))return false;
     if(m){var d=o.date?dmyToISO(o.date):'';if((d||'').slice(0,7)!==m)return false;}
     return true;});}
 function dmyToISO(s){s=String(s||'');if(s.length!==6)return '';
@@ -9462,7 +9481,8 @@ function expPanel(){
 }
 /* rekap CS: konversi prospek + komplain + kepuasan */
 function csReport(){
-  var L=leadsHidup(),tot=L.length,deal=L.filter(function(l){return l.status==='Jadi order';}).length;
+  var L=leadsHidup().filter(function(l,i,a){return !/^LCW/.test(String(l.id||''))||a.findIndex(function(x){return /^LCW/.test(String(x.id||''));})===i;}),   // prospek asal 23 kartu contoh: satu saja
+      tot=L.length,deal=L.filter(function(l){return l.status==='Jadi order';}).length;
   var batal=L.filter(function(l){return l.status==='Batal';}).length,aktif=L.filter(leadAktif).length;
   var konv=(deal+batal)?Math.round(deal/(deal+batal)*100):0;
   var byCh={};L.forEach(function(l){var c=byCh[l.channel]=byCh[l.channel]||{n:0,d:0};c.n++;if(l.status==='Jadi order')c.d++;});
@@ -9544,7 +9564,7 @@ function kurangFase(o,i){
     if(!L.length)k.push('Baris pricing (produk & qty)');
     else{
       if(L.some(function(l){return !((l.qty||0)>0);}))k.push('Qty di sebagian baris');
-      if(L.some(function(l){return !((l.hpp||0)>0);}))k.push('HPP dari vendor');
+      if(profitTotals(o).kurang)k.push('HPP dari vendor');   // rumus sama dengan Profitability Checking: biaya tetap (fee per event / plat) = sudah ada harga
       if(L.some(function(l){return !ada(l.sumber);}))k.push('Vendor di sebagian baris');}}
   else if(i===2){
     var Pp=profitTotals(o);
@@ -9552,13 +9572,19 @@ function kurangFase(o,i){
     if(Pp.jual&&Pp.pct<0)k.push('Profit minus — harga jual di bawah HPP');}
   else if(i===4){
     if(!ada(o.shipEksp))k.push('Ekspedisi untuk ongkir quotation');
+    if(!(o.docs&&o.docs.quotation))k.push('Generate Quotation');}
+  else if(i===5){   // Quotation – Awaiting Approval: yang ditunggu jawaban client, bukan dokumennya
     if(!(o.docs&&o.docs.quotation))k.push('Generate Quotation');
     else if((o.quo||{}).status!=='Approved')k.push('Approval client atas quotation');}
+  else if(i===7){   // Product Sketch – Awaiting Approval
+    if(!((o.sketch||{}).tgl))k.push('Persetujuan client atas sketsa');}
   else if(i===6){
-    if(L.length&&!L.some(function(l){return lineImg(l);}))k.push('Gambar / sketch produk');}
+    if(L.length&&!L.some(function(l){return lineImg(l);})&&!((briefGet(o).previewFiles||[]).length))k.push('Gambar / sketch produk');}   // preview Creative juga gambar
   else if(i===8){
+    if(!(o.docs&&o.docs.invoice))k.push('Generate Invoice');}
+  else if(i===9){   // First Payment Processing: uang muka masuk, atau surat PO client yang sah
     if(!(o.docs&&o.docs.invoice))k.push('Generate Invoice');
-    else if(!(((o.pay||{}).dp||0)>0))k.push('DP masuk');}
+    else if(!(((o.pay||{}).dp||0)>0)&&!poClientSah(o))k.push('DP masuk (atau PO client)');}
   else if(i===10){
     var pm=poMissing(o);
     if(pm.length)k.push('Form PO: '+pm.join(', '));
@@ -9831,7 +9857,7 @@ function renderReport(){
   const avgLead=leads.length?Math.round(leads.reduce((a,b)=>a+b,0)/leads.length):0;
   const pipeVal=proses.reduce((s,o)=>s+orderGrand(o),0);
   /* pembayaran — hanya order yang sudah punya dokumen tagihan */
-  const tagih=os.filter(o=>o.status!=='Cancel'&&(o.docs&&(o.docs.invoice||o.docs.quotation))&&orderGrand(o)>0);
+  const tagih=os.filter(o=>o.status!=='Cancel'&&(o.docs&&(o.docs.invoice||o.docs.quotation))&&orderGrand(o)>0&&expContohIkut(o));   // kartu contoh: belum dibayar, DP masuk, lunas
   const totTagih=tagih.reduce((s,o)=>s+orderGrand(o),0);
   const totTerima=tagih.reduce((s,o)=>s+orderPaid(o),0);
   const piutang=totTagih-totTerima;
@@ -9845,7 +9871,7 @@ function renderReport(){
    ${tabNote('Rekap otomatis dari semua order — <b>tak perlu input apa pun di sini</b>. Angka ikut terisi saat order jalan (nilai order tercatat waktu Generate Quotation/Invoice).')}
    <div class="metrics">
      <div class="metric"><div class="ml">Total order</div><div class="mv">${os.length}</div><div class="ms">${proses.length} berjalan · ${selesai.length} selesai · ${cancel.length} cancel</div></div>
-     <div class="metric"><div class="ml">Omset (selesai)</div><div class="mv">${fmt0(omset)}</div><div class="ms">${selP.length?`margin ${fmt0(margin)} (${mPct}%) · dari ${selP.length} order ber-pricing`:'margin belum bisa dihitung (belum ada HPP)'}</div></div>
+     <div class="metric"><div class="ml">Omset (selesai)</div><div class="mv">${fmt0(omset)}</div><div class="ms">${selP.length?`margin ${fmt0(margin)} (${mPct}%) · dari ${selP.length} order ber-pricing`:(selesai.length?'margin belum bisa dihitung (belum ada HPP)':'belum ada order selesai')}</div></div>
      <div class="metric"><div class="ml">Nilai pipeline</div><div class="mv">${fmt0(pipeVal)}</div><div class="ms">${proses.length} order belum selesai</div></div>
      <div class="metric"><div class="ml">Rata-rata lead time</div><div class="mv">${avgLead} hari</div><div class="ms">dari ${leads.length} order selesai</div></div>
    </div>
@@ -9870,7 +9896,7 @@ function renderReport(){
      ${selesai.length?`<table class="rtable"><thead><tr><th>Order</th><th>Produk</th><th class="num">Nilai</th><th class="num">Lead time</th><th>Evaluasi</th></tr></thead>
      <tbody>${selesai.map(o=>`<tr><td>${o.customer}</td><td>${o.product} · ${o.qty}pcs</td><td class="num">${fmt0(orderGrand(o))}</td><td class="num">${o.leadDays||'—'} hari</td>
        <td>${o.returns?`<span class="evtag">${o.returns} retur</span>`:''}${o.revisi?`<span class="evtag">${o.revisi} revisi</span>`:''}${!o.returns&&!o.revisi?'<span style="color:var(--ok);font-weight:700">bersih</span>':''}</td></tr>`).join('')}</tbody></table>`
-     :'<div style="color:var(--muted);font-size:12px">Belum ada order selesai. Jalankan sebuah order sampai fase 10.</div>'}</div>
+     :'<div style="color:var(--muted);font-size:12px">Belum ada order selesai. Jalankan sebuah order sampai Project Archiving (fase 23).</div>'}</div>
    ${cancel.length?`<div class="rcard"><h3>Order dibatalkan — alasan</h3>
      <table class="rtable"><thead><tr><th>Order</th><th>Produk</th><th>Alasan cancel</th></tr></thead>
      <tbody>${cancel.map(o=>`<tr><td>${o.customer}</td><td>${o.product} · ${o.qty}pcs</td><td>${o.reason||'—'}</td></tr>`).join('')}</tbody></table></div>`:''}`;
@@ -9888,7 +9914,7 @@ function eventEdit(id,f,v){var o=ST.orders.find(function(x){return x.id===id;});
    Semua event sekaligus terlalu panjang untuk digulir; jadi Jadwal menampilkan
    ringkasannya, dan panel penuh baru terbuka saat satu event dipilih. */
 function liveOrders(){
-  var L=ST.orders.filter(function(o){return !o.deleted&&liveList(o.liveSvc).length&&o.status!=='Cancel';});
+  var L=ST.orders.filter(function(o){return !o.deleted&&liveList(o.liveSvc).length&&o.status!=='Cancel'&&liveContohIkut(o);});
   L.sort(function(a,b){return String(a.eventDate||'9999').localeCompare(String(b.eventDate||'9999'));});
   return L;}
 function liveTab(v){ST._liveTab=v;ST._liveCur=null;render();}
