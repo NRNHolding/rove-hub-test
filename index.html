@@ -582,7 +582,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20260910-103408';
+const VERSI='20260910-112002';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -3218,7 +3218,7 @@ function batasBuka(kunci){ST['_all_'+kunci]=!ST['_all_'+kunci];render();}
 function finPembayaran(){
   var out=[];
   (ST.orders||[]).forEach(function(o){
-    if(o.deleted)return;var p=o.pay||{};
+    if(o.deleted||!cfOrderIkut(o))return;var p=o.pay||{};   // kartu contoh: tiga kartu yang sama dengan Cashflow & Kas — bukan 20 baris DP kembar
     if((+p.dp||0)>0)out.push({id:o.id+':dp',order:o,jenis:'DP',nom:+p.dp,tgl:p.dpDate||'',via:p.via||'',cocok:!!(p.dpCocok)});
     if((+p.dp2||0)>0)out.push({id:o.id+':dp2',order:o,jenis:'Termin 2',nom:+p.dp2,tgl:p.dp2Date||'',via:p.via||'',cocok:!!(p.dp2Cocok)});
     if((+p.pel||0)>0)out.push({id:o.id+':pel',order:o,jenis:'Pelunasan',nom:+p.pel,tgl:p.pelDate||'',via:p.via||'',cocok:!!(p.pelCocok)});});
