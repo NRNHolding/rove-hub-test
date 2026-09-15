@@ -600,7 +600,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20260915-171019';
+const VERSI='20260915-173845';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -4985,7 +4985,7 @@ function contohBuatDasar(n){
    lalu fasenya ditutup dengan applyTrigger seperti tombol "Selesai". */
 /* Naikkan tiap kali bentuk kartu contoh berubah (fase bertambah, isian baru):
    kartu contoh yang tersimpan di browser tiap orang diganti sendiri saat HUB dibuka. */
-const CONTOH_V='23d';
+const CONTOH_V='24a';
 const CONTOH_ISI=[
  /* 0 Inquiry — PM merinci; Sales menjawab warna, logo, dan letaknya */
  function(o){var K=CONTOH_W,b=briefGet(o);
@@ -5102,7 +5102,7 @@ const CONTOH_ISI=[
    b.packGuideFiles=[contohFile('panduan-packing.svg',contohSvg('PACK GUIDE','#e9eef7','#27408b'))];
    b.collFoto_box=[contohFoto('prevBox','box-vendor.jpg',contohSvg('BOX','#efe7d8','#6b4718'))];
    o.prod={stage:'Packing',note:'sample disetujui; QC lolos 100 pcs; packing per 25 pcs',updated:t,updatedTs:Date.now(),sampleTgl:t,sampleTglBy:'pm',
-     collKirim:{box:true,pouch:true,card:true},collTgl:t,minta:{sampleFiles:{tgl:t,oleh:'pm'},qcFiles:{tgl:t,oleh:'pm'}}};},
+     collKirim:{box:true,pouch:true,card:true},collTgl:t,minta:{sampleFiles:{tgl:t,oleh:'pm',n:1,pertama:t},qcFiles:{tgl:t,oleh:'pm',n:1,pertama:t}}};},
  /* 12 QC & Packing — barang diterima lengkap di Rove */
  function(o){var t=hariIni(),b=briefGet(o),key='l:'+(((lineProduk(o)[0]||{}).l||{}).produk||'');
    var pr={};pr[key]=100;o.terima={produk:pr,coll:{box:true,pouch:true,card:true},catatan:'diterima lengkap, 2 pcs retur jahitan sudah diganti Radja',tgl:t,oleh:'pack',_lengkapLog:true};
@@ -10806,12 +10806,12 @@ const PH_CHECK=[
   {auto:function(o){return bvAdaTahap(o,1)||bvLunasSemua(o);}, k:'bayarV1', t:'Catat pembayaran vendor tahap 1 (boleh dicatat belakangan — tak menahan fase)', en:'Record stage-1 vendor payments (can be recorded later — does not block)', guna:'supaya vendor mulai produksi dan pembayarannya tercatat', gunaEn:'so vendors start and payments are on record', pic:'Finance'},
  ],
  [ // 12 Produksi
-  {auto:function(o){return !!((o.prod||{}).sampleTgl)&&(((o.brief||{}).sampleFiles)||[]).length>0;}, k:'sample', t:'Setujui sample / first article sebelum produksi massal', en:'Approve the sample / first article before mass production', guna:'supaya kesalahan tak terlanjur di semua pcs', gunaEn:'so a mistake does not run through every piece',             pic:'PM', w:true},
+  {auto:function(o){return prodLangkahLewat(o,'sampleFiles')||(!!((o.prod||{}).sampleTgl)&&(((o.brief||{}).sampleFiles)||[]).length>0);}, k:'sample', t:'Setujui sample / first article sebelum produksi massal', en:'Approve the sample / first article before mass production', guna:'supaya kesalahan tak terlanjur di semua pcs', gunaEn:'so a mistake does not run through every piece',             pic:'PM', w:true},
   {auto:function(o){return collKirimLengkap(o);}, jika:'coll', k:'coll', t:'Catat collateral yang sudah terkirim ke Radja — centang tiap collateral', en:'Record which collaterals have been delivered to Radja — tick each one', guna:'supaya paket tak sampai tanpa kemasannya', gunaEn:'so the parcel does not arrive without its packaging',             pic:'Packing', w:true},
   {auto:function(o){return !!((o.prod||{}).updated)||prodFotoAda(o)>=2;}, k:'progres', t:'Perbarui tahap dan catatan progres produksi', en:'Update the production stage and progress notes', guna:'supaya tim tahu produksi sampai mana', gunaEn:'so the team knows how far production has got',           pic:'PM', w:true},
-  {auto:function(o){return (((o.brief||{}).potongFiles)||[]).length>0;}, k:'fotoPotong', t:'Minta & unggah foto setelah potong dari Radja', en:'Request and upload the post-cutting photo from Radja', guna:'supaya bahan yang dipakai terbukti sebelum dijahit', gunaEn:'so the material used is documented before stitching', pic:'PM', w:true},
-  {auto:function(o){return (((o.brief||{}).qcFiles)||[]).length>0;}, k:'qc', t:'Minta & unggah foto QC dari Radja (retur: satu foto satu alasan)', en:'Request and upload the QC photos from Radja', guna:'supaya invoice pelunasan membawa bukti barang lolos QC', gunaEn:'so the final invoice carries proof of QC', pic:'PM', w:true},
-  {auto:function(o){return (((o.brief||{}).packFiles)||[]).length>0;}, k:'pack', t:'Minta & unggah foto packing dari Radja', en:'Request and upload the packing photos from Radja', guna:'supaya invoice pelunasan membawa bukti barang terpacking', gunaEn:'so the final invoice carries proof of packing', pic:'PM', w:true},
+  {auto:function(o){return (((o.brief||{}).potongFiles)||[]).length>0||prodLangkahLewat(o,'potongFiles');}, k:'fotoPotong', t:'Minta & unggah foto setelah potong dari Radja', en:'Request and upload the post-cutting photo from Radja', guna:'supaya bahan yang dipakai terbukti sebelum dijahit', gunaEn:'so the material used is documented before stitching', pic:'PM', w:true},
+  {auto:function(o){return (((o.brief||{}).qcFiles)||[]).length>0||prodLangkahLewat(o,'qcFiles');}, k:'qc', t:'Minta & unggah foto QC dari Radja (retur: satu foto satu alasan)', en:'Request and upload the QC photos from Radja', guna:'supaya invoice pelunasan membawa bukti barang lolos QC', gunaEn:'so the final invoice carries proof of QC', pic:'PM', w:true},
+  {auto:function(o){return (((o.brief||{}).packFiles)||[]).length>0||prodLangkahLewat(o,'packFiles');}, k:'pack', t:'Minta & unggah foto packing dari Radja', en:'Request and upload the packing photos from Radja', guna:'supaya invoice pelunasan membawa bukti barang terpacking', gunaEn:'so the final invoice carries proof of packing', pic:'PM', w:true},
  ],
  [ // 13 QC & Packing — kelengkapan barang diterima Rove
   {auto:function(o){return terimaLengkap(o);}, k:'terima', t:'Catat kelengkapan barang yang diterima Rove — qty tiap produk & collateral yang ikut', en:'Record what Rove received — qty of each product and the collaterals included', guna:'supaya yang dikirim ke client sama dengan yang diterima dari Radja', gunaEn:'so what ships to the client matches what came from Radja', pic:'Packing', w:true},
@@ -12946,17 +12946,109 @@ const PROD_FOTO=[['sampleFiles','Sample awal','foto sample / first article yang 
   ['potongFiles','Setelah potong','foto bahan yang sudah dipotong & skiving'],
   ['qcFiles','QC','foto barang yang sudah lolos QC (retur: satu foto satu alasan)'],
   ['packFiles','Packing','foto barang terpacking']];
+/* ---- langkah foto produksi BERURUTAN (15 Sep 2026): sample → setelah potong → QC → packing.
+   Tahap berikutnya terkunci sampai foto tahap ini masuk — atau PM melewatinya dengan alasan.
+   Tiap tahap punya perkiraan tanggal (otomatis dari PO & deadline; PM bisa mengubah / bertanya
+   ke Radja). Permintaan foto dikirim HUB sendiri pada tanggal itu dan diulang tiap 2 hari kerja
+   sampai fotonya masuk — jadi tak ada permintaan tanggal 15 yang harus diingat Radja sampai
+   tanggal 30. Tiap Senin pagi Radja dikirimi ringkasan foto yang masih ditunggu. ---- */
+const PROD_ULANG_HK=2;
+function hariKerjaTambah(tgl,n){var d=new Date(String(tgl)+'T00:00:00');if(isNaN(d))return '';var k=0,arah=n<0?-1:1;n=Math.abs(n);
+  while(k<n){d.setDate(d.getDate()+arah);var w=d.getDay();if(w!==0&&w!==6)k++;}
+  return ymd(d.getFullYear(),d.getMonth()+1,d.getDate());}
+function hariKerjaAntara(a,b){var d=new Date(String(a)+'T00:00:00'),e=new Date(String(b)+'T00:00:00');if(isNaN(d)||isNaN(e)||e<=d)return 0;var n=0;
+  while(d<e){d.setDate(d.getDate()+1);var w=d.getDay();if(w!==0&&w!==6)n++;}return n;}
+function prodGet(o){if(!o.prod)o.prod={stage:'',note:''};var p=o.prod;if(!p.eta)p.eta={};if(!p.lewati)p.lewati={};if(!p.minta)p.minta={};return p;}
+function prodMulaiTgl(o){var p=(o.po||{});return p.tglPO||ymdDari(faseSejak(o)||Date.now());}
+/* perkiraan tiap tahap: sample 25% & potong 50% jarak PO→deadline; QC H-5 & packing H-2 hari kerja; tanpa deadline 5/10/15/18 hari kerja */
+function prodEtaAuto(o){
+  var mulai=prodMulaiTgl(o),D=(o.po||{}).deadline||'',N=D?hariKerjaAntara(mulai,D):0,out={};
+  if(N>0){out.sampleFiles=hariKerjaTambah(mulai,Math.max(3,Math.round(N*0.25)));out.potongFiles=hariKerjaTambah(mulai,Math.max(5,Math.round(N*0.5)));
+    out.qcFiles=hariKerjaTambah(D,-5);out.packFiles=hariKerjaTambah(D,-2);}
+  else{out.sampleFiles=hariKerjaTambah(mulai,5);out.potongFiles=hariKerjaTambah(mulai,10);out.qcFiles=hariKerjaTambah(mulai,15);out.packFiles=hariKerjaTambah(mulai,18);}
+  var prev=mulai;PROD_FOTO.forEach(function(t){var k=t[0];if(!out[k]||out[k]<prev)out[k]=prev;prev=out[k];});
+  return out;}
+function prodEta(o,slot){var p=prodGet(o);return p.eta[slot]||prodEtaAuto(o)[slot]||'';}
+function prodEtaManual(o,slot){return !!prodGet(o).eta[slot];}
+function prodLangkahAda(o,slot){return ((briefGet(o)[slot])||[]).length>0;}
+function prodLangkahLewat(o,slot){return !!(((o||{}).prod||{}).lewati||{})[slot];}
+function prodLangkahBeres(o,slot){return prodLangkahAda(o,slot)||prodLangkahLewat(o,slot);}
+function prodLangkahBuka(o,slot){var i=PROD_FOTO.findIndex(function(t){return t[0]===slot;});if(i<=0)return i===0;return prodLangkahBeres(o,PROD_FOTO[i-1][0]);}
+function prodLangkahAktif(o){for(var i=0;i<PROD_FOTO.length;i++){var k=PROD_FOTO[i][0];if(!prodLangkahBeres(o,k))return prodLangkahBuka(o,k)?k:null;}return null;}
+function prodBolehAtur(){return ['Project Manager','Holding','Direktur Utama'].some(function(r){return myRoles().indexOf(r)>=0;});}
+function prodTahapDef(slot){return PROD_FOTO.filter(function(x){return x[0]===slot;})[0];}
+function prodEtaSet(id,slot,val){var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;var p=prodGet(o),t=prodTahapDef(slot)||[slot,slot];
+  if(!prodBolehAtur()){alert('Perkiraan tanggal diatur PM.');return;}
+  if(val){p.eta[slot]=val;logHist(o,'📅 Perkiraan tahap '+t[1]+': '+tglID(val));}else{delete p.eta[slot];logHist(o,'📅 Perkiraan tahap '+t[1]+' kembali otomatis');}
+  o._m=Date.now();save();render();}
+function prodTanyaTgl(id,slot){var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;var t=prodTahapDef(slot);if(!t)return;
+  var p=prodGet(o);if(!p.tanyaTgl)p.tanyaTgl={};p.tanyaTgl[slot]={tgl:nowStr(),oleh:(ST.userName||ST.user||'')};
+  logHist(o,'❓ Tanya Radja: kapan tahap '+t[1]);
+  notifyOrder(o,'❓ **Radja, kira-kira kapan tahap '+t[1]+' untuk '+o.customer+'?** — '+t[2]+'. HUB memperkirakan '+tglID(prodEta(o,slot))+'; kalau beda, sebut tanggalnya di channel ini — PM yang mencatat.');
+  o._m=Date.now();save();render();kilat('Pertanyaan tanggal '+t[1]+' terkirim ke Radja');}
+function prodLewati(id,slot){var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;var t=prodTahapDef(slot);if(!t)return;
+  if(!prodBolehAtur()){alert('Melewati tahap foto: PM (atau Direktur / Holding).');return;}
+  var p=prodGet(o);
+  if(p.lewati[slot]){if(!confirm('Buka lagi tahap '+t[1]+'? Fotonya akan ditunggu lagi.'))return;delete p.lewati[slot];logHist(o,'↺ Tahap '+t[1]+' dibuka lagi (dilewati dibatalkan)');o._m=Date.now();save();render();return;}
+  var wajib=(slot==='qcFiles'||slot==='packFiles')?'<div style="font-size:10.5px;color:var(--warn);font-weight:700;margin-bottom:8px">Foto QC &amp; packing tetap wajib untuk invoice pelunasan — melewati di sini hanya membuka tahap berikutnya.</div>':'';
+  askForm({judul:'Lewati tahap '+t[1],sub:o.customer+' — tahap berikutnya terbuka tanpa foto tahap ini',tanpaDraf:true,info:wajib,
+    fields:[{k:'alasan',label:'Alasan',type:'textarea',tinggi:80,req:true,ph:'mis. order ulang — sample sama dengan order sebelumnya'}],
+    ok:function(v){var alasan=String(v.alasan||'').trim();if(!alasan){alert('Alasan wajib diisi.');return;}
+      p.lewati[slot]={alasan:alasan,oleh:(ST.userName||ST.user||''),tgl:hariIni()};
+      logHist(o,'⤼ Tahap '+t[1]+' dilewati: '+alasan);
+      notifyOrder(o,'⤼ **Tahap '+t[1]+' dilewati** — '+o.customer+': '+alasan+' ('+(ST.userName||ST.user||'')+')');
+      o._m=Date.now();save();render();}});}
+/* tagih otomatis: tahap aktif yang perkiraannya sudah lewat, belum ada fotonya, belum diminta / sudah 2 hari kerja sejak permintaan terakhir */
+function ingatFotoProduksiJatuhTempo(){
+  var out=[],fp=faseProduksi(),hari=hariIni();
+  (ST.orders||[]).forEach(function(o){
+    if(o.deleted||o.done||o.status==='Cancel')return;
+    if((o.phase||0)!==fp)return;
+    var k=prodLangkahAktif(o);if(!k)return;
+    var eta=prodEta(o,k);if(!eta||eta>hari)return;
+    var m=(prodGet(o).minta)[k];
+    if(m&&m.ts&&hariKerjaSejak(+m.ts)<PROD_ULANG_HK)return;
+    out.push({o:o,slot:k,eta:eta,ulang:!!m});});
+  return out;}
+function jalankanIngatFotoProduksi(){
+  var due=ingatFotoProduksiJatuhTempo();if(!due.length)return 0;
+  due.forEach(function(d){prodMintaFoto(d.o.id,d.slot,true);var p=d.o.prod||{};p.ingatTs=Date.now();});
+  save();return due.length;}
+/* ringkasan foto yang ditunggu — per order ke channel order (di situ Radja membaca) */
+function ringkasanRadjaSatu(o){
+  var NL=String.fromCharCode(10);
+  var sisa=PROD_FOTO.filter(function(t){return !prodLangkahBeres(o,t[0]);});if(!sisa.length)return false;
+  var baris=sisa.map(function(t){var eta=prodEta(o,t[0]),m=(prodGet(o).minta)[t[0]];
+    return '• '+t[1]+' — perkiraan '+tglID(eta)+(m?(' · sudah diminta '+(m.n||1)+'×, sejak '+(m.pertama||m.tgl)):'')+(prodLangkahBuka(o,t[0])?'':' · menunggu tahap sebelumnya');});
+  var dl=(o.po||{}).deadline;
+  notifyOrder(o,'📅 **Foto yang masih ditunggu dari Radja** — '+o.customer+(dl?(' (deadline '+tglID(dl)+')'):'')+NL+baris.join(NL)+NL+'Kirim di channel ini begitu tahapnya selesai; PM yang mengunggah ke HUB.');
+  logHist(o,'📅 Ringkasan foto yang ditunggu ke Radja: '+sisa.map(function(t){return t[1];}).join(', '));
+  o._m=Date.now();return true;}
+function ringkasanRadjaKirim(id){var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
+  if(!ringkasanRadjaSatu(o)){alert('Semua tahap foto sudah ada — tak ada yang perlu ditagih.');return;}
+  save();render();kilat('Ringkasan foto yang ditunggu terkirim ke Radja');}
+const DIGEST_RADJA_KEY='rovehub_digest_radja';
+function ringkasanSeninRadja(){
+  if(new Date().getDay()!==1)return 0;
+  var hari=hariIni();try{if(localStorage.getItem(DIGEST_RADJA_KEY)===hari)return 0;}catch(e){}
+  var fp=faseProduksi(),n=0;
+  (ST.orders||[]).forEach(function(o){
+    if(o.deleted||o.done||o.status==='Cancel'||(o.phase||0)!==fp)return;
+    if(ringkasanRadjaSatu(o))n++;});
+  try{localStorage.setItem(DIGEST_RADJA_KEY,hari);}catch(e){}
+  if(n)save();return n;}
 function prodFotoAda(o){var b=(o&&o.brief)||{};return PROD_FOTO.filter(function(t){return (b[t[0]]||[]).length>0;}).length;}
 function prodTahapTeks(o){var n=prodFotoAda(o);return n?PROD_FOTO[Math.min(n,PROD_FOTO.length)-1][1]:'belum ada foto';}
-function prodMintaFoto(id,slot){
+function prodMintaFoto(id,slot,otomatis){
   var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
-  var t=PROD_FOTO.filter(function(x){return x[0]===slot;})[0];if(!t)return;
-  if(!o.prod)o.prod={stage:'',note:''};if(!o.prod.minta)o.prod.minta={};
-  o.prod.minta[slot]={tgl:nowStr(),oleh:(ST.userName||ST.user||'')};
-  o.prod.updated=nowStr();o.prod.updatedTs=Date.now();delete o.prod.ingatTs;
-  logHist(o,'📷 Minta foto ke Radja — tahap '+t[1]);
-  notifyOrder(o,'📷 **Radja, mohon foto tahap '+t[1]+'** — '+o.customer+String.fromCharCode(10)+t[2]+'. Kirim di channel ini, PM yang mengunggah ke HUB.');
-  o._m=Date.now();save();render();kilat('Permintaan foto '+t[1]+' terkirim ke Radja');}
+  var t=prodTahapDef(slot);if(!t)return;
+  if(!otomatis&&!prodLangkahBuka(o,slot)){alert('Tahap '+t[1]+' masih terkunci — unggah foto tahap sebelumnya dulu (atau lewati dengan alasan).');return;}
+  var NL=String.fromCharCode(10),p=prodGet(o),m=p.minta[slot]||{},n=(m.n||(m.tgl?1:0))+1;
+  p.minta[slot]={tgl:nowStr(),oleh:otomatis?'HUB':(ST.userName||ST.user||''),ts:Date.now(),n:n,pertama:m.pertama||m.tgl||nowStr(),otomatis:!!otomatis};
+  if(!otomatis){o.prod.updated=nowStr();o.prod.updatedTs=Date.now();delete o.prod.ingatTs;}
+  logHist(o,'📷 Minta foto ke Radja — tahap '+t[1]+(n>1?(' (ke-'+n+', ditunggu sejak '+p.minta[slot].pertama+')'):'')+(otomatis?' · otomatis':''));
+  notifyOrder(o,'📷 **Radja, mohon foto tahap '+t[1]+'** — '+o.customer+NL+t[2]+'.'+(n>1?(NL+'Masih ditunggu sejak '+p.minta[slot].pertama+' (permintaan ke-'+n+').'):'')+NL+'Kirim di channel ini, PM yang mengunggah ke HUB.');
+  o._m=Date.now();save();if(!otomatis){render();kilat('Permintaan foto '+t[1]+' terkirim ke Radja');}}
 function collTanya(id,k){
   var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
   var c=collDipilih(o).filter(function(x){return x.k===k;})[0];if(!c)return;
@@ -12970,14 +13062,30 @@ function prodPanel(o){const pr=o.prod||{stage:'',note:''};const dl=(o.po&&o.po.d
   const dc=dn==null?'':(dn<0?'#d9534f':dn<=3?'var(--warn)':'var(--ok)');
   const dtxt=dn==null?'belum ada deadline':(dn<0?('TELAT '+(-dn)+' hari'):dn===0?'HARI INI':(dn+' hari lagi'));
   const nFoto=prodFotoAda(o);
-  const tahap=PROD_FOTO.map(function(t,i){var ada=(b[t[0]]||[]).length,m=(pr.minta||{})[t[0]];
-    return '<div data-f="prodTahap_'+t[0]+'" style="border:1px solid '+(ada?'var(--ok)':'var(--line)')+';border-radius:9px;padding:9px 11px;margin-bottom:8px;background:var(--bg)">'+
+  const tahap=PROD_FOTO.map(function(t,i){var k=t[0],ada=(b[k]||[]).length,P=prodGet(o),m=P.minta[k],lw=P.lewati[k],buka=prodLangkahBuka(o,k),eta=prodEta(o,k),manual=prodEtaManual(o,k),aktif=prodLangkahAktif(o)===k,dn=dLeft(eta),boleh=prodBolehAtur();
+    var terkunci=!buka&&!ada&&!lw,tunggu=buka&&!ada&&!lw;
+    var status=ada?('✓ '+ada+' foto'):(lw?'⤼ dilewati':(terkunci?'🔒 terkunci':(dn!=null&&dn<0?'menunggu foto — lewat '+(-dn)+' hari':'menunggu foto')));
+    var wStatus=ada?'var(--ok)':(lw?'var(--muted)':(terkunci?'var(--muted)':'var(--warn)'));
+    var ev='var ev=window.event;if(ev){ev.preventDefault();}';
+    return '<div data-f="prodTahap_'+k+'" style="border:1px solid '+(ada?'var(--ok)':(tunggu&&dn!=null&&dn<=0?'var(--warn)':'var(--line)'))+';border-radius:9px;padding:9px 11px;margin-bottom:8px;background:'+(terkunci?'transparent':'var(--bg)')+(terkunci?';opacity:.75':'')+'">'+
       '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:4px"><b style="font-size:11px">'+(i+1)+'. '+esc(t[1])+'</b><span style="font-size:9.5px;color:var(--muted)">'+esc(t[2])+'</span>'+
-        '<span style="margin-left:auto;font-size:9.5px;font-weight:800;color:'+(ada?'var(--ok)':'var(--warn)')+'">'+(ada?('✓ '+ada+' foto'):'belum ada foto')+'</span></div>'+
-      '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:4px">'+
-        '<button class="btn ghost sm" data-f="mintaFoto_'+t[0]+'" onclick="prodMintaFoto('+jsArg(o.id)+','+jsArg(t[0])+')">📷 Minta foto ke Radja (Discord #'+esc(chName(o))+')</button>'+
-        (m?('<span style="font-size:9.5px;color:var(--muted)">diminta '+esc(m.tgl)+' · '+esc(m.oleh)+'</span>'):'')+'</div>'+
-      lampiranBlok(o,t[0],'Foto '+t[1]+' dari Radja')+'</div>';}).join('');
+        '<span data-f="prodStatus_'+k+'" style="margin-left:auto;font-size:9.5px;font-weight:800;color:'+wStatus+'">'+status+'</span></div>'+
+      (lw?('<div style="font-size:9.5px;color:var(--muted);margin-bottom:4px">dilewati '+esc(tglID(lw.tgl))+' · '+esc(lw.oleh)+' — '+esc(lw.alasan)+(boleh?(' · <a href="#" onclick="'+ev+'prodLewati('+jsArg(o.id)+','+jsArg(k)+')">buka lagi</a>'):'')+'</div>'):'')+
+      (terkunci?('<div style="font-size:9.5px;color:var(--muted);margin-bottom:2px">🔒 Terbuka sesudah foto tahap <b>'+esc(PROD_FOTO[i-1][1])+'</b> masuk (atau tahap itu dilewati dengan alasan oleh PM). Perkiraan tahap ini: <b>'+tglID(eta)+'</b>.</div>'):'')+
+      (tunggu?(
+        '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:4px;font-size:10px">'+
+          '<span style="color:var(--muted);font-weight:700">Perkiraan tanggal</span>'+
+          (boleh?('<input type="date" class="pin" style="width:auto;padding:3px 6px" value="'+esc(eta)+'" data-f="prodEta_'+k+'" onchange="prodEtaSet('+jsArg(o.id)+','+jsArg(k)+',this.value)">'):('<b>'+tglID(eta)+'</b>'))+
+          (dn!=null?('<span style="font-weight:800;color:'+(dn<0?'#8f2a1e':(dn<=1?'var(--warn)':'var(--ok)'))+'">'+(dn<0?('lewat '+(-dn)+' hari'):dn===0?'hari ini':(dn+' hari lagi'))+'</span>'):'')+
+          '<span style="font-size:9.5px;color:var(--muted)">'+(manual?('diisi PM'+(boleh?(' · <a href="#" onclick="'+ev+'prodEtaSet('+jsArg(o.id)+','+jsArg(k)+',\'\')">kembali otomatis</a>'):'')):'otomatis dari PO &amp; deadline — ubah kalau Radja memberi tanggal')+'</span></div>'):'')+
+      ((buka||ada)&&!lw?(
+        '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:4px">'+
+          '<button class="btn ghost sm" data-f="mintaFoto_'+k+'" onclick="prodMintaFoto('+jsArg(o.id)+','+jsArg(k)+')">📷 Minta foto'+(ada?' lagi':'')+' ke Radja (Discord #'+esc(chName(o))+')</button>'+
+          (tunggu?('<button class="btn ghost sm" data-f="tanyaTgl_'+k+'" onclick="prodTanyaTgl('+jsArg(o.id)+','+jsArg(k)+')">❓ Tanya tanggalnya ke Radja</button>'):'')+
+          (tunggu&&boleh?('<button class="btn ghost sm" data-f="lewati_'+k+'" onclick="prodLewati('+jsArg(o.id)+','+jsArg(k)+')">⤼ Lewati dengan alasan</button>'):'')+
+          (m?('<span style="font-size:9.5px;color:var(--muted)">diminta '+((m.n||1)>1?((m.n)+'× · terakhir '):'')+esc(m.tgl)+' · '+esc(m.oleh)+((m.n||1)>1?(' · ditunggu sejak '+esc(m.pertama||'')):'')+'</span>'):'')+'</div>'):'')+
+      (tunggu?('<div style="font-size:9.5px;color:var(--muted);margin-bottom:4px">HUB menagih foto ini sendiri ke Radja mulai '+tglID(eta)+', diulang tiap '+PROD_ULANG_HK+' hari kerja sampai fotonya masuk; tiap Senin pagi Radja dikirimi ringkasan foto yang masih ditunggu.</div>'):'')+
+      ((buka||ada)&&!lw?lampiranBlok(o,k,'Foto '+t[1]+' dari Radja'):'')+'</div>';}).join('');
   const kol=collDipilih(o).map(function(c){var q=(pr.collTanya||{})[c.k],K=((pr.collKirim)||{})[c.k];
     return '<div data-f="collProd_'+c.k+'" style="border:1px solid var(--line);border-radius:9px;padding:8px 11px;margin-bottom:8px">'+
       '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><b style="font-size:11px">'+esc(c.nama)+'</b>'+
@@ -12998,7 +13106,9 @@ function prodPanel(o){const pr=o.prod||{stage:'',note:''};const dl=(o.po&&o.po.d
     <div style="margin-bottom:9px;display:flex;gap:4px;flex-wrap:wrap">${PROD_FOTO.map(function(t,i){return '<span style="flex:1;height:6px;border-radius:3px;background:'+(i<nFoto?'var(--ok)':'var(--line)')+'"></span>';}).join('')}</div>
     ${spareBar(o)}
     <div class="sj" style="margin-top:12px">1. Foto tiap tahap dari Radja</div>
-    <div style="font-size:10px;color:var(--muted);margin-bottom:8px;line-height:1.5">PM meminta foto lewat Discord, Radja mengirim di channel order, PM mengunggahnya ke sini. Foto sample wajib ada sebelum sample ditandai disetujui; foto QC &amp; packing jadi lampiran invoice pelunasan.</div>
+    <div style="font-size:10px;color:var(--muted);margin-bottom:8px;line-height:1.5">Berurutan: tahap berikutnya terbuka sesudah foto tahap sebelumnya masuk (PM bisa melewati dengan alasan). Tiap tahap punya perkiraan tanggal — HUB meminta fotonya ke Radja sendiri pada tanggal itu, diulang tiap ${PROD_ULANG_HK} hari kerja sampai fotonya masuk, plus ringkasan tiap Senin pagi. Radja mengirim di channel order, PM mengunggahnya ke sini. Foto sample wajib ada sebelum sample ditandai disetujui; foto QC &amp; packing jadi lampiran invoice pelunasan.
+</div>
+    ${prodLangkahAktif(o)?('<div style="margin:-2px 0 10px"><button class="btn ghost sm" data-f="ringkasanRadja" onclick="ringkasanRadjaKirim('+jsArg(o.id)+')">📅 Kirim ringkasan foto yang ditunggu ke Radja sekarang</button></div>'):''}
     ${tahap}
     ${tandaTombol(o,'prod','sampleTgl','Sample / first article disetujui')}
     <div class="sj" style="margin-top:14px">2. Collateral — progres vendor &amp; kiriman ke Radja</div>
@@ -20180,6 +20290,8 @@ setTimeout(function(){
   var n=0;
   try{n+=jalankanIngatOtomatis();}catch(e){}
   try{n+=jalankanIngatProduksi();}catch(e){}
+  try{n+=jalankanIngatFotoProduksi();}catch(e){}
+  try{n+=ringkasanSeninRadja();}catch(e){}
   if(n)render();},6000);
 </script>
 </body>
