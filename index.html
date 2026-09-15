@@ -412,8 +412,19 @@
 .dz{border-radius:8px;outline:2px dashed transparent;outline-offset:3px;transition:outline-color .12s,background .12s}
 body.seret .dz{outline-color:var(--brand)}
 body.seret .dz.dzOver{outline-style:solid;background:var(--warn-bg);position:relative}
-.dz.dzOver::after{content:attr(data-tip);position:absolute;left:8px;top:-11px;background:var(--brand);color:#fff;font-size:9.5px;font-weight:800;padding:2px 8px;border-radius:999px;pointer-events:none;white-space:nowrap;z-index:2}
-.dzTip{font-size:9.5px;color:var(--muted);white-space:nowrap}
+.dz.dzAktif{outline:2px solid var(--gold,#b08b4f);position:relative}
+.dz.dzOver::after,.dz.dzAktif::after{content:attr(data-tip);position:absolute;left:8px;top:-11px;background:var(--brand);color:#fff;font-size:9.5px;font-weight:800;padding:2px 8px;border-radius:999px;pointer-events:none;white-space:nowrap;z-index:2}
+.dz.dzAktif:not(.dzOver)::after{background:var(--gold,#b08b4f)}
+.dzTip{font-size:9.5px;color:var(--muted)}
+/* kotak unggah bergaya "Tarik foto ke sini, atau klik untuk memilih" (kecil) */
+.dzKotak{display:flex;align-items:center;gap:10px;flex:1;min-width:230px;border:1.5px dashed var(--brand);border-radius:9px;padding:7px 12px;background:rgba(154,106,47,.05);cursor:pointer;line-height:1.3;text-align:left}
+.dzKotak:hover{background:rgba(154,106,47,.11)}
+.dzKotak .dzIkon{font-size:18px;line-height:1}
+.dzKotak b{display:block;font-size:11px}
+.dzKotak small{display:block;font-size:9.5px;color:var(--muted);margin-top:1px}
+.dzKotak small a{color:var(--brand);font-weight:700;text-decoration:none}
+.dzKotak.kecil{padding:4px 9px;min-width:0;flex:0 1 auto;gap:7px}.dzKotak.kecil .dzIkon{font-size:14px}.dzKotak.kecil b{font-size:10px}.dzKotak.kecil small{font-size:9px}
+#dzProgres{position:fixed;right:16px;bottom:16px;z-index:9999;background:#1D2033;color:#fff;font-size:12px;font-weight:700;padding:9px 14px;border-radius:10px;box-shadow:0 6px 20px rgba(0,0,0,.25);max-width:70vw}
 @media (hover:none){.dzTip{display:none}}
 </style>
 </head>
@@ -589,7 +600,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20260915-105952';
+const VERSI='20260915-115730';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -758,6 +769,7 @@ const EN_RULES=[
   [/^± (\d+) hari lagi$/,function(m,d){return '± '+d+' days to go';}],
   [/^(\d+) hari lagi$/,function(m,d){return d+' days to go';}],
   [/^Yang diterima: (.+)$/,function(m,a){return 'Accepted: '+a.replace('gambar','images');}],
+  [/^(\d+) berkas dari clipboard — klik kotak unggah dulu lain kali supaya tak ditanya$/,function(m,d){return d+' file(s) from the clipboard — click an upload box first next time to skip this question';}],
   [/^H-(\d+) · (\d+) hari lagi$/,function(m,a,b){return 'D-'+a+' · '+b+' days to go';}],
   [/^H-(\d+) sebelum acara$/,function(m,a){return 'D-'+a+' before the event';}],
   [/^(\d+) order belum selesai$/,function(m,d){return d+' orders in progress';}],
@@ -1195,7 +1207,13 @@ const EN={
 'Fungsi / fitur yang diminta client':'Function / features the client asked for',
 'Logo client':'Client logo','Acuan personalisasi':'Personalisation reference',
 '＋ Lampirkan jpg / png / pdf':'＋ Attach jpg / png / pdf','belum ada lampiran':'no attachment yet',
-'atau seret gambar ke sini':'or drag images here','lepaskan untuk mengunggah':'drop to upload','Berkas yang diseret tidak cocok untuk kotak ini.':'The dragged files do not fit this box.','Browser ini belum mendukung seret & jatuhkan — klik tombol unggahnya.':'This browser does not support drag & drop yet — click the upload button.',
+'Tarik foto ke sini, atau klik untuk memilih':'Drag photos here, or click to choose','jpg / png / pdf · bisa banyak sekaligus · Ctrl+V untuk menempel':'jpg / png / pdf · several at once · Ctrl+V to paste',
+'· 🔗 tempel tautan Drive untuk berkas besar':'· 🔗 paste a Drive link for large files','· 🔗 tautan':'· 🔗 link','· 🔗 tempel tautan':'· 🔗 paste a link',
+'Tarik gambar ke sini, atau klik':'Drag images here, or click','jpg / png / pdf · Ctrl+V':'jpg / png / pdf · Ctrl+V','Tarik gambar ke sini, atau klik (maks 5)':'Drag images here, or click (max 5)','Ctrl+V untuk menempel':'Ctrl+V to paste',
+'Tarik screenshot / PDF ke sini, atau klik untuk memilih':'Drag a screenshot / PDF here, or click to choose','gambar / pdf · Ctrl+V untuk menempel':'image / pdf · Ctrl+V to paste',
+'Tarik berkas PO client ke sini, atau klik untuk memilih':'Drag the client PO file here, or click to choose','Tarik foto barang retur ke sini, atau klik untuk memilih':'Drag return photos here, or click to choose','foto · bisa banyak sekaligus · Ctrl+V untuk menempel':'photos · several at once · Ctrl+V to paste',
+'Tempel tautan berkas':'Paste a file link','Tautan (Google Drive / Dropbox / lainnya)':'Link (Google Drive / Dropbox / other)','Nama berkas / keterangan':'File name / note','Tautan harus diawali http:// atau https://':'The link must start with http:// or https://',
+'Unggah berkas besar (> 4 MB) ke Google Drive lewat backend':'Upload large files (> 4 MB) to Google Drive via the backend','☁ Uji sambungan Drive':'☁ Test Drive connection','lepaskan untuk mengunggah':'drop to upload','Ctrl+V untuk menempel gambar':'Ctrl+V to paste an image','Tempel gambar ke kotak mana?':'Paste the image into which box?','Kotak unggah':'Upload box','Berkas yang diseret tidak cocok untuk kotak ini.':'The dragged files do not fit this box.','Browser ini belum mendukung seret & jatuhkan — klik tombol unggahnya.':'This browser does not support drag & drop yet — click the upload button.',
 '✎ ketik warna sendiri…':'✎ type a colour…','mis. #402 coklat':'e.g. #402 brown','alamat lengkap tujuan paket':'full delivery address',
 'nama gedung atau kota':'venue name or city',
 'Kolom warna dye muncul otomatis kalau Finishing request dipilih':
@@ -2169,11 +2187,11 @@ function cfgSerap(){
   var C=ST.cfg=ST.cfg||{};
   var ambil=function(id,f){var e=document.getElementById(id);if(e)C[f]=(e.value||'').trim();};
   ambil('cfgurl','url');ambil('cfgcatalog','catalogUrl');ambil('cfgcattoken','catalogToken');ambil('cfgdb','dbUrl');ambil('cfgklien','klienUrl');
-  var lv=document.getElementById('cfglive');if(lv)C.live=!!lv.checked;
+  var lv=document.getElementById('cfglive');if(lv)C.live=!!lv.checked;var dv=document.getElementById('cfgdrive');if(dv)C.drive=!!dv.checked;
   try{localStorage.setItem('rovehub_cfg',JSON.stringify(C));}catch(e){}
   return C;}
 function saveCfg(){ST.cfg.url=(document.getElementById('cfgurl').value||'').trim();ST.cfg.live=document.getElementById('cfglive').checked;
-  var dp=document.getElementById('cfgdipakai');if(dp)ST.cfg.dipakai=dp.checked;try{dipakaiTerapkan();}catch(e){}ST.cfg.catalogUrl=(document.getElementById('cfgcatalog').value||'').trim();var tk=document.getElementById('cfgcattoken');if(tk)ST.cfg.catalogToken=(tk.value||'').trim();var db=document.getElementById('cfgdb');ST.cfg.dbUrl=db?(db.value||'').trim():(ST.cfg.dbUrl||'');var kl=document.getElementById('cfgklien');ST.cfg.klienUrl=kl?(kl.value||'').trim():(ST.cfg.klienUrl||'');localStorage.setItem('rovehub_cfg',JSON.stringify(ST.cfg));fetchCatalog();render();}
+  var dp=document.getElementById('cfgdipakai');if(dp)ST.cfg.dipakai=dp.checked;try{dipakaiTerapkan();}catch(e){}var dv=document.getElementById('cfgdrive');if(dv)ST.cfg.drive=dv.checked;ST.cfg.catalogUrl=(document.getElementById('cfgcatalog').value||'').trim();var tk=document.getElementById('cfgcattoken');if(tk)ST.cfg.catalogToken=(tk.value||'').trim();var db=document.getElementById('cfgdb');ST.cfg.dbUrl=db?(db.value||'').trim():(ST.cfg.dbUrl||'');var kl=document.getElementById('cfgklien');ST.cfg.klienUrl=kl?(kl.value||'').trim():(ST.cfg.klienUrl||'');localStorage.setItem('rovehub_cfg',JSON.stringify(ST.cfg));fetchCatalog();render();}
 function pushBackend(action,payload){
   const c=ST.cfg||{};if(!c.live||!c.url)return; // mode simulasi kalau belum dikonfigurasi
   try{fetch(c.url,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action:action,payload:payload})});}
@@ -2625,7 +2643,8 @@ function leadRefAdd(id){
   inp.accept='.jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf';
   inp.onchange=function(){
     Array.prototype.slice.call(inp.files||[]).forEach(function(f){
-      if(f.size>4*1024*1024){alert('"'+f.name+'" terlalu besar ('+Math.round(f.size/1024)+' KB). Maksimal 4 MB.');return;}
+      if(berkasBesar(f,'Prospek '+(l.nama||''),function(){leadRefTautan(id);},function(e){e.ket='';leadRef(l).push(e);l._m=Date.now();saveLeads();render();},
+          function(d){leadRef(l).push({nama:f.name,tipe:'image/jpeg',kb:Math.round(d.length*3/4/1024),data:d,ket:'',t:nowStr(),by:(ST.userName||ST.user||'-'),diperkecil:true});l._m=Date.now();saveLeads();render();}))return;
       var rd=new FileReader();
       rd.onload=function(){
         leadRef(l).push({nama:f.name,tipe:f.type,kb:Math.round(f.size/1024),data:rd.result,
@@ -2645,20 +2664,24 @@ function leadRefDel(id,i){
 function leadRefBuka(id,i){
   var l=leadsAll().find(function(x){return x.id===id;});if(!l)return;
   var f=leadRef(l)[i];if(!f)return;
+  if(f.link){window.open(f.link,'_blank');return;}
   if(String(f.tipe||'').indexOf('image')===0){openLB(gambarSrc(f.data));return;}
   var w=window.open('','_blank');
   if(w)w.document.write('<iframe src="'+gambarSrc(f.data)+'" style="border:0;width:100%;height:100%;position:absolute;inset:0"></iframe>');
   else alert('Popup diblokir browser. Izinkan popup untuk membuka PDF.');}
+function leadRefTautan(id){var l=leadsAll().find(function(x){return x.id===id;});if(!l)return;
+  tautanTambah('Referensi prospek',function(e){e.ket='';leadRef(l).push(e);l._m=Date.now();saveLeads();render();});}
 function leadRefBlok(l){
   var a=leadRef(l);
-  return '<div class="dz" data-dz="leadRefAdd('+jsArg(l.id)+')" style="margin-top:4px">'+
+  return '<div class="dz" data-dz="leadRefAdd('+jsArg(l.id)+')" data-dz-label="Referensi dari client — '+esc(l.nama||'')+'" style="margin-top:4px">'+
     '<div style="display:flex;align-items:center;gap:8px;margin-bottom:5px;flex-wrap:wrap">'+
-      '<button class="btn ghost sm" onclick="leadRefAdd('+jsArg(l.id)+')">\uff0b Lampirkan jpg / png / pdf</button><span class="dzTip">atau seret gambar ke sini</span>'+
+      dzKotak('leadRefAdd('+jsArg(l.id)+')',{tautan:'leadRefTautan('+jsArg(l.id)+')'})+
       '<span style="font-size:9px;color:var(--muted)">tidak wajib \u2014 ikut terbawa saat dikirim ke Inquiry</span></div>'+
     (a.length?('<div style="display:flex;flex-wrap:wrap;gap:8px">'+a.map(function(f,i){
       var gbr=String(f.tipe||'').indexOf('image')===0;
       return '<div style="border:1px solid var(--line);border-radius:9px;padding:6px;background:var(--bg);width:122px">'+
-        (gbr?('<img src="'+gambarSrc(f.data)+'" style="width:100%;height:74px;object-fit:cover;border-radius:6px;cursor:zoom-in" onclick="leadRefBuka('+jsArg(l.id)+','+i+')">')
+        (f.link?('<div style="height:74px;display:flex;align-items:center;justify-content:center;font-size:26px;cursor:pointer" title="'+esc(f.link)+'" onclick="leadRefBuka('+jsArg(l.id)+','+i+')">🔗</div>')
+         :gbr?('<img src="'+gambarSrc(f.data)+'" style="width:100%;height:74px;object-fit:cover;border-radius:6px;cursor:zoom-in" onclick="leadRefBuka('+jsArg(l.id)+','+i+')">')
             :('<div style="height:74px;display:flex;align-items:center;justify-content:center;font-size:26px;cursor:pointer" onclick="leadRefBuka('+jsArg(l.id)+','+i+')">\ud83d\udcc4</div>'))+
         '<input class="pin" style="width:100%;margin-top:5px;font-size:10px" value="'+esc(f.ket||'')+'" placeholder="mis. Referensi box" '+
           'onchange="leadRefKet('+jsArg(l.id)+','+i+',this.value)" title="keterangan gambar \u2014 mis. Referensi box, Referensi A">'+
@@ -8462,7 +8485,7 @@ function renderMaster(){
        <td><input class="pin" type="password" value="" onchange="setUserPw(${i},this.value)" placeholder="${u.pwHash?'•••• (isi utk ganti)':'set password'}"></td>
        <td>${jabatanSel(i,u)}</td>
        <td><input class="pin" value="${esc(u.namaLengkap||'')}" onchange="mEdit('users',${i},'namaLengkap',this.value)" placeholder="untuk dokumen"></td>
-       <td class="dz">${u.ttd?('<img src="'+u.ttd+'" alt="" style="height:28px;vertical-align:middle;background:#fff;border:1px solid var(--line);border-radius:4px;margin-right:4px"><button class="xrow" title="hapus tanda tangan" onclick="mEdit(\'users\',${i},\'ttd\',\'\')">✕</button>'):''}<input type="file" accept="image/*" style="font-size:9px;width:128px" onchange="setUserTtd(${i},this)"></td>
+       <td class="dz" data-dz-label="Tanda tangan ${esc(u.username||'')}">${u.ttd?('<img src="'+u.ttd+'" alt="" style="height:28px;vertical-align:middle;background:#fff;border:1px solid var(--line);border-radius:4px;margin-right:4px"><button class="xrow" title="hapus tanda tangan" onclick="mEdit(\'users\',${i},\'ttd\',\'\')">✕</button>'):''}<input type="file" accept="image/*" style="font-size:9px;width:128px" onchange="setUserTtd(${i},this)"></td>
        <td style="text-align:center"><input class="pin n" type="number" min="0" max="9" style="width:44px" value="${u.poTtd||''}" title="urutan tanda tangan di PO" onchange="mEdit('users',${i},'poTtd',this.value)"></td>
        <td style="text-align:center"><input type="checkbox" ${u.aktif?'checked':''} onchange="mEdit('users',${i},'aktif',this.checked)" style="accent-color:var(--brand)"></td>
        <td><button class="xrow" onclick="mDel('users',${i})">✕</button></td></tr>`).join('')}</tbody></table></div>
@@ -9101,6 +9124,7 @@ function renderTasks(){
        ${BACKEND_BAWAAN?`<div style="font-size:10px;color:var(--ink-soft);line-height:1.6;margin:-7px 0 11px;border-left:3px solid var(--brand);padding:6px 10px;background:var(--bg);border-radius:0 7px 7px 0">Salinan ini punya <b>backend bawaan</b>, jadi siapa pun yang membuka linknya langsung ikut sinkron tanpa menyetel apa-apa. ${(ST.cfg&&ST.cfg._bawaan)?'Kotak di atas terisi dari sana.':'Kotak di atas kamu isi sendiri, dan itu yang dipakai.'}<br>Backend uji ini <b>tanpa kata sandi</b> — isinya data karangan saja, jangan data client sungguhan.</div>`:''}
        <label style="font-size:12px;display:flex;align-items:center;gap:8px;margin-bottom:11px"><input type="checkbox" id="cfglive" ${(ST.cfg&&ST.cfg.live)?'checked':''} style="width:auto;accent-color:var(--brand)"> Mode live (kirim ke backend)</label>
        <label style="font-size:12px;display:flex;align-items:flex-start;gap:8px;margin-bottom:4px"><input type="checkbox" id="cfgdipakai" ${(ST.cfg&&ST.cfg.dipakai)?'checked':''} style="width:auto;accent-color:var(--brand);margin-top:2px"> <span>HUB sudah dipakai order sungguhan<div style="font-size:10px;color:var(--muted);font-weight:400;line-height:1.55">Nyalakan sekali waktu HUB mulai mengurus order betulan. Sejak itu alat coba-coba — seperti tombol <b>mundur ke fase sebelumnya</b> — hilang, supaya order yang berjalan tak bisa dimundurkan sampai channel dan dokumennya tak cocok lagi.</div></span></label>
+       <label style="font-size:12px;display:flex;align-items:flex-start;gap:8px;margin:8px 0 10px"><input type="checkbox" id="cfgdrive" ${(ST.cfg&&ST.cfg.drive)?'checked':''} style="width:auto;accent-color:var(--brand);margin-top:2px"> <span>Unggah berkas besar (&gt; 4 MB) ke Google Drive lewat backend<div style="font-size:10px;color:var(--muted);font-weight:400;line-height:1.55">Berkas ratusan MB (artwork, video) tak muat disimpan di HUB maupun Discord (batas 10 MB). Kalau dicentang <b>dan</b> Apps Script backend sudah punya aksi <b>drive.ping / drive.sesi / drive.selesai</b> (Code.gs versi 15 Sep 2026, izin Google Drive), berkas besar yang diunggah di kotak mana pun dikirim langsung ke folder Drive "ROVE HUB / &lt;order&gt;", dibagikan "siapa saja yang punya link", dan HUB menyimpan tautannya — vendor membukanya lewat tautan itu (ikut tercantum di spesifikasi RFQ). Belum tersambung: unggah manual ke Drive lalu tempel tautannya lewat 🔗 di tiap kotak unggah. <button class="btn ghost sm" onclick="driveUji()" style="margin-top:5px">☁ Uji sambungan Drive</button></div></span></label>
        <label class="nlbl">Katalog Cost Estimator — URL Apps Script <b>Rove Backend</b> (…/exec)</label>
        <input class="pin" id="cfgcatalog" value="${esc(ST.cfg&&ST.cfg.catalogUrl)}" placeholder="https://script.google.com/macros/s/…/exec" style="margin:4px 0 4px">
        <label class="nlbl" style="margin-top:6px;display:block">Token baca Cost Estimator</label>
@@ -14226,7 +14250,15 @@ function driveLink(id){
   if(!id)return '';
   if(String(id).slice(0,5)==='data:')return '';          // gambar unggahan tak punya URL publik
   return 'https://drive.google.com/thumbnail?id='+id+'&sz=w1200';}
-function rfqSpekBaris(o,l){
+function vendorTautan(o){ // semua tautan berkas (Drive / Dropbox) yang terlampir di Brief order ini
+  var b=briefGet(o),out=[];
+  Object.keys(b).forEach(function(k){var a=b[k];if(!Array.isArray(a))return;
+    a.forEach(function(f){if(f&&f.link)out.push({slot:k,nama:f.nama||f.n||'berkas',link:f.link});});});
+  return out;}
+function rfqSpekBaris(o,l){var S=rfqSpekBarisAsli(o,l);
+  vendorTautan(o).forEach(function(t){S.push('• Berkas (tautan): '+t.nama+' — '+t.link);});   // berkas besar dibuka vendor lewat tautannya
+  return S;}
+function rfqSpekBarisAsli(o,l){
   var b=briefGet(o),S=[];
   var tambah=function(k,v){if(v&&String(v).trim()&&String(v)!=='-')S.push('• '+k+': '+v);};
   tambah('Qty',(l.qty||0)+' pcs');
@@ -15006,7 +15038,9 @@ function buktiUpload(id){
   var inp=document.createElement('input');inp.type='file';inp.accept='image/*,application/pdf';inp.multiple=true;
   inp.onchange=function(){
     var F=[].slice.call(inp.files||[]);if(!F.length)return;
-    var b=buktiGet(o),sisa=F.length;
+    var b=buktiGet(o);
+    F=F.filter(function(file){return !berkasBesar(file,chName(o),function(){buktiTautan(id);},function(e){buktiMasuk(o,{n:e.nama,d:'',link:e.link});},function(d){buktiMasuk(o,{n:file.name,d:d});});});
+    if(!F.length)return;var sisa=F.length;
     F.forEach(function(file){
       var fr=new FileReader();
       fr.onload=function(){b.files.push({n:file.name,d:fr.result});
@@ -15015,6 +15049,10 @@ function buktiUpload(id){
           o._m=Date.now();save();render();}};
       fr.readAsDataURL(file);});};
   unggahMulai(inp);}
+function buktiMasuk(o,x){var b=buktiGet(o);b.files.push(x);b.oleh=(ST.userName||ST.user||'');b.tgl=nowStr();
+  logHist(o,'Bukti transfer dilampirkan '+b.oleh+': '+x.n+(x.link?' (tautan)':''));o._m=Date.now();save();render();}
+function buktiTautan(id){var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
+  tautanTambah('Bukti transfer',function(e){buktiMasuk(o,{n:e.nama,d:'',link:e.link});});}
 function buktiHapus(id,i){
   var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
   var b=buktiGet(o);b.files.splice(i,1);o._m=Date.now();save();render();}
@@ -15092,7 +15130,9 @@ function poClientUpload(id){
   var inp=document.createElement('input');inp.type='file';inp.accept='image/*,application/pdf';inp.multiple=true;
   inp.onchange=function(){
     var F=[].slice.call(inp.files||[]);if(!F.length)return;
-    var P=poClientGet(o),sisa=F.length;
+    var P=poClientGet(o);
+    F=F.filter(function(file){return !berkasBesar(file,chName(o),function(){poClientTautan(id);},function(e){poClientMasuk(o,{n:e.nama,d:'',link:e.link});},function(d){poClientMasuk(o,{n:file.name,d:d});});});
+    if(!F.length)return;var sisa=F.length;
     F.forEach(function(file){var fr=new FileReader();
       fr.onload=function(){P.files.push({n:file.name,d:fr.result});
         if(!--sisa){delete P.apprBy;delete P.apprTgl;
@@ -15102,6 +15142,12 @@ function poClientUpload(id){
           o._m=Date.now();save();render();}};
       fr.readAsDataURL(file);});};
   unggahMulai(inp);}
+function poClientMasuk(o,x){var P=poClientGet(o);P.files.push(x);delete P.apprBy;delete P.apprTgl;
+  P.no='';P.tgl='';P.nilai=0;P.oleh='';P.tglCatat='';
+  logHist(o,'Surat PO client dilampirkan Sales: '+x.n+(x.link?' (tautan)':'')+' — data lama dikosongkan, menunggu diolah PM');o._m=Date.now();save();render();}
+function poClientTautan(id){var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
+  if(myRoles().indexOf('Sales')<0&&myRoles().indexOf('Holding')<0){alert('Surat PO dilampirkan Sales — merekalah yang menerimanya dari client.');return;}
+  tautanTambah('Berkas PO client',function(e){poClientMasuk(o,{n:e.nama,d:'',link:e.link});});}
 function poClientHapusFile(id,i){
   var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
   var P=poClientGet(o);P.files.splice(i,1);delete P.apprBy;delete P.apprTgl;
@@ -15160,15 +15206,15 @@ function poClientPanel(o){
     (beda?('<div style="margin-top:8px;font-size:10.5px;color:#8f2a1e;font-weight:700;line-height:1.55">⚠ Nilai di surat PO berbeda '+
       fmt0(Math.abs(P.nilai-T.grand))+' dari nilai order. Cocokkan sekarang — kalau tidak, bedanya baru ketahuan saat menagih.</div>'):'')+
 
-    '<div class="dz"'+(akuSales?' data-dz="poClientUpload(\''+o.id+'\')"':'')+' style="display:flex;gap:7px;flex-wrap:wrap;align-items:center;margin-top:11px">'+
-      (akuSales?('<button class="btn ghost sm" onclick="poClientUpload(\''+o.id+'\')">＋ Lampirkan berkas PO dari client</button><span class="dzTip">atau seret gambar ke sini</span>'):'')+
+    '<div class="dz"'+(akuSales?' data-dz="poClientUpload(\''+o.id+'\')"':'')+' data-dz-label="Berkas PO client" style="display:flex;gap:7px;flex-wrap:wrap;align-items:center;margin-top:11px">'+
+      (akuSales?dzKotak("poClientUpload('"+o.id+"')",{judul:'Tarik berkas PO client ke sini, atau klik untuk memilih',ket:'gambar / pdf · Ctrl+V untuk menempel',tautan:"poClientTautan('"+o.id+"')",tautanLabel:'tempel tautan'}):'')+
       (akuPM?('<button class="btn ghost sm" onclick="poClientCatat(\''+o.id+'\')">'+(P.no?'✎ Ubah data PO':'✎ Olah jadi data')+'</button>'):'')+
       (P.files.length?('<span style="font-size:10px;color:var(--ink-soft)">'+P.files.length+' lampiran</span>')
                      :'<span style="font-size:10px;color:var(--muted)">belum ada lampiran</span>')+
     '</div>'+
     (P.files.length?('<div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:8px">'+
       P.files.map(function(x,i){return '<div style="border:1px solid var(--line);border-radius:8px;padding:5px 8px;font-size:10px;display:flex;gap:6px;align-items:center">'+
-        esc(x.n)+(akuSales?('<button class="xrow" onclick="poClientHapusFile(\''+o.id+'\','+i+')">✕</button>'):'')+'</div>';}).join('')+'</div>'):'')+
+        (x.link?('<a href="'+esc(x.link)+'" target="_blank" rel="noopener" style="color:var(--brand);font-weight:700">🔗 '+esc(x.n)+'</a>'):esc(x.n))+(akuSales?('<button class="xrow" onclick="poClientHapusFile(\''+o.id+'\','+i+')">✕</button>'):'')+'</div>';}).join('')+'</div>'):'')+
     (P.tglCatat?('<div style="font-size:9.5px;color:var(--ink-soft);margin-top:7px">Dicatat '+esc(P.oleh)+' · '+esc(P.tglCatat)+
 '</div>'):'')+
 
@@ -15198,8 +15244,8 @@ function buktiPanel(o){
     '<label class="nlbl">Kabar dari client<input class="pin" style="width:100%;margin-top:3px" value="'+esc(b.teks)+'" '+
       'placeholder="mis. sudah transfer 12,35jt tgl 13 Agu via BCA a.n. Andre" '+
       'onchange="buktiSet(\''+o.id+'\',this.value)"></label>'+
-    '<div class="dz" data-dz="buktiUpload(\''+o.id+'\')" style="display:flex;gap:7px;flex-wrap:wrap;align-items:center;margin-top:9px">'+
-      '<button class="btn ghost sm" onclick="buktiUpload(\''+o.id+'\')">＋ Lampirkan screenshot / PDF</button><span class="dzTip">atau seret gambar ke sini</span>'+
+    '<div class="dz" data-dz="buktiUpload(\''+o.id+'\')" data-dz-label="Bukti transfer client" style="display:flex;gap:7px;flex-wrap:wrap;align-items:center;margin-top:9px">'+
+      dzKotak("buktiUpload('"+o.id+"')",{judul:'Tarik screenshot / PDF ke sini, atau klik untuk memilih',ket:'gambar / pdf · Ctrl+V untuk menempel',tautan:"buktiTautan('"+o.id+"')",tautanLabel:'tempel tautan'})+
       (b.files.length?('<span style="font-size:10px;color:var(--ink-soft)">'+b.files.length+' lampiran</span>'):
                       '<span style="font-size:10px;color:var(--muted)">belum ada lampiran</span>')+
     '</div>'+
@@ -15209,7 +15255,7 @@ function buktiPanel(o){
           :('Client tak bisa melampirkan bukti? '+(akuSales?('<button class="btn ghost sm" data-f="mintaCekBtn" onclick="mutasiMinta('+jsArg(o.id)+')">Minta Finance cek mutasi</button>'):'Sales bisa meminta Finance mengecek mutasi rekening.')))+'</div>';})()+
     (b.files.length?('<div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:9px">'+
       b.files.map(function(x,i){return '<div style="border:1px solid var(--line);border-radius:8px;padding:5px 8px;font-size:10px;display:flex;gap:6px;align-items:center">'+
-        esc(x.n)+'<button class="xrow" onclick="buktiHapus(\''+o.id+'\','+i+')">✕</button></div>';}).join('')+'</div>'):'')+
+        (x.link?('<a href="'+esc(x.link)+'" target="_blank" rel="noopener" style="color:var(--brand);font-weight:700">🔗 '+esc(x.n)+'</a>'):esc(x.n))+'<button class="xrow" onclick="buktiHapus(\''+o.id+'\','+i+')">✕</button></div>';}).join('')+'</div>'):'')+
     (b.tgl?('<div style="font-size:9.5px;color:var(--ink-soft);margin-top:8px">Diteruskan '+esc(b.oleh)+' · '+esc(b.tgl)+'</div>'):'')+
     (ada&&!dpMasuk&&akuFinance
       ? (function(){var terbaca=angkaDariTeks(b.teks);
@@ -16212,12 +16258,17 @@ function returLangkahSet(id,k){
   if(nx)notifyOrder(o,'↩ Retur '+o.customer+' — "'+L.t+'" selesai.\nBerikutnya: '+nx.t+' — '+picMention(nx.oleh));
   o._m=Date.now();save();render();}
 
+function returMasuk(o,x){var R=returGet(o);R.files.push(x);logHist(o,'↩ Retur — foto dilampirkan: '+x.n+(x.link?' (tautan)':''));o._m=Date.now();save();render();}
+function returTautan(id){var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
+  tautanTambah('Foto barang retur',function(e){returMasuk(o,{n:e.nama,d:'',link:e.link});});}
 function returUpload(id){
   var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
   var inp=document.createElement('input');inp.type='file';inp.accept='image/*';inp.multiple=true;
   inp.onchange=function(){
     var F=[].slice.call(inp.files||[]);if(!F.length)return;
-    var R=returGet(o),sisa=F.length;
+    var R=returGet(o);
+    F=F.filter(function(file){return !berkasBesar(file,chName(o),function(){returTautan(id);},function(e){returMasuk(o,{n:e.nama,d:'',link:e.link});},function(d){returMasuk(o,{n:file.name,d:d});});});
+    if(!F.length)return;var sisa=F.length;
     F.forEach(function(file){var fr=new FileReader();
       fr.onload=function(){R.files.push({n:file.name,d:fr.result});
         if(!--sisa){logHist(o,'↩ Retur — foto dilampirkan: '+F.map(function(x){return x.name;}).join(', '));
@@ -16268,9 +16319,10 @@ function returPanel(o){
     (R.putusan?('<div style="font-size:10.5px;font-weight:800;margin-bottom:8px">Keputusan: '+esc(R.putusan)+
       (R.putusCatatan?('<div style="font-weight:400;color:var(--ink-soft);line-height:1.55">'+esc(R.putusCatatan)+'</div>'):'')+'</div>'):'')+
     baris+
-    '<div class="dz" data-dz="returUpload(\''+o.id+'\')" style="display:flex;gap:7px;flex-wrap:wrap;align-items:center;margin-top:11px;border-top:1px solid var(--line);padding-top:10px">'+
-      '<button class="btn ghost sm" onclick="returUpload(\''+o.id+'\')">＋ Foto barang retur</button><span class="dzTip">atau seret gambar ke sini</span>'+
-      (R.files.length?('<span style="font-size:10px;color:var(--ink-soft)">'+R.files.length+' foto</span>'):
+    '<div class="dz" data-dz="returUpload(\''+o.id+'\')" data-dz-label="Foto barang retur" style="display:flex;gap:7px;flex-wrap:wrap;align-items:center;margin-top:11px;border-top:1px solid var(--line);padding-top:10px">'+
+      dzKotak("returUpload('"+o.id+"')",{judul:'Tarik foto barang retur ke sini, atau klik untuk memilih',ket:'foto · bisa banyak sekaligus · Ctrl+V untuk menempel',tautan:"returTautan('"+o.id+"')",tautanLabel:'tempel tautan'})+
+      (R.files.length?('<span style="font-size:10px;color:var(--ink-soft)">'+R.files.length+' foto'+(R.files.some(function(x){return x.link;})?' / tautan':'')+'</span>'+
+        R.files.filter(function(x){return x.link;}).map(function(x){return '<a href="'+esc(x.link)+'" target="_blank" rel="noopener" style="font-size:10px;color:var(--brand);font-weight:700">🔗 '+esc(x.n)+'</a>';}).join('')):
                       '<span style="font-size:10px;color:var(--muted)">belum ada foto</span>')+
       (R.biaya?('<span style="margin-left:auto;font-size:10.5px;font-weight:800">Biaya retur '+fmt0(R.biaya)+'</span>'):'')+
     '</div>'+
@@ -17225,7 +17277,7 @@ function lineImgDel(id,i,j){
 /* sel gambar di tabel pricing: thumbnail + tombol tambah */
 function lineImgCell(o,l,i){
   var a=lineImgs(l),dasar=l.img||masterImgFor(l.produk||'',l.bahan||'');
-  return '<td class="dz"'+(a.length<LINE_IMG_MAX?' data-dz="lineImgUpload(\''+o.id+'\','+i+')"':'')+' style="white-space:nowrap"><div style="display:flex;align-items:center;gap:3px;flex-wrap:wrap">'+
+  return '<td class="dz"'+(a.length<LINE_IMG_MAX?' data-dz="lineImgUpload(\''+o.id+'\','+i+')"':'')+' data-dz-label="Gambar item '+(i+1)+(l.produk?(' — '+esc(l.produk)):'')+'" style="white-space:nowrap"><div style="display:flex;align-items:center;gap:3px;flex-wrap:wrap">'+
     a.map(function(src,j){
       var kunci=(src===dasar);
       return '<span style="position:relative;display:inline-block;line-height:0">'+
@@ -17259,7 +17311,7 @@ function mImgDel(sec,i){
   r.img='';stampRow(r);saveMaster();if(sec==='coll')buildCollatData();render();}
 function mImgCell(sec,i,r){
   var st='width:34px;height:34px;object-fit:cover;border-radius:5px;border:1px solid var(--line);vertical-align:middle;cursor:zoom-in';
-  return '<td class="dz" data-dz="mImgUpload(\''+sec+'\','+i+')" style="white-space:nowrap">'+
+  return '<td class="dz" data-dz="mImgUpload(\''+sec+'\','+i+')" data-dz-label="Gambar baris '+(i+1)+' — '+esc(r.name||r.nama||r.nilai||r.tipe||sec)+'" style="white-space:nowrap">'+
     (r.img?imgTag(r.img,st,'onclick="openLB(this.src)"')
           :'<span style="display:inline-block;width:34px;height:34px;border-radius:5px;border:1px dashed var(--line);vertical-align:middle"></span>')+
     '<button class="xrow" style="color:var(--brand)" title="'+(r.img?'ganti gambar':'upload gambar')+'" onclick="mImgUpload(\''+sec+'\','+i+')">📷</button>'+
@@ -17716,15 +17768,18 @@ function lampiranAdd(id,slot){
   var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
   var inp=document.createElement('input');inp.type='file';inp.accept='.jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf';
   inp.onchange=function(){var f=inp.files[0];if(!f)return;
-    if(f.size>4*1024*1024){alert('File terlalu besar ('+Math.round(f.size/1024)+' KB).\n\nMaksimal 4 MB — perkecil dulu atau kirim lewat Drive.');return;}
+    if(berkasBesar(f,chName(o),function(){lampiranTautan(id,slot);},function(e){lampiranMasuk(o,slot,e);},
+        function(d){lampiranMasuk(o,slot,{nama:f.name,tipe:'image/jpeg',kb:Math.round(d.length*3/4/1024),data:d,t:nowStr(),by:(ST.userName||ST.user||'-'),diperkecil:true});}))return;
     var rd=new FileReader();
-    rd.onload=function(){
-      var b=briefGet(o);if(!b[slot])b[slot]=[];
-      b[slot].push({nama:f.name,tipe:f.type,kb:Math.round(f.size/1024),data:rd.result,t:nowStr(),by:(ST.userName||ST.user||'-')});
-      logHist(o,'Lampiran '+(slot==='logoFiles'?'logo':'personalisasi')+': '+f.name);
-      o._m=Date.now();save();render();};
+    rd.onload=function(){lampiranMasuk(o,slot,{nama:f.name,tipe:f.type,kb:Math.round(f.size/1024),data:rd.result,t:nowStr(),by:(ST.userName||ST.user||'-')});};
     rd.readAsDataURL(f);};
   unggahMulai(inp);}
+function lampiranMasuk(o,slot,e){ // satu pintu: berkas kecil, hasil perkecil, tautan Drive
+  var b=briefGet(o);if(!b[slot])b[slot]=[];b[slot].push(e);
+  logHist(o,(e.link?'Tautan ':'Lampiran ')+(slot==='logoFiles'?'logo':'personalisasi')+': '+e.nama+(e.diperkecil?' (foto diperkecil otomatis)':''));
+  o._m=Date.now();save();render();}
+function lampiranTautan(id,slot){var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
+  tautanTambah('Lampiran '+slot,function(e){lampiranMasuk(o,slot,e);});}
 function lampiranDel(id,slot,i){
   var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
   var b=briefGet(o),a=b[slot]||[];if(!a[i])return;
@@ -17733,6 +17788,7 @@ function lampiranDel(id,slot,i){
 function lampiranBuka(id,slot,i){
   var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
   var f=((briefGet(o)[slot])||[])[i];if(!f)return;
+  if(f.link){window.open(f.link,'_blank');return;}           // tautan Drive / Dropbox: buka di tab baru
   if(String(f.tipe||'').indexOf('image')===0){openLB(gambarSrc(f.data));return;}
   var w=window.open('','_blank');                       // pdf dibuka di tab baru
   if(w)w.document.write('<iframe src="'+gambarSrc(f.data)+'" style="border:0;width:100%;height:100%;position:absolute;inset:0"></iframe>');
@@ -17808,12 +17864,13 @@ function lampiranBlok(o,slot,judul){
   return '<div data-f="'+esc(slot)+'" class="dz" data-dz="lampiranAdd(\''+o.id+'\',\''+slot+'\')" style="margin-bottom:9px">'+
     '<div style="display:flex;align-items:center;gap:8px;margin-bottom:5px;flex-wrap:wrap">'+
       '<span class="nlbl" style="margin:0">'+esc(judul)+'</span>'+
-      '<button class="btn ghost sm" onclick="lampiranAdd(\''+o.id+'\',\''+slot+'\')">＋ Lampirkan jpg / png / pdf</button><span class="dzTip">atau seret gambar ke sini</span></div>'+
+      dzKotak("lampiranAdd('"+o.id+"','"+slot+"')",{tautan:"lampiranTautan('"+o.id+"','"+slot+"')"})+'</div>'+
     (a.length
       ? '<div style="display:flex;flex-wrap:wrap;gap:7px">'+a.map(function(f,i){
           var gbr=String(f.tipe||'').indexOf('image')===0;
           return '<div style="display:flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:8px;padding:4px 7px;background:var(--bg)">'+
-            (gbr?'<img src="'+gambarSrc(f.data)+'" style="width:26px;height:26px;object-fit:cover;border-radius:4px;cursor:zoom-in" onclick="lampiranBuka(\''+o.id+'\',\''+slot+'\','+i+')">'
+            (f.link?'<span style="font-size:14px;cursor:pointer" title="'+esc(f.link)+'" onclick="lampiranBuka(\''+o.id+'\',\''+slot+'\','+i+')">🔗</span>'
+             :gbr?'<img src="'+gambarSrc(f.data)+'" style="width:26px;height:26px;object-fit:cover;border-radius:4px;cursor:zoom-in" onclick="lampiranBuka(\''+o.id+'\',\''+slot+'\','+i+')">'
                 :'<span style="font-size:14px;cursor:pointer" onclick="lampiranBuka(\''+o.id+'\',\''+slot+'\','+i+')">📄</span>')+
             '<span style="font-size:10px;cursor:pointer" onclick="lampiranBuka(\''+o.id+'\',\''+slot+'\','+i+')">'+esc(f.nama||f.n||'lampiran')+
               /* berkas dari seed/cloud lama bisa tanpa ukuran — jangan cetak "undefined KB" */
@@ -17924,13 +17981,15 @@ function packRefAdd(id,k,i){
   var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
   var inp=document.createElement('input');inp.type='file';inp.accept='.jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf';
   inp.onchange=function(){var f=inp.files[0];if(!f)return;
-    if(f.size>4*1024*1024){alert('File terlalu besar ('+Math.round(f.size/1024)+' KB).\n\nMaksimal 4 MB.');return;}
     var simpan=function(data){
       packRefOf(o,k,i).push({nama:f.name,tipe:f.type,kb:Math.round(f.size/1024),data:data,t:nowStr(),by:(ST.userName||ST.user||'-')});
       logHist(o,'Gambar acuan '+k+': '+f.name);o._m=Date.now();save();render();};
+    if(berkasBesar(f,chName(o),function(){packRefTautan(id,k,i);},function(e){packRefOf(o,k,i).push(e);logHist(o,'Tautan acuan '+k+': '+e.nama);o._m=Date.now();save();render();},null))return;
     if(String(f.type).indexOf('image')===0)imgKecilkan(f,simpan);
     else{var rd=new FileReader();rd.onload=function(){simpan(rd.result);};rd.readAsDataURL(f);}};
   unggahMulai(inp);}
+function packRefTautan(id,k,i){var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
+  tautanTambah('Gambar acuan '+k,function(e){packRefOf(o,k,i).push(e);logHist(o,'Tautan acuan '+k+': '+e.nama);o._m=Date.now();save();render();});}
 function packRefDel(id,k,i,j){
   var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
   var a=packRefOf(o,k,i);if(!a[j])return;
@@ -17938,6 +17997,7 @@ function packRefDel(id,k,i,j){
   a.splice(j,1);o._m=Date.now();save();render();}
 function packRefBuka(o,k,i,j){
   var f=packRefOf(o,k,i)[j];if(!f)return;
+  if(f.link){window.open(f.link,'_blank');return;}
   if(String(f.tipe||'').indexOf('image')===0){openLB(gambarSrc(f.data));return;}
   var w=window.open('','_blank');
   if(w)w.document.write('<iframe src="'+gambarSrc(f.data)+'" style="border:0;width:100%;height:100%;position:absolute;inset:0"></iframe>');
@@ -17947,13 +18007,14 @@ function packRefBlok(o,k,i){
   /* logo kemasan ikut tampil DI SINI — dulu ia baris unggah tersendiri di
      bawah semua kartu, dua tempat untuk kemasan yang sama */
   var logoSlot=KEMASAN_LOGO[k]||'',logoA=logoSlot?((briefGet(o)[logoSlot])||[]):[];
-  return '<div class="dz" data-dz="packRefAdd(\''+o.id+'\',\''+k+'\','+idx+')" style="display:flex;flex-wrap:wrap;gap:7px;align-items:center;margin-top:8px">'+
+  return '<div class="dz" data-dz="packRefAdd(\''+o.id+'\',\''+k+'\','+idx+')" data-dz-label="Acuan & logo kemasan — '+esc(({box:'Box',pouch:'Soft Pouch',card:'Thank You Card'})[k]||k)+'" style="display:flex;flex-wrap:wrap;gap:7px;align-items:center;margin-top:8px">'+
     '<span style="font-size:10px;color:var(--muted);font-weight:700">Gambar acuan & logo</span>'+
-    '<button class="btn ghost sm" onclick="packRefAdd(\''+o.id+'\',\''+k+'\','+idx+')">＋ jpg / png / pdf</button><span class="dzTip">atau seret gambar ke sini</span>'+
+    dzKotak("packRefAdd('"+o.id+"','"+k+"',"+idx+")",{kecil:true,judul:'Tarik gambar ke sini, atau klik',ket:'jpg / png / pdf · Ctrl+V',tautan:"packRefTautan('"+o.id+"','"+k+"',"+idx+")",tautanLabel:'tautan'})+
     a.map(function(f,j){
       var gbr=String(f.tipe||'').indexOf('image')===0;
       return '<span style="display:inline-flex;align-items:center;gap:5px;border:1px solid var(--line);border-radius:8px;padding:3px 6px;background:var(--card,#fff)">'+
-        (gbr?'<img src="'+gambarSrc(f.data)+'" style="width:24px;height:24px;object-fit:cover;border-radius:4px;cursor:zoom-in" onclick="packRefBuka(ST.orders.find(function(x){return x.id===\''+o.id+'\'}),\''+k+'\','+idx+','+j+')">'
+        (f.link?'<span style="font-size:13px;cursor:pointer" title="'+esc(f.link)+'" onclick="packRefBuka(ST.orders.find(function(x){return x.id===\''+o.id+'\'}),\''+k+'\','+idx+','+j+')">🔗</span>'
+         :gbr?'<img src="'+gambarSrc(f.data)+'" style="width:24px;height:24px;object-fit:cover;border-radius:4px;cursor:zoom-in" onclick="packRefBuka(ST.orders.find(function(x){return x.id===\''+o.id+'\'}),\''+k+'\','+idx+','+j+')">'
             :'<span style="font-size:13px;cursor:pointer" onclick="packRefBuka(ST.orders.find(function(x){return x.id===\''+o.id+'\'}),\''+k+'\','+idx+','+j+')">📄</span>')+
         '<span style="font-size:9.5px">'+esc(f.nama)+'</span>'+
         '<button class="xrow" onclick="packRefDel(\''+o.id+'\',\''+k+'\','+idx+','+j+')">✕</button></span>';}).join('')+
@@ -19775,14 +19836,14 @@ function renderCatBuilder(){
         '</div>'+
         '<label style="font-size:10px;color:var(--muted)">Detail / permintaan khusus<br>'+
           '<input class="pin" style="margin-top:2px;width:100%" value="'+esc(l.detail||'')+'" placeholder="mis. request warna khusus, jahitan kontras, tanpa logo Rove" onchange="nolSet('+i+',\'detail\',this.value)"></label>'+
-        '<div class="dz"'+(A.length<5?' data-dz="nolImgAdd('+i+')"':'')+' style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:8px">'+
+        '<div class="dz"'+(A.length<5?' data-dz="nolImgAdd('+i+')"':'')+' data-dz-label="Gambar referensi item '+(i+1)+(l.produk?(' — '+esc(l.produk)):'')+'" style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:8px">'+
           '<span style="font-size:10px;color:var(--muted);font-weight:700">Gambar referensi</span>'+
           A.map(function(src,j){
             return '<span style="position:relative;display:inline-block;line-height:0">'+
               imgTag(src,'width:34px;height:34px;object-fit:cover;border-radius:6px;border:1px solid var(--line);cursor:zoom-in','onclick="openLB(this.src)"')+
               (src===l.img?'':'<button type="button" onclick="nolImgDel('+i+','+j+')" style="position:absolute;top:-5px;right:-5px;background:#d9534f;color:#fff;border:none;border-radius:50%;width:14px;height:14px;font-size:8px;line-height:1;cursor:pointer;padding:0">✕</button>')+
               '</span>';}).join('')+
-          (A.length<5?'<button type="button" class="btn ghost sm" onclick="nolImgAdd('+i+')">📷 tambah (maks 5)</button><span class="dzTip">atau seret gambar ke sini</span>':'')+
+          (A.length<5?dzKotak('nolImgAdd('+i+')',{kecil:true,judul:'Tarik gambar ke sini, atau klik (maks 5)',ket:'Ctrl+V untuk menempel'}):'')+
         '</div>'+
         '<div style="text-align:right;font-size:10.5px;color:var(--muted);margin-top:7px">subtotal <b style="color:var(--ink)">'+fmt0(sub)+'</b></div>'+
       '</div>';}).join('')+
@@ -19923,6 +19984,73 @@ document.addEventListener('input',function(e){var t=e.target;if(t&&t.classList&&
    unggah yang sama dengan tombolnya; kotak tanpa data-dz memakai <input type=file>
    di dalamnya (tanda tangan user). Pendengar dipasang di document (fase capture)
    supaya seret-baris master (mSeretJatuh) tak ikut menangkap berkas. */
+/* ---- kotak unggah kecil bergaya "Tarik foto ke sini, atau klik untuk memilih" ---- */
+function dzKotak(panggil,opsi){opsi=opsi||{};
+  return '<div class="dzKotak'+(opsi.kecil?' kecil':'')+'" onclick="'+panggil+'"><span class="dzIkon">'+(opsi.ikon||'📷')+'</span><span class="dzTeks">'+
+    '<b>'+esc(opsi.judul||'Tarik foto ke sini, atau klik untuk memilih')+'</b>'+
+    '<small>'+esc(opsi.ket||'jpg / png / pdf · bisa banyak sekaligus · Ctrl+V untuk menempel')+
+      (opsi.tautan?('<a href="#" onclick="var ev=window.event;if(ev){ev.stopPropagation();ev.preventDefault();}'+opsi.tautan+'"> · 🔗 '+esc(opsi.tautanLabel||'tempel tautan Drive untuk berkas besar')+'</a>'):'')+'</small></span></div>';}
+/* ---- TAUTAN sebagai lampiran (Google Drive / Dropbox / lainnya) — untuk berkas ratusan MB ---- */
+function tautanNama(url){
+  var sisa=String(url||'').split('//')[1]||'',host=sisa.split('/')[0].split('?')[0].toLowerCase();
+  if(!host)return 'tautan';
+  if(/drive[.]google[.]com|docs[.]google[.]com/.test(host))return 'Berkas Google Drive';
+  if(/dropbox/.test(host))return 'Berkas Dropbox';
+  var seg=sisa.slice(host.length).split('?')[0].split('#')[0].split('/').filter(Boolean);
+  try{return decodeURIComponent(seg[seg.length-1]||host);}catch(e){return seg[seg.length-1]||host;}}
+function tautanEntri(url,nama){url=String(url||'').trim();
+  return {nama:String(nama||'').trim()||tautanNama(url),tipe:'link',link:url,
+    drive:(/drive[.]google[.]com|docs[.]google[.]com/.test(url)?(driveId(url)||''):''),kb:0,t:nowStr(),by:(ST.userName||ST.user||'-')};}
+function tautanTambah(ket,simpan){ // simpan(entri) — entri {nama,tipe:'link',link,drive,kb,t,by}
+  askForm({judul:'Tempel tautan berkas',sub:(ket?ket+' — ':'')+'untuk berkas besar (ratusan MB): unggah ke Google Drive dulu, atur "Siapa saja yang punya link", lalu tempel tautannya',
+    fields:[{k:'url',label:'Tautan (Google Drive / Dropbox / lainnya)',type:'text',req:true,ph:'https://drive.google.com/file/d/…/view'},
+            {k:'nama',label:'Nama berkas / keterangan',type:'text',ph:'mis. Final artwork box (AI, 320 MB)'}],
+    ok:function(v){var u=String(v.url||'').trim();
+      if(!/^https?:[/][/]/i.test(u)){alert('Tautan harus diawali http:// atau https://');return;}
+      simpan(tautanEntri(u,v.nama));}});}
+/* ---- berkas besar (> 4 MB): foto diperkecil otomatis; berkas lain ke Drive (otomatis lewat backend, atau manual + tautan) ---- */
+var BERKAS_BESAR=4*1024*1024;
+function ukuranTeks(b){b=+b||0;return b>=1024*1024?((Math.round(b/1024/1024*10)/10)+' MB'):(Math.round(b/1024)+' KB');}
+function driveAktif(){var c=ST.cfg||{};return !!(c.drive&&c.url);}
+function berkasBesarTangani(f,folder,tautanFn,simpanDrive){
+  if(driveAktif()&&simpanDrive){driveUnggah(f,folder,simpanDrive,tautanFn);return;}
+  if(confirm('"'+f.name+'" ('+ukuranTeks(f.size)+') terlalu besar untuk disimpan di HUB (maks 4 MB) — dan Discord pun menolak berkas di atas 10 MB.\n\nUnggah ke Google Drive (atur "Siapa saja yang punya link"), lalu tempel tautannya di kotak ini. Vendor membukanya lewat tautan itu.\n\nBuka Google Drive sekarang?'))
+    window.open('https://drive.google.com/drive/my-drive','_blank');
+  if(tautanFn)tautanFn();}
+function berkasBesar(f,folder,tautanFn,simpanDrive,simpanKecil){ // true = berkas > 4 MB sudah ditangani di sini
+  if(!(f&&f.size>BERKAS_BESAR))return false;
+  if(String(f.type||'').indexOf('image')===0&&simpanKecil&&!driveAktif()){imgKecilkan(f,simpanKecil);return true;}   // foto HP 5–10 MB: diperkecil saja
+  berkasBesarTangani(f,folder,tautanFn,simpanDrive);return true;}
+/* ---- unggah langsung ke Google Drive lewat backend (Apps Script: drive.sesi → PUT per 8 MB → drive.selesai) ---- */
+function backendTanya(action,payload){var c=ST.cfg||{};
+  if(!c.url)return Promise.reject(new Error('URL backend belum diisi di Panel Holding'));
+  return fetch(c.url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action:action,payload:payload||{}})})
+    .then(function(r){return r.text();}).then(function(t){try{return JSON.parse(t);}catch(e){throw new Error('jawaban backend bukan JSON');}});}
+function dzProgres(teks){var el=document.getElementById('dzProgres');
+  if(!teks){if(el&&el.remove)el.remove();return;}
+  if(!el){el=document.createElement('div');el.id='dzProgres';document.body.appendChild(el);}el.textContent=teks;}
+function drivePotong(uri,file,onProgres){ // kirim berkas per 8 MB ke sesi resumable Drive; 308 = lanjut, 200/201 = selesai
+  var UK=8*1024*1024,mulai=0,total=file.size;
+  return new Promise(function(selesai,gagal){
+    (function kirim(){
+      var akhir=Math.min(mulai+UK,total),bagian=file.slice(mulai,akhir);
+      fetch(uri,{method:'PUT',headers:{'Content-Range':'bytes '+mulai+'-'+(akhir-1)+'/'+total},body:bagian}).then(function(r){
+        if(r.status===308){mulai=akhir;if(onProgres)onProgres(mulai/total);kirim();return;}
+        if(r.ok)return r.json().then(selesai);
+        gagal(new Error('Drive menjawab '+r.status));}).catch(gagal);})();});}
+function driveUnggah(f,folder,cb,tautanFn){
+  var nama=f.name;dzProgres('☁ Mengunggah ke Drive: '+nama+' 0%');
+  return backendTanya('drive.sesi',{nama:nama,tipe:f.type||'application/octet-stream',ukuran:f.size,folder:folder||'',origin:(typeof location!=='undefined'?location.origin:'')})
+    .then(function(r){if(!r||!r.ok||!r.uri)throw new Error((r&&(r.pesan||r.error))||'backend tak membuka sesi Drive (Code.gs belum diperbarui?)');
+      return drivePotong(r.uri,f,function(p){dzProgres('☁ Mengunggah ke Drive: '+nama+' '+Math.round(p*100)+'%');});})
+    .then(function(h){return backendTanya('drive.selesai',{id:h&&h.id});})
+    .then(function(r){dzProgres('');if(!r||!r.ok||!r.link)throw new Error((r&&(r.pesan||r.error))||'gagal membagikan berkas');
+      cb({nama:r.nama||nama,tipe:'link',link:r.link,drive:r.id||'',kb:Math.round(f.size/1024),t:nowStr(),by:(ST.userName||ST.user||'-'),mime:r.tipe||f.type||''});})
+    .catch(function(e){dzProgres('');alert('Unggah ke Drive gagal: '+e.message+'\n\nUnggah manual ke Google Drive lalu tempel tautannya (🔗).');if(tautanFn)tautanFn();});}
+function driveUji(){
+  backendTanya('drive.ping').then(function(r){
+    alert(r&&r.ok&&r.folder?('✓ Drive tersambung — folder "'+r.folder+'"'+(r.link?('\n'+r.link):'')):('Backend belum melayani Drive: '+JSON.stringify(r||{}).slice(0,200)+'\n\nPerbarui Code.gs (aksi drive.ping / drive.sesi / drive.selesai), deploy versi baru, dan setujui izin Google Drive.'));
+  }).catch(function(e){alert('Tak bisa menghubungi backend: '+e.message);});}
 var DROP_FILES=null,DROP_SISA=null;
 var DZ_ULANG=/^(lampiranAdd|packRefAdd)[(]/;   // pengunggah satu-berkas yang menampung daftar: jatuhan banyak berkas → dipanggil per berkas
 function berkasCocok(f,accept){
@@ -19951,6 +20079,36 @@ function dzJatuh(z,F){ // z = elemen .dz, F = daftar berkas yang dijatuhkan
   var ulang=DZ_ULANG.test(panggil),sisa=F,n=0;
   while(sisa&&sisa.length&&n++<25){DROP_FILES=sisa;DROP_SISA=null;try{new Function(panggil)();}finally{DROP_FILES=null;}sisa=ulang?DROP_SISA:null;DROP_SISA=null;}
   return true;}
+/* ---- kotak aktif & tempel dari clipboard (Ctrl+V) ---- */
+var DZ_AKTIF_KUNCI='';
+function dzKunci(z){return z?(z.getAttribute('data-dz')||z.getAttribute('data-dz-label')||''):'';}
+function dzTerlihat(){return [].slice.call(document.querySelectorAll('.dz')).filter(function(z){return z.offsetParent!==null;});}
+function dzAktifSekarang(){if(!DZ_AKTIF_KUNCI)return null;var L=dzTerlihat();for(var i=0;i<L.length;i++)if(dzKunci(L[i])===DZ_AKTIF_KUNCI)return L[i];return null;}
+function dzLabel(z){
+  var s=(z&&z.getAttribute&&z.getAttribute('data-dz-label'))||'';
+  if(!s&&z&&z.querySelector){var t=z.querySelector('.nlbl,b');s=t?String(t.textContent||'').trim():'';
+    if(!s){var b=z.querySelector('button');s=b?String(b.textContent||'').replace(/^[＋+📷\s]+/,'').trim():'';}}
+  return s||'kotak unggah';}
+function dzAktifkan(z){
+  [].slice.call(document.querySelectorAll('.dz.dzAktif')).forEach(function(x){x.classList.remove('dzAktif');});
+  DZ_AKTIF_KUNCI=dzKunci(z);
+  if(z){z.classList.add('dzAktif');z.setAttribute('data-tip',tr('Ctrl+V untuk menempel gambar'));}}
+function dzTandaiAktif(){var z=dzAktifSekarang();if(z&&!z.classList.contains('dzAktif')){z.classList.add('dzAktif');z.setAttribute('data-tip',tr('Ctrl+V untuk menempel gambar'));}}
+function dzNamaTempel(f){ // tangkapan layar dari clipboard bernama image.png — diberi nama bertanggal
+  var n=String((f&&f.name)||'');if(n&&!/^image[.]/i.test(n))return f;
+  var d=new Date(),p=function(x){return String(x).padStart(2,'0');};
+  var ext=(String((f&&f.type)||'').split('/')[1]||'png').replace('jpeg','jpg');
+  var nama='tempel-'+d.getFullYear()+p(d.getMonth()+1)+p(d.getDate())+'-'+p(d.getHours())+p(d.getMinutes())+p(d.getSeconds())+'.'+ext;
+  try{return new File([f],nama,{type:f.type});}catch(e){var g={};for(var k in f)g[k]=f[k];g.name=nama;g.type=f.type;return g;}}
+function dzTempel(F,zAktif,zs){ // ke mana berkas tempelan dikirim: 'aktif' | 'satu' | 'pilih' | 'tak ada' | 'kosong'
+  if(!F||!F.length)return 'kosong';
+  if(zAktif){dzJatuh(zAktif,F);return 'aktif';}
+  zs=zs||[];if(!zs.length)return 'tak ada';
+  if(zs.length===1){dzJatuh(zs[0],F);return 'satu';}
+  askForm({judul:'Tempel gambar ke kotak mana?',sub:F.length+' berkas dari clipboard — klik kotak unggah dulu lain kali supaya tak ditanya',
+    fields:[{k:'ke',label:'Kotak unggah',type:'select',val:'0',opts:zs.map(function(z,i){return {v:String(i),l:dzLabel(z)};})}],
+    ok:function(v){var z=zs[+v.ke];if(z){dzAktifkan(z);dzJatuh(z,F);}}});
+  return 'pilih';}
 (function(){
   var dalam=0,over=null;
   function adaBerkas(e){var t=e.dataTransfer&&e.dataTransfer.types;if(!t)return false;for(var i=0;i<t.length;i++)if(t[i]==='Files')return true;return false;}
@@ -19962,7 +20120,21 @@ function dzJatuh(z,F){ // z = elemen .dz, F = daftar berkas yang dijatuhkan
     var z=zona(e.target);e.dataTransfer.dropEffect=z?'copy':'none';
     if(z!==over){if(over)over.classList.remove('dzOver');over=z;if(z){z.classList.add('dzOver');z.setAttribute('data-tip',tr('lepaskan untuk mengunggah'));}}},true);
   document.addEventListener('drop',function(e){if(!adaBerkas(e))return;e.preventDefault();e.stopPropagation();
-    var z=zona(e.target),F=[].slice.call(e.dataTransfer.files||[]);bersih();dzJatuh(z,F);},true);
+    var z=zona(e.target),F=[].slice.call(e.dataTransfer.files||[]);bersih();if(z)dzAktifkan(z);dzJatuh(z,F);},true);
+  /* klik kotak → aktif; klik bagian kosong halaman → tidak aktif; Esc → tidak aktif */
+  document.addEventListener('click',function(e){var z=zona(e.target);
+    if(z){if(dzKunci(z)!==DZ_AKTIF_KUNCI)dzAktifkan(z);return;}
+    var t=e.target;if(DZ_AKTIF_KUNCI&&t&&t.closest&&!t.closest('button,a,input,select,textarea,label,.ov,#docov'))dzAktifkan(null);},true);
+  document.addEventListener('keydown',function(e){if(e.key==='Escape'&&DZ_AKTIF_KUNCI)dzAktifkan(null);});
+  document.addEventListener('paste',function(e){
+    var cd=e.clipboardData;if(!cd||!cd.items)return;var F=[];
+    for(var i=0;i<cd.items.length;i++){var it=cd.items[i];if(it.kind==='file'){var f=it.getAsFile();if(f)F.push(dzNamaTempel(f));}}
+    if(!F.length)return;                                   // teks biasa: biarkan browser menempel ke kotak teks
+    var zs=dzTerlihat(),z=dzAktifSekarang();if(!z&&!zs.length)return;
+    e.preventDefault();e.stopPropagation();dzTempel(F,z,zs);},true);
+  /* sesudah render, kotak aktif ditandai lagi (DOM-nya dibuat ulang) */
+  if(typeof MutationObserver!=='undefined'&&document.body){var _dzT=null;
+    new MutationObserver(function(){if(!DZ_AKTIF_KUNCI)return;clearTimeout(_dzT);_dzT=setTimeout(dzTandaiAktif,30);}).observe(document.body,{childList:true,subtree:true});}
 })();
 document.addEventListener('keydown',function(e){
   if(e.key!=='Enter')return;
