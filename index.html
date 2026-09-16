@@ -444,6 +444,7 @@ body.seret .dz.dzOver{outline-style:solid;background:var(--warn-bg);position:rel
     <div class="nav" id="navReport" data-view="report"><span class="ic">▤</span> Laporan<small>omset, piutang, ekspor AIS</small></div>
     <div class="nav" id="navHR" data-view="hr"><span class="ic">☺</span> Karyawan<small>HR, rekrutmen, payroll</small></div>
     <div class="nav" id="navInv" data-view="inv"><span class="ic">▩</span> Gudang<small>stok barang &amp; sisa spare</small></div>
+    <div class="nav" id="navBuy" data-view="buy"><span class="ic">⊞</span> Pembelian<small>request internal, approval &amp; pembayaran</small></div>
     <div class="nav" id="navAset" data-view="aset"><span class="ic">▣</span> Aset tetap<small>alat, kendaraan, penyusutan</small></div>
     <div class="nav" id="navTax" data-view="tax"><span class="ic">§</span> Pajak<small>tenggat setor &amp; lapor</small></div>
     <div class="nav" data-view="new"><span class="ic">＋</span> Order baru<small>input inquiry dari client</small></div>
@@ -600,7 +601,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20260916-110255';
+const VERSI='20260916-114747';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -6538,6 +6539,7 @@ function render(){
   else if(ST.view==='fin'){renderFin();}
   else if(ST.view==='aset'){renderAset();}
   else if(ST.view==='inv'){renderInv();}
+  else if(ST.view==='buy'){renderBuy();}
   else{renderOM();}
   loadImages();catLazyLoad();panTandai();xtip();trDOM(document.body);
 }
@@ -6567,7 +6569,7 @@ function syncSidebar(){
       `<button onclick="logout()" style="background:none;border:1px solid var(--hubline);color:#9ea4bd;border-radius:7px;padding:5px 9px;font-size:9.5px;cursor:pointer;font-weight:700">↩ Keluar</button>`+
       `<button onclick="setLang('${lang()==='en'?'id':'en'}')" title="${lang()==='en'?'Tampilkan dalam Bahasa Indonesia':'Switch the app to English'}" style="background:none;border:1px solid var(--hubline);color:#9ea4bd;border-radius:7px;padding:5px 9px;font-size:9.5px;cursor:pointer;font-weight:700">🌐 ${lang()==='en'?'ID':'EN'}</button>`+
     `</div>`+notifTombol();
-  var fmap={board:'board',tasks:(ST.user==='Holding'?'tasks':'__x'),report:'report',master:'master',live:'live',leads:'leads',tax:'tax',konten:'konten',hr:'hr',fin:'fin',inv:'inv',aset:'aset',new:'neworder'};
+  var fmap={board:'board',tasks:(ST.user==='Holding'?'tasks':'__x'),report:'report',master:'master',live:'live',leads:'leads',tax:'tax',konten:'konten',hr:'hr',fin:'fin',inv:'inv',aset:'aset',buy:'buy',new:'neworder'};
   document.querySelectorAll('.nav').forEach(function(n){var f=fmap[n.dataset.view];if(!f)return;
     n.style.display=(f==='master')?(mySecs().length?'':'none'):(can(f)?'':'none');});
 
@@ -6652,12 +6654,12 @@ function discordRoleBlok(){
     '</div></div>';}
 
 function defUsers(){return [{username:'holding',password:'holding',jabatan:'Holding',aktif:true},{username:'direktur',password:'direktur',jabatan:'Direktur Utama',aktif:true},{username:'gary',password:'gary',jabatan:'Sales',aktif:true},{username:'david',password:'david',jabatan:'Sales',aktif:true},{username:'cika',password:'cika',jabatan:'Sales',aktif:true},{username:'finance',password:'finance',jabatan:'Finance',aktif:true},{username:'creative',password:'creative',jabatan:'Creative',aktif:true},{username:'marketing',password:'marketing',jabatan:'Marketing',aktif:true},{username:'purchasing',password:'purchasing',jabatan:'Purchasing',aktif:true},{username:'pm',password:'pm',jabatan:'Project Manager',aktif:true},{username:'packing',password:'packing',jabatan:'Packing & Shipping',aktif:true},{username:'gudang',password:'gudang',jabatan:'Warehouse',aktif:true},{username:'event',password:'event',jabatan:'Event Management',aktif:true}];}
-const ACCESS_FEATURES=[['board','Order Management'],['tasks','Tugas'],['leads','Prospek'],['live','Live service'],['konten','Planner Konten'],['fin','Keuangan'],['report','Laporan'],['hr','Karyawan'],['inv','Gudang'],['aset','Aset tetap'],['tax','Pajak'],['neworder','Order baru'],['master','Master data']];
-function defAccess(){var a={};ROLES.forEach(function(r){a[r]={board:true,tasks:true,leads:false,tax:false,konten:false,hr:false,fin:false,inv:false,aset:false,neworder:false,live:true,report:false,master:false};});
+const ACCESS_FEATURES=[['board','Order Management'],['tasks','Tugas'],['leads','Prospek'],['live','Live service'],['konten','Planner Konten'],['fin','Keuangan'],['report','Laporan'],['hr','Karyawan'],['inv','Gudang'],['buy','Pembelian'],['aset','Aset tetap'],['tax','Pajak'],['neworder','Order baru'],['master','Master data']];
+function defAccess(){var a={};ROLES.forEach(function(r){a[r]={board:true,tasks:true,leads:false,tax:false,konten:false,hr:false,fin:false,inv:false,buy:false,aset:false,neworder:false,live:true,report:false,master:false};});
   /* Order lahir dari prospek, bukan dari form. Holding & Direktur Utama tetap
      bisa membuat manual sebagai jalan darurat (order tak lewat prospek,
      pembetulan data). Ubah di Master data → Hak akses kalau perlu. */
-  ['Holding','Direktur Utama'].forEach(function(r){a[r].neworder=true;});['Holding','Direktur Utama','Finance'].forEach(function(r){a[r].report=true;});['Sales','Holding','Direktur Utama','Project Manager'].forEach(function(r){a[r].leads=true;});a['Holding'].master=true;a['Holding'].tax=true;['Marketing','Creative','Holding','Direktur Utama'].forEach(function(r){a[r].konten=true;});['Direktur Utama','Holding','Finance'].forEach(function(r){a[r].hr=true;});['Finance','Direktur Utama','Holding'].forEach(function(r){a[r].fin=true;a[r].aset=true;});['Warehouse','Packing & Shipping','Purchasing','Project Manager','Holding','Direktur Utama'].forEach(function(r){a[r].inv=true;});return a;}
+  ['Holding','Direktur Utama'].forEach(function(r){a[r].neworder=true;});['Holding','Direktur Utama','Finance'].forEach(function(r){a[r].report=true;});['Sales','Holding','Direktur Utama','Project Manager'].forEach(function(r){a[r].leads=true;});a['Holding'].master=true;a['Holding'].tax=true;['Marketing','Creative','Holding','Direktur Utama'].forEach(function(r){a[r].konten=true;});['Direktur Utama','Holding','Finance'].forEach(function(r){a[r].hr=true;});['Finance','Direktur Utama','Holding'].forEach(function(r){a[r].fin=true;a[r].aset=true;});['Warehouse','Packing & Shipping','Purchasing','Project Manager','Holding','Direktur Utama'].forEach(function(r){a[r].inv=true;});['Purchasing','Finance','Direktur Utama','Holding','Packing & Shipping'].forEach(function(r){a[r].buy=true;});return a;}
 /* Kalau fitur belum tercatat di matriks (mis. menu baru pada data lama),
    ikuti bawaan jabatan — JANGAN otomatis "boleh", nanti menu bocor ke semua orang. */
 var _defAcc=null;
