@@ -600,7 +600,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20260915-173845';
+const VERSI='20260916-110255';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -3210,10 +3210,12 @@ function buyDel(id){var i=buyAll().findIndex(function(x){return x.id===id;});if(
   if(!confirm('Hapus permintaan pembelian ini?'))return;ST.buy.splice(i,1);saveBuy();render();}
 function buyToggle(id,k){var b=buyGet(id);if(!b)return;if(!b.chk)b.chk={};
   var s=BUY_STEPS.find(function(x){return x.k===k;});
+  if(k==='bayar'&&!b.chk[k]&&!(b.bayarAju&&b.bayarAju.status==='disetujui')){alert('Pembayaran perlu persetujuan Direktur dulu — ajukan lewat "₪ Ajukan pembayaran" di kartu ini.');return;}
   if(k==='approve'&&!b.chk[k]&&ST.user!=='Direktur Utama'&&ST.user!=='Holding'){
     alert('Approval pembelian hanya bisa dilakukan Direktur Utama.');return;}
   if(k==='approve'&&!b.chk[k]&&!buyPilih(b)){alert('Pilih dulu vendor pemenang di tabel perbandingan.');return;}
   b.chk[k]=b.chk[k]?null:{by:(ST.userName||ST.user),at:nowStr()};
+  if(k==='bayar'&&b.bayarAju)b.bayarAju.status=b.chk[k]?'dibayar':'disetujui';
   if(k==='approve'&&b.chk[k])notifyBuy(b,'✅ **Pembelian disetujui** — '+b.judul+' · '+fmt0(buyHarga(b)));
   if(k==='bayar'&&b.chk[k])notifyBuy(b,'💸 **Pembelian dibayar** — '+b.judul+' · '+fmt0(b.inv&&b.inv.jumlah||buyHarga(b)));
   saveBuy();render();}
@@ -3252,6 +3254,7 @@ function finData(){
   if(!Array.isArray(ST.fin.rutin))ST.fin.rutin=cfRutinBawaan();
   if(!ST.fin.rutinBayar)ST.fin.rutinBayar={};
   if(!ST.fin.rutinUbah)ST.fin.rutinUbah={};
+  if(!ST.fin.rutinAju)ST.fin.rutinAju={};        // pengajuan & persetujuan Direktur per baris biaya rutin (patch147)
   if(!Array.isArray(ST.fin.manual))ST.fin.manual=[];
   if(ST.fin.kasAutoV!==2){ST.fin.kasAuto=true;ST.fin.kasAutoV=2;}   // keputusan user 9 Sep 2026: hidup (sekali migrasi; boleh dimatikan lagi)
   return ST.fin;}
@@ -3436,10 +3439,46 @@ function cfManualDel(id){if(!cfBoleh())return;var F=finData(),m=F.manual.find(fu
 function cfRutinUbah(key,f,v){if(!cfBoleh())return;var F=finData(),u=F.rutinUbah[key]||{};
   if(f==='tgl')u.tgl=String(v||'');else u.nom=moneyVal(v);
   if(!u.tgl&&u.nom==null)delete F.rutinUbah[key];else F.rutinUbah[key]=u;saveFin();render();}
+/* biaya rutin: diajukan Finance / Purchasing, disetujui Direktur, baru ditandai dibayar (patch147) */
+function cfRutinAju(key){return (finData().rutinAju||{})[key]||null;}
+function cfRutinAjukan(key){
+  if(!bayarAjuBoleh()){alert('Pengajuan pembayaran biaya rutin: Finance atau Purchasing.');return;}
+  var F=finData(),R=cfBaris().find(function(x){return x.key===key;});if(!R)return;
+  var a=F.rutinAju[key];if(a&&(a.status==='menunggu'||a.status==='disetujui')){alert('Sudah ada pengajuan untuk baris ini yang belum selesai.');return;}
+  askForm({judul:'Ajukan pembayaran — '+R.ket,sub:'disetujui Direktur dulu, baru ditransfer & ditandai dibayar',tanpaDraf:true,
+    fields:[{k:'nominal',label:'Nominal',type:'money',req:true,val:R.keluar},
+      {k:'rencana',label:'Rencana tanggal bayar',type:'date',req:true,val:hariBayarBerikut(R.tgl>hariIni()?R.tgl:hariIni()),hint:'Bawaan Senin / Jumat terdekat dari jatuh temponya; hari lain boleh — ditandai "di luar hari bayar".'},
+      {k:'cat',label:'Catatan untuk Direktur',type:'text',ph:'mis. tagihan sudah diterima'}],
+    ok:function(f){var n=moneyVal(f.nominal);if(!(n>0)){alert('Nominal wajib diisi.');return;}if(!f.rencana){alert('Rencana tanggal bayar wajib diisi.');return;}
+      F.rutinAju[key]={id:bayarAjuId(),key:key,ket:R.ket,nominal:n,rencana:f.rencana,catatan:String(f.cat||'').trim(),oleh:(ST.userName||ST.user||''),tgl:hariIni(),ts:Date.now(),status:'menunggu'};
+      notifyBuy(null,'₪ **Pengajuan pembayaran biaya rutin** — '+R.ket+' '+fmt0(n)+' · rencana '+tglID(f.rencana)+(hariBayarKah(f.rencana)?'':' (di luar hari bayar)')+' — '+picMention('Direktur')+' mohon persetujuan.');
+      saveFin();render();kilat('Pengajuan pembayaran dikirim ke Direktur');}});}
+function cfRutinAjuPutus(key,setuju){var F=finData(),a=F.rutinAju[key];if(!a)return;
+  if(!bayarPutusBoleh()){alert('Hanya Direktur Utama yang menyetujui pembayaran.');return;}
+  if(a.status!=='menunggu'){alert('Pengajuan ini sudah '+a.status+'.');return;}
+  if(setuju){a.status='disetujui';a.dir={oleh:(ST.userName||ST.user||''),tgl:hariIni(),ts:Date.now()};
+    notifyBuy(null,'✅ **Pembayaran biaya rutin disetujui Direktur** — '+a.ket+' '+fmt0(a.nominal)+' · transfer '+tglID(a.rencana)+' — '+picMention('Finance'));saveFin();render();return;}
+  askForm({judul:'Tolak pembayaran — '+a.ket,sub:fmt0(a.nominal)+' · rencana '+tglID(a.rencana),tanpaDraf:true,
+    fields:[{k:'alasan',label:'Alasan penolakan',type:'textarea',tinggi:80,req:true}],
+    ok:function(f){var al=String(f.alasan||'').trim();if(!al){alert('Alasan wajib diisi.');return;}
+      a.status='ditolak';a.dir={oleh:(ST.userName||ST.user||''),tgl:hariIni(),ts:Date.now(),alasan:al};
+      notifyBuy(null,'⛔ **Pembayaran biaya rutin ditolak Direktur** — '+a.ket+': '+al);saveFin();render();}});}
+function cfRutinAjuBatal(key){var F=finData(),a=F.rutinAju[key];if(!a)return;if(a.status!=='menunggu'&&!bayarPutusBoleh()){alert('Sudah diputus Direktur.');return;}
+  if(!confirm('Batalkan pengajuan '+a.ket+'?'))return;delete F.rutinAju[key];saveFin();render();}
+function cfRutinAksi(x,boleh){
+  var K=jsArg(x.key),a=cfRutinAju(x.key);
+  if(x.status==='done')return boleh?('<button class="xrow" title="batalkan tanda dibayar" onclick="cfRutinBatal('+K+')">✕</button>'):'';
+  if(!a||a.status==='ditolak')return (bayarAjuBoleh()?('<button class="btn ghost sm" style="font-size:9.5px" data-f="rutinAju_'+esc(x.key)+'" onclick="cfRutinAjukan('+K+')">₪ Ajukan'+(a?' lagi':'')+'</button>'):'<span style="font-size:9px;color:var(--muted)">perlu persetujuan Direktur</span>')+
+    (a?('<div style="font-size:9px;color:#8f2a1e">ditolak: '+esc((a.dir||{}).alasan||'')+'</div>'):'');
+  if(a.status==='menunggu')return '<span data-f="rutinAjuStatus_'+esc(x.key)+'" style="font-size:9px;font-weight:800;color:var(--warn)">menunggu Direktur · '+tglID(a.rencana)+'</span>'+
+    (bayarPutusBoleh()?('<button class="btn sm" style="font-size:9.5px;padding:2px 7px" data-f="rutinAjuSetuju_'+esc(x.key)+'" onclick="cfRutinAjuPutus('+K+',true)">✓ Setujui</button><button class="btn ghost sm" style="font-size:9.5px;padding:2px 7px" onclick="cfRutinAjuPutus('+K+',false)">✕ Tolak</button>'):'')+
+    (bayarAjuBoleh()?('<button class="xrow" title="batalkan pengajuan" onclick="cfRutinAjuBatal('+K+')">✕</button>'):'');
+  return '<span data-f="rutinAjuStatus_'+esc(x.key)+'" style="font-size:9px;font-weight:800;color:var(--ok)">✓ disetujui · '+tglID(a.rencana)+'</span>'+(boleh?('<button class="btn ghost sm" style="font-size:9.5px" data-f="rutinBayar_'+esc(x.key)+'" onclick="cfRutinBayar('+K+')">Tandai dibayar</button>'):'');}
 function cfRutinBayar(key){if(!cfBoleh()){alert('Ditandai Finance.');return;}var F=finData(),R=cfBaris().find(function(x){return x.key===key;});if(!R)return;
-  askForm({judul:'Tandai dibayar — '+R.ket,tanpaDraf:true,fields:[{k:'nominal',label:'Nominal dibayar',type:'money',req:true,val:R.keluar},{k:'tgl',label:'Tanggal bayar',type:'date',req:true,val:hariIni()}],
-    ok:function(v){F.rutinBayar[key]={tgl:v.tgl,nom:moneyVal(v.nominal),oleh:(ST.userName||ST.user||'')};saveFin();render();}});}
-function cfRutinBatal(key){if(!cfBoleh())return;var F=finData();if(!F.rutinBayar[key])return;if(!confirm('Batalkan tanda dibayar?'))return;delete F.rutinBayar[key];saveFin();render();}
+  var a=cfRutinAju(key);if(!a||a.status!=='disetujui'){alert(a&&a.status==='menunggu'?'Pengajuan ini masih menunggu persetujuan Direktur.':'Pembayaran biaya rutin perlu persetujuan Direktur dulu — tekan "₪ Ajukan" di baris ini.');return;}
+  askForm({judul:'Tandai dibayar — '+R.ket,sub:'disetujui Direktur '+tglID((a.dir||{}).tgl)+' · rencana '+tglID(a.rencana),tanpaDraf:true,fields:[{k:'nominal',label:'Nominal dibayar',type:'money',req:true,val:a.nominal||R.keluar},{k:'tgl',label:'Tanggal bayar',type:'date',req:true,val:hariIni()}],
+    ok:function(v){F.rutinBayar[key]={tgl:v.tgl,nom:moneyVal(v.nominal),oleh:(ST.userName||ST.user||''),aju:a.id};a.status='dibayar';a.bayar={tgl:v.tgl,nominal:moneyVal(v.nominal)};saveFin();render();}});}
+function cfRutinBatal(key){if(!cfBoleh())return;var F=finData();if(!F.rutinBayar[key])return;if(!confirm('Batalkan tanda dibayar?'))return;delete F.rutinBayar[key];var a=cfRutinAju(key);if(a&&a.status==='dibayar'){a.status='disetujui';delete a.bayar;}saveFin();render();}
 function cfRutinTemplateAdd(){if(!cfBoleh())return;finData().rutin.push({id:'R'+Math.random().toString(36).slice(2,7),nama:'',hari:1,nominal:0,pos:'',aktif:true});saveFin();render();}
 function cfRutinTemplateSet(id,f,v){if(!cfBoleh())return;var r=finData().rutin.find(function(x){return x.id===id;});if(!r)return;
   if(f==='nominal')r.nominal=moneyVal(v);else if(f==='hari')r.hari=Math.max(1,Math.min(31,+v||1));else if(f==='aktif')r.aktif=!!v;else r[f]=String(v||'');saveFin();render();}
@@ -3456,7 +3495,7 @@ function cfPanel(){
   var aksi=function(x){
     if(x.sumber==='client'||x.sumber==='vendor'||x.sumber==='live')return '<a href="#" onclick="openOrder('+jsArg(x.oid)+');return false" style="color:var(--brand);font-weight:700;text-decoration:none;font-size:10px">buka order</a>';
     if(x.sumber==='komisi')return x.status==='done'?(boleh?('<button class="xrow" title="batalkan tanda dibayar" onclick="komisiBatal('+jsArg(x.oid)+','+jsArg(x.k)+')">✕</button>'):''):((boleh&&x.status!=='cancel')?('<button class="btn ghost sm" style="font-size:9.5px" onclick="komisiBayar('+jsArg(x.oid)+','+jsArg(x.k)+')">Tandai dibayar</button>'):'');
-    if(x.sumber==='rutin')return x.status==='done'?(boleh?('<button class="xrow" title="batalkan tanda dibayar" onclick="cfRutinBatal('+jsArg(x.key)+')">✕</button>'):''):(boleh?('<button class="btn ghost sm" style="font-size:9.5px" onclick="cfRutinBayar('+jsArg(x.key)+')">Tandai dibayar</button>'):'');
+    if(x.sumber==='rutin')return cfRutinAksi(x,boleh);
     if(x.sumber==='manual')return boleh?('<select class="pin" style="width:92px" onchange="cfManualSet('+jsArg(x.mid)+',\'status\',this.value)"><option value="" '+(!x.status?'selected':'')+'>proyeksi</option><option value="done" '+(x.status==='done'?'selected':'')+'>Done</option><option value="cancel" '+(x.status==='cancel'?'selected':'')+'>Cancel</option></select> <button class="xrow" onclick="cfManualDel('+jsArg(x.mid)+')">✕</button>'):'';
     return '';};
   var selTgl=function(x){
@@ -3930,6 +3969,7 @@ function renderBuy(){
   B.sort(function(a,b){return (buyTelat(b)-buyTelat(a))||String(b.tgl).localeCompare(String(a.tgl));});
   var telat=buyAll().filter(buyTelat).length;
   var nunggu=buyAll().filter(function(b){return b.chk&&b.chk.banding&&!b.chk.approve;}).length;
+  var nungguBayar=buyAll().filter(function(b){return b.bayarAju&&b.bayarAju.status==='menunggu';}).length;
   var belumBayar=buyAll().filter(function(b){return b.chk&&b.chk.verif&&!b.chk.bayar;});
   var kartu=B.map(function(b){var pil=buyPilih(b),tl=buyTelat(b),sel=buySelesai(b);
     return '<div class="rcard" style="padding:13px 15px;margin-bottom:10px'+(tl?';border-left:3px solid #d9534f':(sel?';border-left:3px solid var(--ok)':''))+'">'+
@@ -3963,7 +4003,7 @@ function renderBuy(){
     '<div style="border-top:1px dashed var(--line);padding-top:8px">'+
       '<div style="font-size:10px;font-weight:800;color:var(--muted);margin-bottom:5px">TAHAPAN</div>'+
       BUY_STEPS.map(function(s){var d=b.chk&&b.chk[s.k];
-        return '<label style="display:flex;align-items:center;gap:8px;padding:4px 0;font-size:11px;cursor:pointer">'+
+        return (s.k==='bayar'?buyAjuBlok(b):'')+'<label style="display:flex;align-items:center;gap:8px;padding:4px 0;font-size:11px;cursor:pointer">'+
         '<input type="checkbox" '+(d?'checked':'')+' onchange="buyToggle(\''+b.id+'\',\''+s.k+'\')" style="width:auto;accent-color:var(--brand)">'+
         '<span style="flex:1'+(d?';text-decoration:line-through;opacity:.6':'')+'">'+esc(s.n)+(s.gate?' <span class="tlabel" style="background:#d9534f">gate</span>':'')+'</span>'+
         '<span style="font-size:9.5px;color:var(--muted)">'+(d?(esc(d.by||'')+' · '+esc(d.at||'')):esc(s.pic))+'</span></label>';}).join('')+
@@ -3980,6 +4020,7 @@ function renderBuy(){
     '</div>';}).join('');
   $('#main').innerHTML='<div class="topbar"><h1>Pembelian</h1><span class="demo">'+buyAll().filter(function(b){return !buySelesai(b);}).length+' berjalan</span>'+
       (nunggu?'<span style="margin-left:auto;background:var(--warn-bg);color:var(--warn);border-radius:20px;padding:5px 13px;font-size:11px;font-weight:800">🔒 '+nunggu+' menunggu approval Direktur</span>':'')+
+      (nungguBayar?'<span style="margin-left:'+(nunggu?'6px':'auto')+';background:var(--warn-bg);color:var(--warn);border-radius:20px;padding:5px 13px;font-size:11px;font-weight:800">₪ '+nungguBayar+' pembayaran menunggu Direktur</span>':'')+
       '<div class="sp"></div><button class="btn" onclick="buyAdd()">＋ Request pembelian</button></div>'+
     tabNote('Pembelian <b>kebutuhan internal</b> (alat, sewa, jasa) — beda dari PO produksi ke vendor order. Alurnya: request → minta penawaran → bandingkan vendor → <b>approval Direktur</b> → PO → barang diterima → QC → invoice ke Finance → verifikasi → bayar. Setelah dibayar, bisa disalin ke <b>AIS sheet E</b>.')+
     '<div style="display:flex;flex-wrap:wrap;gap:9px;align-items:center;margin-bottom:13px">'+
@@ -8950,7 +8991,8 @@ function tugasMenungguku(){
   if(!ST.user)return 0;
   /* chkTugasSaya sudah memakai myRoles() di dalamnya — cukup sekali panggil,
      kalau per jabatan hasilnya terhitung ganda. */
-  try{return chkTugasSaya(ST.user).length+tanyaUntukku().length;}catch(e){return 0;}}
+  var b=0;try{if(bayarPutusBoleh())b=bayarAjuMenunggu().length;else if(myRoles().indexOf('Finance')>=0){var h=hariIni();b=bayarAjuDisetujuiBelum().filter(function(x){return x.rencana<=h;}).length;}}catch(e){}
+  try{return chkTugasSaya(ST.user).length+tanyaUntukku().length+b;}catch(e){return b;}}
 /* Favicon digambar sendiri: bulatan cokelat berisi angka. Tak perlu berkas
    tambahan, jadi app tetap satu file. */
 function gambarFavicon(n){
@@ -9181,6 +9223,7 @@ function renderTasks(){
   $('#main').innerHTML=`
    <div class="topbar"><h1>Tugas saya</h1><span class="demo">${role}</span><div class="sp"></div>${can('neworder')?`<button class="btn" onclick="openNew()">＋ Order baru</button>`:''}</div>
    ${tabNote('Hanya order yang <b>menunggu tindakan jabatanmu ('+role+')</b>. Klik kartu → kerjakan langkah yang tertulis → klik <b>✓ Selesai — lanjut fase</b>. Order akan hilang dari sini setelah berpindah ke PIC lain.')}
+   ${akuDirektur?bayarAjuDirekturBlok():((myRoles().indexOf('Finance')>=0||myRoles().indexOf('Purchasing')>=0)?bayarAjuFinanceBlok():'')}
    <div style="font-size:12px;color:var(--muted);margin-bottom:14px">${(function(){
      if(tasks.length)return tasks.length+' order menunggu tindakanmu.';
      /* pesan lama buta: mengaku kosong padahal blok kelengkapan di bawah berisi */
@@ -12629,19 +12672,188 @@ function bvSisa(o,v,total){return Math.max(0,(total!=null?total:bvTotal(o,v))-bv
 function bvLunasSemua(o){var V=vendorTagihan(o);return V.length===0||V.every(function(x){return bvSisa(o,x.v,x.total)<=0;});}
 function bvAdaTahap(o,tahap){var B=o.bayarVendor||{};return Object.keys(B).some(function(v){return (B[v]||[]).some(function(x){return x.tahap===tahap;});});}
 function bvHapusTahap(o,tahap){var B=o.bayarVendor||{};Object.keys(B).forEach(function(v){B[v]=(B[v]||[]).filter(function(x){return x.tahap!==tahap;});});}
+/* ---- PERSETUJUAN DIREKTUR untuk pembayaran vendor & pembelian rutin (15 Sep 2026) ----
+   Finance / Purchasing mengajukan: vendor, tahap, nominal, rencana tanggal bayar (bawaan Senin / Jumat
+   terdekat — hari ini pun boleh; hari lain boleh tapi ditandai). Direktur menyetujui / menolak dengan
+   alasan, per baris atau sekaligus per hari. Baru sesudah disetujui Finance mencatat transfer + bukti.
+   Pembelian rutin (modul Pembelian) memakai pengajuan yang sama sebelum tahap "Pembayaran". ---- */
+const HARI_BAYAR=[1,5];
+function hariBayarKah(tgl){var d=new Date(String(tgl)+'T00:00:00');return !isNaN(d)&&HARI_BAYAR.indexOf(d.getDay())>=0;}
+function hariBayarBerikut(dari){var d=new Date(String(dari||hariIni())+'T00:00:00');if(isNaN(d))d=new Date();d.setHours(0,0,0,0);
+  for(var i=0;i<8;i++){if(HARI_BAYAR.indexOf(d.getDay())>=0)return ymd(d.getFullYear(),d.getMonth()+1,d.getDate());d.setDate(d.getDate()+1);}
+  return ymd(d.getFullYear(),d.getMonth()+1,d.getDate());}
+function hariNamaID(tgl){var d=new Date(String(tgl)+'T00:00:00');if(isNaN(d))return '';return ['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'][d.getDay()];}
+function bayarAjuBoleh(){return ['Finance','Purchasing','Holding','Direktur Utama'].some(function(r){return myRoles().indexOf(r)>=0;});}
+function bayarPutusBoleh(){return ['Direktur Utama','Holding'].some(function(r){return myRoles().indexOf(r)>=0;});}
+function bayarAjuId(){return 'aj'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);}
+function bayarHariBadge(tgl){return hariBayarKah(tgl)?('<span style="font-size:9px;font-weight:800;color:var(--ok)">'+hariNamaID(tgl)+' · hari bayar</span>'):('<span style="font-size:9px;font-weight:800;color:var(--warn)">'+hariNamaID(tgl)+' · di luar hari bayar (Senin/Jumat)</span>');}
+function bvAjuDaftar(o){if(!Array.isArray(o.bvAju))o.bvAju=[];return o.bvAju;}
+function bvAjuAktif(o,v,tahap){return bvAjuDaftar(o).filter(function(a){return a.v===v&&+a.tahap===+tahap&&(a.status==='menunggu'||a.status==='disetujui');})[0]||null;}
+function bvAjukan(id,v,tahap){
+  var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
+  if(!bayarAjuBoleh()){alert('Pengajuan pembayaran vendor: Finance atau Purchasing.');return;}
+  if(bvAjuAktif(o,v,tahap)){alert('Sudah ada pengajuan tahap '+tahap+' untuk '+v+' yang belum selesai.');return;}
+  var sisa=bvSisa(o,v),saran=sisa;try{var d=vtermDaftar(o,v).filter(function(x){return x.tahap===+tahap;})[0];if(d&&d.nom>0&&!d.dibayar)saran=Math.min(sisa,d.nom);}catch(e){}
+  var NL=String.fromCharCode(10);
+  askForm({judul:'Ajukan pembayaran ke '+v+' — tahap '+tahap,sub:o.customer+' · sisa tagihan '+fmt0(sisa)+' — disetujui Direktur dulu, baru ditransfer',tanpaDraf:true,
+    fields:[{k:'nominal',label:'Nominal yang diajukan',type:'money',req:true,val:saran,hint:'Bawaan: termin tahap ini ('+fmt0(saran)+'). Boleh sebagian — sisanya tahap berikutnya.'},
+      {k:'rencana',label:'Rencana tanggal bayar',type:'date',req:true,val:hariBayarBerikut(hariIni()),hint:'Bawaan Senin / Jumat terdekat (hari ini pun boleh kalau Senin / Jumat). Hari lain boleh — ditandai "di luar hari bayar".'},
+      {k:'cat',label:'Catatan untuk Direktur',type:'text',ph:'mis. DP 50% sesuai PO, vendor minta sebelum potong bahan'}],
+    ok:function(f){var n=moneyVal(f.nominal);if(!(n>0)){alert('Nominal wajib diisi.');return;}if(!f.rencana){alert('Rencana tanggal bayar wajib diisi.');return;}
+      var a={id:bayarAjuId(),v:v,tahap:+tahap,nominal:n,rencana:f.rencana,catatan:String(f.cat||'').trim(),oleh:(ST.userName||ST.user||''),tgl:hariIni(),ts:Date.now(),status:'menunggu'};
+      bvAjuDaftar(o).push(a);
+      logHist(o,'₪ Pengajuan pembayaran '+v+' tahap '+tahap+': '+fmt0(n)+' · rencana '+tglID(f.rencana)+(hariBayarKah(f.rencana)?'':' (di luar hari bayar)')+(a.catatan?(' — '+a.catatan):''));
+      notifyOrder(o,'₪ **Pengajuan pembayaran vendor** — '+o.customer+NL+picMention('Direktur')+' mohon persetujuan: '+v+' tahap '+tahap+' '+fmt0(n)+' · rencana bayar '+tglID(f.rencana)+(hariBayarKah(f.rencana)?'':' (di luar hari bayar Senin/Jumat)')+(a.catatan?(NL+a.catatan):'')+NL+'Diajukan '+a.oleh+'. Setujui / tolak di HUB → Tugas saya.');
+      o._m=Date.now();save();render();kilat('Pengajuan pembayaran '+v+' tahap '+tahap+' dikirim ke Direktur');}});}
+function bvAjuBatal(id,ajuId){var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;var a=bvAjuDaftar(o).filter(function(x){return x.id===ajuId;})[0];if(!a)return;
+  if(a.status!=='menunggu'&&!bayarPutusBoleh()){alert('Pengajuan yang sudah diputus Direktur tak bisa dibatalkan.');return;}
+  if(!confirm('Batalkan pengajuan '+a.v+' tahap '+a.tahap+' '+fmt0(a.nominal)+'?'))return;
+  o.bvAju=bvAjuDaftar(o).filter(function(x){return x.id!==ajuId;});logHist(o,'↺ Pengajuan pembayaran '+a.v+' tahap '+a.tahap+' dibatalkan');o._m=Date.now();save();render();}
+function bvAjuPutus(id,ajuId,setuju){
+  var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;var a=bvAjuDaftar(o).filter(function(x){return x.id===ajuId;})[0];if(!a)return;
+  if(!bayarPutusBoleh()){alert('Hanya Direktur Utama yang menyetujui pembayaran vendor.');return;}
+  if(a.status!=='menunggu'){alert('Pengajuan ini sudah '+a.status+'.');return;}
+  var NL=String.fromCharCode(10);
+  if(setuju){a.status='disetujui';a.dir={oleh:(ST.userName||ST.user||''),tgl:hariIni(),ts:Date.now()};
+    logHist(o,'✓ Pembayaran '+a.v+' tahap '+a.tahap+' '+fmt0(a.nominal)+' disetujui Direktur — bayar '+tglID(a.rencana));
+    notifyOrder(o,'✅ **Pembayaran vendor disetujui Direktur** — '+o.customer+NL+picMention('Finance')+' '+a.v+' tahap '+a.tahap+' '+fmt0(a.nominal)+' · transfer '+tglID(a.rencana)+', lalu catat di HUB + unggah bukti.');
+    o._m=Date.now();save();render();return;}
+  askForm({judul:'Tolak pembayaran '+a.v+' tahap '+a.tahap,sub:o.customer+' · '+fmt0(a.nominal)+' · rencana '+tglID(a.rencana),tanpaDraf:true,
+    fields:[{k:'alasan',label:'Alasan penolakan',type:'textarea',tinggi:80,req:true,ph:'mis. tunggu barang diterima dulu / nominal tak sesuai termin'}],
+    ok:function(f){var al=String(f.alasan||'').trim();if(!al){alert('Alasan wajib diisi.');return;}
+      a.status='ditolak';a.dir={oleh:(ST.userName||ST.user||''),tgl:hariIni(),ts:Date.now(),alasan:al};
+      logHist(o,'✕ Pembayaran '+a.v+' tahap '+a.tahap+' '+fmt0(a.nominal)+' ditolak Direktur: '+al);
+      notifyOrder(o,'⛔ **Pembayaran vendor ditolak Direktur** — '+o.customer+NL+a.v+' tahap '+a.tahap+' '+fmt0(a.nominal)+': '+al+NL+picMention('Finance')+' ajukan lagi bila sudah sesuai.');
+      o._m=Date.now();save();render();}});}
+function bvAjuTombol(o,v,tahap,sisa){
+  if(sisa<=0)return '';
+  var a=bvAjuAktif(o,v,tahap),A=jsArg(o.id)+','+jsArg(v),S=esc(vpoSlot(v)),out='';
+  var tolakTerakhir=bvAjuDaftar(o).filter(function(x){return x.v===v&&+x.tahap===+tahap&&x.status==='ditolak';}).slice(-1)[0];
+  if(!a){out+=(bayarAjuBoleh()?('<button class="btn sm" data-f="bvAju_'+S+'" onclick="bvAjukan('+A+','+tahap+')">₪ Ajukan pembayaran tahap '+tahap+'</button>'):'<span style="font-size:10px;color:var(--muted)">diajukan Finance / Purchasing</span>')+
+      '<span style="font-size:9.5px;color:var(--muted)">disetujui Direktur dulu · hari bayar Senin &amp; Jumat</span>'+
+      (tolakTerakhir?('<span style="font-size:9.5px;color:#8f2a1e">ditolak '+tglID((tolakTerakhir.dir||{}).tgl)+': '+esc((tolakTerakhir.dir||{}).alasan||'')+'</span>'):'');}
+  else if(a.status==='menunggu'){out+='<span data-f="bvAjuStatus_'+S+'" style="font-size:10px;font-weight:800;color:var(--warn)">₪ '+fmt0(a.nominal)+' · rencana '+tglID(a.rencana)+' — menunggu persetujuan Direktur</span> '+bayarHariBadge(a.rencana)+
+      (bayarPutusBoleh()?('<button class="btn sm" data-f="bvAjuSetuju_'+S+'" onclick="bvAjuPutus('+jsArg(o.id)+','+jsArg(a.id)+',true)">✓ Setujui</button><button class="btn ghost sm" data-f="bvAjuTolak_'+S+'" onclick="bvAjuPutus('+jsArg(o.id)+','+jsArg(a.id)+',false)">✕ Tolak</button>'):'')+
+      (bayarAjuBoleh()?('<button class="btn ghost sm" style="font-size:9.5px" onclick="bvAjuBatal('+jsArg(o.id)+','+jsArg(a.id)+')">batalkan</button>'):'');}
+  else{out+='<span data-f="bvAjuStatus_'+S+'" style="font-size:10px;font-weight:800;color:var(--ok)">✓ '+fmt0(a.nominal)+' disetujui Direktur '+tglID((a.dir||{}).tgl)+' · bayar '+tglID(a.rencana)+'</span> '+bayarHariBadge(a.rencana)+
+      (bvBoleh()?('<button class="btn sm" data-f="bvCatat_'+S+'" onclick="bvCatat('+A+','+tahap+')">＋ Catat pembayaran tahap '+tahap+'</button>'):'<span style="font-size:10px;color:var(--muted)">dicatat Finance</span>');}
+  return out;}
+/* modul Pembelian: pengajuan bayar sebelum tahap "Pembayaran" */
+function buyAjuBayar(id){var b=buyGet(id);if(!b)return;
+  if(!bayarAjuBoleh()){alert('Pengajuan pembayaran: Finance atau Purchasing.');return;}
+  if(b.bayarAju&&(b.bayarAju.status==='menunggu'||b.bayarAju.status==='disetujui')){alert('Sudah ada pengajuan yang belum selesai.');return;}
+  if(!(b.chk&&b.chk.approve)){alert('Pembeliannya sendiri belum disetujui Direktur (tahap Approval pembelian).');return;}
+  var saran=+(b.inv&&b.inv.jumlah)||buyHarga(b),pil=buyPilih(b);
+  askForm({judul:'Ajukan pembayaran — '+b.judul,sub:(pil?('vendor '+pil.vendor+' · '):'')+fmt0(saran)+' — disetujui Direktur dulu, baru ditransfer',tanpaDraf:true,
+    fields:[{k:'nominal',label:'Nominal',type:'money',req:true,val:saran},
+      {k:'rencana',label:'Rencana tanggal bayar',type:'date',req:true,val:hariBayarBerikut(hariIni()),hint:'Bawaan Senin / Jumat terdekat; hari lain boleh — ditandai "di luar hari bayar".'},
+      {k:'cat',label:'Catatan untuk Direktur',type:'text',ph:'mis. invoice sudah diverifikasi'}],
+    ok:function(f){var n=moneyVal(f.nominal);if(!(n>0)){alert('Nominal wajib diisi.');return;}if(!f.rencana){alert('Rencana tanggal bayar wajib diisi.');return;}
+      b.bayarAju={id:bayarAjuId(),nominal:n,rencana:f.rencana,catatan:String(f.cat||'').trim(),oleh:(ST.userName||ST.user||''),tgl:hariIni(),ts:Date.now(),status:'menunggu'};
+      notifyBuy(b,'₪ **Pengajuan pembayaran pembelian** — '+b.judul+' '+fmt0(n)+' · rencana '+tglID(f.rencana)+(hariBayarKah(f.rencana)?'':' (di luar hari bayar)')+' — '+picMention('Direktur')+' mohon persetujuan.');
+      saveBuy();render();kilat('Pengajuan pembayaran dikirim ke Direktur');}});}
+function buyAjuPutus(id,setuju){var b=buyGet(id);if(!b||!b.bayarAju)return;var a=b.bayarAju;
+  if(!bayarPutusBoleh()){alert('Hanya Direktur Utama yang menyetujui pembayaran.');return;}
+  if(a.status!=='menunggu'){alert('Pengajuan ini sudah '+a.status+'.');return;}
+  if(setuju){a.status='disetujui';a.dir={oleh:(ST.userName||ST.user||''),tgl:hariIni(),ts:Date.now()};
+    notifyBuy(b,'✅ **Pembayaran pembelian disetujui Direktur** — '+b.judul+' '+fmt0(a.nominal)+' · transfer '+tglID(a.rencana)+' — '+picMention('Finance'));saveBuy();render();return;}
+  askForm({judul:'Tolak pembayaran — '+b.judul,sub:fmt0(a.nominal)+' · rencana '+tglID(a.rencana),tanpaDraf:true,
+    fields:[{k:'alasan',label:'Alasan penolakan',type:'textarea',tinggi:80,req:true}],
+    ok:function(f){var al=String(f.alasan||'').trim();if(!al){alert('Alasan wajib diisi.');return;}
+      a.status='ditolak';a.dir={oleh:(ST.userName||ST.user||''),tgl:hariIni(),ts:Date.now(),alasan:al};
+      notifyBuy(b,'⛔ **Pembayaran pembelian ditolak Direktur** — '+b.judul+': '+al);saveBuy();render();}});}
+function buyAjuBatal(id){var b=buyGet(id);if(!b||!b.bayarAju)return;if(b.bayarAju.status!=='menunggu'&&!bayarPutusBoleh()){alert('Sudah diputus Direktur.');return;}
+  if(!confirm('Batalkan pengajuan pembayaran '+b.judul+'?'))return;delete b.bayarAju;saveBuy();render();}
+function buyAjuBlok(b){var a=b.bayarAju,A=jsArg(b.id),isi;
+  if(!a)isi=(bayarAjuBoleh()?('<button class="btn sm" data-f="buyAjuBtn_'+esc(b.id)+'" onclick="buyAjuBayar('+A+')">₪ Ajukan pembayaran</button>'):'<span style="font-size:10px;color:var(--muted)">diajukan Finance / Purchasing</span>')+'<span style="font-size:9.5px;color:var(--muted)">disetujui Direktur dulu · hari bayar Senin &amp; Jumat</span>';
+  else if(a.status==='menunggu')isi='<span style="font-size:10px;font-weight:800;color:var(--warn)">₪ '+fmt0(a.nominal)+' · rencana '+tglID(a.rencana)+' — menunggu Direktur</span> '+bayarHariBadge(a.rencana)+(bayarPutusBoleh()?('<button class="btn sm" data-f="buyAjuSetuju_'+esc(b.id)+'" onclick="buyAjuPutus('+A+',true)">✓ Setujui</button><button class="btn ghost sm" onclick="buyAjuPutus('+A+',false)">✕ Tolak</button>'):'')+(bayarAjuBoleh()?('<button class="btn ghost sm" style="font-size:9.5px" onclick="buyAjuBatal('+A+')">batalkan</button>'):'');
+  else if(a.status==='disetujui')isi='<span style="font-size:10px;font-weight:800;color:var(--ok)">✓ '+fmt0(a.nominal)+' disetujui Direktur '+tglID((a.dir||{}).tgl)+' · bayar '+tglID(a.rencana)+'</span> '+bayarHariBadge(a.rencana)+'<span style="font-size:9.5px;color:var(--muted)">centang "Pembayaran" di bawah sesudah transfer</span>';
+  else if(a.status==='ditolak')isi='<span style="font-size:10px;font-weight:800;color:#8f2a1e">✕ ditolak '+tglID((a.dir||{}).tgl)+': '+esc((a.dir||{}).alasan||'')+'</span>'+(bayarAjuBoleh()?('<button class="btn ghost sm" onclick="buyAjuBayar('+A+')">ajukan lagi</button>'):'');
+  else isi='<span style="font-size:10px;color:var(--muted)">✓ dibayar '+fmt0(a.nominal)+'</span>';
+  return '<div data-f="buyAju_'+esc(b.id)+'" style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:6px 0 6px 26px;font-size:11px;border-top:1px dashed var(--line);margin-top:4px"><span style="flex-basis:100%;font-size:10px;font-weight:800;color:var(--muted)">PENGAJUAN &amp; PERSETUJUAN PEMBAYARAN (DIREKTUR)</span>'+isi+'</div>';}
+/* daftar gabungan (order + pembelian) untuk Tugas saya & pengingat */
+function bayarAjuSemua(){var out=[];
+  (ST.orders||[]).forEach(function(o){if(o.deleted||o.status==='Cancel')return;bvAjuDaftar(o).forEach(function(a){out.push({jenis:'order',o:o,aju:a,judul:o.customer,rinci:a.v+' · tahap '+a.tahap,nominal:+a.nominal||0,rencana:a.rencana,status:a.status,oleh:a.oleh,catatan:a.catatan,ts:+a.ts||0});});});
+  buyAll().forEach(function(b){if(!b.bayarAju)return;var a=b.bayarAju;out.push({jenis:'beli',b:b,aju:a,judul:b.judul,rinci:'pembelian'+(buyPilih(b)?(' · '+buyPilih(b).vendor):''),nominal:+a.nominal||0,rencana:a.rencana,status:a.status,oleh:a.oleh,catatan:a.catatan,ts:+a.ts||0});});
+  var FA=(finData().rutinAju)||{};Object.keys(FA).forEach(function(k){var a=FA[k];if(!a)return;out.push({jenis:'rutin',key:k,aju:a,judul:a.ket||k,rinci:'biaya rutin',nominal:+a.nominal||0,rencana:a.rencana,status:a.status,oleh:a.oleh,catatan:a.catatan,ts:+a.ts||0});});
+  out.sort(function(x,y){return String(x.rencana).localeCompare(String(y.rencana))||(x.ts-y.ts);});return out;}
+function bayarAjuMenunggu(){return bayarAjuSemua().filter(function(x){return x.status==='menunggu';});}
+function bayarAjuDisetujuiBelum(){return bayarAjuSemua().filter(function(x){return x.status==='disetujui';});}
+function bayarAjuPutus(jenis,id,ajuId,setuju){if(jenis==='rutin')cfRutinAjuPutus(id,setuju);else if(jenis==='beli')buyAjuPutus(id,setuju);else bvAjuPutus(id,ajuId,setuju);}
+function bayarAjuSetujuiHari(tgl){if(!bayarPutusBoleh()){alert('Hanya Direktur Utama yang menyetujui pembayaran.');return;}
+  var L=bayarAjuMenunggu().filter(function(x){return x.rencana===tgl;});if(!L.length)return;
+  if(!confirm('Setujui '+L.length+' pembayaran untuk '+tglID(tgl)+' — total '+fmt0(L.reduce(function(s,x){return s+x.nominal;},0))+'?'))return;
+  var dir={oleh:(ST.userName||ST.user||''),tgl:hariIni(),ts:Date.now()};
+  L.forEach(function(x){x.aju.status='disetujui';x.aju.dir=Object.assign({},dir);
+    if(x.jenis==='beli'){notifyBuy(x.b,'✅ **Pembayaran pembelian disetujui Direktur** — '+x.b.judul+' '+fmt0(x.aju.nominal)+' · transfer '+tglID(x.aju.rencana)+' — '+picMention('Finance'));}
+    else if(x.jenis==='rutin'){notifyBuy(null,'✅ **Pembayaran biaya rutin disetujui Direktur** — '+x.judul+' '+fmt0(x.aju.nominal)+' · transfer '+tglID(x.aju.rencana)+' — '+picMention('Finance'));}
+    else{logHist(x.o,'✓ Pembayaran '+x.aju.v+' tahap '+x.aju.tahap+' '+fmt0(x.aju.nominal)+' disetujui Direktur (sekaligus) — bayar '+tglID(x.aju.rencana));x.o._m=Date.now();
+      notifyOrder(x.o,'✅ **Pembayaran vendor disetujui Direktur** — '+x.o.customer+' · '+x.aju.v+' tahap '+x.aju.tahap+' '+fmt0(x.aju.nominal)+' · transfer '+tglID(x.aju.rencana)+' — '+picMention('Finance'));}});
+  save();saveBuy();saveFin();render();kilat(L.length+' pembayaran disetujui');}
+function bayarAjuBaris(x,mode){
+  var a=x.aju,dir=(mode==='dir'),ev='var ev=window.event;if(ev){ev.stopPropagation();}';
+  var buka=x.jenis==='order'?('openOrder('+jsArg(x.o.id)+')'):(x.jenis==='rutin'?"ST.view='fin';ST._finTab='proyeksi';ST.cur=null;render()":"ST.view='buy';ST.cur=null;render()");
+  var st=({menunggu:['menunggu Direktur','var(--warn)'],disetujui:['disetujui — tinggal transfer','var(--ok)'],ditolak:['ditolak','#8f2a1e'],dibayar:['dibayar','var(--muted)']})[a.status]||[a.status,'var(--muted)'];
+  var arg=x.jenis==='beli'?("'beli',"+jsArg(x.b.id)+",''"):(x.jenis==='rutin'?("'rutin',"+jsArg(x.key)+",''"):("'order',"+jsArg(x.o.id)+","+jsArg(a.id)));
+  return '<div data-f="aju_'+esc(a.id)+'" style="display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center;padding:8px 10px;border:1px solid var(--line);border-radius:9px;margin-bottom:6px;background:var(--bg);font-size:10.5px;cursor:pointer" onclick="'+buka+'">'+
+    '<div style="flex:1;min-width:180px"><b>'+esc(x.judul)+'</b> <span style="color:var(--muted)">· '+esc(x.rinci)+'</span>'+
+      '<div style="font-size:9.5px;color:var(--muted)">diajukan '+esc(x.oleh||'')+' · '+tglID(a.tgl)+(a.catatan?(' — '+esc(a.catatan)):'')+((a.dir||{}).alasan?(' · <span style="color:#8f2a1e">ditolak: '+esc(a.dir.alasan)+'</span>'):'')+'</div></div>'+
+    '<div style="text-align:right;min-width:120px"><b style="font-size:11.5px">'+fmt0(a.nominal)+'</b><div style="font-size:9.5px">'+tglID(a.rencana)+' · '+bayarHariBadge(a.rencana)+'</div></div>'+
+    (dir&&a.status==='menunggu'
+      ?('<span style="display:flex;gap:6px" onclick="'+ev+'"><button class="btn sm" data-f="ajuSetuju_'+esc(a.id)+'" onclick="bayarAjuPutus('+arg+',true)">✓ Setujui</button><button class="btn ghost sm" data-f="ajuTolak_'+esc(a.id)+'" onclick="bayarAjuPutus('+arg+',false)">✕ Tolak</button></span>')
+      :('<span style="font-size:9.5px;font-weight:800;color:'+st[1]+'">'+esc(st[0])+'</span>'))+'</div>';}
+function bayarAjuDirekturBlok(){
+  var M=bayarAjuMenunggu(),S=bayarAjuDisetujuiBelum();
+  if(!M.length&&!S.length)return '';
+  var perTgl={};M.forEach(function(x){(perTgl[x.rencana]=perTgl[x.rencana]||[]).push(x);});
+  var html='<div class="rcard" data-f="bayarAjuDirektur" style="max-width:660px;margin-bottom:14px"><h3 style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">₪ Persetujuan pembayaran'+
+    '<span style="font-size:10px;font-weight:800;color:#2b1d0e;background:'+(M.length?'var(--gold)':'var(--bg)')+';border-radius:20px;padding:1px 8px">'+M.length+' menunggu</span>'+
+    '<span style="font-size:10px;color:var(--muted);font-weight:600">vendor order &amp; biaya rutin · hari bayar Senin &amp; Jumat</span></h3>';
+  Object.keys(perTgl).sort().forEach(function(t){var L=perTgl[t];
+    html+='<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:8px 0 5px"><b style="font-size:11px">'+tglID(t)+'</b> '+bayarHariBadge(t)+'<span style="font-size:10px;color:var(--muted)">'+L.length+' pengajuan · '+fmt0(L.reduce(function(s,x){return s+x.nominal;},0))+'</span>'+
+      (L.length>1?('<button class="btn ghost sm" style="margin-left:auto" data-f="ajuSetujuiHari_'+esc(t)+'" onclick="bayarAjuSetujuiHari('+jsArg(t)+')">✓ Setujui semua '+tglID(t)+'</button>'):'')+'</div>'+
+      L.map(function(x){return bayarAjuBaris(x,'dir');}).join('');});
+  if(!M.length)html+='<div style="font-size:10.5px;color:var(--ok);margin:6px 0">Tak ada pengajuan yang menunggu tanda tanganmu.</div>';
+  if(S.length)html+='<div style="font-size:10px;font-weight:800;color:var(--muted);margin:10px 0 5px">DISETUJUI — MENUNGGU TRANSFER FINANCE ('+S.length+')</div>'+S.map(function(x){return bayarAjuBaris(x,'lihat');}).join('');
+  return html+'</div>';}
+function bayarAjuFinanceBlok(){
+  var M=bayarAjuMenunggu(),S=bayarAjuDisetujuiBelum(),hari=hariIni();
+  if(!M.length&&!S.length)return '';
+  var telat=S.filter(function(x){return x.rencana<hari;}),ini=S.filter(function(x){return x.rencana===hari;});
+  return '<div class="rcard" data-f="bayarAjuFinance" style="max-width:660px;margin-bottom:14px"><h3 style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">₪ Pembayaran vendor &amp; biaya rutin'+
+    (ini.length?('<span style="font-size:10px;font-weight:800;color:#fff;background:var(--warn);border-radius:20px;padding:1px 8px">'+ini.length+' transfer hari ini</span>'):'')+
+    (telat.length?('<span style="font-size:10px;font-weight:800;color:#fff;background:#8f2a1e;border-radius:20px;padding:1px 8px">'+telat.length+' lewat rencana</span>'):'')+'</h3>'+
+    (S.length?('<div style="font-size:10px;font-weight:800;color:var(--ok);margin:6px 0 5px">DISETUJUI DIREKTUR — TINGGAL TRANSFER &amp; CATAT ('+S.length+')</div>'+S.map(function(x){return bayarAjuBaris(x,'lihat');}).join('')):'')+
+    (M.length?('<div style="font-size:10px;font-weight:800;color:var(--muted);margin:10px 0 5px">MENUNGGU PERSETUJUAN DIREKTUR ('+M.length+')</div>'+M.map(function(x){return bayarAjuBaris(x,'lihat');}).join('')):'')+'</div>';}
+/* pengingat: Direktur bila pengajuan > 1 hari kerja belum diputus; Finance bila rencana bayar lewat tanpa dicatat — sekali per hari kerja */
+function jalankanIngatBayar(){
+  var n=0,hari=hariIni();
+  bayarAjuSemua().forEach(function(x){var a=x.aju;
+    if(a.status==='menunggu'){if(hariKerjaSejak(+a.ts||0)<1)return;if(a.ingatTs&&hariKerjaSejak(+a.ingatTs)<1)return;
+      var t='⏰ '+picMention('Direktur')+' — pengajuan pembayaran menunggu '+hariKerjaSejak(+a.ts||0)+' hari kerja: '+x.judul+' · '+x.rinci+' '+fmt0(a.nominal)+' · rencana '+tglID(a.rencana)+'. Setujui / tolak di HUB → Tugas saya.';
+      if(x.jenis==='order'){notifyOrder(x.o,t);logHist(x.o,'Pengingat ke Direktur: pengajuan pembayaran '+x.rinci);x.o._m=Date.now();}else notifyBuy(x.b||null,t);
+      a.ingatTs=Date.now();n++;}
+    else if(a.status==='disetujui'&&a.rencana<hari){if(a.ingatTs&&hariKerjaSejak(+a.ingatTs)<1)return;
+      var t2='⏰ '+picMention('Finance')+' — pembayaran yang sudah disetujui belum dicatat: '+x.judul+' · '+x.rinci+' '+fmt0(a.nominal)+' · rencana '+tglID(a.rencana)+' sudah lewat. Transfer lalu catat di HUB.';
+      if(x.jenis==='order'){notifyOrder(x.o,t2);logHist(x.o,'Pengingat ke Finance: pembayaran '+x.rinci+' lewat rencana');x.o._m=Date.now();}else notifyBuy(x.b||null,t2);
+      a.ingatTs=Date.now();n++;}});
+  if(n){save();saveBuy();saveFin();}return n;}
 function bvBoleh(){return ['Finance','Holding','Direktur Utama'].some(function(r){return myRoles().indexOf(r)>=0;});}
 function bvCatat(id,v,tahap){
   var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
   if(!bvBoleh()){alert('Pembayaran vendor dicatat Finance.');return;}
+  var aju=bvAjuAktif(o,v,tahap);
+  if(!aju||aju.status!=='disetujui'){alert(aju?('Pengajuan tahap '+tahap+' untuk '+v+' masih menunggu persetujuan Direktur.'):('Pembayaran vendor perlu persetujuan Direktur dulu — tekan "₪ Ajukan pembayaran tahap '+tahap+'" di kotak vendor ini.'));return;}
   var sisa=bvSisa(o,v);
-  askForm({judul:'Catat pembayaran ke '+v+' — tahap '+tahap,sub:o.customer+' · sisa tagihan '+fmt0(sisa),tanpaDraf:true,
-    fields:[{k:'nominal',label:'Nominal dibayar',type:'money',req:true,val:sisa,hint:'Boleh sebagian — sisanya menyusul di tahap berikutnya.'},
+  askForm({judul:'Catat pembayaran ke '+v+' — tahap '+tahap,sub:o.customer+' · sisa tagihan '+fmt0(sisa)+' · disetujui Direktur '+tglID((aju.dir||{}).tgl)+' untuk '+tglID(aju.rencana),tanpaDraf:true,
+    fields:[{k:'nominal',label:'Nominal dibayar',type:'money',req:true,val:Math.min(sisa,aju.nominal||sisa),hint:'Yang disetujui Direktur: '+fmt0(aju.nominal)+'. Boleh sebagian — sisanya menyusul di tahap berikutnya.'},
       {k:'tgl',label:'Tanggal transfer',type:'date',req:true,val:hariIni()},
       {k:'cat',label:'Catatan',type:'text',ph:'mis. transfer BCA, DP 50%'}],
     ok:function(f){var n=moneyVal(f.nominal);if(!(n>0)){alert('Nominal wajib diisi.');return;}
-      bvDaftar(o,v).push({tahap:tahap,nominal:n,tgl:f.tgl,catatan:String(f.cat||'').trim(),oleh:(ST.userName||ST.user||'')});
+      bvDaftar(o,v).push({tahap:tahap,nominal:n,tgl:f.tgl,catatan:String(f.cat||'').trim(),oleh:(ST.userName||ST.user||''),aju:aju.id});
+      aju.status='dibayar';aju.bayar={tgl:f.tgl,nominal:n,oleh:(ST.userName||ST.user||'')};
       var s2=bvSisa(o,v);
-      logHist(o,'💸 Bayar vendor tahap '+tahap+' — '+v+': '+fmt0(n)+(s2<=0?' (lunas)':(' · sisa '+fmt0(s2))));
+      logHist(o,'💸 Bayar vendor tahap '+tahap+' — '+v+': '+fmt0(n)+(s2<=0?' (lunas)':(' · sisa '+fmt0(s2)))+' · disetujui Direktur '+tglID((aju.dir||{}).tgl));
       notifyOrder(o,'💸 **Pembayaran vendor tahap '+tahap+'** — '+v+' '+fmt0(n)+(s2<=0?' · LUNAS':(' · sisa '+fmt0(s2)))+' — '+o.customer);
       o._m=Date.now();save();render();}});}
 function bvHapus(id,v,i){
@@ -12726,14 +12938,14 @@ function bayarVendorPanel(o,tahap){
   return '<div class="card actcard" style="margin-top:14px"><div class="ch"><span class="ico" style="background:#2f8f5b">₪</span>'+
     '<div><div class="t">Pembayaran vendor — tahap '+tahap+'</div><div class="s">'+(tahap===3?'WAJIB LUNAS SEMUA VENDOR SEBELUM LANJUT':'TAK MENGUNCI FASE — BOLEH 1×, 2×, ATAU 3× PER VENDOR')+'</div></div>'+
     '<span style="margin-left:auto;font-size:11px;font-weight:800;color:'+(lunas?'var(--ok)':'var(--warn)')+'">'+(lunas?'✓ semua vendor lunas':(nLunas+' dari '+V.length+' vendor lunas'))+'</span></div><div class="body">'+
-    '<div style="font-size:10.5px;color:var(--muted);margin-bottom:10px;line-height:1.6">Tahap '+tahap+': '+judul+'. Nilai tagihan = HPP × qty PO + biaya tetap. Tiap vendor boleh dibayar sekaligus di satu tahap atau dicicil sampai tiga tahap.</div>'+
+    '<div style="font-size:10.5px;color:var(--muted);margin-bottom:10px;line-height:1.6">Tahap '+tahap+': '+judul+'. Nilai tagihan = HPP × qty PO + biaya tetap. Tiap vendor boleh dibayar sekaligus di satu tahap atau dicicil sampai tiga tahap. Tiap pembayaran <b>diajukan Finance / Purchasing dan disetujui Direktur</b> dulu (hari bayar Senin &amp; Jumat), baru ditransfer dan dicatat di sini.</div>'+
     (V.length?V.map(function(x){var D=bvDaftar(o,x.v),bayar=bvDibayar(o,x.v),sisa=bvSisa(o,x.v,x.total);
       return '<div data-f="bv_'+esc(vpoSlot(x.v))+'" style="border:1px solid '+(sisa<=0?'var(--ok)':'var(--line)')+';border-radius:9px;padding:9px 11px;margin-bottom:9px;background:var(--bg)">'+
         '<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><b style="font-size:11.5px">'+esc(x.v)+'</b><span style="font-size:10px;color:var(--muted)">'+x.n+' baris</span>'+
           '<span style="margin-left:auto;font-size:10.5px">Tagihan <b>'+fmt0(x.total)+'</b> · dibayar <b style="color:var(--ok)">'+fmt0(bayar)+'</b> · sisa <b style="color:'+(sisa<=0?'var(--ok)':'var(--warn)')+'">'+fmt0(sisa)+'</b>'+(sisa<=0?' <span style="color:var(--ok);font-weight:800">LUNAS</span>':'')+'</span></div>'+
         (D.length?('<table class="rtable" style="margin-top:6px;font-size:10.5px"><tbody>'+D.map(function(p,i){return '<tr><td style="width:70px">tahap '+p.tahap+'</td><td style="width:100px">'+tglID(p.tgl)+'</td><td class="num" style="width:120px"><b>'+fmt0(p.nominal)+'</b></td><td style="color:var(--muted)">'+esc(p.catatan||'')+(p.oleh?(' · '+esc(p.oleh)):'')+'</td><td style="width:26px">'+(bvBoleh()?('<button class="xrow" onclick="bvHapus('+jsArg(o.id)+','+jsArg(x.v)+','+i+')">✕</button>'):'')+'</td></tr>';}).join('')+'</tbody></table>'):'')+
         '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:7px">'+
-          (sisa>0?(bvBoleh()?('<button class="btn sm" data-f="bvCatat_'+esc(vpoSlot(x.v))+'" onclick="bvCatat('+jsArg(o.id)+','+jsArg(x.v)+','+tahap+')">＋ Catat pembayaran tahap '+tahap+'</button>'):'<span style="font-size:10px;color:var(--muted)">dicatat Finance</span>'):'')+
+          bvAjuTombol(o,x.v,tahap,sisa)+
         '</div>'+
         vtermBlok(o,x.v,true)+
         '<div style="margin-top:6px">'+lampiranBlok(o,'bvBukti_'+vpoSlot(x.v)+'_'+tahap,'Bukti transfer ke '+x.v+' — tahap '+tahap)+'</div>'+
@@ -20292,6 +20504,7 @@ setTimeout(function(){
   try{n+=jalankanIngatProduksi();}catch(e){}
   try{n+=jalankanIngatFotoProduksi();}catch(e){}
   try{n+=ringkasanSeninRadja();}catch(e){}
+  try{n+=jalankanIngatBayar();}catch(e){}
   if(n)render();},6000);
 </script>
 </body>
