@@ -77,7 +77,7 @@
   .phasetag{background:var(--hub2);border:1px solid var(--hubline);border-radius:8px;padding:6px 12px;font-size:11px}
   .phasetag b{color:var(--gold)}
   .progbar{display:flex;gap:3px;margin-top:8px}
-  .seg{width:14px;height:5px;border-radius:3px;background:var(--hubline)}.seg.on{background:var(--gold)}
+  .seg{width:14px;flex:0 0 14px;height:5px;border-radius:3px;background:var(--hubline)}.seg.on{background:var(--gold)}
 
   .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px}
   .card{background:var(--panel);border:1px solid var(--line);border-radius:13px;box-shadow:var(--shadow);overflow:hidden;display:flex;flex-direction:column}
@@ -371,6 +371,8 @@
     .notegrid{grid-template-columns:1fr!important}
     .g2,.g3{grid-template-columns:1fr!important}      /* form order: 1 kolom biar tak sempit */
     .main{padding:12px 10px 40px}
+    .dhead .right{margin-left:0;width:100%;max-width:100%;text-align:left}   /* kop order: bilah 23 fase mengecil mengikuti lebar layar */
+    .dhead .progbar{gap:2px}.dhead .seg{flex:1 1 0;width:auto;min-width:4px}
     .oc{padding:9px 10px}
     .board{gap:9px}.col{min-width:210px}
     .card .ch{flex-wrap:wrap;row-gap:5px}
@@ -601,7 +603,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20260916-114747';
+const VERSI='20260916-115901';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -18831,7 +18833,7 @@ function ordSvcEditor(o,hanya){
     var k=SVCKEY[jenis],cur=liveList(o[k]),opts=jasaByJenis(jenis);
     return cur.map(function(n,i){
       var tk=jasaTeknik(n),im=jasaImg(n),pil=opts.slice();if(pil.indexOf(n)<0)pil=[n].concat(pil);
-      return '<div style="display:flex;align-items:center;gap:7px;margin-bottom:6px">'+
+      return '<div style="display:flex;align-items:center;gap:7px;margin-bottom:6px;flex-wrap:wrap">'+
         (im?imgTag(im,'width:30px;height:30px;object-fit:cover;border-radius:6px;border:1px solid var(--line);flex:none;cursor:zoom-in','onclick="openLB(this.src)"')
            :'<span style="width:30px;height:30px;border-radius:6px;border:1px dashed var(--line);flex:none"></span>')+
         '<span class="pill" style="font-size:9.5px;white-space:nowrap">'+esc(jenis)+'</span>'+
