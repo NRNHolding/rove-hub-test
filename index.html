@@ -336,7 +336,7 @@
   .mact{display:flex;gap:9px;justify-content:flex-end;margin-top:16px}
   @media(max-width:1024px){.grid3{grid-template-columns:1fr 1fr}}
   @media(max-width:820px){
-    .app{grid-template-columns:1fr}
+    .app{grid-template-columns:1fr;grid-template-rows:auto 1fr}   /* tanpa ini bilah menu ikut melar di halaman yang lebih pendek dari layar */
     .side{flex-direction:row;flex-wrap:nowrap;align-items:center;overflow-x:auto;gap:8px;padding:9px 12px;position:sticky;top:0;z-index:30}
     .side .logo{margin:0 4px 0 0;flex:0 0 auto}.side .logo small{display:none}.side .logo .m{width:28px;height:28px;font-size:15px}
     .side .sep,.side .intlbl,.side .int,.side .foot{display:none}
@@ -410,6 +410,135 @@
     .xrow{min-width:30px;min-height:30px;font-size:14px}
     .pin,.fld input,.fld select{min-height:32px}
   }
+/* ===== Planner Konten: form di layar, daftar akordeon, kalender ===== */
+.kon-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px 18px;margin-top:4px}
+.kon-form .lebar,.kon-dgrid .lebar{grid-column:1 / -1}
+.kfld{min-width:0}
+.kfld>.nlbl{text-transform:uppercase;letter-spacing:.03em;margin-bottom:4px}
+.kfld .pin{font-size:12.5px;padding:7px 9px;min-height:34px}
+.kfld textarea.pin{min-height:78px;resize:vertical;line-height:1.5}
+.kon-hint{font-size:10.5px;color:var(--muted);margin-top:4px;line-height:1.5}
+.kon-hint b{color:var(--warn)}
+.kon-kecil{font-size:10.5px;color:var(--muted);line-height:1.55}
+.kon-kecil b{color:var(--ink-soft)}
+.kseg{display:inline-flex;border:1px solid var(--line);border-radius:9px;overflow:hidden;background:var(--bg)}
+.kseg button{background:transparent;border:0;padding:8px 18px;font:inherit;font-size:12px;font-weight:700;color:var(--muted);cursor:pointer}
+.kseg button.on{background:var(--brand);color:#fff}
+.kon-opsi{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}
+.kon-opsi label{display:flex;gap:9px;align-items:flex-start;border:1px solid var(--line);border-radius:10px;padding:9px 11px;cursor:pointer;background:var(--bg);font-weight:600;font-size:12px;color:var(--ink);min-width:0}
+.kon-opsi label.on{border-color:var(--brand);background:var(--panel);box-shadow:inset 0 0 0 1px var(--brand)}
+.kon-opsi label input{margin-top:3px;accent-color:var(--brand);width:auto;flex:0 0 auto}
+.kon-opsi small{display:block;font-size:10.5px;color:var(--muted);font-weight:500}
+.kon-saran{font-size:9.5px;font-weight:800;color:var(--ok);background:var(--ok-bg);border-radius:20px;padding:1px 8px;margin-left:4px;white-space:nowrap}
+.kon-out{display:flex;flex-direction:column;gap:7px}
+.kon-out label{display:flex;align-items:center;gap:10px;font-size:12.5px;font-weight:600;color:var(--ink)}
+.kon-out label.mati{color:var(--muted)}
+.kon-out input[type=checkbox]{width:16px;height:16px;accent-color:var(--brand);flex:0 0 auto}
+.kon-out input.pin{width:74px;flex:0 0 74px;min-height:32px;padding:5px 8px}
+.kon-out input.pin:disabled{opacity:.45}
+.kon-out .satuan{font-size:10.5px;color:var(--muted)}
+.kon-aksi{display:flex;gap:9px;align-items:center;flex-wrap:wrap;justify-content:flex-end;border-top:1px solid var(--line);padding-top:12px;margin-top:12px}
+.kon-telat{background:var(--warn-bg);color:var(--brand-dark);border-radius:20px;padding:5px 13px;font-size:11px;font-weight:800}
+.kon-tabs{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+.kon-filters{display:flex;gap:8px;flex-wrap:wrap;margin-left:auto;align-items:center}
+.kon-ingatkartu{border:1px solid var(--line);border-radius:10px;padding:9px 12px;background:var(--bg);font-size:11.5px;line-height:1.55;margin-bottom:12px}
+.kon-ingatkartu>b{display:block;font-size:10px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);margin-bottom:3px}
+.kon-ingatitem{display:inline-block;margin:0 12px 2px 0;cursor:pointer;color:var(--ink-soft)}
+.kon-ingatitem:hover{color:var(--brand)}
+.kon-list{display:flex;flex-direction:column;gap:8px}
+.kon-row{border:1px solid var(--line);border-radius:11px;background:var(--panel);transition:border-color .12s}
+.kon-row:hover{border-color:var(--brand)}
+.kon-row.telat{border-left:3px solid var(--red)}
+.kon-row.buka{border-color:var(--brand);box-shadow:inset 0 0 0 1px var(--brand)}
+.kon-rhead{display:grid;grid-template-columns:112px minmax(0,1.6fr) minmax(0,1fr) minmax(0,.9fr) minmax(0,1fr) 104px;gap:12px;align-items:center;padding:10px 14px;cursor:pointer;border-radius:11px}
+.kon-rhead:focus-visible,.kchip:focus-visible,.kchip2:focus-visible,.ksel:focus-visible,.kseg button:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+.kon-rhead .ktgl{font-variant-numeric:tabular-nums}
+.kon-rhead .ktgl b{display:block;font-size:12.5px}
+.kon-rhead .kjudul{min-width:0}
+.kon-rhead .kjudul b{font-size:13px;overflow-wrap:anywhere}
+.kon-rhead .kkol{font-size:12px;color:var(--ink-soft);min-width:0;overflow-wrap:anywhere}
+.kon-rhead .kkol small{display:block;font-size:10px;color:var(--muted)}
+.kon-rhead .kst{text-align:right}
+.kon-rlbl{display:none;font-size:9.5px;font-weight:800;color:var(--muted);letter-spacing:.03em;text-transform:uppercase}
+.kon-ket{display:block;font-size:10.5px;color:var(--muted)}
+.kon-ket.ok{color:var(--ok);font-weight:700}
+.kon-ket.lewat{color:var(--red);font-weight:800}
+.kon-ket.ini{color:var(--warn);font-weight:800}
+.kon-jenis{display:inline-block;font-size:9.5px;font-weight:800;letter-spacing:.04em;border-radius:20px;padding:1px 8px;margin-left:6px;vertical-align:middle}
+.kon-jenis.campaign{background:var(--hub);color:var(--gold)}
+.kon-jenis.regular{background:#efe9df;color:var(--ink-soft)}
+.kon-status{display:inline-block;font-size:10px;font-weight:800;border-radius:20px;padding:3px 10px;white-space:nowrap}
+.kon-status.rencana{background:#efe9df;color:var(--ink-soft)}
+.kon-status.produksi{background:var(--warn-bg);color:var(--brand-dark)}
+.kon-status.siap{background:#e4ecf7;color:#2f4f8f}
+.kon-status.terbit{background:var(--ok-bg);color:var(--ok)}
+.kon-status.batal{background:var(--red-bg);color:var(--red)}
+.kon-ingat{display:inline-flex;align-items:center;gap:4px;font-size:9.5px;font-weight:800;color:var(--brand-dark);background:var(--warn-bg);border-radius:20px;padding:1px 8px;margin-top:3px;white-space:nowrap}
+.kon-ingat.lewat{color:var(--red);background:var(--red-bg)}
+.kon-ingat.nanti{color:var(--muted);background:#efe9df}
+.kon-detail{border-top:1px dashed var(--line);padding:14px 16px 16px}
+.kon-stepper{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+.kchip{border:1px solid var(--line);background:var(--bg);border-radius:20px;padding:5px 12px;font-size:11px;font-weight:700;color:var(--muted);cursor:pointer;font-family:inherit}
+.kchip.on{background:var(--brand);border-color:var(--brand);color:#fff}
+.kchip.lewat{color:var(--ok);border-color:var(--ok)}
+.kon-stepper .sep{color:var(--muted)}
+.kon-dgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:11px 16px}
+.kon-calhead{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+.kon-calhead .kbulan{font-family:Georgia,'Times New Roman',serif;font-size:16px;min-width:150px;margin:0;text-align:center;color:var(--ink)}
+.kon-leg{display:flex;gap:10px;flex-wrap:wrap;font-size:10.5px;color:var(--muted);margin-left:auto;align-items:center}
+.kon-leg i,.ktitik i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:4px;vertical-align:-1px;border:1px solid transparent}
+.kon-leg i.terbit,.ktitik i.terbit{background:var(--ok-bg);border-color:var(--ok)}
+.kon-leg i.siap,.ktitik i.siap{background:#e4ecf7;border-color:#2f4f8f}
+.kon-leg i.produksi,.ktitik i.produksi{background:var(--warn-bg);border-color:var(--warn)}
+.kon-leg i.rencana,.ktitik i.rencana{background:#efe9df;border-color:#b9ae9b}
+.kon-leg i.batal,.ktitik i.batal{background:var(--red-bg);border-color:var(--red)}
+.kon-leg i.prod,.ktitik i.prod{background:transparent;border:1px dashed var(--warn)}
+.kon-cal{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px}
+.kon-cal .khari{font-size:10px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;text-align:center;padding:4px 0}
+.kon-cal .ksel{border:1px solid var(--line);border-radius:9px;min-height:92px;padding:5px 6px;background:var(--panel);display:flex;flex-direction:column;gap:3px;cursor:pointer;min-width:0}
+.kon-cal .ksel.kosong{background:transparent;border-color:transparent;cursor:default}
+.kon-cal .ksel.akhir{background:var(--bg)}
+.kon-cal .ksel.ini{border-color:var(--gold);box-shadow:inset 0 0 0 1px var(--gold)}
+.kon-cal .ksel.pilih{border-color:var(--brand);box-shadow:inset 0 0 0 1px var(--brand)}
+.kon-cal .kno{font-size:11px;font-weight:800;color:var(--muted);font-variant-numeric:tabular-nums;display:flex;justify-content:space-between;gap:4px}
+.kon-cal .khariini{font-size:9px;color:var(--brand)}
+.kchip2{border:1px solid transparent;text-align:left;border-radius:6px;padding:3px 6px;font-size:10.5px;font-weight:700;cursor:pointer;line-height:1.3;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:inherit;max-width:100%;display:block;width:100%}
+.kchip2.tayang.terbit{background:var(--ok-bg);color:var(--ok)}
+.kchip2.tayang.rencana{background:#efe9df;color:var(--ink-soft)}
+.kchip2.tayang.produksi{background:var(--warn-bg);color:var(--brand-dark)}
+.kchip2.tayang.siap{background:#e4ecf7;color:#2f4f8f}
+.kchip2.tayang.batal{background:var(--red-bg);color:var(--red);text-decoration:line-through}
+.kchip2.prod{background:transparent;border:1px dashed var(--warn);color:var(--brand-dark)}
+.kchip2.on{outline:2px solid var(--brand)}
+.ktitik{display:flex;flex-wrap:wrap;gap:3px;margin-top:2px}
+.ktitik i{width:9px;height:9px;border-radius:50%;margin:0}
+.ktitik i.terbit{background:var(--ok)}.ktitik i.siap{background:#2f4f8f}.ktitik i.produksi{background:var(--warn)}.ktitik i.rencana{background:#b9ae9b}.ktitik i.batal{background:var(--red)}
+.ktitik i.prod{background:transparent;border:1.5px dashed var(--warn)}
+.kon-leg.hp i{border-radius:50%;width:9px;height:9px}.kon-leg.hp i.terbit{background:var(--ok)}.kon-leg.hp i.siap{background:#2f4f8f}.kon-leg.hp i.produksi{background:var(--warn)}.kon-leg.hp i.rencana{background:#b9ae9b}
+#konFormCard,.kon-row,#konKalDetail{scroll-margin-top:70px}   /* bilah menu HP menempel di atas — yang digulir jangan tertutup */
+.kon-haritajuk{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px}
+@media(max-width:820px){
+  .kon-form{grid-template-columns:1fr}
+  .kon-rhead{grid-template-columns:1fr 1fr;gap:6px 12px;padding:10px 12px}
+  .kon-rhead .kjudul{grid-column:1 / -1;order:-1}
+  .kon-rhead .kst{text-align:left}
+  .kon-rlbl{display:block}
+  .kon-filters{margin-left:0;width:100%}
+  .kon-cal .ksel{min-height:64px;padding:4px}
+  .kchip2{font-size:9.5px;padding:2px 4px}
+  .kon-leg{margin-left:0;width:100%}
+}
+@media(max-width:520px){
+  .kon-cal{gap:3px}
+  .kon-cal.hp .ksel{min-height:48px;padding:4px 3px;align-items:center}
+  .kon-cal.hp .kno{justify-content:center}
+  .kon-cal.hp .khariini{display:none}
+  .kon-cal.hp .ktitik{justify-content:center}
+  .kon-detail{padding:12px 11px 13px}
+  .kon-filters .pin{flex:1 1 130px}
+  .kon-aksi .btn{flex:1 1 auto}
+}
+@media (prefers-reduced-motion: reduce){.kon-row{transition:none}}
 /* seret & jatuhkan berkas ke kotak unggah (.dz); body.seret = ada berkas yang sedang diseret di jendela */
 .dz{border-radius:8px;outline:2px dashed transparent;outline-offset:3px;transition:outline-color .12s,background .12s}
 body.seret .dz{outline-color:var(--brand)}
@@ -603,7 +732,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20260916-115901';
+const VERSI='20260921-113821';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -742,6 +871,11 @@ const BULAN_EN={Januari:'January',Februari:'February',Maret:'March',April:'April
 
 /* Aturan untuk kalimat yang mengandung angka — dicoba setelah kamus persis gagal. */
 const EN_RULES=[
+  [/^(\d+) perlu ditindak$/,function(m,n){return n+' need action';}],
+  [/^Total (\d+) file$/,function(m,n){return 'Total '+n+' file'+(+n===1?'':'s');}],
+  [/^⏰ H-(\d+) · Marketing diingatkan$/,function(m,n){return '⏰ D-'+n+' · Marketing reminded';}],
+  [/^⏰ produksi lewat (\d+) hari$/,function(m,n){return '⏰ production '+n+' day'+(+n===1?'':'s')+' overdue';}],
+  [/^(\d+) konten tampil$/,function(m,n){return n+' post'+(+n===1?'':'s')+' shown';}],
   [/^… dan (\d+) lagi$/,function(m,n){return '… and '+n+' more';}],
   [/^Impor (\d+) nama$/,function(m,n){return 'Import '+n+' names';}],
   [/^⚠ kelebihan (\d+)$/,function(m,n){return '⚠ '+n+' too many';}],
@@ -1547,6 +1681,8 @@ const EN={
 '— angkanya kamu isi dari hasil hitungan e-SPT/konsultan, HUB yang menjaga jangan sampai lewat tenggat dan menyimpan bukti (NTPN & BPE).':
   '— you enter the figures from your e-SPT/consultant calculation; HUB keeps you from missing deadlines and stores the receipts.',
 '— aturan bisa berubah.':'— rules may change.',
+/* --- planner konten (16 Sep 2026: form di layar, kalender, pengingat produksi) --- */
+'Rencana tayang':'Planned publish date','Rencana produksi':'Planned production date','Platform':'Platform','Jumlah output konten':'Content output count','Yang mengunggah':'Uploaded by','Catatan ide':'Idea notes','Judul / tema konten':'Title / content theme','Simpan ke kalender':'Save to calendar','☰ Daftar':'☰ List','▦ Kalender':'▦ Calendar','Semua platform':'All platforms','tampilkan rencana produksi':'show planned production dates','Tanpa agency':'No agency','dikerjakan Jessica / tim sendiri':'done by Jessica / in-house','foto & video':'photo & video','grafis / desain':'graphics / design','Grafis / desain':'Graphics / design','disarankan':'suggested','Lainnya — isi sendiri':'Other — type it in','✓ Tandai terbit':'✓ Mark published','Batalkan':'Cancel it','klik untuk mengubah status':'click to change status','Output':'Output','Agency · unggah':'Agency · upload','tanpa agency':'no agency','Bulan ini':'This month','siap tayang':'ready','tanggal produksi':'production date','⏰ produksi HARI INI':'⏰ production TODAY','pengingat H-2 & H-1':'reminders D-2 & D-1','⏰ Pengingat produksi':'⏰ Production reminders','Tak ada produksi dalam 2 hari ke depan.':'No production within the next 2 days.','ubah channel':'change channel','diunggah agency':'uploaded by agency','diunggah Jessica':'uploaded by Jessica','Marketing diingatkan H-2 & H-1':'Marketing is reminded D-2 & D-1','Ikut agency yang dipilih — masih bisa diganti.':'Follows the chosen agency — can still be changed.','Tanpa agency: yang mengunggah Jessica.':'No agency: Jessica uploads.','Jatuh sesudah tanggal tayang — periksa lagi.':'Falls after the publish date — check again.','PIC: Marketing · performa konten dilihat di dashboard Marketing sendiri.':'PIC: Marketing · content performance lives in Marketing\'s own dashboard.','Klik tanggal atau konten di kalender — detailnya terbuka di sini.':'Click a date or a post on the calendar — its detail opens here.','Campaign = bagian dari kampanye bertema; Regular = konten rutin.':'Campaign = part of a themed campaign; Regular = routine content.','Saran mengikuti output yang dicentang: foto / video → Tenshi Studio, grafis → Akronim.':'Suggestion follows the ticked output: photo / video → Tenshi Studio, graphics → Akronim.','masuk ke kalender konten · PIC selalu Marketing':'goes into the content calendar · PIC is always Marketing','produksi H-2 & H-1 · jadwal tayang':'production D-2 & D-1 · publish schedule',
 /* --- konten --- */
 'Konten & Campaign':'Content & Campaign','＋ Konten baru':'＋ New post','Rencana':'Planned','Siap tayang':'Ready',
 'Terbit':'Published','terbit':'published','TERBIT':'PUBLISHED','Tanggal tayang':'Publish date','Link posting':'Post link',
@@ -4214,123 +4350,367 @@ function renderHR(){
   $('#main').innerHTML='<div class="topbar"><h1>Karyawan</h1><span class="demo">'+hrAktif().length+' aktif</span></div>'+
     tabNote('<b>Karyawan</b>: data, onboarding, evaluasi kinerja. <b>Rekrutmen</b>: pelamar sampai diterima. <b>Payroll</b>: hitung gaji bulanan lalu salin ke AIS sheet S. ⚠ Berisi data gaji — akses diatur Holding di Hak akses.')+
     '<div style="margin-bottom:13px">'+tab('karyawan','Karyawan ('+H.karyawan.length+')')+tab('rekrutmen','Rekrutmen ('+H.kandidat.filter(function(c){return c.status!=='Ditolak'&&c.status!=='Diterima';}).length+')')+tab('payroll','Payroll')+'</div>'+isi;}
-/* ================= KONTEN / MARKETING (flow XI) =================
-   Content plan → produksi → publishing → evaluasi campaign. */
+/* ================= PLANNER KONTEN (flow XI) =================
+   Rencana → produksi → siap tayang → terbit. PIC selalu Marketing, jadi tak ada
+   kolom PIC; performa konten dilihat di dashboard Marketing sendiri, jadi tak ada
+   kolom hasil / link / caption. Yang dijaga HUB: tanggal tayang, tanggal produksi
+   (pengingat H-2 & H-1 ke Marketing), output yang harus jadi, agency, dan siapa
+   yang mengunggah. Detail dibuka di layar yang sama; ada tampilan kalender. */
 const KON_KEY='rovehub_konten_v1';
-const KON_KANAL=['Instagram Feed','Instagram Story','Instagram Reels','TikTok','WhatsApp Story','Lainnya'];
-const KON_TIPE=['Foto','Video','Carousel','Reels','Story'];
+const KON_V=2;
+const KON_LAIN='Lainnya';
+const KON_PLATFORM=['Instagram Feed','Instagram Story','Instagram Reels','TikTok','WhatsApp Story'];
+const KON_TIPE=['Carousel','Reels','Story','YouTube'];
 const KON_ST=['Rencana','Produksi','Siap tayang','Terbit','Batal'];
+const KON_JENIS=['Campaign','Regular'];
+const KON_OUT=[['foto','Foto'],['video','Video'],['grafis','Grafis / desain']];
+const KON_AGENCY=[['Tenshi Studio','foto & video',['foto','video']],['Akronim','grafis / desain',['grafis']]];
+const KON_PROD_H=3;               /* rencana produksi bawaan: 3 hari sebelum tayang */
+const KON_CH_BAWAAN='marketing';  /* channel Discord pengingat konten — bisa diganti dari Planner Konten */
 function kontenAll(){return ST.konten||(ST.konten=[]);}
 function saveKonten(){localStorage.setItem(KON_KEY,JSON.stringify(ST.konten||[]));cloudSave();}
 function loadKonten(){try{ST.konten=JSON.parse(localStorage.getItem(KON_KEY)||'null');}catch(e){ST.konten=null;}
-  if(!ST.konten){ST.konten=defKonten();localStorage.setItem(KON_KEY,JSON.stringify(ST.konten));}}
-function defKonten(){var d=function(n){var x=new Date();x.setDate(x.getDate()+n);return x.toISOString().slice(0,10);};
+  if(!ST.konten){ST.konten=defKonten();localStorage.setItem(KON_KEY,JSON.stringify(ST.konten));return;}
+  try{if(konMigrasi())localStorage.setItem(KON_KEY,JSON.stringify(ST.konten));}catch(e){}}
+function konGeserTgl(tgl,n){var d=new Date(String(tgl)+'T00:00:00');if(isNaN(d))return '';d.setDate(d.getDate()+n);return ymd(d.getFullYear(),d.getMonth()+1,d.getDate());}
+/* selisih hari kalender terhadap hariIni() — satu sumber "hari ini" untuk lencana, pengingat, dan Tugas saya */
+function konSelisih(tgl){if(!tgl)return null;var a=new Date(String(tgl)+'T00:00:00'),b=new Date(hariIni()+'T00:00:00');if(isNaN(a)||isNaN(b))return null;return Math.round((a-b)/864e5);}
+function defKonten(){
+  var h=hariIni();
+  var mk=function(id,judul,jenis,tayang,prod,platform,tipe,out,agency,upload,status,ide){
+    return {id:id,judul:judul,jenis:jenis,tgl:konGeserTgl(h,tayang),prod:konGeserTgl(h,prod),platform:platform,tipe:tipe,out:out,agency:agency,upload:upload,status:status,ide:ide,ingat:{},_v:KON_V,_m:Date.now()};};
   return [
-   {id:'K001',tgl:d(-6),kanal:'Instagram Feed',tipe:'Carousel',judul:'Behind the scene deboss custom',status:'Terbit',pic:'Marketing',caption:'',link:'',reach:4200,like:310,komen:24,save:58,klik:12,catatan:'',_m:Date.now()},
-   {id:'K002',tgl:d(-3),kanal:'Instagram Reels',tipe:'Reels',judul:'Proses jahit wallet 30 detik',status:'Terbit',pic:'Marketing',caption:'',link:'',reach:15800,like:1240,komen:86,save:210,klik:44,catatan:'',_m:Date.now()},
-   {id:'K003',tgl:d(-1),kanal:'TikTok',tipe:'Video',judul:'Unboxing hampers corporate',status:'Siap tayang',pic:'Marketing',caption:'',link:'',reach:0,like:0,komen:0,save:0,klik:0,catatan:'',_m:Date.now()},
-   {id:'K004',tgl:d(2),kanal:'Instagram Feed',tipe:'Foto',judul:'Katalog wedding series',status:'Produksi',pic:'Creative',caption:'',link:'',reach:0,like:0,komen:0,save:0,klik:0,catatan:'Foto studio hari Rabu',_m:Date.now()},
-   {id:'K005',tgl:d(6),kanal:'Instagram Story',tipe:'Story',judul:'Countdown promo akhir bulan',status:'Rencana',pic:'Marketing',caption:'',link:'',reach:0,like:0,komen:0,save:0,klik:0,catatan:'',_m:Date.now()}];}
+   mk('K001','Behind the scene deboss custom','Regular',-13,-18,'Instagram Feed','Carousel',{foto:6},'Tenshi Studio','Agency','Terbit','Close-up plat deboss, tangan pengrajin, hasil akhir di kemasan.'),
+   mk('K002','Proses jahit wallet 30 detik','Regular',-8,-12,'Instagram Reels','Reels',{video:1},'Tenshi Studio','Agency','Terbit','Satu take tanpa cut, musik lembut, teks kecil nama teknik jahit.'),
+   mk('K003','Unboxing hampers corporate','Campaign',1,-2,'TikTok','Reels',{video:1},'Tenshi Studio','Jessica','Siap tayang','Kampanye gifting akhir tahun. Buka box lapis demi lapis; tunjukkan thank you card bernama.'),
+   mk('K004','Katalog wedding series','Campaign',6,2,'Instagram Feed','Carousel',{grafis:8},'Akronim','Agency','Produksi','8 slide: 4 produk × 2 varian warna, layout katalog, harga mulai dari.'),
+   mk('K005','Countdown promo akhir bulan','Campaign',12,9,'Instagram Story','Story',{grafis:3},'Akronim','Agency','Rencana','3 story: H-3, H-1, hari H. Sticker countdown + swipe ke katalog.'),
+   mk('K006','Tutorial merawat kulit nabati','Regular',16,13,'YouTube','YouTube',{video:1,foto:3},'','Jessica','Rencana','Video 3 menit: bersihkan, kondisioner, simpan. Foto untuk thumbnail & carousel pendamping.')];}
+/* Data lama (kanal / PIC / caption / link / angka hasil) → bentuk baru. Teks lama tak dibuang:
+   catatan, caption, dan link digabung ke Catatan ide. Angka hasil dilepas — dashboard Marketing yang menyimpannya. */
+function konMigrasiSatu(k){
+  if(!k||k._v>=KON_V)return false;
+  if(k.platform===undefined)k.platform=k.kanal||KON_LAIN;
+  if(!k.tipe)k.tipe=KON_LAIN;
+  if(!k.jenis)k.jenis='Regular';
+  k.ide=[k.ide,k.catatan,k.caption,(k.link?('Link: '+k.link):'')].filter(function(x){return x&&String(x).trim();}).join(' · ');
+  if(!k.out||typeof k.out!=='object'){k.out={};if(k.tipe==='Foto')k.out.foto=1;else if(k.tipe==='Video'||k.tipe==='Reels')k.out.video=1;}
+  if(k.prod===undefined)k.prod=k.tgl?konGeserTgl(k.tgl,-KON_PROD_H):'';
+  if(k.agency===undefined)k.agency='';
+  if(!k.upload)k.upload=k.agency?'Agency':'Jessica';
+  if(!k.ingat)k.ingat={};
+  ['kanal','pic','caption','link','catatan','reach','like','komen','save','klik'].forEach(function(f){delete k[f];});
+  k._v=KON_V;return true;}
+function konMigrasi(){
+  var K=ST.konten;if(!Array.isArray(K))return false;
+  /* lima contoh bawaan versi lama yang belum disentuh bentuk baru → diganti contoh baru yang terisi lengkap */
+  if(K.length&&K.every(function(k){return k&&/^K00[1-5]$/.test(k.id)&&!(k._v>=KON_V);})){ST.konten=defKonten();return true;}
+  var n=0;K.forEach(function(k){if(konMigrasiSatu(k))n++;});return n>0;}
+function konCari(id){return kontenAll().find(function(x){return x.id===id;});}
 function konTerlambat(k){ // sudah lewat tanggal tayang tapi belum terbit
-  if(k.status==='Terbit'||k.status==='Batal')return false;
-  var dn=dLeft(k.tgl);return dn!==null&&dn<0;}
-function konAdd(){
-  var d7=new Date();d7.setDate(d7.getDate()+7);
-  askForm({judul:'Konten baru',sub:'Masuk ke kalender konten',
-    fields:[{k:'judul',label:'Judul / tema konten',type:'text',req:true,ph:'mis. Behind the scene deboss'},
-      {k:'tgl',label:'Rencana tayang',type:'date',val:d7.toISOString().slice(0,10)},
-      {k:'kanal',label:'Kanal',type:'select',val:'Instagram Feed',opts:KON_KANAL},
-      {k:'tipe',label:'Tipe',type:'select',val:'Foto',opts:KON_TIPE},
-      {k:'pic',label:'PIC',type:'text',val:(ST.userName||ST.user||'')},
-      {k:'catatan',label:'Catatan / ide caption',type:'textarea'}],
-    ok:function(v){
-      kontenAll().unshift({id:'K'+Math.random().toString(36).slice(2,7),tgl:v.tgl,kanal:v.kanal,tipe:v.tipe,
-        judul:v.judul,status:'Rencana',pic:v.pic,caption:'',link:'',
-        reach:0,like:0,komen:0,save:0,klik:0,catatan:v.catatan,_m:Date.now()});
-      saveKonten();render();}});}
-function konSet(id,f,v){var k=kontenAll().find(function(x){return x.id===id;});if(!k)return;
-  k[f]=['reach','like','komen','save','klik'].indexOf(f)>=0?Math.max(0,+v||0):v;k._m=Date.now();saveKonten();render();}
+  if(!k||k.status==='Terbit'||k.status==='Batal')return false;
+  var dn=konSelisih(k.tgl);return dn!==null&&dn<0;}
+function konPlatLain(v){return !!v&&KON_PLATFORM.indexOf(v)<0;}
+function konTipeLain(v){return !!v&&KON_TIPE.indexOf(v)<0;}
+function konOutTotal(o){return KON_OUT.reduce(function(s,x){return s+(+((o||{})[x[0]])||0);},0);}
+function konOutTeks(o){var t=KON_OUT.filter(function(x){return +((o||{})[x[0]])>0;}).map(function(x){return (+o[x[0]])+' '+x[0];});return t.length?t.join(' · '):'—';}
+function konStKelas(s){return ({'Rencana':'rencana','Produksi':'produksi','Siap tayang':'siap','Terbit':'terbit','Batal':'batal'})[s]||'rencana';}
+function konAgencySaran(out){var s={};KON_AGENCY.forEach(function(a){if(a[2].some(function(x){return +((out||{})[x])>0;}))s[a[0]]=1;});return s;}
+function konUploadTeks(k){return k.upload==='Agency'?('Agency'+(k.agency?(' ('+k.agency+')'):'')):'Jessica (Creative)';}
+/* ---------- pengingat produksi: H-2 & H-1 ke Marketing ---------- */
+function konProdAktif(k){return !!k&&(k.status==='Rencana'||k.status==='Produksi')&&!!k.prod;}
+/* tanggal pengingat dikirim; yang jatuh Sabtu/Minggu dimajukan ke Jumat supaya tak terlewat di akhir pekan */
+function konIngatTgl(k){
+  if(!k||!k.prod)return null;
+  var f=function(n){var d=new Date(String(k.prod)+'T00:00:00');if(isNaN(d))return '';d.setDate(d.getDate()-n);
+    while(d.getDay()===0||d.getDay()===6)d.setDate(d.getDate()-1);
+    return ymd(d.getFullYear(),d.getMonth()+1,d.getDate());};
+  var T={h2:f(2),h1:f(1)};return T.h1?T:null;}
+function konIngatJatuhTempo(){
+  var hari=hariIni(),out=[];
+  kontenAll().forEach(function(k){
+    if(!konProdAktif(k)||k.prod<=hari)return;
+    var T=konIngatTgl(k),I=k.ingat||{};if(!T)return;
+    if(hari>=T.h1){if(I.h1!==k.prod)out.push({k:k,slot:'h1'});}
+    else if(hari>=T.h2){if(I.h2!==k.prod)out.push({k:k,slot:'h2'});}});
+  return out;}
+function konCh(){return String((ST.master&&ST.master.kontenCh)||KON_CH_BAWAAN);}
+function konChBoleh(){return ['Marketing','Holding','Direktur Utama'].some(function(r){return myRoles().indexOf(r)>=0;});}
+function konChAtur(){
+  if(!konChBoleh()){alert('Channel pengingat konten diatur Marketing (atau Direktur / Holding).');return;}
+  askForm({judul:'Channel Discord pengingat konten',sub:'Pengingat produksi H-2 & H-1 dikirim ke channel ini saat mode live menyala',tanpaDraf:true,
+    fields:[{k:'ch',label:'Nama channel (tanpa #)',type:'text',req:true,val:konCh(),ph:'mis. marketing'}],
+    ok:function(v){var ch=String(v.ch||'').trim().replace(/^#+/,'').toLowerCase().replace(/\s+/g,'-');
+      if(!ch){alert('Nama channel wajib diisi.');return;}
+      if(!ST.master)return;ST.master.kontenCh=ch;saveMaster();render();kilat('Channel pengingat konten: #'+ch);}});}
+function konIngatPesan(k){var d=konSelisih(k.prod);
+  return '⏰ '+picMention('Marketing')+' — **produksi konten H-'+d+'**: '+k.judul+' · produksi '+tglID(k.prod)+' · tayang '+tglID(k.tgl)+
+    ' · '+(k.platform||'-')+' / '+(k.tipe||'-')+' · output '+konOutTeks(k.out)+' · '+(k.agency?('agency '+k.agency):'tanpa agency')+
+    ' · diunggah '+konUploadTeks(k)+'. Detail di HUB → Planner Konten.';}
+function jalankanIngatKonten(){
+  var due=konIngatJatuhTempo();if(!due.length)return 0;
+  due.forEach(function(x){var k=x.k;
+    notifyChannel(konCh(),konIngatPesan(k));
+    if(!k.ingat)k.ingat={};k.ingat[x.slot]=k.prod;if(x.slot==='h1')k.ingat.h2=k.prod;
+    k.ingat.tgl=hariIni();k._m=Date.now();});
+  saveKonten();return due.length;}
+/* yang perlu ditindak Marketing — satu baris per konten, yang paling mendesak dulu */
+function konTugasDaftar(){
+  var hari=hariIni(),out=[];
+  kontenAll().forEach(function(k){
+    if(!k||k.status==='Terbit'||k.status==='Batal')return;
+    var dt=konSelisih(k.tgl),dp=k.prod?konSelisih(k.prod):null,T=konIngatTgl(k);
+    if(dt!==null&&dt<0)out.push({k:k,jenis:'tayangLewat',d:dt,teks:'lewat jadwal tayang '+(-dt)+' hari',warna:'var(--red)'});
+    else if(dt===0)out.push({k:k,jenis:'tayangIni',d:0,teks:'tayang HARI INI',warna:'var(--warn)'});
+    else if(konProdAktif(k)&&dp!==null&&dp<0&&k.status==='Rencana')out.push({k:k,jenis:'prodLewat',d:dp,teks:'produksi lewat '+(-dp)+' hari — status masih Rencana',warna:'var(--red)'});
+    else if(konProdAktif(k)&&dp===0)out.push({k:k,jenis:'prodIni',d:0,teks:'produksi HARI INI',warna:'var(--warn)'});
+    else if(konProdAktif(k)&&dp!==null&&dp>0&&T&&hari>=T.h2)out.push({k:k,jenis:'prod',d:dp,teks:'produksi H-'+dp+' · '+tglID(k.prod),warna:'var(--warn)'});});
+  var urut={tayangLewat:0,tayangIni:1,prodLewat:2,prodIni:3,prod:4};
+  out.sort(function(a,b){return (urut[a.jenis]-urut[b.jenis])||(a.d-b.d);});
+  return out;}
+function konBukaDari(id){ST.view='konten';ST.cur=null;ST._konTab='daftar';ST._kb='';ST._kj='';ST._kk='';ST._ks='';ST._konBuka=id;render();
+  setTimeout(function(){try{var e=document.querySelector('[data-f="kon_'+id+'"]');if(e&&e.scrollIntoView)e.scrollIntoView({block:'center'});}catch(x){}},40);}
+function konTugasBlok(){
+  var D=konTugasDaftar();if(!D.length)return '';
+  return '<div class="rcard" data-f="konTugas" style="max-width:660px;margin-bottom:14px"><h3 style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">◨ Planner Konten'+
+    '<span style="font-size:10px;font-weight:800;color:#2b1d0e;background:var(--gold);border-radius:20px;padding:1px 8px">'+D.length+' perlu ditindak</span>'+
+    '<span style="font-size:10px;color:var(--muted);font-weight:600">produksi H-2 &amp; H-1 · jadwal tayang</span></h3>'+
+    D.map(function(x){var k=x.k;
+      return '<div data-f="konTugas_'+esc(k.id)+'" style="display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center;padding:8px 10px;border:1px solid var(--line);border-radius:9px;margin-bottom:6px;background:var(--bg);font-size:10.5px;cursor:pointer" onclick="konBukaDari('+jsArg(k.id)+')">'+
+        '<div style="flex:1;min-width:180px"><b>'+esc(k.judul)+'</b> <span style="color:var(--muted)">· '+esc(k.platform||'—')+' · '+esc(konOutTeks(k.out))+(k.agency?(' · '+esc(k.agency)):'')+'</span>'+
+          '<div style="font-size:9.5px;color:var(--muted)">tayang '+(k.tgl?tglID(k.tgl):'—')+' · produksi '+(k.prod?tglID(k.prod):'—')+' · '+esc(k.status)+'</div></div>'+
+        '<span style="font-size:9.5px;font-weight:800;color:'+x.warna+'">'+esc(x.teks)+'</span></div>';}).join('')+'</div>';}
+/* ---------- form ＋ Konten baru — di layar Planner Konten, bukan jendela terpisah ---------- */
+function konAdd(tgl){
+  if(!ST._konForm){var t=(tgl&&/^\d{4}-\d{2}-\d{2}$/.test(String(tgl)))?String(tgl):konGeserTgl(hariIni(),7);
+    ST._konForm={judul:'',jenis:'Regular',tgl:t,prod:konGeserTgl(t,-KON_PROD_H),prodManual:false,platform:KON_PLATFORM[0],platLain:'',tipe:KON_TIPE[0],tipeLain:'',out:{foto:0,video:0,grafis:0},agency:'',upload:'Jessica',ide:''};}
+  ST.view='konten';ST.cur=null;render();
+  setTimeout(function(){try{var c=document.getElementById('konFormCard');if(c&&c.scrollIntoView)c.scrollIntoView({block:'start'});var e=document.getElementById('konFJudul');if(e&&e.focus)e.focus();}catch(x){}},40);}
+function konFormBatal(){ST._konForm=null;render();}
+function konFormSegar(fokus){
+  var c=document.getElementById('konFormCard');if(!c){render();return;}
+  c.outerHTML=konFormHTML();
+  try{trDOM(document.getElementById('konFormCard'));}catch(e){}
+  if(fokus){try{var el=document.getElementById(fokus);if(el&&el.focus)el.focus();}catch(e){}}}
+function konF(f,v,fokus){var F=ST._konForm;if(!F)return;
+  if(f==='judul'||f==='ide'||f==='platLain'||f==='tipeLain'){F[f]=v;return;}   /* ketikan: simpan saja, form tak digambar ulang */
+  if(f==='tgl'){F.tgl=v;if(!F.prodManual&&v)F.prod=konGeserTgl(v,-KON_PROD_H);}
+  else if(f==='prod'){F.prod=v;F.prodManual=true;}
+  else if(f==='agency'){F.agency=v;F.upload=v?'Agency':'Jessica';}   /* yang mengunggah ikut agency — masih bisa diganti sesudahnya */
+  else F[f]=v;
+  konFormSegar(fokus);}
+function konFOut(key,v,fokus){var F=ST._konForm;if(!F)return;F.out[key]=Math.max(0,Math.round(+v||0));konFormSegar(fokus);}
+function konFormHTML(){
+  var F=ST._konForm;if(!F)return '';
+  var saran=konAgencySaran(F.out),tot=konOutTotal(F.out),salah=(F.prod&&F.tgl&&F.prod>F.tgl);
+  var opt=function(L,cur){return L.map(function(x){return '<option '+(cur===x?'selected':'')+'>'+esc(x)+'</option>';}).join('')+'<option value="'+KON_LAIN+'" '+(cur===KON_LAIN?'selected':'')+'>Lainnya — isi sendiri</option>';};
+  var agencyOpsi=KON_AGENCY.map(function(a,i){return '<label class="'+(F.agency===a[0]?'on':'')+'"><input type="radio" name="konFAgency" id="konFAg'+i+'" value="'+esc(a[0])+'" '+(F.agency===a[0]?'checked':'')+' onchange="konF(\'agency\',this.value,\'konFAg'+i+'\')"><span>'+esc(a[0])+(saran[a[0]]?' <span class="kon-saran">disarankan</span>':'')+'<small>'+esc(a[1])+'</small></span></label>';}).join('')+
+    '<label class="'+(!F.agency?'on':'')+'"><input type="radio" name="konFAgency" id="konFAgX" value="" '+(!F.agency?'checked':'')+' onchange="konF(\'agency\',\'\',\'konFAgX\')"><span>Tanpa agency<small>dikerjakan Jessica / tim sendiri</small></span></label>';
+  return '<div class="rcard" id="konFormCard" data-f="konForm">'+
+    '<h3 style="display:flex;align-items:center;gap:9px;flex-wrap:wrap">＋ Konten baru <span class="kon-kecil" style="font-weight:700">masuk ke kalender konten · PIC selalu Marketing</span></h3>'+
+    '<div class="kon-form">'+
+      '<div class="kfld lebar"><div class="nlbl">Judul / tema konten</div><input class="pin" id="konFJudul" value="'+esc(F.judul)+'" placeholder="mis. Behind the scene deboss custom" oninput="konF(\'judul\',this.value)"></div>'+
+      '<div class="kfld lebar"><div class="nlbl">Jenis</div><div class="kseg" data-f="konFJenis">'+KON_JENIS.map(function(j){return '<button type="button" id="konFJ_'+j+'" class="'+(F.jenis===j?'on':'')+'" aria-pressed="'+(F.jenis===j?'true':'false')+'" onclick="konF(\'jenis\','+jsArg(j)+',\'konFJ_'+j+'\')">'+j+'</button>';}).join('')+'</div>'+
+        '<div class="kon-hint">Campaign = bagian dari kampanye bertema; Regular = konten rutin.</div></div>'+
+      '<div class="kfld"><div class="nlbl">Rencana tayang</div><input class="pin" type="date" id="konFTgl" value="'+esc(F.tgl)+'" onchange="konF(\'tgl\',this.value,\'konFTgl\')"></div>'+
+      '<div class="kfld"><div class="nlbl">Rencana produksi</div><input class="pin" type="date" id="konFProd" value="'+esc(F.prod)+'" onchange="konF(\'prod\',this.value,\'konFProd\')">'+
+        '<div class="kon-hint">'+(salah?'<b style="color:var(--red)">Jatuh sesudah tanggal tayang — periksa lagi.</b> ':'')+'Bawaan '+KON_PROD_H+' hari sebelum tayang. <b>Marketing diingatkan H-2 dan H-1</b> sebelum tanggal ini.</div></div>'+
+      '<div class="kfld"><div class="nlbl">Platform</div><select class="pin" id="konFPlat" onchange="konF(\'platform\',this.value,\'konFPlat\')">'+opt(KON_PLATFORM,F.platform)+'</select>'+
+        (F.platform===KON_LAIN?'<input class="pin" id="konFPlatLain" style="margin-top:6px" value="'+esc(F.platLain)+'" placeholder="tulis platformnya, mis. YouTube, LinkedIn" oninput="konF(\'platLain\',this.value)">':'')+'</div>'+
+      '<div class="kfld"><div class="nlbl">Tipe</div><select class="pin" id="konFTipe" onchange="konF(\'tipe\',this.value,\'konFTipe\')">'+opt(KON_TIPE,F.tipe)+'</select>'+
+        (F.tipe===KON_LAIN?'<input class="pin" id="konFTipeLain" style="margin-top:6px" value="'+esc(F.tipeLain)+'" placeholder="tulis tipenya, mis. live, foto tunggal" oninput="konF(\'tipeLain\',this.value)">':'')+'</div>'+
+      '<div class="kfld"><div class="nlbl">Jumlah output konten</div><div class="kon-out">'+KON_OUT.map(function(x){var n=+F.out[x[0]]||0;
+          return '<label class="'+(n?'':'mati')+'"><input type="checkbox" id="konFOc_'+x[0]+'" '+(n?'checked':'')+' onchange="konFOut(\''+x[0]+'\',this.checked?1:0,\'konFOn_'+x[0]+'\')"><span style="flex:1">'+x[1]+'</span>'+
+            '<input class="pin n" type="number" min="1" inputmode="numeric" id="konFOn_'+x[0]+'" value="'+(n||'')+'" '+(n?'':'disabled')+' onchange="konFOut(\''+x[0]+'\',this.value,\'konFOn_'+x[0]+'\')"><span class="satuan">file</span></label>';}).join('')+'</div>'+
+        '<div class="kon-hint">Centang jenis filenya, lalu isi jumlahnya. Total '+tot+' file.</div></div>'+
+      '<div class="kfld"><div class="nlbl">Agency</div><div class="kon-opsi">'+agencyOpsi+'</div>'+
+        '<div class="kon-hint">Saran mengikuti output yang dicentang: foto / video → Tenshi Studio, grafis → Akronim.</div></div>'+
+      '<div class="kfld lebar"><div class="nlbl">Yang mengunggah</div><div class="kon-opsi">'+
+        '<label class="'+(F.upload!=='Agency'?'on':'')+'"><input type="radio" name="konFUpload" id="konFUpJ" value="Jessica" '+(F.upload!=='Agency'?'checked':'')+' onchange="konF(\'upload\',\'Jessica\',\'konFUpJ\')"><span>Jessica<small>Creative</small></span></label>'+
+        '<label class="'+(F.upload==='Agency'?'on':'')+'"><input type="radio" name="konFUpload" id="konFUpA" value="Agency" '+(F.upload==='Agency'?'checked':'')+' onchange="konF(\'upload\',\'Agency\',\'konFUpA\')"><span>Agency<small>'+esc(F.agency||'pilih agency-nya dulu')+'</small></span></label></div>'+
+        '<div class="kon-hint">'+(F.agency?('Otomatis ikut agency yang dipilih ('+esc(F.agency)+') — masih bisa diganti ke Jessica.'):'Tanpa agency: yang mengunggah Jessica.')+'</div></div>'+
+      '<div class="kfld lebar"><div class="nlbl">Catatan ide</div><textarea class="pin" id="konFIde" rows="3" placeholder="angle, referensi, hal yang wajib terlihat" oninput="konF(\'ide\',this.value)">'+esc(F.ide)+'</textarea></div>'+
+      '<div class="lebar kon-aksi" style="justify-content:flex-start;border-top:none;padding-top:0;margin-top:0">'+
+        '<button class="btn" data-f="konSimpan" onclick="konSimpanBaru()">Simpan ke kalender</button>'+
+        '<button class="btn ghost" onclick="konFormBatal()">Batal</button>'+
+        '<span class="kon-kecil">Sesudah disimpan statusnya <b>Rencana</b>; status dinaikkan dari detail konten.</span></div>'+
+    '</div></div>';}
+function konSimpanBaru(){var F=ST._konForm;if(!F)return;
+  var judul=String(F.judul||'').trim();
+  if(!judul){alert('Judul / tema konten wajib diisi.');return;}
+  if(!F.tgl){alert('Rencana tayang wajib diisi.');return;}
+  var plat=F.platform===KON_LAIN?String(F.platLain||'').trim():F.platform;
+  if(!plat){alert('Platform "Lainnya" ditulis sendiri — isi kotak di bawah pilihan Platform.');return;}
+  var tipe=F.tipe===KON_LAIN?String(F.tipeLain||'').trim():F.tipe;
+  if(!tipe){alert('Tipe "Lainnya" ditulis sendiri — isi kotak di bawah pilihan Tipe.');return;}
+  if(F.prod&&F.prod>F.tgl){alert('Rencana produksi jatuh sesudah tanggal tayang — periksa lagi tanggalnya.');return;}
+  if(F.upload==='Agency'&&!F.agency){alert('Yang mengunggah "Agency" — pilih dulu agency-nya, atau ganti ke Jessica.');return;}
+  var out={};KON_OUT.forEach(function(x){var n=+F.out[x[0]]||0;if(n>0)out[x[0]]=n;});
+  var k={id:'K'+Math.random().toString(36).slice(2,7),judul:judul,jenis:F.jenis||'Regular',tgl:F.tgl,prod:F.prod||'',platform:plat,tipe:tipe,out:out,
+    agency:F.agency||'',upload:F.upload||'Jessica',status:'Rencana',ide:String(F.ide||'').trim(),ingat:{},oleh:(ST.userName||ST.user||''),_v:KON_V,_m:Date.now()};
+  kontenAll().unshift(k);
+  ST._konForm=null;ST._konBuka=k.id;ST._konBulan=String(k.tgl).slice(0,7);ST._konHari=k.tgl;
+  ST._kb='';ST._kj='';ST._kk='';ST._ks='';   /* saringan dilepas supaya konten baru pasti terlihat */
+  saveKonten();render();kilat('Tersimpan ke kalender konten');
+  setTimeout(function(){try{var e=document.querySelector('[data-f="kon_'+k.id+'"]');if(e&&e.scrollIntoView)e.scrollIntoView({block:'center'});}catch(x){}},40);}
+/* ---------- ubah dari detail ---------- */
+function konSet(id,f,v){var k=konCari(id);if(!k)return;
+  if(f==='judul'){v=String(v||'').trim();if(!v){alert('Judul tak boleh kosong.');render();return;}}
+  if(f==='platform'||f==='tipe')v=String(v||'').trim()||KON_LAIN;
+  if(f==='upload'&&v==='Agency'&&!k.agency){alert('Pilih agency-nya dulu — baru "yang mengunggah" bisa Agency.');render();return;}
+  k[f]=v;
+  if(f==='agency')k.upload=v?'Agency':'Jessica';
+  k._m=Date.now();saveKonten();render();}
+function konOutSet(id,key,v){var k=konCari(id);if(!k)return;
+  if(!k.out||typeof k.out!=='object')k.out={};
+  var n=Math.max(0,Math.round(+v||0));if(n)k.out[key]=n;else delete k.out[key];
+  k._m=Date.now();saveKonten();render();}
 function konDel(id){var i=kontenAll().findIndex(function(x){return x.id===id;});if(i<0)return;
-  if(!confirm('Hapus konten "'+ST.konten[i].judul+'"?'))return;ST.konten.splice(i,1);saveKonten();render();}
-function konBulan(){var s={};kontenAll().forEach(function(k){if(k.tgl)s[k.tgl.slice(0,7)]=1;});return Object.keys(s).sort().reverse();}
+  if(!confirm('Hapus konten "'+ST.konten[i].judul+'"?\n\nKalau kontennya batal, lebih baik tekan "Batalkan" supaya tetap tercatat.'))return;
+  ST.konten.splice(i,1);if(ST._konBuka===id)ST._konBuka=null;saveKonten();render();}
+function konBulan(){var s={};kontenAll().forEach(function(k){if(k.tgl)s[String(k.tgl).slice(0,7)]=1;});return Object.keys(s).sort().reverse();}
+function konToggle(id){ST._konBuka=(ST._konBuka===id?null:id);render();}
+function konTab(v){ST._konTab=(v==='kalender'?'kalender':'daftar');render();}
+function konBulanGeser(n){
+  if(!n){ST._konBulan=hariIni().slice(0,7);render();return;}
+  var p=String(ST._konBulan||hariIni().slice(0,7)).split('-'),y=+p[0],m=+p[1]+n;
+  if(m<1){m=12;y--;}if(m>12){m=1;y++;}
+  ST._konBulan=y+'-'+String(m).padStart(2,'0');render();}
+function konKalHari(tgl){ST._konHari=tgl;ST._konBuka=null;render();}
+function konKalBuka(id,tgl){ST._konHari=tgl;ST._konBuka=id;render();
+  setTimeout(function(){try{var e=document.getElementById('konKalDetail');if(e&&e.scrollIntoView)e.scrollIntoView({block:'nearest'});}catch(x){}},40);}
+function konProdTampil(on){ST._konProdTampil=!!on;render();}
+/* ---------- potongan tampilan ---------- */
+function konTayangKet(k){var d=konSelisih(k.tgl);
+  if(k.status==='Terbit')return '<span class="kon-ket ok">terbit</span>';
+  if(k.status==='Batal')return '<span class="kon-ket">batal</span>';
+  if(d===null)return '';
+  if(d<0)return '<span class="kon-ket lewat">lewat '+(-d)+' hari</span>';
+  if(d===0)return '<span class="kon-ket ini">tayang HARI INI</span>';
+  return '<span class="kon-ket">'+d+' hari lagi</span>';}
+function konProdBadge(k){
+  if(!k.prod||!konProdAktif(k))return '';
+  var d=konSelisih(k.prod);if(d===null)return '';
+  if(d<0)return k.status==='Rencana'?('<span class="kon-ingat lewat">⏰ produksi lewat '+(-d)+' hari</span>'):'';
+  if(d===0)return '<span class="kon-ingat">⏰ produksi HARI INI</span>';
+  var T=konIngatTgl(k);
+  if(T&&hariIni()>=T.h2)return '<span class="kon-ingat">⏰ H-'+d+' · Marketing diingatkan</span>';
+  return '<span class="kon-ingat nanti">pengingat H-2 &amp; H-1</span>';}
+function konDetailHTML(k){
+  var i=KON_ST.indexOf(k.status),alur=KON_ST.slice(0,4),id=jsArg(k.id);
+  var pl=konPlatLain(k.platform),tl=konTipeLain(k.tipe),salah=(k.prod&&k.tgl&&k.prod>k.tgl);
+  var opt=function(L,cur,lain){return L.map(function(x){return '<option '+(cur===x?'selected':'')+'>'+esc(x)+'</option>';}).join('')+'<option value="'+KON_LAIN+'" '+(lain?'selected':'')+'>Lainnya — isi sendiri</option>';};
+  return '<div class="kon-detail" data-f="konDetail_'+esc(k.id)+'">'+
+    '<div class="kon-stepper">'+alur.map(function(s,n){var lewat=(i>n&&i<4);
+        return (n?'<span class="sep">›</span>':'')+'<button type="button" class="kchip'+(s===k.status?' on':(lewat?' lewat':''))+'" data-f="konSt_'+esc(k.id)+'_'+n+'" onclick="konSet('+id+',\'status\','+jsArg(s)+')">'+(lewat?'✓ ':'')+esc(s)+'</button>';}).join('')+
+      (k.status==='Batal'?'<span class="kon-status batal" style="margin-left:6px">Batal</span>':'')+
+      '<span class="kon-kecil" style="margin-left:6px">klik untuk mengubah status</span></div>'+
+    '<div class="kon-dgrid">'+
+      '<div class="kfld lebar"><div class="nlbl">Judul / tema konten</div><input class="pin" value="'+esc(k.judul)+'" onchange="konSet('+id+',\'judul\',this.value)"></div>'+
+      '<div class="kfld"><div class="nlbl">Rencana tayang</div><input type="date" class="pin" value="'+esc(k.tgl)+'" onchange="konSet('+id+',\'tgl\',this.value)"></div>'+
+      '<div class="kfld"><div class="nlbl">Rencana produksi</div><input type="date" class="pin" value="'+esc(k.prod)+'" onchange="konSet('+id+',\'prod\',this.value)">'+
+        '<div class="kon-hint">'+(salah?'<b style="color:var(--red)">Jatuh sesudah tanggal tayang — periksa lagi.</b>':'Marketing diingatkan H-2 &amp; H-1')+'</div></div>'+
+      '<div class="kfld"><div class="nlbl">Jenis</div><select class="pin" onchange="konSet('+id+',\'jenis\',this.value)">'+KON_JENIS.map(function(j){return '<option '+(k.jenis===j?'selected':'')+'>'+j+'</option>';}).join('')+'</select></div>'+
+      '<div class="kfld"><div class="nlbl">Platform</div><select class="pin" onchange="konSet('+id+',\'platform\',this.value)">'+opt(KON_PLATFORM,k.platform,pl)+'</select>'+
+        (pl?'<input class="pin" style="margin-top:6px" value="'+esc(k.platform===KON_LAIN?'':k.platform)+'" placeholder="tulis platformnya, mis. YouTube, LinkedIn" onchange="konSet('+id+',\'platform\',this.value)">':'')+'</div>'+
+      '<div class="kfld"><div class="nlbl">Tipe</div><select class="pin" onchange="konSet('+id+',\'tipe\',this.value)">'+opt(KON_TIPE,k.tipe,tl)+'</select>'+
+        (tl?'<input class="pin" style="margin-top:6px" value="'+esc(k.tipe===KON_LAIN?'':k.tipe)+'" placeholder="tulis tipenya, mis. live, foto tunggal" onchange="konSet('+id+',\'tipe\',this.value)">':'')+'</div>'+
+      '<div class="kfld"><div class="nlbl">Jumlah output konten</div><div class="kon-out">'+KON_OUT.map(function(x){var n=+((k.out||{})[x[0]])||0;
+          return '<label class="'+(n?'':'mati')+'"><input type="checkbox" '+(n?'checked':'')+' onchange="konOutSet('+id+',\''+x[0]+'\',this.checked?1:0)"><span style="flex:1">'+x[1]+'</span>'+
+            '<input class="pin n" type="number" min="1" inputmode="numeric" value="'+(n||'')+'" '+(n?'':'disabled')+' onchange="konOutSet('+id+',\''+x[0]+'\',this.value)"><span class="satuan">file</span></label>';}).join('')+'</div>'+
+        '<div class="kon-hint">Total '+konOutTotal(k.out)+' file</div></div>'+
+      '<div class="kfld"><div class="nlbl">Agency</div><select class="pin" onchange="konSet('+id+',\'agency\',this.value)"><option value="">Tanpa agency — dikerjakan sendiri</option>'+
+          KON_AGENCY.map(function(a){return '<option value="'+esc(a[0])+'" '+(k.agency===a[0]?'selected':'')+'>'+esc(a[0])+' — '+esc(a[1])+'</option>';}).join('')+'</select>'+
+        '<div class="nlbl" style="margin-top:10px">Yang mengunggah</div><select class="pin" onchange="konSet('+id+',\'upload\',this.value)">'+
+          '<option value="Jessica" '+(k.upload!=='Agency'?'selected':'')+'>Jessica (Creative)</option><option value="Agency" '+(k.upload==='Agency'?'selected':'')+'>Agency'+(k.agency?(' — '+esc(k.agency)):'')+'</option></select>'+
+        '<div class="kon-hint">Ikut agency yang dipilih — masih bisa diganti.</div></div>'+
+      '<div class="kfld lebar"><div class="nlbl">Catatan ide</div><textarea class="pin" rows="3" onchange="konSet('+id+',\'ide\',this.value)">'+esc(k.ide)+'</textarea></div>'+
+    '</div>'+
+    '<div class="kon-aksi"><span class="kon-kecil" style="margin-right:auto">PIC: Marketing · performa konten dilihat di dashboard Marketing sendiri.</span>'+
+      ((k.status!=='Terbit'&&k.status!=='Batal')?'<button class="btn sm" data-f="konTerbit_'+esc(k.id)+'" onclick="konSet('+id+',\'status\',\'Terbit\')">✓ Tandai terbit</button>':'')+
+      (k.status==='Batal'?'<button class="btn ghost sm" onclick="konSet('+id+',\'status\',\'Rencana\')">↺ Aktifkan lagi</button>':'<button class="btn ghost sm" onclick="konSet('+id+',\'status\',\'Batal\')">Batalkan</button>')+
+      '<button class="btn ghost sm" onclick="konDel('+id+')">Hapus</button>'+
+      '<button class="btn ghost sm" onclick="konToggle('+id+')">Tutup</button></div></div>';}
+function konBarisHTML(k,buka){var id=jsArg(k.id);
+  return '<div class="kon-row'+(buka?' buka':'')+(konTerlambat(k)?' telat':'')+'" data-f="kon_'+esc(k.id)+'">'+
+    '<div class="kon-rhead" role="button" tabindex="0" aria-expanded="'+(buka?'true':'false')+'" onclick="konToggle('+id+')" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();konToggle('+id+');}">'+
+      '<div class="ktgl"><span class="kon-rlbl">Tayang</span><b>'+(k.tgl?tglID(k.tgl):'—')+'</b>'+konTayangKet(k)+'</div>'+
+      '<div class="kjudul"><b>'+esc(k.judul)+'</b><span class="kon-jenis '+(k.jenis==='Campaign'?'campaign':'regular')+'">'+esc(k.jenis||'Regular')+'</span><div class="kon-kecil">'+esc(k.platform||'—')+' · '+esc(k.tipe||'—')+'</div></div>'+
+      '<div class="kkol"><span class="kon-rlbl">Produksi</span><span>'+(k.prod?tglID(k.prod):'—')+'</span>'+konProdBadge(k)+'</div>'+
+      '<div class="kkol"><span class="kon-rlbl">Output</span>'+esc(konOutTeks(k.out))+'</div>'+
+      '<div class="kkol"><span class="kon-rlbl">Agency · unggah</span>'+esc(k.agency||'tanpa agency')+'<small>diunggah '+(k.upload==='Agency'?'agency':'Jessica')+'</small></div>'+
+      '<div class="kst"><span class="kon-status '+konStKelas(k.status)+'">'+esc(k.status)+'</span></div>'+
+    '</div>'+(buka?konDetailHTML(k):'')+'</div>';}
+function konIngatKartu(){
+  var D=konTugasDaftar().filter(function(x){return x.jenis==='prod'||x.jenis==='prodIni'||x.jenis==='prodLewat';});
+  var live=!!((ST.cfg||{}).live&&(ST.cfg||{}).url);
+  return '<div class="kon-ingatkartu" data-f="konIngat"><b>⏰ Pengingat produksi</b>'+
+    (D.length?('<div>'+D.map(function(x){return '<span class="kon-ingatitem" onclick="konBukaDari('+jsArg(x.k.id)+')"><b>'+esc(x.k.judul)+'</b> — '+esc(x.teks)+'</span>';}).join('')+'</div>')
+      :'<div>Tak ada produksi dalam 2 hari ke depan.</div>')+
+    '<div class="kon-kecil" style="margin-top:4px">Otomatis ke Marketing pada <b>H-2</b> dan <b>H-1</b> sebelum tanggal produksi (yang jatuh Sabtu / Minggu dimajukan ke Jumat): muncul di <b>Tugas saya</b> Marketing'+
+      (live?(' dan dikirim ke Discord <b>#'+esc(konCh())+'</b>.'):(' — kiriman Discord ke <b>#'+esc(konCh())+'</b> menyusul begitu mode live menyala.'))+
+      (konChBoleh()?(' <a href="#" onclick="konChAtur();return false" style="color:var(--brand);font-weight:700">ubah channel</a>'):'')+'</div></div>';}
+function konKalHTML(L){
+  var NB=['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+  var bl=String(ST._konBulan||hariIni().slice(0,7)),p=bl.split('-'),y=+p[0],m=+p[1];
+  var mulai=(new Date(y,m-1,1).getDay()+6)%7,jml=new Date(y,m,0).getDate(),hari=hariIni(),hp=isHP(),tProd=(ST._konProdTampil!==false);
+  var h=['Sen','Sel','Rab','Kam','Jum','Sab','Min'].map(function(x){return '<div class="khari">'+x+'</div>';}).join('');
+  for(var i=0;i<mulai;i++)h+='<div class="ksel kosong"></div>';
+  for(var d=1;d<=jml;d++){(function(d){
+    var tgl=ymd(y,m,d),dow=(mulai+d-1)%7;
+    var T=L.filter(function(k){return k.tgl===tgl;}),P=tProd?L.filter(function(k){return k.prod===tgl&&k.status!=='Terbit'&&k.status!=='Batal';}):[];
+    var isi;
+    if(hp){isi='<div class="ktitik">'+T.map(function(k){return '<i class="'+konStKelas(k.status)+'"></i>';}).join('')+P.map(function(){return '<i class="prod"></i>';}).join('')+'</div>';}
+    else{isi=T.map(function(k){return '<button type="button" class="kchip2 tayang '+konStKelas(k.status)+(ST._konBuka===k.id?' on':'')+'" title="'+esc(k.judul)+'" onclick="event.stopPropagation();konKalBuka('+jsArg(k.id)+','+jsArg(tgl)+')">'+esc(k.judul)+'</button>';}).join('')+
+      P.map(function(k){return '<button type="button" class="kchip2 prod'+(ST._konBuka===k.id?' on':'')+'" title="produksi: '+esc(k.judul)+'" onclick="event.stopPropagation();konKalBuka('+jsArg(k.id)+','+jsArg(tgl)+')">📷 '+esc(k.judul)+'</button>';}).join('');}
+    h+='<div class="ksel'+(tgl===hari?' ini':'')+(dow>=5?' akhir':'')+(ST._konHari===tgl?' pilih':'')+'" data-f="konSel_'+tgl+'" role="button" tabindex="0" onclick="konKalHari('+jsArg(tgl)+')" onkeydown="if(event.key===\'Enter\'){konKalHari('+jsArg(tgl)+');}">'+
+      '<div class="kno"><span>'+d+'</span>'+(tgl===hari?'<span class="khariini">hari ini</span>':'')+'</div>'+isi+'</div>';})(d);}
+  var hr=ST._konHari,bawah;
+  if(hr){var H=L.filter(function(k){return k.tgl===hr||(tProd&&k.prod===hr);});
+    bawah='<div class="kon-haritajuk"><b>'+tglID(hr)+'</b><span class="kon-kecil">'+(H.length?(H.length+' konten di tanggal ini'):'belum ada konten di tanggal ini')+'</span>'+
+      '<button class="btn ghost sm" style="margin-left:auto" onclick="konAdd('+jsArg(hr)+')">＋ Konten tayang '+tglID(hr)+'</button></div>'+
+      '<div class="kon-list">'+H.map(function(k){return konBarisHTML(k,ST._konBuka===k.id);}).join('')+'</div>';}
+  else bawah='<div class="kon-kecil">Klik tanggal atau konten di kalender — detailnya terbuka di sini.</div>';
+  return '<div class="kon-calhead"><button class="btn ghost sm" aria-label="Bulan sebelumnya" onclick="konBulanGeser(-1)">‹</button>'+
+      '<h3 class="kbulan">'+NB[m-1]+' '+y+'</h3>'+
+      '<button class="btn ghost sm" aria-label="Bulan berikutnya" onclick="konBulanGeser(1)">›</button>'+
+      (bl!==hari.slice(0,7)?'<button class="btn ghost sm" onclick="konBulanGeser(0)">Bulan ini</button>':'')+
+      '<div class="kon-leg'+(hp?' hp':'')+'"><span><i class="terbit"></i>terbit</span><span><i class="siap"></i>siap tayang</span><span><i class="produksi"></i>produksi</span><span><i class="rencana"></i>rencana</span><span><i class="prod"></i>tanggal produksi</span></div></div>'+
+    '<div class="kon-cal'+(hp?' hp':'')+'" data-f="konKal">'+h+'</div>'+
+    '<div id="konKalDetail" style="margin-top:12px">'+bawah+'</div>';}
 function renderKonten(){
-  var K=kontenAll().slice(),bl=ST._kb||'',kn=ST._kk||'',st=ST._ks||'';
-  var tampil=K.filter(function(k){
-    if(bl&&String(k.tgl).slice(0,7)!==bl)return false;
-    if(kn&&k.kanal!==kn)return false;
+  var K=kontenAll().slice(),v=(ST._konTab==='kalender')?'kalender':'daftar';
+  var bl=ST._kb||'',jn=ST._kj||'',kn=ST._kk||'',st=ST._ks||'';
+  var L=K.filter(function(k){
+    if(v==='daftar'&&bl&&String(k.tgl).slice(0,7)!==bl)return false;
+    if(jn&&k.jenis!==jn)return false;
+    if(kn&&(kn===KON_LAIN?!konPlatLain(k.platform):k.platform!==kn))return false;
     if(st&&k.status!==st)return false;return true;});
-  tampil.sort(function(a,b){return String(a.tgl).localeCompare(String(b.tgl));});
+  L.sort(function(a,b){return String(a.tgl).localeCompare(String(b.tgl))||String(a.judul).localeCompare(String(b.judul));});
   var telat=K.filter(konTerlambat).length;
-  var terbit=K.filter(function(k){return k.status==='Terbit';});
-  var sum=function(f){return terbit.reduce(function(s,k){return s+(+k[f]||0);},0);};
-  var eng=sum('reach')?(((sum('like')+sum('komen')+sum('save'))/sum('reach'))*100).toFixed(1):'0';
-  var byKanal={};terbit.forEach(function(k){var c=byKanal[k.kanal]=byKanal[k.kanal]||{n:0,reach:0,eng:0};
-    c.n++;c.reach+=(+k.reach||0);c.eng+=(+k.like||0)+(+k.komen||0)+(+k.save||0);});
-  /* Daftar ringkas dulu; kartu isian penuh hanya untuk konten yang dibuka. */
-  var daftar='<div class="xscroll"><table class="rtable mstack"><thead><tr><th style="min-width:150px">Judul</th>'+
-    '<th style="width:104px">Tayang</th><th style="width:104px">Kanal</th><th style="width:96px">Tipe</th>'+
-    '<th style="width:110px">Status</th><th style="min-width:100px">PIC</th><th style="width:104px">Reach</th><th style="width:78px"></th></tr></thead><tbody>'+
-    tampil.map(function(k){var tl=konTerlambat(k),tb=k.status==='Terbit',dn=dLeft(k.tgl);
-      var ket=tb?'terbit':(k.status==='Batal'?'batal':(tl?('lewat '+(-dn)+' hari'):(dn===0?'tayang HARI INI':(dn+' hari lagi'))));
-      return '<tr><td><b>'+esc(k.judul)+'</b></td>'+
-        '<td data-l="Tayang">'+(k.tgl?tglID(k.tgl):'—')+'<div style="font-size:9px;font-weight:800;color:'+(tl?'#d9534f':(tb?'var(--ok)':'var(--muted)'))+'">'+esc(ket)+'</div></td>'+
-        '<td data-l="Kanal"><span class="tlabel" style="background:#6a6f8a">'+esc(k.kanal)+'</span></td>'+
-        '<td data-l="Tipe" style="font-size:10.5px">'+esc(k.tipe||'—')+'</td>'+
-        '<td data-l="Status" style="font-size:10.5px;font-weight:700">'+esc(k.status)+'</td>'+
-        '<td data-l="PIC" style="font-size:10.5px">'+(esc(k.pic)||'—')+'</td>'+
-        '<td data-l="Reach">'+(tb?((+k.reach||0).toLocaleString('id-ID')):'<span style="color:var(--muted)">—</span>')+'</td>'+
-        '<td data-l=""><button class="btn ghost sm" onclick="konBuka(\''+k.id+'\')">Buka</button></td></tr>';}).join('')+
-    '</tbody></table></div>';
-  var kartu=(ST._konCur?tampil.filter(function(k){return k.id===ST._konCur;}):[]).map(function(k){var tl=konTerlambat(k),terbitkan=k.status==='Terbit';
-    var dn=dLeft(k.tgl);
-    var ket=terbitkan?'terbit':(k.status==='Batal'?'batal':(tl?('lewat '+(-dn)+' hari'):(dn===0?'tayang HARI INI':(dn+' hari lagi'))));
-    return '<div class="rcard" style="padding:12px 15px;margin-bottom:9px'+(tl?';border-left:3px solid #d9534f':(terbitkan?';border-left:3px solid var(--ok)':''))+'">'+
-      '<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:8px">'+
-        '<span style="font-size:10.5px;font-weight:800;color:var(--brand);white-space:nowrap">'+esc(k.tgl)+'</span>'+
-        '<b style="font-size:13px;flex:1;min-width:0">'+esc(k.judul)+'</b>'+
-        '<span class="tlabel" style="background:#6a6f8a">'+esc(k.kanal)+'</span>'+
-        '<span style="font-size:10px;font-weight:800;color:'+(tl?'#d9534f':(terbitkan?'var(--ok)':'var(--muted)'))+'">'+esc(ket)+'</span>'+
-        '<button class="xrow" onclick="konDel(\''+k.id+'\')">✕</button></div>'+
-      '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px">'+
-        '<label class="nlbl">Tanggal tayang<input type="date" class="pin" style="margin-top:3px" value="'+esc(k.tgl)+'" onchange="konSet(\''+k.id+'\',\'tgl\',this.value)"></label>'+
-        '<label class="nlbl">Kanal<select class="pin" style="margin-top:3px" onchange="konSet(\''+k.id+'\',\'kanal\',this.value)">'+KON_KANAL.map(function(x){return '<option '+(k.kanal===x?'selected':'')+'>'+x+'</option>';}).join('')+'</select></label>'+
-        '<label class="nlbl">Tipe<select class="pin" style="margin-top:3px" onchange="konSet(\''+k.id+'\',\'tipe\',this.value)">'+KON_TIPE.map(function(x){return '<option '+(k.tipe===x?'selected':'')+'>'+x+'</option>';}).join('')+'</select></label>'+
-        '<label class="nlbl">Status<select class="pin" style="margin-top:3px" onchange="konSet(\''+k.id+'\',\'status\',this.value)">'+KON_ST.map(function(x){return '<option '+(k.status===x?'selected':'')+'>'+x+'</option>';}).join('')+'</select></label>'+
-        '<label class="nlbl">PIC<input class="pin" style="margin-top:3px" value="'+esc(k.pic)+'" onchange="konSet(\''+k.id+'\',\'pic\',this.value)"></label>'+
-        '<label class="nlbl">Link posting<input class="pin" style="margin-top:3px" value="'+esc(k.link)+'" onchange="konSet(\''+k.id+'\',\'link\',this.value)" placeholder="https://..."></label>'+
-      '</div>'+
-      '<label class="nlbl" style="display:block;margin-top:8px">Caption / catatan<input class="pin" style="margin-top:3px;width:100%" value="'+esc(k.catatan)+'" onchange="konSet(\''+k.id+'\',\'catatan\',this.value)"></label>'+
-      (terbitkan?'<div style="margin-top:9px;border-top:1px dashed var(--line);padding-top:8px">'+
-        '<div style="font-size:10px;font-weight:800;color:var(--muted);margin-bottom:5px">HASIL (isi dari Instagram Insights / TikTok Analytics)</div>'+
-        '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(84px,1fr));gap:7px">'+
-        [['reach','Reach'],['like','Like'],['komen','Komentar'],['save','Save'],['klik','Klik profil']].map(function(f){
-          return '<label class="nlbl">'+f[1]+'<input class="pin n" type="number" style="margin-top:3px" value="'+(k[f[0]]||0)+'" onchange="konSet(\''+k.id+'\',\''+f[0]+'\',this.value)"></label>';}).join('')+
-        '</div></div>':'')+
-      '</div>';}).join('');
-  $('#main').innerHTML='<div class="topbar"><h1>Konten &amp; Campaign</h1><span class="demo">'+K.length+' konten</span>'+
-      (telat?'<span style="margin-left:auto;background:var(--warn-bg);color:var(--warn);border-radius:20px;padding:5px 13px;font-size:11px;font-weight:800">📌 '+telat+' lewat jadwal tayang</span>':'')+
-      '<div class="sp"></div><button class="btn" onclick="konAdd()">＋ Konten baru</button></div>'+
-    tabNote('Kalender konten: <b>rencana → produksi → siap tayang → terbit</b>. Setelah terbit, isi angka dari <b>Instagram Insights / TikTok Analytics</b> — rekap performa muncul otomatis di bawah. Konten yang lewat jadwal tayang ditandai merah.')+
-    (terbit.length?'<div class="rcard" style="margin-bottom:13px"><h3>Performa konten terbit</h3>'+
-      '<div style="display:flex;flex-wrap:wrap;gap:20px;font-size:12px;margin-bottom:11px">'+
-        '<div><div style="color:var(--muted);font-size:10.5px;font-weight:700">TERBIT</div><b style="font-size:15px">'+terbit.length+'</b></div>'+
-        '<div><div style="color:var(--muted);font-size:10.5px;font-weight:700">TOTAL REACH</div><b style="font-size:15px">'+sum('reach').toLocaleString('id-ID')+'</b></div>'+
-        '<div><div style="color:var(--muted);font-size:10.5px;font-weight:700">INTERAKSI</div><b style="font-size:15px">'+(sum('like')+sum('komen')+sum('save')).toLocaleString('id-ID')+'</b></div>'+
-        '<div><div style="color:var(--muted);font-size:10.5px;font-weight:700">ENGAGEMENT</div><b style="font-size:15px;color:var(--brand)">'+eng+'%</b></div>'+
-        '<div><div style="color:var(--muted);font-size:10.5px;font-weight:700">KLIK PROFIL</div><b style="font-size:15px">'+sum('klik').toLocaleString('id-ID')+'</b></div></div>'+
-      '<div class="xscroll"><table class="rtable"><thead><tr><th>Kanal</th><th class="num">Konten</th><th class="num">Reach</th><th class="num">Interaksi</th><th class="num">Engagement</th></tr></thead><tbody>'+
-        Object.keys(byKanal).sort(function(a,b){return byKanal[b].reach-byKanal[a].reach;}).map(function(c){var v=byKanal[c];
-          return '<tr><td>'+esc(c)+'</td><td class="num">'+v.n+'</td><td class="num">'+v.reach.toLocaleString('id-ID')+'</td><td class="num">'+v.eng.toLocaleString('id-ID')+'</td><td class="num">'+(v.reach?((v.eng/v.reach)*100).toFixed(1):'0')+'%</td></tr>';}).join('')+
-      '</tbody></table></div></div>':'')+
-    '<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:13px">'+
-      '<select class="pin" style="width:auto" onchange="ST._kb=this.value;render()"><option value="">Semua bulan</option>'+konBulan().map(function(b){return '<option '+(ST._kb===b?'selected':'')+'>'+b+'</option>';}).join('')+'</select>'+
-      '<select class="pin" style="width:auto" onchange="ST._kk=this.value;render()"><option value="">Semua kanal</option>'+KON_KANAL.map(function(c){return '<option '+(ST._kk===c?'selected':'')+'>'+c+'</option>';}).join('')+'</select>'+
-      '<select class="pin" style="width:auto" onchange="ST._ks=this.value;render()"><option value="">Semua status</option>'+KON_ST.map(function(c){return '<option '+(ST._ks===c?'selected':'')+'>'+c+'</option>';}).join('')+'</select>'+
-      '<span style="margin-left:auto;font-size:11px;color:var(--muted)">'+tampil.length+' konten tampil</span></div>'+
-    (!tampil.length?'<div style="color:var(--muted);font-size:12px">Belum ada konten. Klik <b>＋ Konten baru</b>.</div>'
-      :(ST._konCur&&kartu?('<div style="margin-bottom:12px"><button class="btn ghost sm" onclick="konTutup()">← Semua konten</button></div>'+kartu):daftar));}
-function konBuka(id){ST._konCur=id;render();window.scrollTo(0,0);}
-function konTutup(){ST._konCur=null;render();}
+  var tabBtn=function(k,l){return '<button class="btn '+(v===k?'':'ghost')+' sm" data-f="konTab_'+k+'" onclick="konTab(\''+k+'\')">'+l+'</button>';};
+  var sel=function(key,semua,L2,cur){return '<select class="pin" style="width:auto" onchange="ST.'+key+'=this.value;render()"><option value="">'+semua+'</option>'+L2.map(function(c){return '<option '+(cur===c?'selected':'')+'>'+esc(c)+'</option>';}).join('')+'</select>';};
+  $('#main').innerHTML='<div class="topbar"><h1>Planner Konten</h1><span class="demo">'+K.length+' konten</span>'+
+      (telat?'<span class="kon-telat">📌 '+telat+' lewat jadwal tayang</span>':'')+
+      '<div class="sp"></div><button class="btn" data-f="konBaru" onclick="konAdd()">＋ Konten baru</button></div>'+
+    tabNote('Kalender konten: <b>rencana → produksi → siap tayang → terbit</b>. Tiap konten punya <b>rencana tayang</b> dan <b>rencana produksi</b> — Marketing diingatkan H-2 dan H-1 sebelum produksi. Klik baris untuk membuka detailnya di layar ini; tampilan <b>Kalender</b> menunjukkan tanggal tayang dan tanggal produksi sekaligus.')+
+    konFormHTML()+
+    '<div class="rcard" data-f="konUtama">'+
+      '<div class="kon-tabs">'+tabBtn('daftar','☰ Daftar')+tabBtn('kalender','▦ Kalender')+
+        '<div class="kon-filters">'+
+          (v==='daftar'?sel('_kb','Semua bulan',konBulan(),bl):'')+
+          sel('_kj','Semua jenis',KON_JENIS,jn)+
+          sel('_kk','Semua platform',KON_PLATFORM.concat([KON_LAIN]),kn)+
+          sel('_ks','Semua status',KON_ST,st)+
+          (v==='kalender'?'<label class="kon-kecil" style="display:flex;align-items:center;gap:5px"><input type="checkbox" '+(ST._konProdTampil!==false?'checked':'')+' onchange="konProdTampil(this.checked)" style="width:auto;accent-color:var(--brand)"> tampilkan rencana produksi</label>':'')+
+        '</div></div>'+
+      (v==='daftar'
+        ?(konIngatKartu()+
+          (L.length?('<div class="kon-list" data-f="konList">'+L.map(function(k){return konBarisHTML(k,ST._konBuka===k.id);}).join('')+'</div>')
+            :('<div class="kon-kecil" style="margin-top:12px">'+(K.length?'Tak ada konten untuk saringan ini.':'Belum ada konten. Klik <b>＋ Konten baru</b>.')+'</div>'))+
+          '<div class="kon-kecil" style="margin-top:10px">'+L.length+' konten tampil</div>')
+        :konKalHTML(L))+
+    '</div>';}
 /* ================= PAJAK & KEPATUHAN (flow XIV) =================
    Tenggat default mengikuti ketentuan umum DJP — BISA DIUBAH di Master data,
    karena aturan bisa berubah. HUB hanya mengingatkan, tidak menghitung pajak. */
@@ -4786,7 +5166,7 @@ function cloudAutoLoad(){var c=ST.cfg||{};if(!c.dbUrl)return;
        perangkat lain hilang begitu perangkat ini menyimpan sesuatu */
     if(mergeLeads(d))changed=true;
     if(d.tax&&(d.ts||0)>localTs){ST.tax=d.tax;localStorage.setItem(TAX_KEY,JSON.stringify(ST.tax));changed=true;}
-    if(d.konten&&(d.ts||0)>localTs){ST.konten=d.konten;localStorage.setItem(KON_KEY,JSON.stringify(ST.konten));changed=true;}
+    if(d.konten&&(d.ts||0)>localTs){ST.konten=d.konten;try{konMigrasi();}catch(e){}localStorage.setItem(KON_KEY,JSON.stringify(ST.konten));changed=true;}
     if(d.hr&&(d.ts||0)>localTs){ST.hr=d.hr;localStorage.setItem(HR_KEY,JSON.stringify(ST.hr));changed=true;}
     if(d.buy&&(d.ts||0)>localTs){ST.buy=d.buy;localStorage.setItem(BUY_KEY,JSON.stringify(ST.buy));changed=true;}
     if(d.inv&&(d.ts||0)>localTs){ST.inv=d.inv;localStorage.setItem(INV_KEY,JSON.stringify(ST.inv));changed=true;}
@@ -4903,7 +5283,7 @@ function cloudLoad(){var c=cfgSerap();if(!c.dbUrl){alert('Kotak "Cloud DB" di Ho
     if(d.master){ST.master=d.master;try{migrasiTeknikJasa();}catch(e){}saveMaster();buildCollatData();}
     if(d.leads){ST.leads=d.leads;localStorage.setItem(LEAD_KEY,JSON.stringify(ST.leads));}
     if(d.tax){ST.tax=d.tax;localStorage.setItem(TAX_KEY,JSON.stringify(ST.tax));}
-    if(d.konten){ST.konten=d.konten;localStorage.setItem(KON_KEY,JSON.stringify(ST.konten));}
+    if(d.konten){ST.konten=d.konten;try{konMigrasi();}catch(e){}localStorage.setItem(KON_KEY,JSON.stringify(ST.konten));}
     if(d.hr){ST.hr=d.hr;localStorage.setItem(HR_KEY,JSON.stringify(ST.hr));}
     if(d.buy){ST.buy=d.buy;localStorage.setItem(BUY_KEY,JSON.stringify(ST.buy));}
     if(d.inv){ST.inv=d.inv;localStorage.setItem(INV_KEY,JSON.stringify(ST.inv));}
@@ -6577,19 +6957,19 @@ function syncSidebar(){
 
   var ni=document.getElementById('navInv');
   if(ni&&can('inv')){var ik=invKurang().length;
-    ni.innerHTML='<span class="ic">▩</span> Gudang'+(ik?' <span style="background:#d9534f;color:#fff;border-radius:9px;padding:0 6px;font-size:9px;font-weight:800">'+ik+'</span>':'')+
+    ni.innerHTML='<span class="ic">▩</span><span>Gudang'+(ik?' <span style="background:#d9534f;color:#fff;border-radius:9px;padding:0 6px;font-size:9px;font-weight:800">'+ik+'</span>':'')+'</span>'+
       '<small>'+(ik?(ik+' stok menipis'):'stok barang & sisa spare')+'</small>';}
   var nk=document.getElementById('navKonten');
-  if(nk&&can('konten')){var kl=kontenAll().filter(konTerlambat).length;
-    nk.innerHTML='<span class="ic">◨</span> Planner Konten'+(kl?' <span style="background:#d9534f;color:#fff;border-radius:9px;padding:0 6px;font-size:9px;font-weight:800">'+kl+'</span>':'')+
-      '<small>'+(kl?(kl+' lewat jadwal tayang'):'jadwal tayang & produksi')+'</small>';}
+  if(nk&&can('konten')){var kl=konTugasDaftar().length;
+    nk.innerHTML='<span class="ic">◨</span><span>Planner Konten'+(kl?' <span style="background:#d9534f;color:#fff;border-radius:9px;padding:0 6px;font-size:9px;font-weight:800">'+kl+'</span>':'')+'</span>'+
+      '<small>'+(kl?(kl+' perlu ditindak'):'jadwal tayang & produksi')+'</small>';}
   var nt=document.getElementById('navTax');
   if(nt&&can('tax')){var tl=taxLateTotal();
-    nt.innerHTML='<span class="ic">§</span> Pajak'+(tl?' <span style="background:#d9534f;color:#fff;border-radius:9px;padding:0 6px;font-size:9px;font-weight:800">'+tl+'</span>':'')+
+    nt.innerHTML='<span class="ic">§</span><span>Pajak'+(tl?' <span style="background:#d9534f;color:#fff;border-radius:9px;padding:0 6px;font-size:9px;font-weight:800">'+tl+'</span>':'')+'</span>'+
       '<small>'+(tl?(tl+' kewajiban lewat tenggat'):'tenggat setor & lapor')+'</small>';}
   var nm=document.getElementById('navMaster');
   if(nm){var pd=(ST.user==='Holding')?pendingDel():0;
-    nm.innerHTML='<span class="ic">▥</span> Master data'+(pd?' <span style="background:#d9534f;color:#fff;border-radius:9px;padding:0 6px;font-size:9px;font-weight:800">'+pd+'</span>':'')
+    nm.innerHTML='<span class="ic">▥</span><span>Master data'+(pd?' <span style="background:#d9534f;color:#fff;border-radius:9px;padding:0 6px;font-size:9px;font-weight:800">'+pd+'</span>':'')+'</span>'
       +'<small>'+(pd?(pd+' permintaan hapus menunggu'):'customer, vendor, katalog')+'</small>';}
   var sm=document.getElementById('submenu');
   if(sm){
@@ -8996,6 +9376,7 @@ function tugasMenungguku(){
   /* chkTugasSaya sudah memakai myRoles() di dalamnya — cukup sekali panggil,
      kalau per jabatan hasilnya terhitung ganda. */
   var b=0;try{if(bayarPutusBoleh())b=bayarAjuMenunggu().length;else if(myRoles().indexOf('Finance')>=0){var h=hariIni();b=bayarAjuDisetujuiBelum().filter(function(x){return x.rencana<=h;}).length;}}catch(e){}
+  try{if(myRoles().indexOf('Marketing')>=0)b+=konTugasDaftar().length;}catch(e){}
   try{return chkTugasSaya(ST.user).length+tanyaUntukku().length+b;}catch(e){return b;}}
 /* Favicon digambar sendiri: bulatan cokelat berisi angka. Tak perlu berkas
    tambahan, jadi app tetap satu file. */
@@ -9228,10 +9609,13 @@ function renderTasks(){
    <div class="topbar"><h1>Tugas saya</h1><span class="demo">${role}</span><div class="sp"></div>${can('neworder')?`<button class="btn" onclick="openNew()">＋ Order baru</button>`:''}</div>
    ${tabNote('Hanya order yang <b>menunggu tindakan jabatanmu ('+role+')</b>. Klik kartu → kerjakan langkah yang tertulis → klik <b>✓ Selesai — lanjut fase</b>. Order akan hilang dari sini setelah berpindah ke PIC lain.')}
    ${akuDirektur?bayarAjuDirekturBlok():((myRoles().indexOf('Finance')>=0||myRoles().indexOf('Purchasing')>=0)?bayarAjuFinanceBlok():'')}
+   ${myRoles().indexOf('Marketing')>=0?konTugasBlok():''}
    <div style="font-size:12px;color:var(--muted);margin-bottom:14px">${(function(){
      if(tasks.length)return tasks.length+' order menunggu tindakanmu.';
      /* pesan lama buta: mengaku kosong padahal blok kelengkapan di bawah berisi */
      var k=chkTugasSaya(role).length;
+     var kk=(myRoles().indexOf('Marketing')>=0)?konTugasDaftar().length:0;
+     if(!k&&kk)return 'Tak ada order yang menunggumu, tapi ada <b>'+kk+' konten</b> yang perlu ditindak di atas.';
      return k?('Tak ada order yang <b>fasenya</b> di tanganmu, tapi ada <b>'+k+' kelengkapan</b> yang menunggumu di bawah.')
             :'Tidak ada tugas aktif untuk peranmu saat ini. 🎉';})()}</div>
    ${(function(){
@@ -12590,7 +12974,11 @@ function triggerTerapkan(o,pre,gate){
     ? ('✓ Fase <b>'+esc(PH[pre].n)+'</b> ditutup → sekarang <b>'+esc(nx.n)+'</b> · PIC '+esc(nx.pic)+(live?' dikabari lewat Discord':' (mode uji: Discord tak dikirim)'))
     : ('✓ Order <b>'+esc(o.customer)+'</b> selesai'));
 }
-function dLeft(dstr){if(!dstr)return null;var d=new Date(dstr);if(isNaN(d))return null;return Math.ceil((d-new Date().setHours(0,0,0,0))/864e5);}
+/* Selisih HARI kalender terhadap hari ini. Tanggal polos 'YYYY-MM-DD' dibaca sebagai tengah malam WAKTU SETEMPAT:
+   new Date('2026-09-21') dibaca UTC, dan di WIB (UTC+7) itu membuat hari ini terhitung "1 hari lagi" dan kemarin "HARI INI". */
+function dLeft(dstr){if(!dstr)return null;
+  var d=(typeof dstr==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(dstr))?new Date(dstr+'T00:00:00'):new Date(dstr);if(isNaN(d))return null;
+  d.setHours(0,0,0,0);return Math.round((d-new Date().setHours(0,0,0,0))/864e5);}
 /* ---- Produksi: collateral yang sudah terkirim ke Radja — satu checkbox per collateral yang dipilih ---- */
 function collDipilih(o){var out=[];try{PACK_TIPE.forEach(function(t){if((o.coll||{})[t[0]])out.push({k:t[0],nama:t[1]});});}catch(e){}return out;}
 function collKirimLengkap(o){var C=collDipilih(o);if(!C.length)return true;var K=((o.prod||{}).collKirim)||{};return C.every(function(c){return !!K[c.k];});}
@@ -20509,6 +20897,7 @@ setTimeout(function(){
   try{n+=jalankanIngatFotoProduksi();}catch(e){}
   try{n+=ringkasanSeninRadja();}catch(e){}
   try{n+=jalankanIngatBayar();}catch(e){}
+  try{n+=jalankanIngatKonten();}catch(e){}
   if(n)render();},6000);
 </script>
 </body>
