@@ -797,7 +797,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20260922-143615';
+const VERSI='20260922-203014';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -5547,7 +5547,7 @@ function contohBuatDasar(n){
    lalu fasenya ditutup dengan applyTrigger seperti tombol "Selesai". */
 /* Naikkan tiap kali bentuk kartu contoh berubah (fase bertambah, isian baru):
    kartu contoh yang tersimpan di browser tiap orang diganti sendiri saat HUB dibuka. */
-const CONTOH_V='27a';
+const CONTOH_V='28a';
 const CONTOH_ISI=[
  /* 0 Inquiry — PM merinci; Sales menjawab warna, logo, dan letaknya */
  function(o){var K=CONTOH_W,b=briefGet(o);
@@ -10286,7 +10286,8 @@ function kurangFase(o,i){
   else if(i===10){
     var pm=poMissing(o);
     if(pm.length)k.push('Form PO: '+pm.join(', '));
-    else if(!((o.po||{}).generated))k.push(gabAktif(o)?('PO gabungan — '+gabStatusTeks(o.gab)):'Generate PO ke vendor');}
+    else if(!((o.po||{}).generated))k.push(gabKunciPO(o)?('PO gabungan — '+gabStatusTeks(gabAktif(o))):'Generate PO ke vendor');
+    try{poVendors(o).forEach(function(v){var Gv=gabAktifUntuk(o,v,'');if(Gv&&Gv.status!=='terbit'&&!(((o.vpo||{})[v]||{}).generated))k.push('PO gabungan '+v+' — '+gabStatusTeks(Gv));});}catch(e){}}
   else if(i===12){
     if(!(((o.brief||{}).sampleFiles)||[]).length)k.push('Foto sample dari Radja');
     if(!fotoJadiLengkap(o))k.push('Foto QC & packing dari Radja');}
@@ -11148,7 +11149,7 @@ lapDef({id:'rapor',grup:'Produksi & vendor',nama:'Rapor vendor',tanya:'Vendor ma
   return {kolom:[{t:'Vendor',w:180},{t:'Nilai rata-rata (1–5)',n:true},{t:'Penilaian',n:true},{t:'PO diterima',n:true},{t:'Tepat waktu',n:true,pct:true},{t:'Order',n:true},{t:'Total dibayar',n:true}],baris:rows,catatan:'Nilai dari Evaluasi vendor di Laporan penutupan tiap order.'};}});
 lapDef({id:'po',grup:'Produksi & vendor',nama:'Daftar PO',tanya:'PO nomor berapa saja yang keluar periode ini?',boleh:['Finance','Purchasing'],buat:function(P){var rows=[];
   lapOrders().forEach(function(o){var V=[];try{V=vendorTagihan(o)||[];}catch(e){}V.forEach(function(x){var tid=vendorTbhId(x.v),vd=vendorDasar(x.v),p=tid?((((tbhCari(o,tid)||{}).po)||{})[vd]||{}):(isLeatherVendor(vd)?(o.po||{}):((o.vpo||{})[vd]||{}));if(!p.generated||!lapDalam(p.tglPO,P.R))return;
-    rows.push([p.poNo||'—',tglID(p.tglPO),vendorTampil(x.v,o),lapO(o),x.total,p.deadline?tglID(p.deadline):'—',tid?('tambahan atas PO '+((o.po||{}).poNo||'-')):(((o.po||{}).gab)?('PO gabungan · '+gabOrders(gabCari(o.po.gab)||{}).length+' order'):((o.poRev||0)>0?('revisi R'+o.poRev):''))]);});});
+    rows.push([p.poNo||'—',tglID(p.tglPO),vendorTampil(x.v,o),lapO(o),x.total,p.deadline?tglID(p.deadline):'—',(p.gab?('PO gabungan · '+gabAnggota(gabCari(p.gab)||{}).length+' anggota'+(tid?(' · tambahan atas PO '+((o.po||{}).poNo||'-')):'')):(tid?('tambahan atas PO '+((o.po||{}).poNo||'-')):((o.poRev||0)>0?('revisi R'+o.poRev):'')))]);});});
   rows.sort(function(a,b){return String(a[0]).localeCompare(String(b[0]));});
   return {kolom:[{t:'No. PO',w:170},{t:'Tanggal'},{t:'Vendor',w:150},{t:'Client',w:170},{t:'Nilai',n:true},{t:'Deadline'},{t:'Catatan'}],baris:rows,total:['Total','','','',lapJumlah(rows,function(r){return r[4];}),'',''],catatan:'Sama dengan AIS PO-H.'};}});
 lapDef({id:'beban',grup:'Produksi & vendor',nama:'Beban produksi ke depan',tanya:'Minggu mana vendor akan kewalahan?',boleh:['Purchasing','Project Manager'],periode:'tanpa',buat:function(){var h=hariIni(),G={};
@@ -11661,228 +11662,308 @@ function kartuProspek(l){
       (l.status==='Batal'?'<span class="stbadge st-Cancel" style="margin-left:4px">Batal</span>':'')+
       '<span>'+collIcons(leadColl(l))+'</span>'+
     '</div>'+diam+'</div>';}
-/* ================= PO GABUNGAN (patch154) =================
-   Beberapa order (client berbeda) yang memesan produk & bahan yang sama ke
+/* ================= PO GABUNGAN (patch154 + patch155) =================
+   Beberapa order (client berbeda) yang memesan barang & bahan yang sama ke
    vendor yang sama digabung jadi SATU PO supaya kena tier harga yang lebih
    murah. Keputusan pemilik proses: gabung perlu approval Direktur; order boleh
    menunggu digabung selama PO masih bisa turun paling lambat GAB_HK_BATAS hari
    kerja sebelum tanggal kirim; harga ke client tetap — hematnya turun ke HPP
-   tiap order. Rekamnya disalin ke tiap order anggota (o.gab), jadi ikut
-   tersimpan & tersinkron lewat jalur order biasa. Produksi, foto, QC, invoice,
-   dan tagihan vendor tetap per order; PO-nya satu nomor untuk semua anggota. */
+   tiap order. patch155: berlaku juga untuk vendor kemasan (Box / Soft Pouch /
+   Thank You Card, tier dari tabel Kombinasi harga) dan untuk PO tambahan
+   (patch153) — anggota 'oid#tid'. Rekamnya disalin ke tiap order anggota
+   (o.gabs[id]; o.gab lama masih dibaca), jadi ikut tersimpan & tersinkron
+   lewat jalur order biasa. Produksi, foto, QC, invoice, dan tagihan vendor
+   tetap per order / per tambahan; PO-nya satu nomor untuk semua anggota. */
 const GAB_HK_BATAS=30;
 function gabBolehLihat(){return ['Purchasing','Direktur Utama','Holding','Project Manager'].some(function(r){return myRoles().indexOf(r)>=0;});}
 function gabBolehAjukan(){return ['Purchasing','Holding'].some(function(r){return myRoles().indexOf(r)>=0;});}
 function gabBolehPutus(){return bayarPutusBoleh();}
 function gabAktifStatus(s){return s==='diajukan'||s==='disetujui'||s==='terbit';}
-function gabAktif(o){return !!(o&&o.gab&&gabAktifStatus(o.gab.status));}
-function gabAll(){var M={};(ST.orders||[]).forEach(function(o){if(!o||o.deleted||!o.gab||!o.gab.id)return;var g=o.gab;if(!M[g.id]||(+g._m||0)>(+M[g.id]._m||0))M[g.id]=g;});
+function gabVendorTipe(v){if(!v)return '';if(isLeatherVendor(v))return 'kulit';return COLL_TIPE_VENDOR.indexOf(vendorTipe(v))>=0?'kemasan':'';}
+function gabTipeLabel(t){return t==='kemasan'?'vendor kemasan':'vendor kulit';}
+function gabTipe(G){return (G&&G.tipe)||'kulit';}
+function gabV(G){return gabTipe(G)==='kulit'?null:(G.vendor||'');}
+function gabRekamOrder(o){var out=[];if(!o)return out;if(o.gab&&o.gab.id)out.push(o.gab);var M=o.gabs||{};Object.keys(M).forEach(function(k){if(M[k]&&M[k].id)out.push(M[k]);});return out;}
+function gabAll(){var M={};(ST.orders||[]).forEach(function(o){if(!o||o.deleted)return;gabRekamOrder(o).forEach(function(g){if(!M[g.id]||(+g._m||0)>(+M[g.id]._m||0))M[g.id]=g;});});
   return Object.keys(M).map(function(k){return M[k];}).sort(function(a,b){return (+b._m||0)-(+a._m||0);});}
 function gabCari(id){return gabAll().filter(function(g){return g.id===id;})[0]||null;}
-function gabOrders(G){var ids=(G&&G.orders)||[];return ids.map(function(id){return (ST.orders||[]).find(function(o){return o.id===id&&!o.deleted;});}).filter(function(o){return o&&o.status!=='Cancel';});}
-function gabSimpan(G){G._m=Date.now();gabOrders(G).forEach(function(o){o.gab=JSON.parse(JSON.stringify(G));o._m=Date.now();});}
+/* anggota: 'oid' = PO 1 order itu · 'oid#tid' = PO tambahan (patch153) di order itu */
+function gabIdAnggota(o,tid){return (o?o.id:'')+(tid?('#'+tid):'');}
+function gabIdUrai(id){var s=String(id||''),i=s.indexOf('#');return {oid:i<0?s:s.slice(0,i),tid:i<0?'':s.slice(i+1)};}
+function gabAnggota(G){var out=[];((G&&G.orders)||[]).forEach(function(id){var u=gabIdUrai(id),o=(ST.orders||[]).find(function(x){return x.id===u.oid&&!x.deleted;});if(!o||o.status==='Cancel')return;
+  var t=u.tid?tbhCari(o,u.tid):null;if(u.tid&&(!t||t.status==='batal'))return;out.push({id:id,o:o,t:t,tid:u.tid});});return out;}
+function gabOrders(G){var seen={},out=[];gabAnggota(G).forEach(function(m){if(seen[m.o.id])return;seen[m.o.id]=1;out.push(m.o);});return out;}
+function gabLabel(m){return (m.o?m.o.customer:'')+(m.t?(' · '+tbhNo(m.t)):'');}
+function gabSimpan(G){G._m=Date.now();gabOrders(G).forEach(function(o){if(!o.gabs)o.gabs={};o.gabs[G.id]=JSON.parse(JSON.stringify(G));if(o.gab&&o.gab.id===G.id)delete o.gab;o._m=Date.now();});}
 function gabStatusTeks(G){return {diajukan:'menunggu approval Direktur',disetujui:'disetujui Direktur — PO gabungan belum terbit',terbit:'PO gabungan terbit',ditolak:'ditolak Direktur',batal:'dibatalkan'}[(G||{}).status]||'';}
-/* baris produk vendor kulit di order ini: satu produk = bisa digabung; kunci = vendor|produk|bahan */
-function gabBarisProduk(o){return lineProduk(o).filter(function(x){return (+x.l.qty||0)>0&&isLeatherVendor(x.l.sumber||'');});}
-function gabKunci(o){var P=gabBarisProduk(o);if(!P.length)return '';var nama={};P.forEach(function(x){nama[x.l.produk||'']=1;});if(Object.keys(nama).length!==1)return '';
-  var l=P[0].l;return (l.sumber||'')+'|'+(l.produk||'')+'|'+String(spekVal(o,l,'mainMat')||'').trim();}
-function gabTglKirim(o){var b=briefGet(o);return b.tglKirim||o.eventDate||b.tglAcara||'';}
-function gabBatas(o){var t=gabTglKirim(o);return t?hariKerjaTambah(t,-GAB_HK_BATAS):'';}
-function gabQtyPO(o){return gabBarisProduk(o).reduce(function(s,x){return s+lineQtyPO(x.l);},0);}
-function gabQtyClient(o){return gabBarisProduk(o).reduce(function(s,x){return s+(+x.l.qty||0);},0);}
-function gabHppKini(o){var P=gabBarisProduk(o);return P.length?lineHppVendor(P[0].l):0;}
+/* baris yang digabung untuk (order, tambahan) ke vendor v: kulit = baris produk (v null = vendor kulit mana pun), kemasan = baris collateral vendor itu */
+function gabBaris(o,v,tid){var tipe=v?gabVendorTipe(v):'kulit';if(!tipe)return [];var L=(((o||{}).pricing||{}).lines)||[];
+  return L.map(function(l,i){return {l:l,i:i};}).filter(function(x){var l=x.l;if(!l||l.svcFee||!((+l.qty||0)>0))return false;
+    if(v?((l.sumber||'')!==v):!isLeatherVendor(l.sumber||''))return false;if(tid?(l._tbh!==tid):!!l._tbh)return false;
+    var j=lineJenis(l);return tipe==='kulit'?j==='produk':j==='coll';});}
+function gabBarisProduk(o,tid){return gabBaris(o,null,tid||'');}
+function gabVendorKulit(o,tid){var P=gabBarisProduk(o,tid);return (P.length&&P[0].l.sumber)||kulitVendorNama();}
+/* kunci grup = tipe|vendor|barang|bahan (kulit: main material dari Brief; kemasan: bahan / finishing / ukuran baris) */
+function gabKunciDari(o,v,tid){var P=gabBaris(o,v,tid);if(!P.length)return '';var nama={};P.forEach(function(x){nama[x.l.produk||'']=1;});if(Object.keys(nama).length!==1)return '';
+  var l=P[0].l,vd=v||l.sumber||'',tipe=gabVendorTipe(vd);if(!tipe)return '';
+  var bahan=tipe==='kulit'?String(spekVal(o,l,'mainMat')||'').trim():[l.bahan,l.finishing,l.ukuran].map(function(x){return String(x||'').trim();}).filter(function(x){return x&&x!=='-';}).join(' / ');
+  return tipe+'|'+vd+'|'+(l.produk||'')+'|'+bahan;}
+function gabKunci(o){return gabKunciDari(o,null,'');}
+function gabKeyUrai(key){var p=String(key||'').split('|');return {tipe:p[0]||'kulit',vendor:p[1]||'',produk:p[2]||'',bahan:p[3]||''};}
+function gabTglKirim(o,t){var b=briefGet(o),k=b.tglKirim||o.eventDate||b.tglAcara||'';
+  if(t&&t.deadline&&t.deadline.mode==='baru'&&t.deadline.tgl){var k2=tglGeser(t.deadline.tgl,3);if(!k||k2>k)k=k2;}return k;}
+function gabBatas(o,t){var k=gabTglKirim(o,t);return k?hariKerjaTambah(k,-GAB_HK_BATAS):'';}
+function gabQtyPO(o,tid,v){return gabBaris(o,v||null,tid||'').reduce(function(s,x){return s+lineQtyPO(x.l);},0);}
+function gabQtyClient(o,tid,v){return gabBaris(o,v||null,tid||'').reduce(function(s,x){return s+(+x.l.qty||0);},0);}
+function gabHppKini(o,tid,v){var P=gabBaris(o,v||null,tid||'');return P.length?lineHppVendor(P[0].l):0;}
 function gabTierHarga(produk,qty){var it=null;try{it=(catalog()||[]).filter(function(c){return c.name===produk;})[0];}catch(e){}if(!it||!it.t)return null;var h=catPrice(it,qty);if(!(h>0))return null;return {label:CATALOG_TIERS[catTier(qty)].label,harga:h};}
+function gabTierKemasan(l,qty){var r=null;try{r=l?kombUntukLine(l):null;}catch(e){}if(!r||!r.t)return null;var h=packPriceT(r.t,qty);if(!(h>0))return null;return {label:PACK_TIERS[packTier(qty)].label,harga:h};}
+function gabTierUntuk(key,l,qty){var p=gabKeyUrai(key);return p.tipe==='kulit'?gabTierHarga(p.produk,qty):gabTierKemasan(l,qty);}
+function gabTierDaftar(key,l){var p=gabKeyUrai(key);
+  if(p.tipe==='kulit'){var it=null;try{it=(catalog()||[]).filter(function(c){return c.name===p.produk;})[0];}catch(e){}return it&&it.t?CATALOG_TIERS.map(function(t,i){return t.label+' '+fmt0(it.t[i]||0);}).join(' · '):'';}
+  var r=null;try{r=l?kombUntukLine(l):null;}catch(e){}return r&&r.t?PACK_TIERS.map(function(t,i){return t.label+' '+fmt0(r.t[i]||0);}).join(' · '):'';}
 function gabHargaManual(key){return +((ST._gabHarga||{})[key])||0;}
 function gabHargaManualSet(key,v){if(!ST._gabHarga)ST._gabHarga={};ST._gabHarga[key]=Math.max(0,moneyVal(v));render();}
-/* kandidat: order di Purchase Order Issuing yang PO-nya belum turun dan belum masuk gabungan aktif */
-function gabKandidat(){var out=[],h=hariIni();
-  (ST.orders||[]).forEach(function(o){if(!o||o.deleted||o.done||o.status==='Cancel')return;if((+o.phase||0)!==10)return;if((o.po||{}).generated)return;if(gabAktif(o))return;
-    var k=gabKunci(o);if(!k)return;var batas=gabBatas(o);
-    out.push({o:o,key:k,qty:gabQtyClient(o),qtyPO:gabQtyPO(o),hpp:gabHppKini(o),kirim:gabTglKirim(o),batas:batas,lewat:!!(batas&&batas<h),siap:poMissing(o).length===0});});
+/* grup aktif yang memuat anggota (o, tid) untuk vendor v */
+function gabAktifUntuk(o,v,tid){if(!o)return null;var id=gabIdAnggota(o,tid),out=null;gabAll().forEach(function(g){if(out||!gabAktifStatus(g.status))return;if((g.vendor||'')!==(v||''))return;if((g.orders||[]).indexOf(id)>=0)out=g;});return out;}
+function gabAktif(o){return gabAktifUntuk(o,gabVendorKulit(o,''),'');}
+function gabKunciPO(o){var G=gabAktif(o);return !!(G&&G.status!=='terbit');}
+/* PO vendor lain & PO tambahan: dikunci selama gabungan berjalan DAN sesudah terbit (dokumennya satu, tak ada generate ulang per anggota) */
+function gabKunciVPO(o,v){return !!gabAktifUntuk(o,v,'');}
+function gabKunciTbh(o,t,v){return !!(t&&gabAktifUntuk(o,v,t.id));}
+/* rekam PO tempat nomor PO gabungan ditulis: PO 1 (o.po), PO vendor lain (o.vpo[v]), atau PO tambahan (t.po[v]) */
+function gabPoRekam(G,m){var v=G.vendor||kulitVendorNama();if(m.t)return tbhPoGet(m.t,v);if(gabTipe(G)==='kulit'){if(!m.o.po)m.o.po={};return m.o.po;}return vpoGet(m.o,v);}
+function gabDeadlineAnggota(G,m){var p=gabPoRekam(G,m);return p.deadline||(m.t?((((m.t.deadline||{}).tgl)||((m.o.po||{}).deadline)||'')):'');}
+function gabMQtyPO(G,m){return gabQtyPO(m.o,m.tid,gabV(G));}
+function gabMQtyClient(G,m){return gabQtyClient(m.o,m.tid,gabV(G));}
+function gabMBaris(G,m){return gabBaris(m.o,gabV(G),m.tid);}
+/* kandidat: PO 1 di Purchase Order Issuing (vendor kulit & tiap vendor kemasan) dan PO tambahan yang sudah disetujui client — semua yang PO-nya belum turun & belum masuk gabungan aktif */
+function gabKand(o,t,v,key,siap){var tid=t?t.id:'',vv=gabVendorTipe(v)==='kulit'?null:v,batas=gabBatas(o,t),P=gabBaris(o,vv,tid);
+  return {o:o,t:t,tid:tid,id:gabIdAnggota(o,tid),label:o.customer+(t?(' · '+tbhNo(t)):''),vendor:v,tipe:gabVendorTipe(v),key:key,qty:gabQtyClient(o,tid,vv),qtyPO:gabQtyPO(o,tid,vv),hpp:gabHppKini(o,tid,vv),kirim:gabTglKirim(o,t),batas:batas,lewat:!!(batas&&batas<hariIni()),siap:siap,l:P.length?P[0].l:null};}
+function gabKandidat(){var out=[];
+  (ST.orders||[]).forEach(function(o){if(!o||o.deleted||o.done||o.status==='Cancel')return;var f=+o.phase||0;
+    if(f===10){
+      var P=gabBarisProduk(o,'');
+      if(P.length&&!(o.po||{}).generated){var vk=P[0].l.sumber||'',k=gabKunciDari(o,null,'');if(k&&!gabAktifUntuk(o,vk,''))out.push(gabKand(o,null,vk,k,poMissing(o).length===0));}
+      try{vpoDeadlineIsi(o);}catch(e){}
+      poVendors(o).forEach(function(v){if(gabVendorTipe(v)!=='kemasan')return;if(vpoGet(o,v).generated)return;var k=gabKunciDari(o,v,'');if(!k||gabAktifUntuk(o,v,''))return;
+        out.push(gabKand(o,null,v,k,vpoMissing(o,v).length===0&&gabHppKini(o,'',v)>0));});}
+    tbhJalan(o).forEach(function(t){if(!t.clientOk)return;tbhVendorDaftar(t).forEach(function(v){var tipe=gabVendorTipe(v);if(!tipe)return;if(tbhPoGet(t,v).generated)return;
+      var vv=tipe==='kulit'?null:v,k=gabKunciDari(o,vv,t.id);if(!k||gabAktifUntuk(o,v,t.id))return;out.push(gabKand(o,t,v,k,gabHppKini(o,t.id,vv)>0));});});});
   return out;}
-/* yang masih di fase sebelum PO tapi produknya sama — supaya Purchasing tahu ada yang menyusul */
-function gabMenyusul(key){var out=[];(ST.orders||[]).forEach(function(o){if(!o||o.deleted||o.done||o.status==='Cancel')return;if(o._contoh&&!o._contohGab)return;var f=+o.phase||0;if(f<3||f>=10)return;if(gabKunci(o)!==key)return;
-  out.push({o:o,qty:gabQtyClient(o),qtyPO:gabQtyPO(o),fase:PH[f].n,kirim:gabTglKirim(o),batas:gabBatas(o)});});return out;}
-function gabPilih(key){if(!ST._gabPilih)ST._gabPilih={};if(!ST._gabPilih[key]){var P={};gabKandidat().filter(function(k){return k.key===key&&!k.lewat;}).forEach(function(k){P[k.o.id]=true;});ST._gabPilih[key]=P;}return ST._gabPilih[key];}
-function gabPilihSet(key,oid,v){var P=gabPilih(key);if(v)P[oid]=true;else delete P[oid];render();}
-function gabHitung(key,K){var qtyPO=K.reduce(function(s,k){return s+k.qtyPO;},0),produk=key.split('|')[1];
-  var tier=gabTierHarga(produk,qtyPO),manual=gabHargaManual(key),harga=tier?tier.harga:manual;
+/* yang masih di fase sebelum PO (atau tambahan yang belum disetujui client) tapi barangnya sama — supaya Purchasing tahu ada yang menyusul */
+function gabMenyusul(key){var out=[],p=gabKeyUrai(key),vv=p.tipe==='kulit'?null:p.vendor;
+  (ST.orders||[]).forEach(function(o){if(!o||o.deleted||o.done||o.status==='Cancel')return;var f=+o.phase||0;
+    if(f>=3&&f<10&&!(o._contoh&&!o._contohGab)&&gabKunciDari(o,vv,'')===key)out.push({o:o,t:null,label:o.customer,qty:gabQtyClient(o,'',vv),qtyPO:gabQtyPO(o,'',vv),fase:PH[f].n,kirim:gabTglKirim(o),batas:gabBatas(o)});
+    tbhJalan(o).forEach(function(t){if(t.clientOk)return;if(gabKunciDari(o,vv,t.id)!==key)return;out.push({o:o,t:t,label:o.customer+' · '+tbhNo(t),qty:gabQtyClient(o,t.id,vv),qtyPO:gabQtyPO(o,t.id,vv),fase:'tambahan — menunggu client',kirim:gabTglKirim(o,t),batas:gabBatas(o,t)});});});
+  return out;}
+function gabPilih(key){if(!ST._gabPilih)ST._gabPilih={};if(!ST._gabPilih[key]){var P={};gabKandidat().filter(function(k){return k.key===key&&!k.lewat;}).forEach(function(k){P[k.id]=true;});ST._gabPilih[key]=P;}return ST._gabPilih[key];}
+function gabPilihSet(key,id,v){var P=gabPilih(key);if(v)P[id]=true;else delete P[id];render();}
+function gabHitung(key,K){var p=gabKeyUrai(key),qtyPO=K.reduce(function(s,k){return s+k.qtyPO;},0);
+  var tier=gabTierUntuk(key,(K[0]||{}).l||null,qtyPO),manual=gabHargaManual(key),harga=tier?tier.harga:manual;
   var sendiri=K.reduce(function(s,k){return s+k.hpp*k.qtyPO;},0),gab=harga*qtyPO;
   var batas=K.map(function(k){return k.batas;}).filter(Boolean).sort()[0]||'';
-  return {qtyPO:qtyPO,qty:K.reduce(function(s,k){return s+k.qty;},0),tier:tier,harga:harga,sendiri:sendiri,gab:gab,hemat:harga?(sendiri-gab):0,batas:batas,produk:produk,vendor:key.split('|')[0],bahan:key.split('|')[2]};}
+  return {qtyPO:qtyPO,qty:K.reduce(function(s,k){return s+k.qty;},0),tier:tier,harga:harga,sendiri:sendiri,gab:gab,hemat:harga?(sendiri-gab):0,batas:batas,tipe:p.tipe,produk:p.produk,vendor:p.vendor,bahan:p.bahan};}
+function gabDeadlineKand(k){if(k.t)return (tbhPoGet(k.t,k.vendor).deadline)||((k.t.deadline||{}).tgl)||((k.o.po||{}).deadline)||'';return k.tipe==='kulit'?((k.o.po||{}).deadline||''):(vpoGet(k.o,k.vendor).deadline||'');}
 function gabTab(t){ST._papanTab=t;render();}
 function gabHitungMenunggu(){var n=0;try{var R=myRoles();gabAll().forEach(function(g){if(g.status==='diajukan'&&(R.indexOf('Direktur Utama')>=0||R.indexOf('Holding')>=0))n++;if(g.status==='disetujui'&&(R.indexOf('Purchasing')>=0||R.indexOf('Holding')>=0))n++;});}catch(e){}return n;}
 
 /* ---- pengajuan → approval → PO ---- */
 function gabAjukan(key){if(!gabBolehAjukan()){alert('PO gabungan diajukan Purchasing.');return;}
-  var P=gabPilih(key),K=gabKandidat().filter(function(k){return k.key===key&&P[k.o.id];});
+  var P=gabPilih(key),K=gabKandidat().filter(function(k){return k.key===key&&P[k.id];});
   if(K.length<2){alert('Pilih minimal dua order untuk digabung.');return;}
-  var belum=K.filter(function(k){return !k.siap;});if(belum.length){alert('Form PO belum lengkap di: '+belum.map(function(k){return k.o.customer;}).join(', ')+'. Lengkapi dulu (spesifikasi, deadline, harga vendor disetujui).');return;}
-  var lewat=K.filter(function(k){return k.lewat;});if(lewat.length){alert('Sudah lewat batas gabung (PO wajib turun '+GAB_HK_BATAS+' hari kerja sebelum kirim): '+lewat.map(function(k){return k.o.customer;}).join(', ')+'. Turunkan PO-nya sendiri.');return;}
-  var H=gabHitung(key,K);if(!(H.harga>0)){alert('Harga gabungan belum ada: produk ini tak ada di katalog tier — isi harga vendor untuk qty gabungan di kotak "Harga gabungan".');return;}
-  var dl=K.map(function(k){return (k.o.po||{}).deadline||'';}).filter(Boolean).sort()[0]||'';
-  var G={id:'G'+Date.now().toString(36),vendor:H.vendor,produk:H.produk,bahan:H.bahan,orders:K.map(function(k){return k.o.id;}),
+  var belum=K.filter(function(k){return !k.siap;});if(belum.length){alert('Form PO belum lengkap di: '+belum.map(function(k){return k.label;}).join(', ')+'. Lengkapi dulu (spesifikasi, deadline, harga vendor disetujui).');return;}
+  var lewat=K.filter(function(k){return k.lewat;});if(lewat.length){alert('Sudah lewat batas gabung (PO wajib turun '+GAB_HK_BATAS+' hari kerja sebelum kirim): '+lewat.map(function(k){return k.label;}).join(', ')+'. Turunkan PO-nya sendiri.');return;}
+  var H=gabHitung(key,K);if(!(H.harga>0)){alert('Harga gabungan belum ada: '+(H.tipe==='kulit'?'produk ini tak ada di katalog tier':'kemasan ini tak ada di tabel Kombinasi harga')+' — isi harga vendor untuk qty gabungan di kotak "Harga gabungan".');return;}
+  var dl=K.map(gabDeadlineKand).filter(Boolean).sort()[0]||'';
+  var G={id:'G'+Date.now().toString(36)+Math.random().toString(36).slice(2,5),tipe:H.tipe,vendor:H.vendor,produk:H.produk,bahan:H.bahan,orders:K.map(function(k){return k.id;}),
     tier:H.tier?{label:H.tier.label,harga:H.tier.harga}:{label:'harga gabungan',harga:H.harga},hppLama:{},qtyPO:H.qtyPO,qty:H.qty,sendiri:H.sendiri,gab:H.gab,hemat:H.hemat,batas:H.batas,deadline:dl,
     status:'diajukan',aju:{oleh:(ST.userName||ST.user||''),tgl:hariIni()},dir:null,poNo:'',tglPO:'',generated:false,_m:Date.now()};
-  K.forEach(function(k){G.hppLama[k.o.id]=k.hpp;});
+  K.forEach(function(k){G.hppLama[k.id]=k.hpp;});
   gabSimpan(G);
-  var NL=String.fromCharCode(10),nama=K.map(function(k){return k.o.customer+' '+k.qtyPO;}).join(' · ');
-  K.forEach(function(k){logHist(k.o,'₪ Diajukan masuk PO gabungan '+G.id+' ('+K.length+' order, '+H.qtyPO+' pcs, tier '+G.tier.label+' '+fmt0(G.tier.harga)+', hemat '+fmt0(H.hemat)+') — menunggu approval Direktur');
-    notifyOrder(k.o,'₪ **PO gabungan diajukan** — '+k.o.customer+NL+picMention('Direktur')+' mohon approval: '+H.produk+' '+H.qtyPO+' pcs dari '+K.length+' order ('+nama+') → tier '+G.tier.label+' '+fmt0(G.tier.harga)+', hemat '+fmt0(H.hemat)+' · harus diputuskan sebelum '+(H.batas?tglID(H.batas):'-')+'. Setujui / tolak di HUB → Tugas saya.');});
+  var NL=String.fromCharCode(10),nama=K.map(function(k){return k.label+' '+k.qtyPO;}).join(' · ');
+  gabOrders(G).forEach(function(o){logHist(o,'₪ Diajukan masuk PO gabungan '+G.id+' — '+H.vendor+' ('+K.length+' anggota, '+H.qtyPO+' pcs '+H.produk+', tier '+G.tier.label+' '+fmt0(G.tier.harga)+', hemat '+fmt0(H.hemat)+') — menunggu approval Direktur');
+    notifyOrder(o,'₪ **PO gabungan diajukan** — '+o.customer+NL+picMention('Direktur')+' mohon approval: '+H.vendor+' · '+H.produk+' '+H.qtyPO+' pcs dari '+K.length+' anggota ('+nama+') → tier '+G.tier.label+' '+fmt0(G.tier.harga)+', hemat '+fmt0(H.hemat)+' · harus diputuskan sebelum '+(H.batas?tglID(H.batas):'-')+'. Setujui / tolak di HUB → Tugas saya.');});
   delete (ST._gabPilih||{})[key];save();render();kilat('PO gabungan diajukan ke Direktur');}
 function gabBatal(id){var G=gabCari(id);if(!G)return;if(!gabBolehAjukan()){alert('Dibatalkan Purchasing.');return;}
   if(G.status==='terbit'){alert('PO gabungan sudah terbit — tak bisa dibatalkan dari sini.');return;}
-  if(!confirm('Batalkan pengajuan PO gabungan '+G.id+'? Order-ordernya kembali bisa diturunkan PO sendiri-sendiri.'))return;
+  if(!confirm('Batalkan pengajuan PO gabungan '+G.id+'? Anggotanya kembali bisa diturunkan PO sendiri-sendiri.'))return;
   if(G.status==='disetujui')gabHppKembalikan(G);
   G.status='batal';gabSimpan(G);gabOrders(G).forEach(function(o){logHist(o,'✕ PO gabungan '+G.id+' dibatalkan Purchasing');});save();render();}
-function gabHppTerapkan(G){gabOrders(G).forEach(function(o){gabBarisProduk(o).forEach(function(x){var l=x.l;if((l.produk||'')!==G.produk)return;
-    l.hpp=+G.tier.harga||0;l._hppManual=true;l._gab=G.id;l.konf={tgl:hariIni(),hpp:l.hpp,fix:+l.hppFix||0,by:'PO gabungan '+G.id};});o._m=Date.now();});}
-function gabHppKembalikan(G){gabOrders(G).forEach(function(o){var lama=(G.hppLama||{})[o.id];gabBarisProduk(o).forEach(function(x){var l=x.l;if(l._gab!==G.id)return;if(lama>0){l.hpp=lama;if(l.konf)l.konf.hpp=lama;}delete l._gab;});o._m=Date.now();});}
+function gabHppTerapkan(G){gabAnggota(G).forEach(function(m){gabMBaris(G,m).forEach(function(x){var l=x.l;if((l.produk||'')!==G.produk)return;
+    l.hpp=+G.tier.harga||0;l._hppManual=true;l._gab=G.id;l.konf={tgl:hariIni(),hpp:l.hpp,fix:+l.hppFix||0,by:'PO gabungan '+G.id};});
+  if(m.t)(m.t.items||[]).forEach(function(i){if(i.nama!==G.produk)return;if(gabTipe(G)==='kulit'?!(i.k==='qty'||i.k==='produk'):i.k!=='coll')return;i.hpp=+G.tier.harga||0;i._gab=G.id;});
+  m.o._m=Date.now();});}
+function gabHppKembalikan(G){gabAnggota(G).forEach(function(m){var lama=(G.hppLama||{})[m.id];gabMBaris(G,m).forEach(function(x){var l=x.l;if(l._gab!==G.id)return;if(lama>0){l.hpp=lama;if(l.konf)l.konf.hpp=lama;}delete l._gab;});
+  if(m.t)(m.t.items||[]).forEach(function(i){if(i._gab!==G.id)return;if(lama>0)i.hpp=lama;delete i._gab;});
+  m.o._m=Date.now();});}
 function gabPutus(id,setuju){var G=gabCari(id);if(!G)return;if(!gabBolehPutus()){alert('Hanya Direktur Utama yang menyetujui PO gabungan.');return;}
   if(G.status!=='diajukan'){alert('Pengajuan ini sudah '+gabStatusTeks(G)+'.');return;}
-  var NL=String.fromCharCode(10),O=gabOrders(G);
+  var NL=String.fromCharCode(10),M=gabAnggota(G),O=gabOrders(G);
   if(setuju){G.status='disetujui';G.dir={oleh:(ST.userName||ST.user||''),tgl:hariIni()};gabHppTerapkan(G);gabSimpan(G);
-    O.forEach(function(o){logHist(o,'✓ PO gabungan '+G.id+' disetujui Direktur — HPP '+G.produk+' turun ke '+fmt0(G.tier.harga)+' (tier '+G.tier.label+'), harga client tetap');
-      notifyOrder(o,'✅ **PO gabungan disetujui Direktur** — '+o.customer+NL+'HPP '+G.produk+' order ini: '+fmt0((G.hppLama||{})[o.id]||0)+' → '+fmt0(G.tier.harga)+'. '+picMention('Purchasing')+' terbitkan PO gabungan dari Antrean PO.');});
+    M.forEach(function(m){logHist(m.o,'✓ PO gabungan '+G.id+' disetujui Direktur — HPP '+G.produk+(m.t?(' '+tbhNo(m.t)):'')+' turun ke '+fmt0(G.tier.harga)+' (tier '+G.tier.label+'), harga client tetap');
+      notifyOrder(m.o,'✅ **PO gabungan disetujui Direktur** — '+gabLabel(m)+NL+'HPP '+G.produk+' ('+G.vendor+'): '+fmt0((G.hppLama||{})[m.id]||0)+' → '+fmt0(G.tier.harga)+'. '+picMention('Purchasing')+' terbitkan PO gabungan dari Antrean PO.');});
     save();render();kilat('PO gabungan disetujui');return;}
-  askForm({judul:'Tolak PO gabungan '+G.id,sub:G.produk+' '+G.qtyPO+' pcs · '+O.length+' order · hemat '+fmt0(G.hemat),tanpaDraf:true,
+  askForm({judul:'Tolak PO gabungan '+G.id,sub:G.vendor+' · '+G.produk+' '+G.qtyPO+' pcs · '+M.length+' anggota · hemat '+fmt0(G.hemat),tanpaDraf:true,
     fields:[{k:'alasan',label:'Alasan penolakan',type:'textarea',tinggi:80,req:true,ph:'mis. deadline terlalu mepet untuk digabung'}],
     ok:function(f){var al=String(f.alasan||'').trim();if(!al){alert('Alasan wajib diisi.');return;}
       G.status='ditolak';G.dir={oleh:(ST.userName||ST.user||''),tgl:hariIni(),alasan:al};gabSimpan(G);
-      O.forEach(function(o){logHist(o,'✕ PO gabungan '+G.id+' ditolak Direktur: '+al+' — PO diturunkan sendiri-sendiri');notifyOrder(o,'⛔ **PO gabungan ditolak Direktur** — '+o.customer+NL+al+NL+picMention('Purchasing')+' turunkan PO order ini sendiri.');});
+      O.forEach(function(o){logHist(o,'✕ PO gabungan '+G.id+' ditolak Direktur: '+al+' — PO diturunkan sendiri-sendiri');notifyOrder(o,'⛔ **PO gabungan ditolak Direktur** — '+o.customer+NL+al+NL+picMention('Purchasing')+' turunkan PO-nya sendiri.');});
       save();render();}});}
-function gabKunciPO(o){return gabAktif(o)&&o.gab.status!=='terbit';}
 function gabPoGen(id){var G=gabCari(id);if(!G)return;if(!gabBolehAjukan()){alert('PO gabungan diterbitkan Purchasing.');return;}
   if(G.status!=='disetujui'){alert(G.status==='terbit'?'PO gabungan ini sudah terbit.':'Disetujui Direktur dulu.');return;}
-  var O=gabOrders(G),belum=O.filter(function(o){return poMissing(o).length;});if(belum.length){alert('Form PO belum lengkap di: '+belum.map(function(o){return o.customer;}).join(', '));return;}
-  if(!G.poNo)G.poNo=poNoBaru();G.tglPO=hariIni();G.generated=true;G.status='terbit';G.deadline=G.deadline||O.map(function(o){return (o.po||{}).deadline||'';}).filter(Boolean).sort()[0]||'';
-  var NL=String.fromCharCode(10),vd=G.vendor||kulitVendorNama();
-  O.forEach(function(o){if(!o.po)o.po={};o.po.poNo=G.poNo;o.po.tglPO=G.tglPO;o.po.generated=true;o.po.gab=G.id;o.trello={created:true,po:true,gab:G.id};
-    (o.disc=o.disc||[]).push({cat:['radja','TURUN PO'],who:'Bot',txt:'PO GABUNGAN <b>'+esc(G.poNo)+'</b> — '+O.length+' order, '+G.qtyPO+' pcs. Kartu: <b>'+esc(gabCardName(G))+'</b>'});
-    logHist(o,'📦 PO gabungan '+G.poNo+' terbit — '+O.length+' order, '+G.qtyPO+' pcs '+G.produk+' @ '+fmt0(G.tier.harga)+' · deadline '+(G.deadline?tglID(G.deadline):'-'));
-    notifyOrder(o,'📦 **PO GABUNGAN '+G.poNo+'** — '+vd+' · '+o.customer+' ('+gabQtyPO(o)+' pcs) bersama '+(O.length-1)+' order lain, total '+G.qtyPO+' pcs '+G.produk+NL+O.map(function(x){return '• '+x.customer+' — '+gabQtyPO(x)+' pcs';}).join(NL)+NL+'Deadline PO: '+(G.deadline?tglID(G.deadline):'-')+' · HPP order ini '+fmt0(G.tier.harga)+'/pcs · foto tahap tetap di channel ini.');});
+  var M=gabAnggota(G),O=gabOrders(G),vd=G.vendor||kulitVendorNama(),kulit=gabTipe(G)==='kulit';
+  if(M.length<2){alert('Anggota PO gabungan tinggal '+M.length+' — batalkan dan turunkan PO-nya sendiri.');return;}
+  var belum=M.filter(function(m){if(m.t)return false;return kulit?poMissing(m.o).length>0:vpoMissing(m.o,vd).length>0;});if(belum.length){alert('Form PO belum lengkap di: '+belum.map(gabLabel).join(', '));return;}
+  if(!G.poNo)G.poNo=poNoBaru();G.tglPO=hariIni();G.generated=true;G.status='terbit';G.deadline=G.deadline||M.map(function(m){return gabDeadlineAnggota(G,m);}).filter(Boolean).sort()[0]||'';
+  var NL=String.fromCharCode(10),daftar=M.map(function(m){return '• '+gabLabel(m)+' — '+gabMQtyPO(G,m)+' pcs';}).join(NL);
+  M.forEach(function(m){var p=gabPoRekam(G,m);p.poNo=G.poNo;p.tglPO=G.tglPO;p.generated=true;p.gab=G.id;p.date=nowStr();
+    if(m.t)p.deadline=p.deadline||(((m.t.deadline||{}).tgl)||((m.o.po||{}).deadline)||'');
+    if(kulit&&!m.t)m.o.trello={created:true,po:true,gab:G.id};
+    if(kulit)(m.o.disc=m.o.disc||[]).push({cat:['radja','TURUN PO'],who:'Bot',txt:'PO GABUNGAN <b>'+esc(G.poNo)+'</b> — '+M.length+' anggota, '+G.qtyPO+' pcs. Kartu: <b>'+esc(gabCardName(G))+'</b>'});
+    logHist(m.o,'📦 PO gabungan '+G.poNo+' terbit — '+vd+' · '+M.length+' anggota, '+G.qtyPO+' pcs '+G.produk+' @ '+fmt0(G.tier.harga)+(m.t?(' · '+tbhNo(m.t)):'')+' · deadline '+(G.deadline?tglID(G.deadline):'-'));
+    notifyOrder(m.o,'📦 **PO GABUNGAN '+G.poNo+'** — '+vd+' · '+gabLabel(m)+' ('+gabMQtyPO(G,m)+' pcs) bersama '+(M.length-1)+' anggota lain, total '+G.qtyPO+' pcs '+G.produk+NL+daftar+NL+'Deadline PO: '+(G.deadline?tglID(G.deadline):'-')+' · HPP anggota ini '+fmt0(G.tier.harga)+'/pcs'+(kulit?' · foto tahap tetap di channel ini.':'.'));});
   gabSimpan(G);
-  try{pushBackend('po',{id:G.id,card:gabCardName(G),customer:O.map(function(o){return o.customer;}).join(', '),produk:G.produk,qty:G.qtyPO,po:{poNo:G.poNo,tglPO:G.tglPO,deadline:G.deadline},gabungan:O.map(function(o){return {id:o.id,customer:o.customer,qty:gabQtyPO(o),deadline:(o.po||{}).deadline||''};})});}catch(e){}
+  if(kulit){try{pushBackend('po',{id:G.id,card:gabCardName(G),customer:M.map(gabLabel).join(', '),produk:G.produk,qty:G.qtyPO,po:{poNo:G.poNo,tglPO:G.tglPO,deadline:G.deadline},gabungan:M.map(function(m){return {id:m.id,customer:gabLabel(m),qty:gabMQtyPO(G,m),deadline:gabDeadlineAnggota(G,m)};})});}catch(e){}}
   save();render();gabPoDoc(G.id);}
 /* termin di dokumen PO gabungan: persen master vendor × total seluruh anggota (bukan tagihan order pertama saja) */
 function gabTerminHTML(G,rows){var total=rows.reduce(function(s,r){return s+(r.harga||0)*(r.qty||0);},0),T=[];try{T=vterminMaster(G.vendor||kulitVendorNama());}catch(e){}if(!T.length)return '';
   var N=T.map(function(x){return Math.round(total*(+x.pct||0)/100);});if(N.length)N[N.length-1]=Math.max(0,total-N.slice(0,-1).reduce(function(a,b){return a+b;},0));
   var tgl=function(x){if(x.dasar==='po')return G.tglPO||'';if(x.dasar==='terima')return G.deadline?tglGeser(G.deadline,2):'';return G.deadline||'';};
   return T.map(function(x,i){return '<tr><td class="k" style="width:150px">'+(i===0?'Payment Terms':'')+'</td><td>: '+esc('Stage '+(i+1)+': '+(+x.pct||0)+'% — '+idr(N[i])+' '+(VTERM_DASAR_EN[x.dasar]||x.dasar)+(tgl(x)?(', '+tglDMY(tgl(x))):''))+'</td></tr>';}).join('');}
-function gabCardName(G){var O=gabOrders(G);return 'PO GABUNGAN '+(G.poNo||G.id)+' - Rove x '+(G.vendor||'Radja')+' - '+G.produk+' - '+G.qtyPO+' pcs ('+O.length+' client)';}
-function gabPoDoc(id){var G=gabCari(id);if(!G)return;var O=gabOrders(G);if(!O.length)return;var vd=G.vendor||kulitVendorNama(),vm=((ST.master||{}).vendors||[]).find(function(x){return x.nama===vd;})||{};
+function gabCardName(G){var M=gabAnggota(G);return 'PO GABUNGAN '+(G.poNo||G.id)+' - Rove x '+(G.vendor||'Radja')+' - '+G.produk+' - '+G.qtyPO+' pcs ('+M.length+' client)';}
+function gabPoDoc(id){var G=gabCari(id);if(!G)return;var M=gabAnggota(G);if(!M.length)return;var vd=G.vendor||kulitVendorNama(),kulit=gabTipe(G)==='kulit',vm=((ST.master||{}).vendors||[]).find(function(x){return x.nama===vd;})||{};
   var info=function(k,val){return '<tr><td class="k">'+k+'</td><td>'+(esc(val)||'-')+'</td></tr>';};
-  var l0=gabBarisProduk(O[0])[0].l,rows=[{l:l0,item:G.produk+' — '+(G.bahan||''),color:poWarnaBaris(O[0],l0),service:'lihat lampiran per client',harga:+G.tier.harga||0,qty:G.qtyPO}];
-  var huruf='ABCDEFGHIJ';
-  O.forEach(function(o,i){var lain=(((o.pricing||{}).lines)||[]).filter(function(l){return (l.qty||0)>0&&!l.svcFee&&!l._tbh&&isLeatherVendor(l.sumber||'')&&lineJenis(l)!=='produk';});
-    poBarisDari(o,lain).forEach(function(r){r.item=r.item+' — '+huruf[i]+'. '+o.customer;rows.push(r);});});
-  var catatan=['PO GABUNGAN '+O.length+' order: potong bahan satu batch '+G.qtyPO+' pcs, finishing & packing dipisah per lampiran (A–'+huruf[O.length-1]+'), kirim ke Rove per client boleh bertahap dengan keterangan lampirannya.'];
-  O.forEach(function(o,i){catatan.push(huruf[i]+'. '+o.customer+' — '+gabQtyPO(o)+' pcs · deadline '+(((o.po||{}).deadline)?tglDMY(o.po.deadline):'-'));});
-  var lampiran=O.map(function(o,i){var b=o.brief||{},J=[];try{liveList(o.svc).forEach(function(n){J.push([n,[jasaTeknikOrder(o,n),svcLetak(o,n)].filter(Boolean).join(' — ')||'-']);});}catch(e){}
-    var P=gabBarisProduk(o),R=[];try{R=spekDokBaris(o,P[0].l);}catch(e){}var G2=[];try{G2=poGambar(o,P.map(function(x){return x.l;}));}catch(e){}
-    var kol=collDipilih(o).map(function(c){return c.nama;}).join(', ');
-    return '<div class="dsec">Lampiran '+huruf[i]+' — '+esc(o.customer)+'</div><table class="dinfotbl">'+info('Customer',o.customer)+info('Order',chName(o))+info('Qty',gabQtyClient(o)+' pcs client + '+(gabQtyPO(o)-gabQtyClient(o))+' spare = '+gabQtyPO(o)+' pcs')+info('Deadline',((o.po||{}).deadline)?tglDMY(o.po.deadline):'')+info('Collateral ke vendor',kol||'-')+'</table>'+
-      '<div class="djt">Spesifikasi</div><table class="dinfotbl">'+(R.length?R.map(function(r){return info(r[0],r[1]);}).join(''):info('Spesifikasi','belum diisi di Brief'))+'</table>'+
-      (J.length?('<div class="djt">Personalization</div><table class="dinfotbl">'+J.map(function(r){return info(r[0],r[1]);}).join('')+'</table>'):'')+
-      (G2.length?('<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:6px 0">'+G2.slice(0,4).map(function(x){return '<div style="text-align:center">'+imgTag(x.src,'width:100%;max-height:200px;object-fit:contain;border:1px solid #ddd;border-radius:8px')+'<div style="font-size:11px;color:#333;margin-top:4px">'+esc(x.cap)+'</div></div>';}).join('')+'</div>'):'')+
-      ((b.proses&&b.proses!=='-')?('<table class="dinfotbl">'+info('Proses produksi',b.proses)+'</table>'):'');}).join('');
+  var m0=M[0],P0=gabMBaris(G,m0),l0=P0.length?P0[0].l:{},rows=[{l:l0,item:G.produk+(G.bahan?(' — '+G.bahan):''),color:l0.produk?poWarnaBaris(m0.o,l0):'',service:'lihat lampiran per client',harga:+G.tier.harga||0,qty:G.qtyPO}];
+  var huruf='ABCDEFGHIJKLMNOPQRSTUVWXYZ',hf=function(i){return huruf[i]||String(i+1);};
+  M.forEach(function(m,i){var o=m.o,L=(((o.pricing||{}).lines)||[]);
+    /* biaya tetap (plat / setup) baris utama & baris lain vendor ini di anggota ini (add-on, jasa) — per client */
+    gabMBaris(G,m).forEach(function(x){if((+x.l.hppFix||0)>0)rows.push({l:x.l,item:(x.l.produk||'')+' — biaya tetap (plat / setup) — '+hf(i)+'. '+gabLabel(m),color:'',service:'sekali per order',harga:+x.l.hppFix,qty:1});});
+    var lain=L.filter(function(l){if(!l||l.svcFee||!((l.qty||0)>0))return false;if(m.t?(l._tbh!==m.tid):!!l._tbh)return false;
+      if(kulit)return isLeatherVendor(l.sumber||'')&&lineJenis(l)!=='produk';return (l.sumber||'')===vd&&(l.produk||'')!==G.produk;});
+    poBarisDari(o,lain).forEach(function(r){r.item=r.item+' — '+hf(i)+'. '+gabLabel(m);rows.push(r);});});
+  var catatan=[(kulit?('PO GABUNGAN '+M.length+' anggota: potong bahan satu batch '+G.qtyPO+' pcs, finishing & packing dipisah per lampiran (A–'+hf(M.length-1)+'), kirim ke Rove per client boleh bertahap dengan keterangan lampirannya.'):('PO GABUNGAN '+M.length+' anggota: produksi satu batch '+G.qtyPO+' pcs '+G.produk+', dipacking terpisah per lampiran (A–'+hf(M.length-1)+') dengan label client masing-masing, kirim ke Rove boleh bertahap dengan keterangan lampirannya.'))];
+  M.forEach(function(m,i){var dl=gabDeadlineAnggota(G,m);catatan.push(hf(i)+'. '+gabLabel(m)+' — '+gabMQtyPO(G,m)+' pcs · deadline '+(dl?tglDMY(dl):'-'));});
+  var lampiran=M.map(function(m,i){var o=m.o,b=o.brief||{},P=gabMBaris(G,m),l=P.length?P[0].l:null,dl=gabDeadlineAnggota(G,m);
+    var atas='<div class="dsec">Lampiran '+hf(i)+' — '+esc(gabLabel(m))+'</div><table class="dinfotbl">'+info('Customer',o.customer)+info('Order',chName(o))+(m.t?(info('Tambahan',tbhRingkas(m.t))+info('PO batch 1',(o.po||{}).poNo||'-')):'')+info('Qty',gabMQtyClient(G,m)+' pcs client + '+(gabMQtyPO(G,m)-gabMQtyClient(G,m))+' spare = '+gabMQtyPO(G,m)+' pcs')+info('Deadline',dl?tglDMY(dl):'');
+    if(kulit){var J=[];try{liveList(o.svc).forEach(function(n){J.push([n,[jasaTeknikOrder(o,n),svcLetak(o,n)].filter(Boolean).join(' — ')||'-']);});}catch(e){}
+      var R=[];try{R=l?spekDokBaris(o,l):[];}catch(e){}var G2=[];try{G2=poGambar(o,P.map(function(x){return x.l;}));}catch(e){}
+      var kol=collDipilih(o).map(function(c){return c.nama;}).join(', ');
+      return atas+info('Collateral ke vendor',kol||'-')+'</table>'+
+        '<div class="djt">Spesifikasi'+(m.t?' (sama dengan batch 1)':'')+'</div><table class="dinfotbl">'+(R.length?R.map(function(r){return info(r[0],r[1]);}).join(''):info('Spesifikasi','belum diisi di Brief'))+'</table>'+
+        (J.length?('<div class="djt">Personalization</div><table class="dinfotbl">'+J.map(function(r){return info(r[0],r[1]);}).join('')+'</table>'):'')+
+        (G2.length?('<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:6px 0">'+G2.slice(0,4).map(function(x){return '<div style="text-align:center">'+imgTag(x.src,'width:100%;max-height:200px;object-fit:contain;border:1px solid #ddd;border-radius:8px')+'<div style="font-size:11px;color:#333;margin-top:4px">'+esc(x.cap)+'</div></div>';}).join('')+'</div>'):'')+
+        ((b.proses&&b.proses!=='-')?('<table class="dinfotbl">'+info('Proses produksi',b.proses)+'</table>'):'');}
+    var R2=[];try{R2=l?rfqDocSpek(o,l):[];}catch(e){}var p=m.t?{}:vpoGet(o,vd),G3=[];try{G3=poGambar(o,P.map(function(x){return x.l;}),vd);}catch(e){}
+    return atas+(p.packing?info('Packing',p.packing):'')+(p.note?info('Catatan',p.note):'')+'</table>'+
+      '<div class="djt">Spesifikasi — '+esc(G.produk)+'</div><table class="dinfotbl">'+(R2.length?R2.map(function(r){return info(r[0],r[1]);}).join(''):info('Spesifikasi','belum diisi'))+'</table>'+
+      (G3.length?('<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:6px 0">'+G3.slice(0,4).map(function(x){return '<div style="text-align:center">'+imgTag(x.src,'width:100%;max-height:200px;object-fit:contain;border:1px solid #ddd;border-radius:8px')+'<div style="font-size:11px;color:#333;margin-top:4px">'+esc(x.cap)+'</div></div>';}).join('')+'</div>'):'');}).join('');
   var p={poNo:G.poNo,tglPO:G.tglPO,deadline:G.deadline,note:'',packing:''};
-  var html=poDokHTML(O[0],vd,p,rows,{catatan:catatan,gambar:[],lampiran:lampiran,subjudul:'PO gabungan '+O.length+' order — tier '+G.tier.label,diterima:(vm.kontak&&vm.kontak!=='-')?vm.kontak:vd,terminHTML:gabTerminHTML(G,rows)});
+  var html=poDokHTML(m0.o,vd,p,rows,{catatan:catatan,gambar:[],lampiran:lampiran,subjudul:'PO gabungan '+M.length+' order — tier '+G.tier.label,diterima:(vm.kontak&&vm.kontak!=='-')?vm.kontak:vd,terminHTML:gabTerminHTML(G,rows)});
   $('#docbody').innerHTML=html;ST._docHtml=html;ST._doc={type:'po'};
   trDOM(document.getElementById('docbody'));$('#docov').classList.add('show');loadImages();}
 
-/* ---- pembayaran vendor untuk PO gabungan: diajukan & dicatat sekali, HUB membagi per order ---- */
+/* ---- pembayaran vendor untuk PO gabungan: diajukan & dicatat sekali, HUB membagi per anggota (kunci tagihan 'Vendor' atau 'Vendor#tid') ---- */
+function gabBvKey(G,m){var v=G.vendor||kulitVendorNama();return m.tid?(v+'#'+m.tid):v;}
 function gabBvAjukan(id,tahap){var G=gabCari(id);if(!G||!G.generated)return;if(!bayarAjuBoleh()){alert('Pengajuan pembayaran vendor: Finance atau Purchasing.');return;}
-  var v=G.vendor||kulitVendorNama(),O=gabOrders(G).filter(function(o){return !bvAjuAktif(o,v,tahap)&&bvSisa(o,v)>0;});
-  if(!O.length){alert('Semua order di PO gabungan ini sudah punya pengajuan tahap '+tahap+' atau sudah lunas.');return;}
-  var total=0,bagian=O.map(function(o){var n=bvSisa(o,v);try{var d=vtermDaftar(o,v).filter(function(x){return x.tahap===+tahap;})[0];if(d&&d.nom>0&&!d.dibayar)n=Math.min(n,d.nom);}catch(e){}total+=n;return {o:o,n:n};});
-  askForm({judul:'Ajukan pembayaran PO gabungan '+G.poNo+' — tahap '+tahap,sub:v+' · '+O.length+' order · '+fmt0(total)+' (dibagi per order)',tanpaDraf:true,
+  var v=G.vendor||kulitVendorNama(),M=gabAnggota(G).map(function(m){m.key=gabBvKey(G,m);return m;}).filter(function(m){return !bvAjuAktif(m.o,m.key,tahap)&&bvSisa(m.o,m.key)>0;});
+  if(!M.length){alert('Semua anggota PO gabungan ini sudah punya pengajuan tahap '+tahap+' atau sudah lunas.');return;}
+  var total=0,bagian=M.map(function(m){var n=bvSisa(m.o,m.key);try{var d=vtermDaftar(m.o,m.key).filter(function(x){return x.tahap===+tahap;})[0];if(d&&d.nom>0&&!d.dibayar)n=Math.min(n,d.nom);}catch(e){}total+=n;return {m:m,n:n};});
+  askForm({judul:'Ajukan pembayaran PO gabungan '+G.poNo+' — tahap '+tahap,sub:v+' · '+M.length+' anggota · '+fmt0(total)+' (dibagi per order)',tanpaDraf:true,
     fields:[{k:'rencana',label:'Rencana tanggal bayar',type:'date',req:true,val:hariBayarBerikut(hariIni())},{k:'cat',label:'Catatan untuk Direktur',type:'text',ph:'mis. termin 1 PO gabungan, sesuai PO'}],
     ok:function(f){if(!f.rencana){alert('Rencana tanggal bayar wajib diisi.');return;}
-      bagian.forEach(function(b){var a={id:bayarAjuId(),v:v,tahap:+tahap,nominal:b.n,rencana:f.rencana,catatan:('PO gabungan '+G.poNo+(f.cat?(' — '+f.cat):'')),oleh:(ST.userName||ST.user||''),tgl:hariIni(),ts:Date.now(),status:'menunggu',gab:G.id};
-        bvAjuDaftar(b.o).push(a);logHist(b.o,'₪ Pengajuan pembayaran '+v+' tahap '+tahap+' (bagian PO gabungan '+G.poNo+'): '+fmt0(b.n)+' · rencana '+tglID(f.rencana));b.o._m=Date.now();});
-      notifyOrder(O[0],'₪ **Pengajuan pembayaran PO gabungan '+G.poNo+'** tahap '+tahap+' — '+v+' total '+fmt0(total)+' ('+O.length+' order) · rencana '+tglID(f.rencana)+' — '+picMention('Direktur')+' setujui di Tugas saya (bisa sekaligus per tanggal).');
-      save();render();kilat('Pengajuan PO gabungan dikirim ke Direktur — '+O.length+' baris, satu per order');}});}
+      bagian.forEach(function(b){var a={id:bayarAjuId(),v:b.m.key,tahap:+tahap,nominal:b.n,rencana:f.rencana,catatan:('PO gabungan '+G.poNo+(f.cat?(' — '+f.cat):'')),oleh:(ST.userName||ST.user||''),tgl:hariIni(),ts:Date.now(),status:'menunggu',gab:G.id};
+        bvAjuDaftar(b.m.o).push(a);logHist(b.m.o,'₪ Pengajuan pembayaran '+vendorTampil(b.m.key,b.m.o)+' tahap '+tahap+' (bagian PO gabungan '+G.poNo+'): '+fmt0(b.n)+' · rencana '+tglID(f.rencana));b.m.o._m=Date.now();});
+      notifyOrder(M[0].o,'₪ **Pengajuan pembayaran PO gabungan '+G.poNo+'** tahap '+tahap+' — '+v+' total '+fmt0(total)+' ('+M.length+' anggota) · rencana '+tglID(f.rencana)+' — '+picMention('Direktur')+' setujui di Tugas saya (bisa sekaligus per tanggal).');
+      save();render();kilat('Pengajuan PO gabungan dikirim ke Direktur — '+M.length+' baris, satu per anggota');}});}
 function gabBvCatat(id,tahap){var G=gabCari(id);if(!G||!G.generated)return;if(!bvBoleh()){alert('Pembayaran vendor dicatat Finance.');return;}
-  var v=G.vendor||kulitVendorNama(),O=gabOrders(G).map(function(o){return {o:o,aju:bvAjuAktif(o,v,tahap)};}).filter(function(x){return x.aju&&x.aju.status==='disetujui';});
-  if(!O.length){alert('Belum ada pengajuan tahap '+tahap+' yang disetujui Direktur untuk PO gabungan ini.');return;}
-  var total=O.reduce(function(s,x){return s+(+x.aju.nominal||0);},0);
-  askForm({judul:'Catat pembayaran PO gabungan '+G.poNo+' — tahap '+tahap,sub:v+' · disetujui '+fmt0(total)+' untuk '+O.length+' order — satu transfer, HUB membagi per order',tanpaDraf:true,
+  var v=G.vendor||kulitVendorNama(),M=gabAnggota(G).map(function(m){m.key=gabBvKey(G,m);m.aju=bvAjuAktif(m.o,m.key,tahap);return m;}).filter(function(m){return m.aju&&m.aju.status==='disetujui';});
+  if(!M.length){alert('Belum ada pengajuan tahap '+tahap+' yang disetujui Direktur untuk PO gabungan ini.');return;}
+  var total=M.reduce(function(s,m){return s+(+m.aju.nominal||0);},0);
+  askForm({judul:'Catat pembayaran PO gabungan '+G.poNo+' — tahap '+tahap,sub:v+' · disetujui '+fmt0(total)+' untuk '+M.length+' anggota — satu transfer, HUB membagi per order',tanpaDraf:true,
     fields:[{k:'nominal',label:'Nominal ditransfer (total)',type:'money',req:true,val:total},{k:'tgl',label:'Tanggal transfer',type:'date',req:true,val:hariIni()},{k:'cat',label:'Catatan',type:'text',ph:'mis. transfer BCA, termin 1 PO gabungan'}],
     ok:function(f){var n=moneyVal(f.nominal);if(!(n>0)){alert('Nominal wajib diisi.');return;}var sisa=n;
-      O.forEach(function(x,i){var bagian=(i===O.length-1)?sisa:Math.round(n*(+x.aju.nominal||0)/(total||1));sisa-=bagian;
-        bvDaftar(x.o,v).push({tahap:+tahap,nominal:bagian,tgl:f.tgl,catatan:'PO gabungan '+G.poNo+(f.cat?(' — '+f.cat):''),oleh:(ST.userName||ST.user||''),aju:x.aju.id,gab:G.id});
-        x.aju.status='dibayar';x.aju.bayar={tgl:f.tgl,nominal:bagian,oleh:(ST.userName||ST.user||'')};
-        logHist(x.o,'💸 Bayar vendor tahap '+tahap+' — '+v+' (bagian PO gabungan '+G.poNo+'): '+fmt0(bagian)+(bvSisa(x.o,v)<=0?' (lunas)':(' · sisa '+fmt0(bvSisa(x.o,v)))));x.o._m=Date.now();});
-      notifyOrder(O[0].o,'💸 **Pembayaran PO gabungan '+G.poNo+'** tahap '+tahap+' — '+v+' '+fmt0(n)+' dibagi ke '+O.length+' order.');
+      M.forEach(function(m,i){var bagian=(i===M.length-1)?sisa:Math.round(n*(+m.aju.nominal||0)/(total||1));sisa-=bagian;
+        bvDaftar(m.o,m.key).push({tahap:+tahap,nominal:bagian,tgl:f.tgl,catatan:'PO gabungan '+G.poNo+(f.cat?(' — '+f.cat):''),oleh:(ST.userName||ST.user||''),aju:m.aju.id,gab:G.id});
+        m.aju.status='dibayar';m.aju.bayar={tgl:f.tgl,nominal:bagian,oleh:(ST.userName||ST.user||'')};
+        logHist(m.o,'💸 Bayar vendor tahap '+tahap+' — '+vendorTampil(m.key,m.o)+' (bagian PO gabungan '+G.poNo+'): '+fmt0(bagian)+(bvSisa(m.o,m.key)<=0?' (lunas)':(' · sisa '+fmt0(bvSisa(m.o,m.key)))));m.o._m=Date.now();});
+      notifyOrder(M[0].o,'💸 **Pembayaran PO gabungan '+G.poNo+'** tahap '+tahap+' — '+v+' '+fmt0(n)+' dibagi ke '+M.length+' anggota.');
       save();render();}});}
-function gabBvBlok(o,tahap){var G=(o.po||{}).gab?gabCari(o.po.gab):null;if(!G||!G.generated)return '';var O=gabOrders(G),v=G.vendor||kulitVendorNama();
-  var total=O.reduce(function(s,x){return s+bvTotal(x,v);},0),bayar=O.reduce(function(s,x){return s+bvDibayar(x,v);},0);
-  var adaAju=O.some(function(x){return !bvAjuAktif(x,v,tahap)&&bvSisa(x,v)>0;}),adaSetuju=O.some(function(x){var a=bvAjuAktif(x,v,tahap);return a&&a.status==='disetujui';});
-  return '<div data-f="gabBv" style="border:1px solid var(--biru,#2f4f8f);border-radius:9px;padding:8px 11px;margin-bottom:9px;font-size:10.5px;line-height:1.6"><b>PO gabungan '+esc(G.poNo)+'</b> — '+O.length+' order: '+O.map(function(x){return esc(x.customer)+' '+fmt0(bvTotal(x,v));}).join(' · ')+
-    '<div style="color:var(--muted)">Tagihan '+esc(v)+' seluruhnya '+fmt0(total)+' · dibayar '+fmt0(bayar)+' · sisa '+fmt0(Math.max(0,total-bayar))+'. Bagian order ini ada di kotak vendor di bawah. Pengajuan & transfer bisa sekali untuk semua order — HUB membagi menurut termin tiap order.</div>'+
-    '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px">'+(adaAju&&bayarAjuBoleh()?('<button class="btn sm" data-f="gabBvAju_'+tahap+'" onclick="gabBvAjukan('+jsArg(G.id)+','+tahap+')">₪ Ajukan tahap '+tahap+' untuk semua order</button>'):'')+
-    (adaSetuju&&bvBoleh()?('<button class="btn sm" data-f="gabBvCatat_'+tahap+'" onclick="gabBvCatat('+jsArg(G.id)+','+tahap+')">＋ Catat satu transfer untuk semua order</button>'):'')+'</div></div>';}
+function gabBvBlok(o,tahap){if(!o)return '';var D=gabAll().filter(function(g){return g.status==='terbit'&&g.generated&&gabAnggota(g).some(function(m){return m.o.id===o.id;});});
+  return D.map(function(G){var M=gabAnggota(G).map(function(m){m.key=gabBvKey(G,m);return m;}),v=G.vendor||kulitVendorNama();
+    var total=M.reduce(function(s,m){return s+bvTotal(m.o,m.key);},0),bayar=M.reduce(function(s,m){return s+bvDibayar(m.o,m.key);},0);
+    var adaAju=M.some(function(m){return !bvAjuAktif(m.o,m.key,tahap)&&bvSisa(m.o,m.key)>0;}),adaSetuju=M.some(function(m){var a=bvAjuAktif(m.o,m.key,tahap);return a&&a.status==='disetujui';});
+    return '<div data-f="gabBv" style="border:1px solid var(--biru,#2f4f8f);border-radius:9px;padding:8px 11px;margin-bottom:9px;font-size:10.5px;line-height:1.6"><b>PO gabungan '+esc(G.poNo)+'</b> — '+esc(v)+' · '+M.length+' anggota: '+M.map(function(m){return esc(gabLabel(m))+' '+fmt0(bvTotal(m.o,m.key));}).join(' · ')+
+      '<div style="color:var(--muted)">Tagihan '+esc(v)+' seluruhnya '+fmt0(total)+' · dibayar '+fmt0(bayar)+' · sisa '+fmt0(Math.max(0,total-bayar))+'. Bagian order ini ada di kotak vendor di bawah. Pengajuan & transfer bisa sekali untuk semua anggota — HUB membagi menurut termin tiap order.</div>'+
+      '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px">'+(adaAju&&bayarAjuBoleh()?('<button class="btn sm" data-f="gabBvAju_'+tahap+'" onclick="gabBvAjukan('+jsArg(G.id)+','+tahap+')">₪ Ajukan tahap '+tahap+' untuk semua anggota</button>'):'')+
+      (adaSetuju&&bvBoleh()?('<button class="btn sm" data-f="gabBvCatat_'+tahap+'" onclick="gabBvCatat('+jsArg(G.id)+','+tahap+')">＋ Catat satu transfer untuk semua anggota</button>'):'')+'</div></div>';}).join('');}
 
 /* ---- layar Antrean PO (tab di Order Management) ---- */
-function gabKandidatHTML(key,K){var P=gabPilih(key),H=gabHitung(key,K.filter(function(k){return P[k.o.id];})),h=hariIni(),M=gabMenyusul(key),boleh=gabBolehAjukan();
-  var baris=K.map(function(k){var o=k.o,on=!!P[o.id],dn=k.batas?dLeft(k.batas):null,tier=gabTierHarga(H.produk,k.qtyPO);
-    return '<tr><td>'+(boleh?('<input type="checkbox" '+(on?'checked':'')+' '+(k.lewat?'disabled':'')+' data-f="gabPilih_'+esc(o.id)+'" onchange="gabPilihSet('+jsArg(key)+','+jsArg(o.id)+',this.checked)" aria-label="gabungkan '+esc(o.customer)+'">'):(on?'✓':''))+'</td>'+
-      '<td><a href="#" onclick="var ev=window.event;if(ev){ev.preventDefault();}openOrder('+jsArg(o.id)+')"><b>'+esc(o.customer)+'</b></a><div style="font-size:9.5px;color:var(--muted)">'+esc((o.kategori||o.type||''))+' · '+esc(chName(o))+(k.siap?'':' · <span style="color:var(--warn);font-weight:700">form PO belum lengkap</span>')+'</div></td>'+
+function gabKandidatHTML(key,K){var P=gabPilih(key),H=gabHitung(key,K.filter(function(k){return P[k.id];})),M=gabMenyusul(key),boleh=gabBolehAjukan(),kulit=H.tipe==='kulit';
+  var berjalan=gabAll().filter(function(g){return gabAktifStatus(g.status)&&g.status!=='terbit'&&(g.tipe||'kulit')===H.tipe&&g.vendor===H.vendor&&g.produk===H.produk&&(g.bahan||'')===(H.bahan||'');})[0]||null;
+  var chip=function(teks,bg,warna){return '<span style="font-size:9px;font-weight:800;border-radius:20px;padding:2px 8px;background:'+bg+';color:'+warna+'">'+teks+'</span>';};
+  var baris=K.map(function(k){var o=k.o,on=!!P[k.id],dn=k.batas?dLeft(k.batas):null,tier=gabTierUntuk(key,k.l,k.qtyPO);
+    return '<tr><td>'+(boleh?('<input type="checkbox" '+(on?'checked':'')+' '+(k.lewat?'disabled':'')+' data-f="gabPilih_'+esc(vpoSlot(k.id))+'" onchange="gabPilihSet('+jsArg(key)+','+jsArg(k.id)+',this.checked)" aria-label="gabungkan '+esc(k.label)+'">'):(on?'✓':''))+'</td>'+
+      '<td><a href="#" onclick="var ev=window.event;if(ev){ev.preventDefault();}openOrder('+jsArg(o.id)+')"><b>'+esc(o.customer)+'</b></a>'+(k.t?(' '+chip('PO tambahan · '+esc(tbhNo(k.t)),'var(--warn-bg)','var(--warn)')):'')+'<div style="font-size:9.5px;color:var(--muted)">'+esc((o.kategori||o.type||''))+' · '+esc(chName(o))+(k.t?' · '+esc(PH[+o.phase||0].n):'')+(k.siap?'':' · <span style="color:var(--warn);font-weight:700">form PO belum lengkap</span>')+'</div></td>'+
       '<td data-l="Qty client" class="num">'+k.qty+'</td><td data-l="Ke vendor" class="num">'+k.qtyPO+'</td><td data-l="Tier sendiri" class="num">'+(tier?(tier.label+' · '):'')+fmt0(k.hpp)+'</td>'+
       '<td data-l="Kirim">'+(k.kirim?tglID(k.kirim):'—')+'</td><td data-l="Batas gabung">'+(k.batas?('<b>'+tglID(k.batas)+'</b><div style="font-size:9.5px;color:'+(k.lewat?'#8f2a1e':(dn!==null&&dn<=5?'var(--warn)':'var(--muted)'))+'">'+(k.lewat?('lewat '+(-dn)+' hari'):(dn===0?'hari ini':(dn+' hari lagi')))+'</div>'):'—')+'</td>'+
-      '<td>'+(k.lewat?'<span class="pil" style="background:var(--red-bg);color:#8f2a1e;font-size:9px;font-weight:800;border-radius:20px;padding:2px 8px">lewat batas — PO sendiri</span>':'<span style="font-size:9px;font-weight:800;border-radius:20px;padding:2px 8px;background:var(--ok-bg);color:var(--ok)">siap PO</span>')+'</td></tr>';}).join('');
-  var susul=M.map(function(m){var t=gabTierHarga(H.produk,m.qtyPO);return '<tr style="opacity:.75"><td></td><td><b>'+esc(m.o.customer)+'</b><div style="font-size:9.5px;color:var(--muted)">masih '+esc(m.fase)+'</div></td><td class="num">'+m.qty+'</td><td class="num">'+m.qtyPO+'</td><td class="num">'+(t?(t.label+' · '+fmt0(t.harga)):'—')+'</td><td>'+(m.kirim?tglID(m.kirim):'—')+'</td><td>'+(m.batas?tglID(m.batas):'—')+'</td><td><span style="font-size:9px;font-weight:800;border-radius:20px;padding:2px 8px;background:var(--chip,var(--bg));color:var(--muted)">menyusul</span></td></tr>';}).join('');
-  var nPilih=K.filter(function(k){return P[k.o.id];}).length,tierTeks=H.tier?(H.tier.label+' · '+fmt0(H.tier.harga)):(H.harga?('harga gabungan '+fmt0(H.harga)):'belum ada harga');
+      '<td>'+(k.lewat?chip('lewat batas — PO sendiri','var(--red-bg)','#8f2a1e'):chip('siap PO','var(--ok-bg)','var(--ok)'))+'</td></tr>';}).join('');
+  var susul=M.map(function(m){var t=gabTierUntuk(key,null,m.qtyPO);return '<tr style="opacity:.75"><td></td><td><b>'+esc(m.label)+'</b><div style="font-size:9.5px;color:var(--muted)">masih '+esc(m.fase)+'</div></td><td class="num">'+m.qty+'</td><td class="num">'+m.qtyPO+'</td><td class="num">'+(t?(t.label+' · '+fmt0(t.harga)):'—')+'</td><td>'+(m.kirim?tglID(m.kirim):'—')+'</td><td>'+(m.batas?tglID(m.batas):'—')+'</td><td>'+chip('menyusul','var(--chip,var(--bg))','var(--muted)')+'</td></tr>';}).join('');
+  var nPilih=K.filter(function(k){return P[k.id];}).length,tierTeks=H.tier?(H.tier.label+' · '+fmt0(H.tier.harga)):(H.harga?('harga gabungan '+fmt0(H.harga)):'belum ada harga');
   var manual=(!H.tier)?('<label class="nlbl" style="display:flex;gap:8px;align-items:center;margin-top:6px">Harga gabungan / pcs (tanya vendor)<input class="pin n money" inputmode="numeric" style="width:120px" value="'+moneyInp(gabHargaManual(key))+'" data-f="gabHarga" onchange="gabHargaManualSet('+jsArg(key)+',this.value)"></label>'):'';
+  var tierDaftar=gabTierDaftar(key,(K[0]||{}).l||null);
   return '<div class="card" data-f="gabGrup_'+esc(vpoSlot(key))+'" style="margin-bottom:12px"><div class="body">'+
-    '<div style="display:flex;gap:8px 12px;align-items:baseline;flex-wrap:wrap;border-bottom:1px solid var(--line);padding-bottom:8px;margin-bottom:8px"><b style="font-size:12.5px">'+esc(H.produk)+(H.bahan?(' · '+esc(H.bahan)):'')+'</b><span style="font-size:10px;color:var(--muted)">'+esc(H.vendor)+' · '+K.length+' order siap PO'+(M.length?(' · '+M.length+' menyusul'):'')+'</span>'+
-      (function(){var it=null;try{it=(catalog()||[]).filter(function(c){return c.name===H.produk;})[0];}catch(e){}return it&&it.t?('<span style="font-size:9.5px;color:var(--muted)">tier: '+CATALOG_TIERS.map(function(t,i){return t.label+' '+fmt0(it.t[i]||0);}).join(' · ')+'</span>'):'';})()+'</div>'+
+    '<div style="display:flex;gap:8px 12px;align-items:baseline;flex-wrap:wrap;border-bottom:1px solid var(--line);padding-bottom:8px;margin-bottom:8px"><b style="font-size:12.5px">'+esc(H.produk)+(H.bahan?(' · '+esc(H.bahan)):'')+'</b>'+chip(gabTipeLabel(H.tipe),kulit?'var(--biru-bg,#e4ecf7)':'var(--warn-bg)',kulit?'var(--biru,#2f4f8f)':'var(--warn)')+'<span style="font-size:10px;color:var(--muted)">'+esc(H.vendor)+' · '+K.length+' siap PO'+(M.length?(' · '+M.length+' menyusul'):'')+'</span>'+
+      (tierDaftar?('<span style="font-size:9.5px;color:var(--muted)">tier: '+tierDaftar+'</span>'):'')+'</div>'+
+    (berjalan?('<div style="font-size:10.5px;color:var(--warn);font-weight:700;margin-bottom:8px">Ada pengajuan berjalan untuk barang ini ('+esc(berjalan.id)+' — '+esc(gabStatusTeks(berjalan))+'). Anggota baru tak bisa masuk ke pengajuan yang sudah dikirim — batalkan lalu ajukan ulang kalau mau menyertakannya.</div>'):'')+
     '<div class="xscroll"><table class="rtable mstack" style="font-size:11px"><thead><tr><th></th><th>Order · client</th><th class="num">Qty client</th><th class="num">Ke vendor (+spare)</th><th class="num">Tier sendiri</th><th>Kirim</th><th>Batas gabung</th><th>Status</th></tr></thead><tbody>'+baris+susul+'</tbody></table></div>'+
     '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:10px;margin-top:10px">'+
-      '<div style="border:1px solid var(--ok);border-radius:10px;padding:9px 12px;background:var(--ok-bg)"><div style="font-size:9.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--ok)">Kalau digabung ('+nPilih+' order dicentang)</div>'+
+      '<div style="border:1px solid var(--ok);border-radius:10px;padding:9px 12px;background:var(--ok-bg)"><div style="font-size:9.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--ok)">Kalau digabung ('+nPilih+' dicentang)</div>'+
         '<div style="font-size:11px;line-height:1.7;margin-top:4px">Ke vendor <b>'+H.qtyPO+' pcs</b> → '+esc(tierTeks)+'<br>PO sendiri-sendiri <b>'+fmt0(H.sendiri)+'</b> · PO gabungan <b>'+fmt0(H.gab)+'</b><br>Hemat <b style="font-size:16px;color:var(--ok)">'+fmt0(H.hemat)+'</b>'+(H.sendiri>0&&H.harga?(' ('+Math.round(H.hemat/H.sendiri*1000)/10+'%)'):'')+'</div>'+manual+
-        '<div style="font-size:9.5px;color:var(--muted);margin-top:4px">Harga ke client tetap — hemat masuk profit tiap order (HPP-nya turun).</div></div>'+
-      '<div style="border:1px solid var(--line);border-radius:10px;padding:9px 12px;font-size:11px;line-height:1.6;background:var(--bg)">Batas gabung tiap order = tanggal kirim − '+GAB_HK_BATAS+' hari kerja (PO wajib sudah turun). '+(H.batas?('<b>Harus diputuskan sebelum '+tglID(H.batas)+'</b> — batas order yang paling mendesak. Lewat itu HUB menandai ordernya "PO sendiri" dan menghitung ulang gabungan sisanya.'):'Tanggal kirim belum ada di sebagian order — isi dulu supaya batas gabungnya terhitung.')+
-        (M.length?('<br><b>Menyusul:</b> '+M.map(function(m){return esc(m.o.customer)+' '+m.qtyPO+' pcs ('+esc(m.fase)+')';}).join(', ')+' — HUB memberi tahu Purchasing begitu sampai Purchase Order Issuing.'):'')+'</div></div>'+
+        '<div style="font-size:9.5px;color:var(--muted);margin-top:4px">Harga ke client tetap — hemat masuk profit tiap order (HPP-nya turun).'+(kulit?'':' Tier kemasan dari tabel Kombinasi harga (Master data); kalau kosong, isi harga vendor untuk qty gabungan.')+'</div></div>'+
+      '<div style="border:1px solid var(--line);border-radius:10px;padding:9px 12px;font-size:11px;line-height:1.6;background:var(--bg)">Batas gabung tiap order = tanggal kirim − '+GAB_HK_BATAS+' hari kerja (PO wajib sudah turun). '+(H.batas?('<b>Harus diputuskan sebelum '+tglID(H.batas)+'</b> — batas anggota yang paling mendesak. Lewat itu HUB menandainya "PO sendiri" dan menghitung ulang gabungan sisanya.'):'Tanggal kirim belum ada di sebagian order — isi dulu supaya batas gabungnya terhitung.')+
+        (M.length?('<br><b>Menyusul:</b> '+M.map(function(m){return esc(m.label)+' '+m.qtyPO+' pcs ('+esc(m.fase)+')';}).join(', ')+' — HUB memberi tahu Purchasing begitu siap PO.'):'')+'</div></div>'+
     '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px">'+(boleh?('<button class="btn sm" data-f="gabAjukan_'+esc(vpoSlot(key))+'" '+(nPilih>=2?'':'disabled style="opacity:.55"')+' onclick="gabAjukan('+jsArg(key)+')">₪ Ajukan PO gabungan ke Direktur</button>'):'<span style="font-size:10.5px;color:var(--muted)">diajukan Purchasing</span>')+
-      '<span style="font-size:10px;color:var(--muted)">Deadline PO gabungan = deadline paling awal di antara ordernya. PO sendiri-sendiri tetap lewat tombol Generate PO di tiap order.</span></div></div></div>';}
-function gabGrupHTML(G){var O=gabOrders(G),st={diajukan:['var(--warn-bg)','var(--warn)'],disetujui:['var(--biru-bg,#e4ecf7)','var(--biru,#2f4f8f)'],terbit:['var(--ok-bg)','var(--ok)'],ditolak:['var(--red-bg)','#8f2a1e'],batal:['var(--bg)','var(--muted)']}[G.status]||['var(--bg)','var(--muted)'];
+      '<span style="font-size:10px;color:var(--muted)">Deadline PO gabungan = deadline paling awal di antara anggotanya. PO sendiri-sendiri tetap lewat tombol Generate PO di tiap order'+(kulit?'':' (panel PO Vendor Lain)')+'.</span></div></div></div>';}
+function gabGrupHTML(G){var M=gabAnggota(G),st={diajukan:['var(--warn-bg)','var(--warn)'],disetujui:['var(--biru-bg,#e4ecf7)','var(--biru,#2f4f8f)'],terbit:['var(--ok-bg)','var(--ok)'],ditolak:['var(--red-bg)','#8f2a1e'],batal:['var(--bg)','var(--muted)']}[G.status]||['var(--bg)','var(--muted)'];
   var A=jsArg(G.id);
   return '<div class="card" data-f="gab_'+esc(G.id)+'" style="margin-bottom:12px;border-left:4px solid '+st[1]+'"><div class="body">'+
-    '<div style="display:flex;gap:8px 12px;align-items:baseline;flex-wrap:wrap"><b style="font-size:12.5px">'+esc(G.produk)+' · '+G.qtyPO+' pcs · '+O.length+' order</b><span style="font-size:9px;font-weight:800;border-radius:20px;padding:2px 8px;background:'+st[0]+';color:'+st[1]+'">'+esc(gabStatusTeks(G))+'</span><span style="font-size:10px;color:var(--muted)">'+esc(G.vendor)+(G.poNo?(' · '+esc(G.poNo)):'')+' · diajukan '+tglID((G.aju||{}).tgl)+' · '+esc((G.aju||{}).oleh||'')+(G.dir?(' · '+(G.status==='ditolak'?'ditolak':'disetujui')+' '+tglID(G.dir.tgl)+' · '+esc(G.dir.oleh||'')):'')+'</span></div>'+
-    '<div style="font-size:11px;line-height:1.7;margin-top:4px">'+O.map(function(o){return '<a href="#" onclick="var ev=window.event;if(ev){ev.preventDefault();}openOrder('+jsArg(o.id)+')">'+esc(o.customer)+'</a> '+gabQtyPO(o)+' pcs (HPP '+fmt0((G.hppLama||{})[o.id]||0)+' → '+fmt0(G.tier.harga)+')';}).join(' · ')+
+    '<div style="display:flex;gap:8px 12px;align-items:baseline;flex-wrap:wrap"><b style="font-size:12.5px">'+esc(G.produk)+' · '+G.qtyPO+' pcs · '+M.length+' anggota</b><span style="font-size:9px;font-weight:800;border-radius:20px;padding:2px 8px;background:'+st[0]+';color:'+st[1]+'">'+esc(gabStatusTeks(G))+'</span><span style="font-size:10px;color:var(--muted)">'+esc(G.vendor)+' ('+gabTipeLabel(gabTipe(G))+')'+(G.poNo?(' · '+esc(G.poNo)):'')+' · diajukan '+tglID((G.aju||{}).tgl)+' · '+esc((G.aju||{}).oleh||'')+(G.dir?(' · '+(G.status==='ditolak'?'ditolak':'disetujui')+' '+tglID(G.dir.tgl)+' · '+esc(G.dir.oleh||'')):'')+'</span></div>'+
+    '<div style="font-size:11px;line-height:1.7;margin-top:4px">'+M.map(function(m){return '<a href="#" onclick="var ev=window.event;if(ev){ev.preventDefault();}openOrder('+jsArg(m.o.id)+')">'+esc(gabLabel(m))+'</a> '+gabMQtyPO(G,m)+' pcs (HPP '+fmt0((G.hppLama||{})[m.id]||0)+' → '+fmt0(G.tier.harga)+')';}).join(' · ')+
       '<br>Tier '+esc(G.tier.label)+' '+fmt0(G.tier.harga)+' · sendiri-sendiri '+fmt0(G.sendiri)+' → gabungan '+fmt0(G.gab)+' · <b style="color:var(--ok)">hemat '+fmt0(G.hemat)+'</b> · harga client tetap · deadline PO '+(G.deadline?tglID(G.deadline):'-')+(G.batas?(' · batas keputusan '+tglID(G.batas)):'')+(G.dir&&G.dir.alasan?('<br><span style="color:#8f2a1e">Alasan: '+esc(G.dir.alasan)+'</span>'):'')+'</div>'+
     '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:8px">'+
       (G.status==='diajukan'&&gabBolehPutus()?('<button class="btn sm" style="background:var(--ok);border-color:var(--ok)" data-f="gabSetuju_'+esc(G.id)+'" onclick="gabPutus('+A+',true)">✓ Setujui gabungan</button><button class="btn ghost sm" data-f="gabTolak_'+esc(G.id)+'" onclick="gabPutus('+A+',false)">✕ Tolak — turunkan sendiri-sendiri</button>'):'')+
       (G.status==='diajukan'&&!gabBolehPutus()?'<span style="font-size:10.5px;color:var(--warn);font-weight:700">menunggu Direktur</span>':'')+
-      (G.status==='disetujui'&&gabBolehAjukan()?('<button class="btn sm" data-f="gabPoGen_'+esc(G.id)+'" onclick="gabPoGen('+A+')">⚡ Generate PO gabungan (PDF + Trello)</button>'):'')+
+      (G.status==='disetujui'&&gabBolehAjukan()?('<button class="btn sm" data-f="gabPoGen_'+esc(G.id)+'" onclick="gabPoGen('+A+')">⚡ Generate PO gabungan (PDF'+(gabTipe(G)==='kulit'?' + Trello':'')+')</button>'):'')+
       (G.status==='terbit'?('<button class="btn ghost sm" data-f="gabLihat_'+esc(G.id)+'" onclick="gabPoDoc('+A+')">📄 Lihat PO gabungan</button>'):'')+
       ((G.status==='diajukan'||G.status==='disetujui')&&gabBolehAjukan()?('<button class="btn ghost sm" style="font-size:9.5px" data-f="gabBatal_'+esc(G.id)+'" onclick="gabBatal('+A+')">batalkan</button>'):'')+'</div></div></div>';}
 function gabAntreanHTML(){var K=gabKandidat(),grup={},urut=[];K.forEach(function(k){if(!grup[k.key]){grup[k.key]=[];urut.push(k.key);}grup[k.key].push(k);});
+  urut.sort(function(a,b){var pa=gabKeyUrai(a),pb=gabKeyUrai(b);if(pa.tipe!==pb.tipe)return pa.tipe==='kulit'?-1:1;return (pa.vendor+pa.produk).localeCompare(pb.vendor+pb.produk);});
   var G=gabAll(),aktif=G.filter(function(g){return gabAktifStatus(g.status);}),lama=G.filter(function(g){return !gabAktifStatus(g.status);}).slice(0,6);
   var out='';
   if(aktif.length)out+='<div class="sj">PO gabungan berjalan</div>'+aktif.map(gabGrupHTML).join('');
-  out+='<div class="sj" style="margin-top:6px">Kandidat gabungan — order di Purchase Order Issuing yang PO-nya belum turun</div>';
-  if(!urut.length)out+='<div class="card"><div class="body" style="font-size:11px;color:var(--muted)">Belum ada order yang bisa digabung. Order muncul di sini begitu sampai Purchase Order Issuing dengan satu produk dari vendor kulit; kandidat yang cuma satu order tetap tampil supaya terlihat siapa yang menyusul.</div></div>';
+  out+='<div class="sj" style="margin-top:6px">Kandidat gabungan — PO yang belum turun: PO 1 di Purchase Order Issuing (vendor kulit & kemasan) dan PO tambahan yang sudah disetujui client</div>';
+  if(!urut.length)out+='<div class="card"><div class="body" style="font-size:11px;color:var(--muted)">Belum ada yang bisa digabung. Order muncul di sini begitu sampai Purchase Order Issuing (satu produk dari vendor kulit, atau kemasan per vendor), dan tambahan order begitu client menyetujuinya; kandidat yang cuma satu tetap tampil supaya terlihat siapa yang menyusul.</div></div>';
   else out+=urut.map(function(key){return gabKandidatHTML(key,grup[key]);}).join('');
   if(lama.length)out+='<div class="sj" style="margin-top:6px">Riwayat</div>'+lama.map(gabGrupHTML).join('');
   return out;}
-function gabAntreanLayar(){var n=gabHitungMenunggu();
+function gabAntreanLayar(){
   return '<div class="topbar"><h1>Order Management</h1><span class="demo">PROTOTYPE · data lokal</span><div class="sp"></div>'+(can('neworder')?'<button class="btn" onclick="openNew()">＋ Order baru</button>':'')+'</div>'+
-    tabNote('<b>Antrean PO vendor.</b> Order yang siap PO dikelompokkan menurut vendor + produk + bahan. Digabung jadi satu PO supaya kena tier harga yang lebih murah — perlu approval Direktur, harga ke client tetap, dan PO wajib turun paling lambat '+GAB_HK_BATAS+' hari kerja sebelum tanggal kirim tiap order.')+
+    tabNote('<b>Antrean PO vendor.</b> PO yang belum turun dikelompokkan menurut vendor + barang + bahan — vendor kulit maupun kemasan, PO 1 maupun PO tambahan. Digabung jadi satu PO supaya kena tier harga yang lebih murah — perlu approval Direktur, harga ke client tetap, dan PO wajib turun paling lambat '+GAB_HK_BATAS+' hari kerja sebelum tanggal kirim tiap order.')+
     gabTabsHTML('antrean')+gabAntreanHTML();}
 function gabTabsHTML(aktif){if(!gabBolehLihat())return '';var n=gabHitungMenunggu(),nK=gabKandidat().length;
   return '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px"><button class="btn '+(aktif==='papan'?'':'ghost ')+'sm" data-f="gabTabPapan" onclick="gabTab('+jsArg('papan')+')">▦ Papan order</button><button class="btn '+(aktif==='antrean'?'':'ghost ')+'sm" data-f="gabTabAntrean" onclick="gabTab('+jsArg('antrean')+')">₪ Antrean PO vendor'+(nK?(' <span style="background:rgba(0,0,0,.18);border-radius:9px;padding:0 6px;font-size:9px">'+nK+'</span>'):'')+(n?(' <span style="background:#d9534f;color:#fff;border-radius:9px;padding:0 6px;font-size:9px;font-weight:800">'+n+'</span>'):'')+'</button></div>';}
 function gabTugasDaftar(){var R=myRoles(),out=[];gabAll().forEach(function(g){if(g.status==='diajukan'&&(R.indexOf('Direktur Utama')>=0||R.indexOf('Holding')>=0))out.push(g);if(g.status==='disetujui'&&(R.indexOf('Purchasing')>=0||R.indexOf('Holding')>=0))out.push(g);});return out;}
 function gabTugasBlok(){var D=[];try{D=gabTugasDaftar();}catch(e){}if(!D.length)return '';
   return '<div class="rcard" data-f="gabTugas" style="max-width:760px;margin-bottom:14px"><h3 style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">₪ PO gabungan<span style="font-size:10px;font-weight:800;color:#2b1d0e;background:var(--gold);border-radius:20px;padding:1px 8px">'+D.length+' menunggu</span><span style="font-size:10px;color:var(--muted);font-weight:600">gabung beberapa order jadi satu PO vendor</span></h3>'+D.map(gabGrupHTML).join('')+'</div>';}
-function gabPoBanner(o){if(!o||!o.gab)return '';var G=gabCari(o.gab.id)||o.gab;if(!gabAktifStatus(G.status))return '';var O=gabOrders(G);
-  return '<div data-f="gabBanner" style="border:1px solid var(--biru,#2f4f8f);border-radius:10px;padding:9px 12px;margin-bottom:10px;font-size:10.5px;line-height:1.6;background:var(--biru-bg,#e4ecf7)"><b>Order ini masuk PO gabungan'+(G.poNo?(' '+esc(G.poNo)):'')+'</b> — '+esc(gabStatusTeks(G))+'. '+O.length+' order: '+O.map(function(x){return esc(x.customer)+' '+gabQtyPO(x)+' pcs';}).join(' · ')+' → '+G.qtyPO+' pcs, tier '+esc(G.tier.label)+' '+fmt0(G.tier.harga)+' (HPP order ini '+fmt0((G.hppLama||{})[o.id]||0)+' → '+fmt0(G.tier.harga)+'). '+
+/* spanduk di panel PO anggota: PO 1 kulit (gabPoBanner), PO vendor lain / PO tambahan (gabPoBannerUntuk) */
+function gabPoBannerUntuk(o,v,tid){var G=gabAktifUntuk(o,v,tid);if(!G)return '';var M=gabAnggota(G),id=gabIdAnggota(o,tid);
+  return '<div data-f="gabBanner" style="border:1px solid var(--biru,#2f4f8f);border-radius:10px;padding:9px 12px;margin-bottom:10px;font-size:10.5px;line-height:1.6;background:var(--biru-bg,#e4ecf7)"><b>'+(tid?'PO tambahan ini':'Order ini')+' masuk PO gabungan'+(G.poNo?(' '+esc(G.poNo)):'')+'</b> — '+esc(gabStatusTeks(G))+'. '+esc(G.vendor)+' · '+M.length+' anggota: '+M.map(function(m){return esc(gabLabel(m))+' '+gabMQtyPO(G,m)+' pcs';}).join(' · ')+' → '+G.qtyPO+' pcs, tier '+esc(G.tier.label)+' '+fmt0(G.tier.harga)+' (HPP anggota ini '+fmt0((G.hppLama||{})[id]||0)+' → '+fmt0(G.tier.harga)+'). '+
     (G.status==='terbit'?'PO satu nomor untuk semua anggota; produksi, foto, dan QC tetap di order ini.':'PO diterbitkan dari Antrean PO sesudah Direktur setuju — tombol Generate PO di sini dikunci.')+
     ' <a href="#" onclick="var ev=window.event;if(ev){ev.preventDefault();}ST.cur=null;ST.view='+jsArg('board')+';gabTab('+jsArg('antrean')+')">buka Antrean PO</a>'+(G.status==='terbit'?(' · <a href="#" onclick="var ev=window.event;if(ev){ev.preventDefault();}gabPoDoc('+jsArg(G.id)+')">lihat PO gabungan</a>'):'')+'</div>';}
+function gabPoBanner(o){if(!o)return '';return gabPoBannerUntuk(o,gabVendorKulit(o,''),'');}
 
-/* ---- kartu contoh: tiga order berbeda client di Purchase Order Issuing, satu pengajuan gabungan menunggu Direktur ---- */
+/* ---- kartu contoh: tiga order berbeda client di Purchase Order Issuing, satu pengajuan gabungan (vendor kulit) menunggu Direktur ---- */
 const CONTOH_GAB=[
  {id:'cg01',klien:'Dinda & Farhan',kat:'Wedding',prefix:'w',bride:'Dinda Ayu',groom:'Farhan Maulana',wo:'Serenity Wedding',woHp:'+62 812-3300-9911',qty:60,kirim:52},
  {id:'cg02',klien:'PT Mitra Andalan Logistik',kat:'Corporate',prefix:'c',clientUtama:'PT Mitra Andalan Logistik',picNama:'Ibu Sinta (GA)',picHp:'+62 811-7700-2244',qty:40,kirim:47},
@@ -11896,16 +11977,15 @@ function contohGabBuat(){var src=(ST.orders||[]).find(function(o){return o._cont
       l.qty=K.qty;l.qtyPO=Math.ceil(K.qty*1.05);if(j==='produk'){var it=null;try{it=(catalog()||[]).filter(function(c){return c.name===l.produk;})[0];}catch(e){}if(it)l.hpp=catPrice(it,l.qtyPO);l._hppManual=true;l.konf={tgl:contohHari(-9),hpp:l.hpp,fix:+l.hppFix||0,by:'Radja'};}});
     o.pricing.lines=(o.pricing.lines||[]).filter(function(l){return !(l.jasa&&namaJasaBaris(l)==='Add-on Full Name');});
     if(o.persoNama)delete o.persoNama['Add-on Full Name'];
-    o.po=Object.assign({},o.po||{},{generated:false,poNo:'',tglPO:'',deadline:contohHari(K.kirim-3),note:'Sesuai spesifikasi lampiran; personalisasi logo deboss di depan.'});o.vpo={};o.trello=null;o.disc=[];o.bayarVendor={};o.bvAju=[];o.tambahan=[];delete o.gab;
+    o.po=Object.assign({},o.po||{},{generated:false,poNo:'',tglPO:'',deadline:contohHari(K.kirim-3),note:'Sesuai spesifikasi lampiran; personalisasi logo deboss di depan.'});o.vpo={};o.trello=null;o.disc=[];o.bayarVendor={};o.bvAju=[];o.tambahan=[];delete o.gab;delete o.gabs;
     o.hist=[{t:t,txt:'Kartu contoh PO gabungan — produk & bahan sama dengan Sarah & Kevin, client sendiri ('+K.klien+')',who:'Sistem'}];
     o._m=Date.now();ST.orders.push(o);ids.push(o.id);n++;});
-  /* satu pengajuan gabungan yang menunggu Direktur */
-  try{var K=gabKandidat().filter(function(k){return ids.indexOf(k.o.id)>=0;});if(K.length>=2){var key=K[0].key,H=gabHitung(key,K);if(H.harga>0){
-    var G={id:'Gcontoh',vendor:H.vendor,produk:H.produk,bahan:H.bahan,orders:K.map(function(k){return k.o.id;}),tier:H.tier?{label:H.tier.label,harga:H.tier.harga}:{label:'harga gabungan',harga:H.harga},hppLama:{},qtyPO:H.qtyPO,qty:H.qty,sendiri:H.sendiri,gab:H.gab,hemat:H.hemat,batas:H.batas,
-      deadline:K.map(function(k){return (k.o.po||{}).deadline||'';}).filter(Boolean).sort()[0]||'',status:'diajukan',aju:{oleh:'pur',tgl:contohHari(-1)},dir:null,poNo:'',tglPO:'',generated:false,_m:Date.now()};
-    K.forEach(function(k){G.hppLama[k.o.id]=k.hpp;});gabSimpan(G);K.forEach(function(k){logHist(k.o,'₪ Diajukan masuk PO gabungan (contoh) — '+K.length+' order, '+H.qtyPO+' pcs, hemat '+fmt0(H.hemat)+' — menunggu approval Direktur');});}}}catch(e){}
+  /* satu pengajuan gabungan vendor kulit yang menunggu Direktur (kemasannya dibiarkan jadi kandidat) */
+  try{var K=gabKandidat().filter(function(k){return k.tipe==='kulit'&&!k.tid&&ids.indexOf(k.o.id)>=0;});if(K.length>=2){var key=K[0].key,H=gabHitung(key,K);if(H.harga>0){
+    var G={id:'Gcontoh',tipe:'kulit',vendor:H.vendor,produk:H.produk,bahan:H.bahan,orders:K.map(function(k){return k.id;}),tier:H.tier?{label:H.tier.label,harga:H.tier.harga}:{label:'harga gabungan',harga:H.harga},hppLama:{},qtyPO:H.qtyPO,qty:H.qty,sendiri:H.sendiri,gab:H.gab,hemat:H.hemat,batas:H.batas,
+      deadline:K.map(gabDeadlineKand).filter(Boolean).sort()[0]||'',status:'diajukan',aju:{oleh:'pur',tgl:contohHari(-1)},dir:null,poNo:'',tglPO:'',generated:false,_m:Date.now()};
+    K.forEach(function(k){G.hppLama[k.id]=k.hpp;});gabSimpan(G);K.forEach(function(k){logHist(k.o,'₪ Diajukan masuk PO gabungan (contoh) — '+K.length+' order, '+H.qtyPO+' pcs, hemat '+fmt0(H.hemat)+' — menunggu approval Direktur');});}}}catch(e){}
   return n;}
-
 function renderBoard(){
   if(ST._papanTab==='antrean'&&gabBolehLihat()){$('#main').innerHTML=gabAntreanLayar();return;}
   const ALL=ST.orders.filter(o=>!o.deleted);
@@ -15084,6 +15164,7 @@ function tbhPoDeadlineSet(id,tid,v,val){var o=ST.orders.find(function(x){return 
 function tbhPoGen(id,tid,v){var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;var t=tbhCari(o,tid);if(!t||t.status!=='jalan')return;
   if(!tbhRole(['Purchasing'])){alert('PO tambahan diterbitkan Purchasing.');return;}
   if(!t.clientOk){alert('Client menyetujui dulu (langkah 4) — PO tambahan baru boleh turun sesudah itu.');return;}
+  if(gabKunciTbh(o,t,v)){alert('PO tambahan ini masuk PO gabungan ('+gabStatusTeks(gabAktifUntuk(o,v,t.id))+') — PO-nya diterbitkan dari Antrean PO. Batalkan gabungannya dulu kalau mau PO sendiri.');return;}
   var ls=tbhPoLines(o,t,v);if(!ls.length){alert('Tidak ada baris untuk vendor ini.');return;}
   var p=tbhPoGet(t,v),NL=String.fromCharCode(10);if(!p.poNo)p.poNo=poNoBaru();if(!p.tglPO)p.tglPO=hariIni();p.deadline=p.deadline||(t.deadline||{}).tgl||((o.po||{}).deadline)||'';p.generated=true;p.date=nowStr();
   logHist(o,'📦 PO tambahan '+vendorDasar(v)+' ('+p.poNo+') — '+tbhNo(t)+': '+ls.map(function(l){return (l.produk||'')+' '+poQtyTeks(l);}).join(', ')+' · deadline '+(p.deadline?tglID(p.deadline):'-'));
@@ -15097,6 +15178,7 @@ function tbhPoKonfirm(id,tid,v){var o=ST.orders.find(function(x){return x.id===i
   if(p.konfirm)logHist(o,'✓ PO tambahan '+vendorDasar(v)+' ('+p.poNo+') dikonfirmasi vendor');
   tbhSegar(o,t);o._m=Date.now();save();render();}
 function tbhPoDoc(id,tid,v){var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;var t=tbhCari(o,tid);if(!t)return;
+  var pg=((t.po||{})[v])||{};if(pg.gab){var Gx=gabCari(pg.gab);if(Gx&&Gx.generated){gabPoDoc(Gx.id);return;}}   /* anggota PO gabungan (patch155) */
   var p=tbhPoGet(t,v),ls=tbhPoLines(o,t,v),vd=vendorDasar(v),vm=((ST.master||{}).vendors||[]).find(function(x){return x.nama===vd;})||{},rows=poBarisDari(o,ls);
   var catatan=['Tambahan atas PO '+((o.po||{}).poNo||'-')+' — '+tbhNo(t)+(t.alasan?(': '+t.alasan):'')];
   if(t.kerjaUlang)catatan.push('Termasuk kerja ulang batch 1: '+t.kerjaUlang.nama+' untuk '+t.kerjaUlang.qty+' pcs barang yang sudah jadi');
@@ -15152,11 +15234,11 @@ function tbhKartuHTML(o,t){var A=jsArg(o.id),B=jsArg(t.id),L=tbhLangkah(o,t),akt
         (t.quoGen?('<span style="font-size:10px;color:var(--ok);font-weight:700">✓ quotation rev '+(t.quoRev||q.rev||0)+' sudah digenerate</span>'):'<span style="font-size:10px;color:var(--warn);font-weight:700">quotation revisi belum digenerate</span>')+
         tanda('clientOk','Client setuju',['Sales'],!!t.quoGen)+'</div>';}
     else if(k==='po'){var V=tbhVendorDaftar(t);s=V.length?V.map(function(v){var p=tbhPoGet(t,v),ls=tbhPoLines(o,t,v),key=v+'#'+t.id,D=[];try{D=vtermDaftar(o,key);}catch(e){}
-        return '<div data-f="tbhPo_'+t.id+'_'+esc(vpoSlot(v))+'" style="border:1px solid '+(p.konfirm?'var(--ok)':'var(--line)')+';border-radius:9px;padding:8px 11px;margin-bottom:8px;background:var(--bg)"><div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;font-size:10.5px"><b>'+esc(v)+'</b><span style="color:var(--muted)">'+ls.map(function(l){return (l.produk||'')+' '+poQtyTeks(l);}).join(' · ')+'</span>'+
+        return '<div data-f="tbhPo_'+t.id+'_'+esc(vpoSlot(v))+'" style="border:1px solid '+(p.konfirm?'var(--ok)':'var(--line)')+';border-radius:9px;padding:8px 11px;margin-bottom:8px;background:var(--bg)">'+gabPoBannerUntuk(o,v,t.id)+'<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;font-size:10.5px"><b>'+esc(v)+'</b><span style="color:var(--muted)">'+ls.map(function(l){return (l.produk||'')+' '+poQtyTeks(l);}).join(' · ')+'</span>'+
           '<span style="margin-left:auto">'+(p.generated?('<b style="color:var(--ok)">'+esc(p.poNo)+'</b> · '+tglID(p.tglPO)):'<span style="color:var(--muted)">belum terbit</span>')+'</span></div>'+
           '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:6px;font-size:10.5px"><label class="nlbl" style="margin:0">Deadline<input type="date" class="pin" style="width:auto;padding:3px 6px;margin-left:6px" value="'+esc(p.deadline||(t.deadline||{}).tgl||'')+'" data-f="tbhPoDl_'+t.id+'" onchange="tbhPoDeadlineSet('+A+','+B+','+jsArg(v)+',this.value)"></label>'+
             (D.length?('<span style="color:var(--muted)">termin: '+D.map(function(d){return 'tahap '+d.tahap+' '+d.pct+'% '+fmt0(d.nom);}).join(' · ')+'</span>'):'')+'</div>'+
-          '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:7px">'+(tbhRole(['Purchasing'])?('<button class="btn sm" data-f="tbhPoGen_'+t.id+'_'+esc(vpoSlot(v))+'" '+(t.clientOk?'':'disabled style="opacity:.55"')+' onclick="tbhPoGen('+A+','+B+','+jsArg(v)+')">⚡ '+(p.generated?'Generate ulang':'Generate PO tambahan')+' (PDF + Trello)</button>'):'')+
+          '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:7px">'+(tbhRole(['Purchasing'])?('<button class="btn sm" data-f="tbhPoGen_'+t.id+'_'+esc(vpoSlot(v))+'" '+((t.clientOk&&!gabKunciTbh(o,t,v))?'':'disabled style="opacity:.55"')+' onclick="tbhPoGen('+A+','+B+','+jsArg(v)+')">⚡ '+(p.generated?'Generate ulang':'Generate PO tambahan')+' (PDF + Trello)</button>'):'')+(gabKunciTbh(o,t,v)?'<span style="font-size:10px;color:var(--warn);font-weight:700">PO diterbitkan dari Antrean PO (gabungan)</span>':'')+
             (p.generated?('<button class="btn ghost sm" onclick="tbhPoDoc('+A+','+B+','+jsArg(v)+')">📄 Lihat PO</button>'+(tbhRole(['Purchasing','Project Manager'])?('<button class="btn '+(p.konfirm?'ghost ':'')+'sm" data-f="tbhPoKonfirm_'+t.id+'" onclick="tbhPoKonfirm('+A+','+B+','+jsArg(v)+')">'+(p.konfirm?'↺ Batalkan konfirmasi':'✓ Dikonfirmasi vendor')+'</button>'):'')+(p.konfirm?('<span style="font-size:10px;color:var(--ok);font-weight:800">✓ dikonfirmasi '+tglID(p.konfirm.tgl)+'</span>'):'')):'')+'</div></div>';}).join('')+
         '<div style="font-size:9.5px;color:var(--muted)">PO 1 tidak disentuh dan tidak dikonfirmasi ulang. Tagihan PO tambahan tampil sendiri di panel Pembayaran vendor dengan termin master vendornya.</div>'
       :'<div style="font-size:10.5px;color:var(--muted)">Tidak ada PO vendor untuk tambahan ini (jasa tim sendiri) — lanjut ke pengerjaan.</div>';}
@@ -21698,7 +21780,7 @@ function poPanel(o){
 function genPO(id){
   const o=ST.orders.find(x=>x.id===id);if(!o)return;
   if(poMissing(o).length){alert('Draft PO belum lengkap — tombol terkunci sampai semua field wajib terisi.');return;}
-  if(gabKunciPO(o)){alert('Order ini masuk PO gabungan ('+gabStatusTeks(o.gab)+') — PO-nya diterbitkan dari Antrean PO. Batalkan gabungannya dulu kalau mau PO sendiri.');return;}
+  if(gabKunciPO(o)){alert('Order ini masuk PO gabungan ('+gabStatusTeks(gabAktif(o))+') — PO-nya diterbitkan dari Antrean PO. Batalkan gabungannya dulu kalau mau PO sendiri.');return;}
   const p=o.po;
   if(!p.poNo)p.poNo=poNoBaru();
   if(!p.tglPO)p.tglPO=hariIni();
@@ -21734,7 +21816,7 @@ function vpoPanel(o){
   if(!vs.length)return '<div class="card actcard" style="margin-top:14px"><div class="ch"><span class="ico" style="background:#7a5cc4;font-size:10px">PO</span><div><div class="t">PO Vendor Lain</div><div class="s">COLLATERAL / NON-KULIT</div></div></div><div class="body">'+yatim+'<div style="font-size:11px;color:var(--muted)">Belum ada baris pricing dari vendor selain Radja. Tambahkan di <b>Pricing</b> (pilih vendor di kolom Sumber vendor) — vendor baru bisa didaftarkan di <b>Master data → Vendors</b>.</div></div></div>';
   return '<div class="card actcard" style="margin-top:14px"><div class="ch"><span class="ico" style="background:#7a5cc4;font-size:10px">PO</span><div><div class="t">PO Vendor Lain ('+vs.length+')</div><div class="s">ITEM OTOMATIS DARI PRICING · 1 PO PER VENDOR</div></div></div><div class="body">'+yatim+
     vs.map(function(v){var p=vpoGet(o,v),ls=vendorLines(o,v),miss=vpoMissing(o,v),ready=!miss.length,tot=ls.reduce(function(s,l){return s+(l.hpp||0)*poQty(l)+(+l.hppFix||0);},0);   // biaya tetap (fee per event, plat) ikut
-      return '<div style="border:1px solid var(--line);border-radius:9px;padding:11px 12px;margin-bottom:11px">'+
+      return '<div style="border:1px solid var(--line);border-radius:9px;padding:11px 12px;margin-bottom:11px">'+gabPoBannerUntuk(o,v,'')+
         '<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:9px"><b style="font-size:12.5px">'+esc(v)+'</b>'+
           '<span style="font-size:9.5px;color:var(--muted)">'+esc(tipeLabel(vendorTipe(v))||'—')+(vendorKontak(v)?(' · '+esc(vendorKontak(v))):'')+'</span>'+
           '<span class="badge" style="margin-left:auto;background:'+(ready?'var(--ok-bg)':'var(--warn-bg)')+';color:'+(ready?'var(--ok)':'var(--warn)')+'">'+(ready?'siap ✓':miss.join(', ')+' kurang')+'</span></div>'+
@@ -21753,8 +21835,8 @@ function vpoPanel(o){
           '<span style="font-size:11px;font-weight:700">Total HPP: <b style="color:var(--brand)">'+fmt0(tot)+'</b></span>'+
         '</div>'+vtermBlok(o,v)+
         '<div style="display:flex;flex-wrap:wrap;gap:9px;align-items:center;margin-top:10px">'+
-          '<button class="btn sm" onclick="genVPO('+jsArg(o.id)+','+jsArg(v)+')" '+(ready?'':'disabled style="opacity:.5;cursor:not-allowed"')+'>⚡ Generate PO '+esc(v)+'</button>'+
-          (p.generated?'<span style="font-size:10.5px;color:var(--ok);font-weight:700">✓ '+esc(p.poNo)+' terkirim</span>':(ready?'<span style="font-size:10.5px;color:var(--muted)">siap generate</span>':'<span style="font-size:10.5px;color:var(--warn)">🔒 isi deadline dulu</span>'))+
+          '<button class="btn sm" onclick="genVPO('+jsArg(o.id)+','+jsArg(v)+')" '+((ready&&!gabKunciVPO(o,v))?'':'disabled style="opacity:.5;cursor:not-allowed"')+'>⚡ Generate PO '+esc(v)+'</button>'+
+          (p.generated?'<span style="font-size:10.5px;color:var(--ok);font-weight:700">✓ '+esc(p.poNo)+' terkirim</span>':(gabKunciVPO(o,v)?'<span style="font-size:10.5px;color:var(--warn);font-weight:700">PO diterbitkan dari Antrean PO (gabungan)</span>':(ready?'<span style="font-size:10.5px;color:var(--muted)">siap generate</span>':'<span style="font-size:10.5px;color:var(--warn)">🔒 isi deadline dulu</span>')))+
         '</div>'+
         /* gambar final & logo untuk vendor ini — diunggah admin; sisanya
            (spesifikasi, gambar acuan) otomatis dari Brief seperti lembar RFQ */
@@ -21768,6 +21850,7 @@ function vpoPanel(o){
 function genVPO(id,v){
   var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
   if(vpoMissing(o,v).length){alert('Lengkapi dulu: '+vpoMissing(o,v).join(', '));return;}
+  if(gabKunciVPO(o,v)){alert('PO '+v+' order ini masuk PO gabungan ('+gabStatusTeks(gabAktifUntuk(o,v,''))+') — PO-nya diterbitkan dari Antrean PO. Batalkan gabungannya dulu kalau mau PO sendiri.');return;}
   var p=vpoGet(o,v);
   if(!p.poNo)p.poNo=poNoBaru();
   if(!p.tglPO)p.tglPO=hariIni();
@@ -21867,6 +21950,7 @@ function poDokHTML(o,v,p,rows,X){
     '<div class="dfoot2"><span>Rove Gifts and Favors</span><span>Purchase Order</span><span>1</span></div>'+
     (X.lampiran?('<div style="page-break-before:always;height:1px"></div>'+kop+'<div class="djudul" style="font-size:15px">LAMPIRAN PO '+esc(p.poNo||'')+' — SPESIFIKASI</div>'+X.lampiran):'');}
 function showVPODoc(o,v){
+  if((((o.vpo||{})[v])||{}).gab){var Gx=gabCari(o.vpo[v].gab);if(Gx&&Gx.generated){gabPoDoc(Gx.id);return;}}   /* anggota PO gabungan (patch155) */
   var p=vpoGet(o,v),ls=vendorLines(o,v),vm=((ST.master||{}).vendors||[]).find(function(x){return x.nama===v;})||{};
   var info=function(k,val){return '<tr><td class="k">'+k+'</td><td>'+(esc(val)||'-')+'</td></tr>';};
   var rows=poBarisVendor(o,v),catatan=[];
