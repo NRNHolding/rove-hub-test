@@ -591,6 +591,9 @@
 .lap-matriks th:first-child{text-align:left}
 .lap-matriks td:first-child{position:sticky;left:0;background:var(--panel)}
 .lap-grupbaris{font-size:9.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);background:var(--bg)}
+.lap-bagian{font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--brand);margin:14px 3px 0;padding-top:9px;border-top:1px solid var(--line)}
+.lap-bagian:first-child{margin-top:4px;padding-top:0;border-top:0}
+.lap-bagianbaris{font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--brand);background:var(--panel);border-top:2px solid var(--line)}
 .lap-cetak table{width:100%;border-collapse:collapse;font-size:9.5px}
 .lap-cetak th,.lap-cetak td{border-bottom:1px solid #ddd;padding:4px 5px;text-align:left}
 .lap-cetak th.num,.lap-cetak td.num{text-align:right}
@@ -797,7 +800,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20260922-203014';
+const VERSI='20260923-141917';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -10625,7 +10628,7 @@ function repTab(v){ST._repTab=v;render();}
    Akses: Holding & Direktur Utama selalu bisa; jabatan lain mengikuti bawaan tiap laporan dan bisa
    diubah Holding di tab "Siapa boleh melihat" (tersimpan di master.lapAkses). */
 const LAP_ATAS=['Holding','Direktur Utama'];
-const LAP_GRUP=['Paket rapat','Penjualan','Profit','Piutang & uang masuk','Utang & biaya','Laporan keuangan','Pajak','Produksi & vendor','Pengiriman & client','Live service','Gudang & aset','SDM','Konten','Kontrol','Laporan lama'];
+const LAP_GRUP=['Paket rapat','Kontrol','Penjualan','Profit','Piutang & uang masuk','Pembelian & utang','Kas & bank','Buku besar','Laporan keuangan','Pajak','Aset tetap','Produksi & vendor','Pengiriman & client','Live service','Gudang','SDM','Konten','Laporan lama'];
 var LAP=[];
 function lapDef(d){LAP.push(d);return d;}
 function lapCari(id){return LAP.filter(function(x){return x.id===id;})[0]||null;}
@@ -10764,15 +10767,7 @@ function lapLapisHTML(d){
   if(lain.length===1&&lain[0]==='Finance')return '<span class="lap-lapis fin">+ Finance</span>';
   var pendek=lain.map(function(r){return r.replace('Project Manager','PM').replace('Packing & Shipping','Packing').replace('Event Management','Event');});
   return '<span class="lap-lapis op" title="'+esc(lain.join(', '))+'">+ '+esc(pendek.length>3?(pendek.slice(0,3).join(', ')+' …'):pendek.join(', '))+'</span>';}
-function lapDaftarHTML(){
-  var q=String(ST._lapQ||'').toLowerCase(),h='',grup='',n=0;
-  LAP_GRUP.forEach(function(g){
-    LAP.filter(function(d){return d.grup===g&&lapBoleh(d);}).forEach(function(d){
-      if(q&&(d.nama+' '+d.tanya+' '+d.grup).toLowerCase().indexOf(q)<0)return;
-      if(g!==grup){grup=g;h+='<div class="lap-grup">'+esc(g)+'</div>';}
-      n++;h+='<button type="button" class="lap-baris'+(ST._lapId===d.id?' on':'')+'" data-f="lap_'+esc(d.id)+'" onclick="lapBuka('+jsArg(d.id)+')"><span class="nm">'+esc(d.nama)+'</span>'+lapLapisHTML(d)+'</button>';});});
-  if(!n)h+='<div style="font-size:11px;color:var(--muted);padding:8px 4px">Tidak ada laporan yang cocok.</div>';
-  return h;}
+/* lapDaftarHTML: lihat patch156 (daftar per bagian → kelompok) */
 function lapCariKetik(v){ST._lapQ=v;var e=document.getElementById('lapDaftar');if(e){e.innerHTML=lapDaftarHTML();try{trDOM(e);}catch(x){}}}
 function lapIsiHTML(d){
   var H=lapHasil(d),per='';
@@ -10789,8 +10784,8 @@ function lapAksesHTML(){
   return '<div class="rcard"><div class="lap-head"><h2>Siapa boleh melihat</h2><p>Bawaannya tiga lapis: hanya Holding &amp; Direktur · ditambah Finance · ditambah pelaksana bagiannya. Centang untuk membuka, lepas untuk menutup; Holding &amp; Direktur Utama selalu bisa.</p></div>'+
     '<div style="margin-bottom:10px"><button class="btn ghost sm" onclick="lapAksesBawaan()">↺ Kembalikan ke bawaan</button></div>'+
     '<div class="xscroll"><table class="rtable lap-matriks"><thead><tr><th style="min-width:200px">Laporan</th>'+R.map(function(r){return '<th>'+esc(r)+'</th>';}).join('')+'</tr></thead><tbody>'+
-    LAP_GRUP.map(function(g){var L=LAP.filter(function(d){return d.grup===g;});if(!L.length)return '';
-      return '<tr><td colspan="'+(R.length+1)+'" class="lap-grupbaris">'+esc(g)+'</td></tr>'+L.map(function(d){
+    LAP_GRUP.map(function(g){var L=LAP.filter(function(d){return d.grup===g;});if(!L.length)return '';var bg=lapBagianAwal(g);
+      return (bg?('<tr><td colspan="'+(R.length+1)+'" class="lap-bagianbaris">'+esc(bg)+'</td></tr>'):'')+'<tr><td colspan="'+(R.length+1)+'" class="lap-grupbaris">'+esc(g)+'</td></tr>'+L.map(function(d){
         return '<tr><td><b>'+esc(d.nama)+'</b></td>'+R.map(function(r){var atas=LAP_ATAS.indexOf(r)>=0;
           return '<td style="text-align:center"><input type="checkbox" style="width:auto;accent-color:var(--brand)" aria-label="'+esc(d.nama+' untuk '+r)+'" '+(lapBolehRole(d,r)?'checked':'')+(atas?' disabled':'')+' onchange="lapAksesSet('+jsArg(d.id)+','+jsArg(r)+',this.checked)"></td>';}).join('')+'</tr>';}).join('');}).join('')+
     '</tbody></table></div></div>';}
@@ -11049,7 +11044,7 @@ lapDef({id:'tanpaDP',grup:'Piutang & uang masuk',nama:'Order berjalan tanpa uang
     total:['Total','',lapJumlah(D,lapGrand),lapJumlah(D,keluar),''],kosong:'Semua order berjalan sudah punya uang muka.'};}});
 
 /* ---------- Utang & biaya ---------- */
-lapDef({id:'utang',grup:'Utang & biaya',nama:'Utang ke vendor',tanya:'Kita masih harus bayar siapa, berapa, dan kapan?',boleh:['Finance','Purchasing'],periode:'tanpa',buat:function(){var h=hariIni(),U=lapUtang().filter(function(x){return x.sisa>0;}).sort(function(a,b){return String(a.v).localeCompare(String(b.v));});
+lapDef({id:'utang',grup:'Pembelian & utang',nama:'Utang ke vendor',tanya:'Kita masih harus bayar siapa, berapa, dan kapan?',boleh:['Finance','Purchasing'],periode:'tanpa',buat:function(){var h=hariIni(),U=lapUtang().filter(function(x){return x.sisa>0;}).sort(function(a,b){return String(a.v).localeCompare(String(b.v));});
   var lewat=U.filter(function(x){return x.next&&x.next.tgl&&x.next.tgl<h;});
   return {kpi:[['Total utang vendor',lapJumlah(U,function(x){return x.sisa;}),U.length+' tagihan'],['Termin sudah lewat',lapJumlah(lewat,function(x){return x.next.nom;}),lewat.length+' termin','red']],
     kolom:[{t:'Vendor',w:160},{t:'Client',w:170},{t:'Nilai PO',n:true},{t:'Dibayar',n:true},{t:'Sisa',n:true},{t:'Termin berikut'},{t:'Jatuh tempo'},{t:'Nominal termin',n:true}],
@@ -11057,7 +11052,7 @@ lapDef({id:'utang',grup:'Utang & biaya',nama:'Utang ke vendor',tanya:'Kita masih
     total:['Total','',lapJumlah(U,function(x){return x.total;}),lapJumlah(U,function(x){return x.bayar;}),lapJumlah(U,function(x){return x.sisa;}),'','',''],catatan:'Sama dengan AIS sheet H. Nilai PO = HPP × qty ke vendor + biaya tetap.',kosong:'Tidak ada utang vendor.'};}});
 function lapBayarTglSet(v){ST._lapBayarTgl=v;render();}
 function lapRekVendor(nama){var v=(((ST.master||{}).vendors)||[]).filter(function(x){return x.nama===vendorDasar(nama);})[0]||{};return v.rek||v.norek||v.rekening||'';}
-lapDef({id:'daftarBayar',grup:'Utang & biaya',nama:'Daftar bayar per hari bayar',tanya:'Hari bayar ini transfer ke siapa saja?',boleh:['Finance'],periode:'tanpa',menu:'Tugas saya',buat:function(){
+lapDef({id:'daftarBayar',grup:'Pembelian & utang',nama:'Daftar bayar per hari bayar',tanya:'Hari bayar ini transfer ke siapa saja?',boleh:['Finance'],periode:'tanpa',menu:'Tugas saya',buat:function(){
   var S=[];try{S=bayarAjuSemua().filter(function(x){return (x.aju||{}).status==='disetujui';});}catch(e){}
   var tgls={};S.forEach(function(x){tgls[x.rencana||(x.aju||{}).rencana]=1;});tgls[hariBayarBerikut(hariIni())]=1;var T=Object.keys(tgls).filter(Boolean).sort();
   var pilih=(ST._lapBayarTgl&&T.indexOf(ST._lapBayarTgl)>=0)?ST._lapBayarTgl:T[0],L=S.filter(function(x){return (x.rencana||(x.aju||{}).rencana)===pilih;});
@@ -11068,7 +11063,7 @@ lapDef({id:'daftarBayar',grup:'Utang & biaya',nama:'Daftar bayar per hari bayar'
     total:['','Total','','','',lapJumlah(L,function(x){return (x.aju||{}).nominal;})],
     bawah:'<table class="lap-ttd"><tr><td>Disiapkan · Finance</td><td>Diperiksa · Purchasing</td><td>Disetujui · Direktur Utama</td></tr></table>',
     catatan:'Isinya pengajuan yang sudah disetujui Direktur untuk tanggal itu: vendor order, biaya rutin, dan pembelian. Sesudah ditransfer, catat pembayarannya di order / Cashflow seperti biasa.',kosong:'Belum ada pengajuan yang disetujui untuk tanggal ini.'};}});
-lapDef({id:'bkk',grup:'Utang & biaya',nama:'Bukti pengeluaran kas',tanya:'Pembayaran apa saja yang sudah keluar, dan siapa yang menyetujuinya?',boleh:['Finance'],buat:function(P){var rows=[],F=finData();
+lapDef({id:'bkk',grup:'Kas & bank',nama:'Bukti pengeluaran kas',tanya:'Pembayaran apa saja yang sudah keluar, dan siapa yang menyetujuinya?',boleh:['Finance'],buat:function(P){var rows=[],F=finData();
   lapOrders().forEach(function(o){var B=o.bayarVendor||{};Object.keys(B).forEach(function(v){(B[v]||[]).forEach(function(b){if(!lapDalam(b.tgl,P.R))return;var a=((o.bvAju||[]).filter(function(x){return x.id===b.aju;})[0])||{};
     rows.push([b.tgl,v,{v:o.customer+' · tahap '+b.tahap,o:o.id},+b.nominal||0,(a.dir&&a.dir.tgl)?((a.dir.oleh||'Direktur')+' · '+tglID(a.dir.tgl)):'—',b.oleh||'-']);});});
     var K=(o.komisi||{}).bayar||{};['sales','wo'].forEach(function(k){if(K[k]&&lapDalam(K[k].tgl,P.R))rows.push([K[k].tgl,k==='wo'?((o.brief||{}).woNama||'WO'):lapSalesOrder(o),{v:o.customer+' · komisi '+(k==='wo'?'WO':'Sales'),o:o.id},+K[k].nom||0,'—',K[k].oleh||'-']);});});
@@ -11077,30 +11072,30 @@ lapDef({id:'bkk',grup:'Utang & biaya',nama:'Bukti pengeluaran kas',tanya:'Pembay
   (F.kas||[]).forEach(function(k){if(k.arah==='Keluar'&&lapDalam(k.tgl,P.R))rows.push([k.tgl,k.akun||'-',k.ket||'-',+k.nom||0,'dicatat langsung',k.by||'-']);});
   rows.sort(function(a,b){return String(a[0]).localeCompare(String(b[0]));});
   return {kolom:[{t:'Tanggal'},{t:'Dibayar ke',w:160},{t:'Untuk',w:230},{t:'Nominal',n:true},{t:'Disetujui',w:150},{t:'Dicatat'}],baris:rows.map(function(r){r=r.slice();r[0]=tglID(r[0]);return r;}),total:['Total','','',lapJumlah(rows,function(r){return r[3];}),'','']};}});
-lapDef({id:'accBayar',grup:'Utang & biaya',nama:'Rekap persetujuan pembayaran',tanya:'Berapa pengajuan yang masuk, disetujui, ditolak, dan berapa lama menunggu?',boleh:[],buat:function(P){var S=[];try{S=bayarAjuSemua();}catch(e){}
+lapDef({id:'accBayar',grup:'Pembelian & utang',nama:'Rekap persetujuan pembayaran',tanya:'Berapa pengajuan yang masuk, disetujui, ditolak, dan berapa lama menunggu?',boleh:[],buat:function(P){var S=[];try{S=bayarAjuSemua();}catch(e){}
   var L=S.filter(function(x){return lapDalam((x.aju||{}).tgl,P.R);}),N={menunggu:'warn',disetujui:'ok',dibayar:'ok',ditolak:'red'};
   return {kpi:[['Pengajuan',String(L.length)],['Menunggu',String(L.filter(function(x){return x.aju.status==='menunggu';}).length),'','warn'],['Ditolak',String(L.filter(function(x){return x.aju.status==='ditolak';}).length),'','red']],
     kolom:[{t:'Diajukan'},{t:'Pemohon'},{t:'Untuk',w:240},{t:'Nominal',n:true},{t:'Rencana bayar'},{t:'Keputusan'},{t:'Alasan',w:160},{t:'Hari menunggu',n:true}],
     baris:L.map(function(x){var a=x.aju,d=a.dir||{};return [tglID(a.tgl),a.oleh||x.oleh||'-',x.judul+' · '+x.rinci,+a.nominal||0,tglID(a.rencana),{v:a.status,pil:N[a.status]||''},d.alasan||'',lapHari(a.tgl,d.tgl||hariIni())];})};}});
-lapDef({id:'bayarVendor',grup:'Utang & biaya',nama:'Pembayaran vendor per periode',tanya:'Periode ini keluar berapa ke tiap vendor, untuk pos apa?',boleh:['Finance','Purchasing'],buat:function(P){var G={};
+lapDef({id:'bayarVendor',grup:'Pembelian & utang',nama:'Pembayaran vendor per periode',tanya:'Periode ini keluar berapa ke tiap vendor, untuk pos apa?',boleh:['Finance','Purchasing'],buat:function(P){var G={};
   lapOrders().forEach(function(o){var B=o.bayarVendor||{};Object.keys(B).forEach(function(v){(B[v]||[]).forEach(function(b){if(!lapDalam(b.tgl,P.R))return;if(!G[v])G[v]={n:0,t:0,o:{}};G[v].n++;G[v].t+=(+b.nominal||0);G[v].o[o.id]=1;});});});
   var rows=Object.keys(G).map(function(v){var m=(((ST.master||{}).vendors)||[]).filter(function(x){return x.nama===v;})[0]||{};return [v,m.cogs||'-',G[v].n,Object.keys(G[v].o).length,G[v].t];}).sort(function(a,b){return b[4]-a[4];});
   return {kolom:[{t:'Vendor',w:180},{t:'Pos biaya (COGS)',w:150},{t:'Pembayaran',n:true},{t:'Order',n:true},{t:'Total',n:true}],baris:rows,total:['Total','','','',lapJumlah(rows,function(r){return r[4];})]};}});
-lapDef({id:'rutin',grup:'Utang & biaya',nama:'Biaya rutin: anggaran dan realisasi',tanya:'Biaya bulanan sesuai rencana atau membengkak?',boleh:['Finance'],buat:function(P){var F=finData(),rows=[],bulan=lapBulanMundur(24).concat(cfBulanList(3)).filter(function(ym,i,A){return A.indexOf(ym)===i&&lapDalam(ym+'-15',P.R);});
+lapDef({id:'rutin',grup:'Kas & bank',nama:'Biaya rutin: anggaran dan realisasi',tanya:'Biaya bulanan sesuai rencana atau membengkak?',boleh:['Finance'],buat:function(P){var F=finData(),rows=[],bulan=lapBulanMundur(24).concat(cfBulanList(3)).filter(function(ym,i,A){return A.indexOf(ym)===i&&lapDalam(ym+'-15',P.R);});
   bulan.forEach(function(ym){(F.rutin||[]).forEach(function(r){if(r.aktif===false)return;var key='rt:'+r.id+':'+ym,b=(F.rutinBayar||{})[key],u=(F.rutinUbah||{})[key]||{},ang=(u.nom!=null?u.nom:(+r.nominal||0));
     rows.push([r.nama,bulanNama(ym),r.pos||'-',ang,b?(+b.nom||0):0,b?((+b.nom||0)-ang):'',b?tglID(b.tgl):{v:'belum dibayar',pil:'warn'}]);});});
   return {kolom:[{t:'Pos',w:150},{t:'Bulan'},{t:'Pos biaya AIS',w:150},{t:'Anggaran',n:true},{t:'Dibayar',n:true},{t:'Selisih',n:true},{t:'Tanggal bayar'}],baris:rows,total:['Total','','',lapJumlah(rows,function(r){return r[3];}),lapJumlah(rows,function(r){return r[4];}),'',''],
     catatan:'Anggaran = template biaya rutin di Keuangan → Cashflow (nominal bawaan masih contoh, ganti dengan yang sebenarnya).'};}});
-lapDef({id:'beli',grup:'Utang & biaya',nama:'Pembelian internal',tanya:'Tim minta beli apa saja, sampai tahap mana, dan berapa?',boleh:['Finance','Purchasing'],buat:function(P){var B=[];try{B=buyAll().filter(function(b){return !b.deleted&&lapDalam(b.tgl,P.R);});}catch(e){}
+lapDef({id:'beli',grup:'Pembelian & utang',nama:'Pembelian internal',tanya:'Tim minta beli apa saja, sampai tahap mana, dan berapa?',boleh:['Finance','Purchasing'],buat:function(P){var B=[];try{B=buyAll().filter(function(b){return !b.deleted&&lapDalam(b.tgl,P.R);});}catch(e){}
   return {kolom:[{t:'Permintaan',w:190},{t:'Kategori'},{t:'Pemohon'},{t:'Diminta'},{t:'Butuh'},{t:'Estimasi',n:true},{t:'Penawaran terpilih',w:150},{t:'Harga terpilih',n:true},{t:'Langkah beres',n:true},{t:'Dibayar'}],
     baris:B.map(function(b){var q=(b.quotes||[]).filter(function(x){return x.pilih;})[0]||{};return [b.judul||'-',b.kat||'-',b.pemohon||'-',tglID(b.tgl),b.butuh?tglID(b.butuh):'—',+b.estimasi||0,q.vendor||'—',+q.harga||0,Object.keys(b.chk||{}).filter(function(k){return b.chk[k];}).length,((b.inv||{}).bayarTgl)?tglID(b.inv.bayarTgl):'—'];}),
     total:['Total','','','','',lapJumlah(B,function(b){return b.estimasi;}),'','','',''],kosong:'Tidak ada permintaan pembelian pada periode ini.'};}});
-lapDef({id:'pos',grup:'Utang & biaya',nama:'Pengeluaran per pos biaya',tanya:'Uang paling banyak habis untuk apa?',boleh:['Finance'],buat:function(P){var G={},tambah=function(pos,n){pos=pos||'(tanpa pos)';if(!G[pos])G[pos]={n:0,t:0};G[pos].n++;G[pos].t+=(+n||0);},F=finData();
+lapDef({id:'pos',grup:'Kas & bank',nama:'Pengeluaran per pos biaya',tanya:'Uang paling banyak habis untuk apa?',boleh:['Finance'],buat:function(P){var G={},tambah=function(pos,n){pos=pos||'(tanpa pos)';if(!G[pos])G[pos]={n:0,t:0};G[pos].n++;G[pos].t+=(+n||0);},F=finData();
   (F.kas||[]).forEach(function(k){if(k.arah==='Keluar'&&lapDalam(k.tgl,P.R))tambah(k.pos,k.nom);});
   kasAutoRows().forEach(function(k){if(lapDalam(k.tgl,P.R))tambah(k.pos,k.nom);});
   var rows=Object.keys(G).map(function(p){return [p,G[p].n,G[p].t];}).sort(function(a,b){return b[2]-a[2];}),tot=lapJumlah(rows,function(r){return r[2];});
   return {kolom:[{t:'Pos biaya',w:220},{t:'Transaksi',n:true},{t:'Total',n:true},{t:'Porsi',n:true,pct:true}],baris:rows.map(function(r){return r.concat([{v:lapPct(r[2],tot)}]);}),total:['Total','',tot,''],catatan:'Gabungan transaksi kas, pembayaran vendor, komisi, dan biaya rutin yang sudah dibayar.'};}});
-lapDef({id:'bukuKas',grup:'Utang & biaya',nama:'Buku kas dan bank',tanya:'Periode ini uang keluar masuk apa saja?',boleh:['Finance'],buat:function(P){var F=finData(),rows=[];
+lapDef({id:'bukuKas',grup:'Kas & bank',nama:'Buku kas dan bank',tanya:'Periode ini uang keluar masuk apa saja?',boleh:['Finance'],buat:function(P){var F=finData(),rows=[];
   finPembayaran().forEach(function(p){if(p.cocok&&lapDalam(p.tgl,P.R))rows.push([p.tgl,p.via||'-',p.jenis+' — '+p.order.customer,'Penerimaan client',p.nom,0]);});
   (F.kas||[]).forEach(function(k){if(lapDalam(k.tgl,P.R))rows.push([k.tgl,k.akun||'-',k.ket||'-',k.pos||'-',k.arah==='Masuk'?(+k.nom||0):0,k.arah==='Masuk'?0:(+k.nom||0)]);});
   if(F.kasAuto)kasAutoRows().forEach(function(k){if(lapDalam(k.tgl,P.R))rows.push([k.tgl,'-',k.ket,k.pos||'-',0,+k.nom||0]);});
@@ -11199,15 +11194,15 @@ lapDef({id:'alat',grup:'Live service',nama:'Alat keluar dan kembali',tanya:'Alat
   return {kolom:[{t:'Tanggal acara'},{t:'Acara',w:170},{t:'Operator',w:140},{t:'Alat',w:150},{t:'Keluar',n:true},{t:'Kembali',n:true},{t:'Selisih',n:true}],baris:rows,kelas:rows.map(function(r){return r[6].v<0?'lap-merah':'';}),kosong:'Form alat belum diisi pada periode ini.'};}});
 
 /* ---------- Gudang & aset ---------- */
-lapDef({id:'kartuStok',grup:'Gudang & aset',nama:'Kartu stok',tanya:'Tiap barang keluar masuknya bagaimana, saldonya berapa?',boleh:['Warehouse'],menu:'Gudang',buat:function(P){var d=invData(),rows=[];
+lapDef({id:'kartuStok',grup:'Gudang',nama:'Kartu stok',tanya:'Tiap barang keluar masuknya bagaimana, saldonya berapa?',boleh:['Warehouse'],menu:'Gudang',buat:function(P){var d=invData(),rows=[];
   (d.items||[]).forEach(function(it){var saldo=0;(d.moves||[]).filter(function(m){return m.item===it.id;}).sort(function(a,b){return String(a.tgl).localeCompare(String(b.tgl));}).forEach(function(m){var q=(m.tipe==='masuk'?1:-1)*(+m.qty||0);saldo+=q;
     if(lapDalam(m.tgl,P.R))rows.push([it.nama,tglID(m.tgl),m.tipe==='masuk'?(+m.qty||0):'',m.tipe==='masuk'?'':(+m.qty||0),saldo,invRefTeks(m),m.catatan||invRefSub(m)||'',m.by||'-']);});});
   return {kolom:[{t:'Barang',w:200},{t:'Tanggal'},{t:'Masuk',n:true},{t:'Keluar',n:true},{t:'Saldo',n:true},{t:'Referensi',w:150},{t:'Keterangan',w:180},{t:'Oleh'}],baris:rows};}});
-lapDef({id:'spareNasib',grup:'Gudang & aset',nama:'Spare masuk dan nasibnya',tanya:'Spare dari order mana saja, dan sudah berapa lama mengendap?',boleh:['Warehouse'],periode:'tanpa',menu:'Gudang',buat:function(){var d=invData(),h=hariIni();
+lapDef({id:'spareNasib',grup:'Gudang',nama:'Spare masuk dan nasibnya',tanya:'Spare dari order mana saja, dan sudah berapa lama mengendap?',boleh:['Warehouse'],periode:'tanpa',menu:'Gudang',buat:function(){var d=invData(),h=hariIni();
   var rows=(d.moves||[]).filter(function(m){return m.tipe==='masuk'&&String(m.ref||'').indexOf('spare:')===0;}).map(function(m){var it=(d.items||[]).filter(function(x){return x.id===m.item;})[0]||{};
     return [it.nama||m.item,String(m.ket||'').replace(/^Sisa spare — /,''),tglID(m.tgl),+m.qty||0,invStok(m.item),lapHari(m.tgl,h),m.auto?'otomatis':'manual'];});
   return {kolom:[{t:'Barang',w:200},{t:'Dari order',w:170},{t:'Masuk'},{t:'Qty masuk',n:true},{t:'Stok barang ini sekarang',n:true},{t:'Umur (hari)',n:true},{t:'Cara masuk'}],baris:rows,kosong:'Belum ada spare yang masuk Gudang.'};}});
-lapDef({id:'susut',grup:'Gudang & aset',nama:'Penyusutan aset tetap',tanya:'Tiap bulan aset menyusut berapa, dan nilai bukunya tinggal berapa?',boleh:['Finance'],periode:'tanpa',buat:function(){var h=hariIni(),A=asetAll().filter(function(a){return a.status!=='Dilepas';});
+lapDef({id:'susut',grup:'Aset tetap',nama:'Penyusutan aset tetap',tanya:'Tiap bulan aset menyusut berapa, dan nilai bukunya tinggal berapa?',boleh:['Finance'],periode:'tanpa',buat:function(){var h=hariIni(),A=asetAll().filter(function(a){return a.status!=='Dilepas';});
   var rows=A.map(function(a){var harga=+moneyVal(a.harga)||0,res=+moneyVal(a.residu)||0,bln=Math.max(1,(+a.umurThn||0)*12),per=(harga-res)/bln,jalan=a.tglBeli?Math.max(0,Math.min(bln,Math.floor((lapHari(a.tglBeli,h)||0)/30.4))):0,ak=per*jalan;
     return [a.nama,a.kat||'-',a.tglBeli?tglID(a.tglBeli):'—',harga,+a.umurThn||0,per,ak,harga-ak,a.pj||'-',{v:jalan>=bln?'habis umur':((bln-jalan)<=6?'hampir habis':'aktif'),pil:jalan>=bln?'red':((bln-jalan)<=6?'warn':'ok')}];});
   return {kolom:[{t:'Aset',w:190},{t:'Kategori',w:140},{t:'Dibeli'},{t:'Harga',n:true},{t:'Umur (th)',n:true},{t:'Penyusutan / bulan',n:true},{t:'Akumulasi',n:true},{t:'Nilai buku',n:true},{t:'Penanggung jawab'},{t:'Status'}],baris:rows,
@@ -11293,7 +11288,7 @@ lapDef({id:'ekspedisi',grup:'Pengiriman & client',nama:'Kinerja ekspedisi',tanya
 lapDef({id:'piutangClient',grup:'Piutang & uang masuk',nama:'Piutang per client',tanya:'Tiap client: total project, sudah bayar berapa, sisa berapa?',boleh:['Finance'],periode:'tanpa',buat:function(){var D=lapOrders().filter(function(o){return lapDeal(o)&&!o.arsip;});
   var rows=lapGrupkan(D,function(o){return o.customer;}).map(function(g){var tot=lapJumlah(g.L,lapGrand),byr=lapJumlah(g.L,function(o){var p=o.pay||{};return (+p.dp||0)+(+p.dp2||0)+(+p.pel||0);});return [{v:g.k,o:g.L[0].id},g.L.length,tot,byr,Math.max(0,tot-byr)];}).sort(function(a,b){return b[4]-a[4];});
   return {kolom:[{t:'Client',w:200},{t:'Order',n:true},{t:'Total project',n:true},{t:'Total pembayaran',n:true},{t:'Sisa piutang',n:true}],baris:rows,total:['Total','',lapJumlah(rows,function(r){return r[2];}),lapJumlah(rows,function(r){return r[3];}),lapJumlah(rows,function(r){return r[4];})],catatan:'Sama dengan AIS sheet P.'};}});
-lapDef({id:'rekonBulan',grup:'Piutang & uang masuk',nama:'Rekap rekonsiliasi bank',tanya:'Tiap bulan, berapa pembayaran client yang sudah dicocokkan dengan mutasi?',boleh:['Finance'],periode:'tanpa',menu:'Keuangan',buat:function(){var X=finPembayaran();
+lapDef({id:'rekonBulan',grup:'Kas & bank',nama:'Rekap rekonsiliasi bank',tanya:'Tiap bulan, berapa pembayaran client yang sudah dicocokkan dengan mutasi?',boleh:['Finance'],periode:'tanpa',menu:'Keuangan',buat:function(){var X=finPembayaran();
   var rows=lapBulanMundur(12).map(function(ym){var R=lapRentang(ym),L=X.filter(function(p){return lapDalam(p.tgl,R);}),b=L.filter(function(p){return !p.cocok;});return [bulanNama(ym),L.length,L.length-b.length,b.length,lapJumlah(L,function(p){return p.nom;}),lapJumlah(b,function(p){return p.nom;})];}).reverse();
   return {kolom:[{t:'Bulan',w:130},{t:'Pembayaran',n:true},{t:'Sudah cocok',n:true},{t:'Belum cocok',n:true},{t:'Nilai masuk',n:true},{t:'Nilai belum cocok',n:true}],baris:rows,kelas:rows.map(function(r){return r[3]>0?'lap-merah':'';})};}});
 /* ---------- Pajak ---------- */
@@ -11310,7 +11305,7 @@ lapDef({id:'omzetBulan',grup:'Pajak',nama:'Omzet bulanan',tanya:'Omzet per bulan
   return {kolom:[{t:'Bulan',w:130},{t:'Uang diterima dari client',n:true},{t:'Penjualan diakui saat kirim',n:true},{t:'Nilai deal',n:true}],baris:rows,total:['12 bulan',lapJumlah(rows,function(r){return r[1];}),lapJumlah(rows,function(r){return r[2];}),lapJumlah(rows,function(r){return r[3];})],
     catatan:'Tiga cara melihat omzet. Dasar mana yang dipakai untuk pajak ditentukan Finance / konsultan.'};}});
 /* ---------- Gudang, SDM, Konten, Kontrol ---------- */
-lapDef({id:'stok',grup:'Gudang & aset',nama:'Posisi stok',tanya:'Di Gudang ada apa saja, berapa, dan mana yang menipis?',boleh:['Warehouse','Event Management'],periode:'tanpa',menu:'Gudang',buat:function(){var I=invData().items||[];
+lapDef({id:'stok',grup:'Gudang',nama:'Posisi stok',tanya:'Di Gudang ada apa saja, berapa, dan mana yang menipis?',boleh:['Warehouse','Event Management'],periode:'tanpa',menu:'Gudang',buat:function(){var I=invData().items||[];
   return {kpi:[['Barang',String(I.length)],['Menipis',String(invKurang().length),'','warn']],kolom:[{t:'Barang',w:220},{t:'Kategori'},{t:'Lokasi'},{t:'Stok',n:true},{t:'Satuan'},{t:'Minimum',n:true},{t:'Status'}],
     baris:I.map(function(i){var s=invStok(i.id),m=+i.min||0;return [{v:i.nama,sub:i.catatan||''},i.kat||'-',i.lokasi||'-',s,i.sat||'pcs',m,{v:s<m?'menipis':(s<=0?'kosong':'cukup'),pil:s<m?'red':(s<=0?'warn':'ok')}];})};}});
 lapDef({id:'karyawan',grup:'SDM',nama:'Daftar karyawan',tanya:'Siapa saja tim kita, statusnya apa, sudah berapa lama?',boleh:['Finance'],periode:'tanpa',menu:'Karyawan',buat:function(){var h=hariIni(),K=(hrData().karyawan||[]).filter(function(k){return k.aktif!==false&&k.status!=='Keluar';});
@@ -11336,6 +11331,374 @@ lapDef({id:'pengguna',grup:'Kontrol',nama:'Daftar pengguna',tanya:'Siapa saja ya
 [['ring','Ringkasan order berjalan','Sekarang ada berapa order, nilainya berapa, dan mana yang genting?',[]],['pipe','Pipeline per order','Tiap order ada di fase mana dan apa yang kurang?',['Finance','Project Manager']],
  ['piutang','Piutang per order','Order mana yang belum lunas?',['Finance']],['eval','Evaluasi: lead time, batal, layanan client','Order selesai butuh berapa lama, kenapa ada yang batal, client puas?',['Finance','Sales']],['ekspor','Ekspor ke AIS','Data SO dan PO yang siap ditempel ke AIS.',['Finance']]
 ].forEach(function(x){lapDef({id:'lama_'+x[0],grup:'Laporan lama',nama:x[1],tanya:x[2],boleh:x[3],periode:'tanpa',buat:function(){ST._repTab=x[0];ST._repTabLihat=x[0];return {html:renderReportLama(true)};}});});
+/* ================= LAPORAN — patch156 bagian A: kerangka bagian, Keuangan & akuntansi ================= */
+/* bagian (judul besar di daftar kiri & matriks akses) → kelompok; urutannya = urutan LAP_GRUP */
+const LAP_BAGIAN=[['Manajemen',['Paket rapat','Kontrol']],['Penjualan & profit',['Penjualan','Profit']],
+  ['Keuangan & akuntansi',['Piutang & uang masuk','Pembelian & utang','Kas & bank','Buku besar','Laporan keuangan','Pajak','Aset tetap']],
+  ['Operasional',['Produksi & vendor','Pengiriman & client','Live service','Gudang']],['Tim & konten',['SDM','Konten']],['Tab lama',['Laporan lama']]];
+function lapBagianDari(g){var out='';LAP_BAGIAN.forEach(function(B){if(B[1].indexOf(g)>=0)out=B[0];});return out;}
+function lapBagianAwal(g){var out='';LAP_BAGIAN.forEach(function(B){if(B[1][0]===g)out=B[0];});return out;}
+function lapDaftarHTML(){
+  var q=String(ST._lapQ||'').toLowerCase(),h='',n=0;
+  LAP_BAGIAN.forEach(function(B){var hb='';
+    B[1].forEach(function(g){var hg='';
+      LAP.filter(function(d){return d.grup===g&&lapBoleh(d);}).forEach(function(d){
+        if(q&&(d.nama+' '+d.tanya+' '+d.grup+' '+B[0]).toLowerCase().indexOf(q)<0)return;
+        n++;hg+='<button type="button" class="lap-baris'+(ST._lapId===d.id?' on':'')+'" data-f="lap_'+esc(d.id)+'" onclick="lapBuka('+jsArg(d.id)+')"><span class="nm">'+esc(d.nama)+'</span>'+lapLapisHTML(d)+'</button>';});
+      if(hg)hb+='<div class="lap-grup">'+esc(g)+'</div>'+hg;});
+    if(hb)h+='<div class="lap-bagian">'+esc(B[0])+'</div>'+hb;});
+  if(!n)h+='<div style="font-size:11px;color:var(--muted);padding:8px 4px">Tidak ada laporan yang cocok.</div>';
+  return h;}
+/* dokumen dari laporan: nomor urut per jenis (sekali dibuat, tetap), tampil di overlay dokumen seperti kwitansi */
+function lapNoDok(o,jenis,prefix){if(!o.dokNo)o.dokNo={};
+  if(!o.dokNo[jenis]){var n=(+localStorage.getItem('rovehub_seq_'+jenis)||0)+1;localStorage.setItem('rovehub_seq_'+jenis,String(n));var d=new Date();
+    o.dokNo[jenis]=prefix+' / '+d.getFullYear()+' / '+roman(d.getMonth()+1)+' / '+String(n).padStart(4,'0');o._m=Date.now();save();}
+  return o.dokNo[jenis];}
+function lapDokTampil(html,hint){$('#docbody').innerHTML=html;ST._docHtml=html;ST._doc={type:'laporan'};
+  try{$('#docov').classList.add('lap-dok');}catch(e){}
+  try{document.getElementById('docbody').contentEditable='false';var h=document.getElementById('dokEditHint');if(h)h.textContent=hint||'Dokumen — Simpan PDF atau cetak';}catch(e){}
+  trDOM(document.getElementById('docbody'));$('#docov').classList.add('show');try{loadImages();}catch(e){}}
+function lapDokKop(sub,judul,no){return '<div class="dhrow"><div><div class="dbrand">ROVE</div><div class="dbsub">'+esc(sub)+'</div></div><div class="dtitle">'+esc(judul)+'<div class="dno">'+esc(no)+'</div></div></div>';}
+function lapDokBaris(a,b){return '<tr><td class="k" style="width:170px">'+a+'</td><td>'+b+'</td></tr>';}
+function lapDokTtd(kiri,kanan){return '<table style="width:100%;margin-top:40px;font-size:11px"><tr><td style="width:50%;padding-right:30px"><div style="border-top:1px solid #222;padding-top:5px">'+kiri+'</div></td><td style="width:50%;padding-left:30px"><div style="border-top:1px solid #222;padding-top:5px">'+kanan+'</div></td></tr></table>';}
+function lapTombol(f,label,ghost){return {v:label,html:'<button class="btn '+(ghost?'ghost ':'')+'sm" onclick="'+f+'">'+esc(label)+'</button>'};}
+function lapOrderCari(oid){return (ST.orders||[]).find(function(x){return x.id===oid;})||null;}
+/* laba rugi ringkas sebagai fungsi (dipakai LR rata-rata bulanan & rasio) — rumus sama dengan laporan Laba rugi ringkas */
+function lapLRHitung(R){var A=lapKirimanSemua(R).map(lapKirimAngka),S=function(f){return lapJumlah(A,f);},F=finData(),B={};
+  var beban=function(pos,n){pos=pos||'Beban lain';B[pos]=(B[pos]||0)+(+n||0);};
+  (F.kas||[]).forEach(function(k){if(k.arah==='Keluar'&&lapDalam(k.tgl,R))beban(k.pos,k.nom);});
+  Object.keys(F.rutinBayar||{}).forEach(function(key){var b=F.rutinBayar[key],r=(F.rutin||[]).filter(function(x){return x.id===key.split(':')[1];})[0]||{};if(lapDalam(b.tgl,R))beban(r.pos||r.nama,b.nom);});
+  lapOrders().forEach(function(o){((o.tutup||{}).biaya||[]).forEach(function(b){if(lapDalam(b.tgl,R))beban('Biaya lain order',b.nominal);});});
+  var gross=S(function(a){return a.gross-a.ongkir;}),disc=S(function(a){return a.disc;}),pend=gross-disc,hr=S(function(a){return a.hr;}),hn=S(function(a){return a.hn;}),hpp=hr+hn,kom=S(function(a){return a.wo+a.sales;}),lk=pend-hpp,tb=kom+lapJumlah(Object.keys(B),function(k){return B[k];});
+  var pos=[['Penjualan barang & jasa (diakui saat kirim)',gross,0],['Diskon',-disc,0],['Pendapatan bersih',pend,1],['HPP Radja',-hr,0],['HPP non-Radja',-hn,0],['Laba kotor',lk,1],['Komisi Sales & WO',-kom,0]];
+  Object.keys(B).sort().forEach(function(k){pos.push([k,-B[k],0]);});pos.push(['Laba sebelum pajak',lk-tb,1]);
+  return {pos:pos,pend:pend,gross:gross,hpp:hpp,lk:lk,laba:lk-tb,beban:tb,komisi:kom,B:B};}
+function lapAkunSet(v){ST._lapAkun=v;render();}
+/* tahun laporan tahunan / rata-rata: mengikuti periode; 'semua waktu' atau tahun di luar jangkauan → tahun berjalan */
+function lapTahunDari(P){var h=hariIni(),th=String((P&&P.R&&P.R[1])||'').slice(0,4);if(P&&P.per==='semua'||!th||th>h.slice(0,4)||th<'2000')return {th:h.slice(0,4),akhir:h.slice(0,7)};return {th:th,akhir:String(P.R[1]).slice(0,7)};}
+function lapAkunDaftar(J){var A={};(J||jurnalOtomatis()).forEach(function(j){if(j.debit)A[j.debit]=1;if(j.kredit)A[j.kredit]=1;});return Object.keys(A).sort();}
+
+/* ---------- Pembelian & utang ---------- */
+lapDef({id:'umurUtang',grup:'Pembelian & utang',nama:'Umur utang vendor',tanya:'Termin vendor mana yang sudah lewat jatuh tempo, dan berapa lama?',boleh:['Finance','Purchasing'],periode:'tanpa',buat:function(){var h=hariIni(),rows=[],E={belum:0,d30:0,d30p:0,tanpa:0};
+  lapUtang().forEach(function(x){var T=[];try{T=vtermDaftar(x.o,x.kunci)||[];}catch(e){}
+    T.forEach(function(d){if(d.dibayar||!(d.nom>0))return;var sisa=Math.max(0,(+d.nom||0)-(+d.bayarNom||0));if(!(sisa>0))return;
+      var telat=d.tgl?lapHari(d.tgl,h):null,kel=telat===null?'tanpa tanggal':(telat<=0?'belum jatuh tempo':(telat<=30?'lewat 1–30 hari':'lewat > 30 hari'));
+      E[telat===null?'tanpa':(telat<=0?'belum':(telat<=30?'d30':'d30p'))]+=sisa;
+      rows.push([x.v,lapO(x.o),'tahap '+d.tahap+' · '+d.pct+'%',d.tgl?tglID(d.tgl):'—',sisa,telat===null?'':Math.max(0,telat),{v:kel,pil:telat===null?'':(telat<=0?'ok':(telat<=30?'warn':'red'))}]);});});
+  rows.sort(function(a,b){return (+b[5]||0)-(+a[5]||0);});
+  return {kpi:[['Belum jatuh tempo',E.belum],['Lewat 1–30 hari',E.d30,'','warn'],['Lewat > 30 hari',E.d30p,'','red'],['Tanpa tanggal termin',E.tanpa]],
+    kolom:[{t:'Vendor',w:160},{t:'Client',w:170},{t:'Termin'},{t:'Jatuh tempo'},{t:'Sisa termin',n:true},{t:'Hari lewat',n:true},{t:'Kelompok'}],baris:rows,
+    total:['Total','','','',lapJumlah(rows,function(r){return r[4];}),'',''],catatan:'Satu baris per termin vendor yang belum lunas. Tanggal termin dari master vendor (saat PO turun / barang jadi / diterima). Pasangan laporan Umur piutang.',kosong:'Tidak ada termin vendor yang belum dibayar.'};}});
+
+/* ---------- Buku besar ---------- */
+lapDef({id:'jurnalUmum',grup:'Buku besar',nama:'Jurnal umum',tanya:'Catatan debit dan kredit tiap kejadian uang pada periode ini.',boleh:['Finance'],menu:'Keuangan',buat:function(P){var J=[];try{J=jurnalOtomatis().filter(function(j){return lapDalam(j.tgl,P.R);});}catch(e){}
+  return {kpi:[['Jurnal',String(J.length)],['Otomatis dari HUB',String(J.filter(function(j){return j.auto;}).length)],['Manual',String(J.filter(function(j){return !j.auto;}).length)]],
+    kolom:[{t:'Tanggal'},{t:'Keterangan',w:260},{t:'Referensi',w:120},{t:'Debit',w:170},{t:'Kredit',w:170},{t:'Nominal',n:true},{t:'Sumber'}],
+    baris:J.map(function(j){return [tglID(j.tgl),j.ket||'',j.ref||'-',j.debit||'',j.kredit||'',+j.nom||0,j.auto?'otomatis':('manual · '+(j.by||''))];}),
+    total:['Total','','','','',lapJumlah(J,function(j){return j.nom;}),''],catatan:'Sama dengan Keuangan → Jurnal: pembayaran client, kas & bank, pembayaran vendor / komisi / biaya rutin (kas otomatis), plus jurnal manual.',kosong:'Tidak ada jurnal pada periode ini.'};}});
+lapDef({id:'bukuBesar',grup:'Buku besar',nama:'Buku besar per akun',tanya:'Mutasi dan saldo berjalan satu akun pada periode ini.',boleh:['Finance'],buat:function(P){var J0=[];try{J0=jurnalOtomatis();}catch(e){}var A=lapAkunDaftar(J0);
+  var akun=ST._lapAkun&&A.indexOf(ST._lapAkun)>=0?ST._lapAkun:(A.indexOf('Kas / Bank')>=0?'Kas / Bank':(A[0]||''));
+  var sebelum=0,rows=[],J=J0.filter(function(j){return j.debit===akun||j.kredit===akun;}).sort(function(a,b){return String(a.tgl).localeCompare(String(b.tgl));});
+  J.forEach(function(j){var d=j.debit===akun?(+j.nom||0):0,k=j.kredit===akun?(+j.nom||0):0;if(String(j.tgl||'').slice(0,10)<P.R[0]){sebelum+=d-k;return;}if(!lapDalam(j.tgl,P.R))return;rows.push([j.tgl,j.ket||'',j.debit===akun?j.kredit:j.debit,d,k]);});
+  var saldo=sebelum,baris=[[{v:'—'},{v:'Saldo awal periode (mutasi sebelum periode)',k:'font-weight:800'},'','','',{v:sebelum,k:'font-weight:800'}]];
+  rows.forEach(function(r){saldo+=r[3]-r[4];baris.push([tglID(r[0]),r[1],r[2],r[3]||'',r[4]||'',saldo]);});
+  var ctrl='<label style="font-size:10.5px;color:var(--muted);display:flex;align-items:center;gap:6px">Akun <select class="pin" style="width:auto" data-f="lapAkun" onchange="lapAkunSet(this.value)">'+A.map(function(a){return '<option value="'+esc(a)+'" '+(a===akun?'selected':'')+'>'+esc(a)+'</option>';}).join('')+'</select></label>';
+  return {ctrl:ctrl,kpi:[['Akun',akun||'—'],['Debit periode',lapJumlah(rows,function(r){return r[3];})],['Kredit periode',lapJumlah(rows,function(r){return r[4];})],['Saldo akhir',saldo]],
+    kolom:[{t:'Tanggal'},{t:'Keterangan',w:260},{t:'Lawan akun',w:170},{t:'Debit',n:true},{t:'Kredit',n:true},{t:'Saldo',n:true}],baris:baris,
+    catatan:'Saldo berjalan = debit − kredit sejak jurnal pertama di HUB (belum ada saldo awal akun — Paket 4). Akun mengikuti nama di jurnal.',kosong:'Belum ada jurnal.'};}});
+lapDef({id:'neracaSaldo',grup:'Buku besar',nama:'Neraca saldo',tanya:'Total debit, kredit, dan saldo tiap akun pada periode ini.',boleh:['Finance'],buat:function(P){var J=[];try{J=jurnalOtomatis().filter(function(j){return lapDalam(j.tgl,P.R);});}catch(e){}var M={};
+  J.forEach(function(j){var n=+j.nom||0;if(j.debit){M[j.debit]=M[j.debit]||{d:0,k:0};M[j.debit].d+=n;}if(j.kredit){M[j.kredit]=M[j.kredit]||{d:0,k:0};M[j.kredit].k+=n;}});
+  var rows=Object.keys(M).sort().map(function(a){var s=M[a].d-M[a].k;return [a,M[a].d,M[a].k,s>=0?s:'',s<0?-s:''];});
+  return {kolom:[{t:'Akun',w:240},{t:'Debit',n:true},{t:'Kredit',n:true},{t:'Saldo debit',n:true},{t:'Saldo kredit',n:true}],baris:rows,
+    total:['Total',lapJumlah(rows,function(r){return r[1];}),lapJumlah(rows,function(r){return r[2];}),lapJumlah(rows,function(r){return r[3];}),lapJumlah(rows,function(r){return r[4];})],
+    catatan:'Mutasi periode ini saja (belum ada saldo awal akun). Total debit dan kredit harus sama — kalau beda, ada jurnal manual yang timpang.',kosong:'Belum ada jurnal pada periode ini.'};}});
+
+/* ---------- Laporan keuangan ---------- */
+lapDef({id:'labaRugiRata',grup:'Laporan keuangan',nama:'Laba rugi dengan rata-rata bulanan',tanya:'Bulan ini di atas atau di bawah rata-rata bulanan tahun berjalan?',boleh:[],buat:function(P){var ini=lapLRHitung(P.R),TT=lapTahunDari(P),th=TT.th,akhir=TT.akhir;
+  var bulan=[];for(var m=1;m<=12;m++){var ym=th+'-'+String(m).padStart(2,'0');if(ym>akhir)break;bulan.push(ym);}if(!bulan.length)bulan=[akhir];
+  var H=bulan.map(function(ym){return lapLRHitung(lapRentang(ym));}),n=bulan.length,rata={};
+  H.forEach(function(x){x.pos.forEach(function(p){rata[p[0]]=(rata[p[0]]||0)+p[1];});});
+  var rows=ini.pos.map(function(p){var r=(rata[p[0]]||0)/n,sel=p[1]-r,kuat=p[2];return [kuat?{v:p[0],k:'font-weight:800'}:p[0],kuat?{v:p[1],k:'font-weight:800'}:p[1],{v:lapPct(p[1],ini.pend)},Math.round(r),Math.round(sel),{v:lapPct(sel,Math.abs(r)),k:sel<0&&/Laba|Pendapatan/.test(p[0])?'color:var(--red);font-weight:800':''}];});
+  return {kolom:[{t:'Pos',w:280},{t:P.nama,n:true},{t:'% pendapatan',n:true,pct:true},{t:'Rata-rata / bulan '+th,n:true},{t:'Selisih',n:true},{t:'% selisih',n:true,pct:true}],baris:rows,
+    catatan:'Rata-rata dari '+n+' bulan ('+bulanNama(bulan[0])+' – '+bulanNama(bulan[bulan.length-1])+'). Rumus sama dengan Laba rugi ringkas; sama dengan AIS sheet IS / ISa / ma.'};}});
+lapDef({id:'rasio',grup:'Laporan keuangan',nama:'Rasio keuangan',tanya:'Bisnisnya sehat atau tidak — margin, hari piutang, hari utang, biaya terhadap penjualan, cadangan kas.',boleh:[],periode:'tanpa',buat:function(){var h=hariIni(),R12=[tglGeser(h,-364),h],R6=[tglGeser(h,-182),h],LR=lapLRHitung(R12),F=finData();
+  var pi=lapJumlah(lapPiutang(),function(x){return x.d.nom;}),ut=lapJumlah(lapUtang(),function(x){return x.sisa;}),vend12=lapKeluarVendor(R12);
+  var dso=LR.pend>0?Math.round(pi/(LR.pend/365)):null,dpo=vend12>0?Math.round(ut/(vend12/365)):null;
+  var rutin12=0;Object.keys(F.rutinBayar||{}).forEach(function(key){var b=F.rutinBayar[key];if(lapDalam(b.tgl,R12))rutin12+=(+b.nom||0);});
+  var gaji12=0;((hrData().payroll)||[]).forEach(function(t){if(!lapDalam(t.periode+'-15',R12))return;(t.rows||[]).forEach(function(r){gaji12+=(+r.gaji||0)+(+r.tunjangan||0)+(+r.lembur||0)-(+r.potongan||0);});});
+  var keluar6=lapKeluarVendor(R6)+lapKeluarLain(R6),perBulan=keluar6/6,kas=+((F.cf||{}).saldo)||0,runway=perBulan>0?Math.round(kas/perBulan*10)/10:null;
+  var tua=lapPiutang().filter(function(x){return x.telat!==null&&x.telat>60;}),tuaN=lapJumlah(tua,function(x){return x.d.nom;});
+  var U=lapUkur(R12),konv=U.prospek?lapPct(U.jadi,U.prospek):0;
+  var nilai=function(v,sat){return v===null||v===undefined?'—':(String(v).replace('.',',')+(sat||''));};
+  var rows=[['Margin kotor',nilai(lapPct(LR.lk,LR.pend),' %'),'laba kotor ÷ pendapatan bersih 12 bulan','sehat bila di atas 30 %'],
+    ['Margin sebelum pajak',nilai(lapPct(LR.laba,LR.pend),' %'),'laba sebelum pajak ÷ pendapatan bersih','sesudah komisi & beban kas'],
+    ['Hari piutang (DSO)',nilai(dso,' hari'),'piutang hari ini ÷ (pendapatan 12 bulan ÷ 365)','makin kecil makin cepat uang masuk'],
+    ['Hari utang (DPO)',nilai(dpo,' hari'),'utang vendor hari ini ÷ (pembayaran vendor 12 bulan ÷ 365)','sesuai termin vendor'],
+    ['Piutang lewat 60 hari',nilai(pi?lapPct(tuaN,pi):0,' %'),fmt0(tuaN)+' dari '+fmt0(pi),'idealnya 0'],
+    ['Biaya rutin terhadap penjualan',nilai(lapPct(rutin12,LR.pend),' %'),fmt0(rutin12)+' ÷ '+fmt0(LR.pend),'sewa, gaji tetap, langganan'],
+    ['Biaya SDM terhadap penjualan',nilai(lapPct(gaji12,LR.pend),' %'),'payroll 12 bulan ÷ pendapatan bersih','isi Karyawan → Payroll supaya terhitung'],
+    ['Cadangan kas (bulan)',nilai(runway,' bulan'),fmt0(kas)+' ÷ rata-rata keluar '+fmt0(Math.round(perBulan))+' / bulan','dari Saldo saat ini di Cashflow projection'],
+    ['Konversi prospek',nilai(konv,' %'),U.jadi+' dari '+U.prospek+' prospek 12 bulan','']];
+  return {kpi:[['Margin kotor',nilai(lapPct(LR.lk,LR.pend),' %'),'12 bulan terakhir',lapPct(LR.lk,LR.pend)>=30?'ok':'warn'],['Hari piutang',nilai(dso,' hari'),'',dso!==null&&dso>45?'warn':'ok'],['Hari utang',nilai(dpo,' hari')],['Cadangan kas',nilai(runway,' bulan'),'',runway!==null&&runway<3?'red':'ok']],
+    kolom:[{t:'Rasio',w:220},{t:'Nilai',n:true},{t:'Cara hitung',w:300},{t:'Catatan',w:220}],baris:rows,catatan:'Dihitung dari 12 bulan terakhir sampai hari ini (cadangan kas dari 6 bulan). Rasio adalah turunan laporan lain — bukan angka akuntansi resmi.'};}});
+
+/* ---------- Aset tetap ---------- */
+lapDef({id:'asetHabis',grup:'Aset tetap',nama:'Aset habis umur',tanya:'Aset mana yang umur ekonomisnya habis atau tinggal kurang dari 6 bulan?',boleh:['Finance'],periode:'tanpa',menu:'Aset tetap',buat:function(){var A=asetAll().filter(function(a){return a.status!=='Dilepas';}),rows=[];
+  A.forEach(function(a){var bln=Math.max(1,(+a.umurThn||0)*12),jalan=asetUmurBulan(a),sisa=bln-jalan,s=asetPenyusutan(a);if(sisa>6)return;
+    rows.push([a.nama,a.kat||'-',a.tglBeli?tglID(a.tglBeli):'—',+a.umurThn||0,Math.max(0,sisa),s.nilai,a.pj||'-',{v:sisa<=0?'habis umur':'tinggal '+sisa+' bulan',pil:sisa<=0?'red':'warn'}]);});
+  rows.sort(function(a,b){return a[4]-b[4];});
+  return {kpi:[['Habis umur',String(rows.filter(function(r){return r[4]<=0;}).length),'','red'],['Tinggal ≤ 6 bulan',String(rows.filter(function(r){return r[4]>0;}).length),'','warn']],
+    kolom:[{t:'Aset',w:190},{t:'Kategori',w:140},{t:'Dibeli'},{t:'Umur (th)',n:true},{t:'Sisa (bulan)',n:true},{t:'Nilai buku',n:true},{t:'Penanggung jawab'},{t:'Status'}],baris:rows,catatan:'Umur ekonomis dari kartu aset; nilai buku garis lurus. Aset yang dilepas tidak ikut.',kosong:'Tidak ada aset yang habis umur atau hampir habis.'};}});
+
+/* ---------- Pajak ---------- */
+lapDef({id:'bukpot',grup:'Pajak',nama:'Daftar bukti potong',tanya:'Bukti potong mana yang sudah diterima per masa pajak?',boleh:['Finance'],menu:'Pajak',buat:function(P){var T=[];try{T=taxAll().filter(function(t){return lapDalam(t.periode+'-15',P.R);});}catch(e){}
+  T.sort(function(a,b){return String(b.periode).localeCompare(String(a.periode));});
+  return {kpi:[['Masa pajak',String(T.length)],['Bukti potong tercatat',String(T.filter(function(t){return String(t.bukpot||'').trim();}).length)],['Belum ada',String(T.filter(function(t){return !String(t.bukpot||'').trim();}).length),'','warn']],
+    kolom:[{t:'Masa',w:130},{t:'Bukti potong / keterangan',w:300},{t:'PPh 23',n:true},{t:'Setor'},{t:'Lapor'}],
+    baris:T.map(function(t){return [bulanNama(t.periode),String(t.bukpot||'').trim()||{v:'belum ada',pil:'warn'},+t.pph23||0,t.setorTgl?tglID(t.setorTgl):'—',t.laporTgl?tglID(t.laporTgl):'—'];}),
+    catatan:'Dari isian bukti potong di menu Pajak. Bukti potong PPh dari client corporate (per pembayaran) belum dicatat HUB — Paket 3.',kosong:'Belum ada masa pajak pada periode ini.'};}});
+/* ================= LAPORAN — patch156 bagian B: laporan siap dibuat lainnya + dokumen per order ================= */
+function lapFotoN(o,k){return (((o.brief||{})[k])||[]).length;}
+function lapKategoriDaftar(){return ['Wedding','Corporate','Custom'];}
+
+/* ---------- Profit ---------- */
+lapDef({id:'royaltiAU',grup:'Profit',nama:'Royalti Rove AU',tanya:'Royalti dari order Australia berapa, per order dan per periode?',boleh:['Finance'],buat:function(P){var rows=[];
+  lapOrders().forEach(function(o){if(!orderAU(o)||o.status==='Cancel')return;var a=royaltiAU(o);var tgl=a.tgl||lapTglDeal(o);if(!(a.nilai>0)||!lapDalam(tgl,P.R))return;
+    rows.push([lapO(o),a.inv||'—',tgl?tglID(tgl):'—',a.nilai,a.pct,a.aud,a.kurs,a.rp]);});
+  return {kpi:[['Order AU',String(rows.length)],['Royalti (AUD)',lapJumlah(rows,function(r){return r[5];})],['Royalti (Rp)',lapJumlah(rows,function(r){return r[7];})]],
+    kolom:[{t:'Client',w:180},{t:'Invoice Rove AU',w:150},{t:'Tanggal'},{t:'Nilai invoice (AUD)',n:true},{t:'Royalti %',n:true},{t:'Royalti (AUD)',n:true},{t:'Kurs',n:true},{t:'Royalti (Rp)',n:true}],baris:rows,
+    total:['Total','','',lapJumlah(rows,function(r){return r[3];}),'',lapJumlah(rows,function(r){return r[5];}),'',lapJumlah(rows,function(r){return r[7];})],
+    catatan:'Nilai invoice Rove AU, persen royalti, dan kurs dari panel Laporan penutupan tiap order AU; persen bawaan di Master data. Dokumen royalti & monthly report AU menyusul (Paket 6).',kosong:'Tidak ada order AU dengan nilai royalti pada periode ini.'};}});
+lapDef({id:'hargaJualPcs',grup:'Profit',nama:'Harga jual per pcs dari waktu ke waktu',tanya:'Harga jual tiap produk naik atau turun dibanding rata-rata 12 bulan?',boleh:['Sales'],buat:function(P){var h=hariIni(),R12=[tglGeser(h,-364),h],rata={},rows=[];
+  var ambil=function(R,f){lapDeals(R).forEach(function(o){var m=((o.pricing||{}).margin||0)/100;lineProduk(o).forEach(function(x){var l=x.l;if(!((+l.qty||0)>0))return;f(o,l,lineJual(l,m),lineHppVendor(l));});});};
+  ambil(R12,function(o,l,j){var r=rata[l.produk]||(rata[l.produk]={s:0,n:0});r.s+=j;r.n++;});
+  ambil(P.R,function(o,l,j,hpp){var r=rata[l.produk],avg=r?r.s/r.n:0,mg=j?lapPct(j-hpp,j):0;rows.push([l.produk||'-',tglID(lapTglDeal(o)),lapO(o),+l.qty||0,j,hpp,{v:mg,k:mg<25?'color:var(--red);font-weight:800':''},Math.round(avg),{v:j-Math.round(avg),k:j<avg?'color:var(--red)':'color:var(--ok)'}]);});
+  rows.sort(function(a,b){return String(a[0]).localeCompare(String(b[0]))||String(b[1]).localeCompare(String(a[1]));});
+  return {kolom:[{t:'Produk',w:180},{t:'Deal'},{t:'Client',w:170},{t:'Qty',n:true},{t:'Jual / pcs',n:true},{t:'HPP / pcs',n:true},{t:'Margin %',n:true,pct:true},{t:'Rata-rata 12 bln',n:true},{t:'Selisih',n:true}],baris:rows,
+    catatan:'Harga jual per pcs dari Penentuan harga jual (sebelum diskon & ongkir). Rata-rata 12 bulan dihitung per produk dari semua deal.',kosong:'Tidak ada deal dengan produk pada periode ini.'};}});
+lapDef({id:'marginLive',grup:'Profit',nama:'Margin live service',tanya:'Live service itu untung atau sekadar pelengkap?',boleh:['Event Management'],buat:function(P){var rows=[];
+  lapOrders().forEach(function(o){if(o.status==='Cancel'||!adaLive(o))return;var tgl=o.eventDate||(o.brief||{}).tglAcara||lapTglDeal(o);if(!lapDalam(tgl,P.R))return;
+    var N=[];try{N=liveList(o.liveSvc);}catch(e){}var L=(((o.pricing||{}).lines)||[]),jual=0,hpp=0,ket=[];
+    N.forEach(function(nama,j){var hj={};try{hj=jasaHargaOrder(o,nama);}catch(e){}jual+=(+hj.fix||0)+(+hj.perPc||0)*(+o.qty||0);
+      var vl=L.filter(function(l){return l.jasa==='Live service'&&namaJasaBaris(l)===nama;});
+      if(vl.length){vl.forEach(function(l){hpp+=lineHppVendor(l)*poQty(l)+(+l.hppFix||0);});ket.push(nama+': vendor');}
+      else{var x={nilai:0};try{x=liveHppOrder(o,nama,j);}catch(e){}hpp+=x.nilai;ket.push(nama+': '+(x.sumber||'belum ada HPP'));}});
+    L.filter(function(l){return l.svcFee;}).forEach(function(l){hpp+=lineHppVendor(l)*poQty(l)+(+l.hppFix||0);ket.push('fee operator');});
+    rows.push([tgl?tglID(tgl):'—',lapO(o),N.join(', '),jual,hpp,jual-hpp,{v:lapPct(jual-hpp,jual),k:jual&&jual-hpp<0?'color:var(--red);font-weight:800':''},ket.join(' · ')]);});
+  return {kpi:[['Acara',String(rows.length)],['Jual live service',lapJumlah(rows,function(r){return r[3];})],['Margin',lapJumlah(rows,function(r){return r[5];}),'','ok']],
+    kolom:[{t:'Acara'},{t:'Client',w:170},{t:'Live service',w:180},{t:'Jual',n:true},{t:'HPP',n:true},{t:'Margin',n:true},{t:'%',n:true,pct:true},{t:'Sumber HPP',w:220}],baris:rows,
+    catatan:'Jual = harga live service di order (harga master atau override). HPP = baris vendor live service, fee operator, atau HPP tim sendiri yang diketik / dijawab tim.',kosong:'Tidak ada acara live service pada periode ini.'};}});
+
+/* ---------- Piutang & uang masuk ---------- */
+lapDef({id:'uangMuka',grup:'Piutang & uang masuk',nama:'Saldo uang muka client',tanya:'Berapa uang client yang sudah kita terima untuk pekerjaan yang belum dikirim?',boleh:['Finance'],periode:'tanpa',buat:function(){var rows=[];
+  lapOrders().forEach(function(o){if(o.status==='Cancel'||!lapDeal(o)||o.done||(+o.phase||0)>=PH.length-1)return;var p=o.pay||{},terima=(+p.dp||0)+(+p.dp2||0)+(+p.pel||0),G=lapGrand(o);if(!(terima>0))return;
+    var f=lapJumlah(lapKiriman(o),function(k){return k.f;}),diakui=Math.min(G,Math.round(G*f)),um=Math.max(0,terima-diakui);
+    rows.push([lapO(o),(+o.phase||0)+1+'. '+((PH[+o.phase||0]||{}).n||''),G,terima,diakui,um,Math.max(0,G-diakui)]);});
+  rows.sort(function(a,b){return b[5]-a[5];});
+  return {kpi:[['Uang muka (kewajiban ke client)',lapJumlah(rows,function(r){return r[5];}),rows.length+' order berjalan'],['Sudah diakui (dikirim)',lapJumlah(rows,function(r){return r[4];})],['Sisa pekerjaan',lapJumlah(rows,function(r){return r[6];})]],
+    kolom:[{t:'Client',w:180},{t:'Fase',w:200},{t:'Nilai order',n:true},{t:'Diterima',n:true},{t:'Diakui (porsi dikirim)',n:true},{t:'Uang muka',n:true},{t:'Sisa pekerjaan',n:true}],baris:rows,
+    total:['Total','',lapJumlah(rows,function(r){return r[2];}),lapJumlah(rows,function(r){return r[3];}),lapJumlah(rows,function(r){return r[4];}),lapJumlah(rows,function(r){return r[5];}),lapJumlah(rows,function(r){return r[6];})],
+    catatan:'Uang muka = diterima − pendapatan yang sudah diakui (porsi qty yang dikirim, cara AIS). Ini kewajiban, bukan pendapatan — pasangan kolom Unearned Revenue di AIS SO-H.',kosong:'Tidak ada order berjalan yang sudah menerima uang.'};}});
+
+/* ---------- Produksi & vendor ---------- */
+lapDef({id:'vendorJawab',grup:'Produksi & vendor',nama:'Kecepatan vendor menjawab',tanya:'Berapa lama vendor menjawab permintaan harga, dan berapa kali foto tahap harus ditagih?',boleh:['Purchasing','Project Manager'],buat:function(P){var h=hariIni(),rows=[];
+  lapOrders().forEach(function(o){if(o.status==='Cancel')return;
+    (((o.pricing||{}).lines)||[]).forEach(function(l){var r=l.rfq||{};if(!r.minta||!lapDalam(r.minta,P.R))return;var t=r.terima||((l.konf||{}).tgl)||'';
+      rows.push(['Harga',l.sumber||'-',lapO(o),l.produk||'-',tglID(r.minta),t?tglID(t):{v:'ditunggu',pil:'warn'},t?lapHari(r.minta,t):lapHari(r.minta,h),'']);});
+    var p=prodGet(o);Object.keys(p.minta||{}).forEach(function(slot){var m=p.minta[slot]||{},d=prodTahapDef(slot);if(!d)return;var awal=lapTglHist(m.pertama||m.tgl)||'';if(!awal||!lapDalam(awal,P.R))return;var ada=lapFotoN(o,slot)>0;
+      rows.push(['Foto '+d[1],'Radja Leather',lapO(o),d[1],tglID(awal),ada?'sudah masuk':{v:'ditunggu',pil:'warn'},ada?'':lapHari(awal,h),m.n||1]);});});
+  var H=rows.filter(function(r){return r[0]==='Harga'&&r[6]!==''&&typeof r[5]!=='object';});
+  return {kpi:[['Permintaan harga',String(rows.filter(function(r){return r[0]==='Harga';}).length)],['Rata-rata hari dijawab',H.length?String(Math.round(lapJumlah(H,function(r){return r[6];})/H.length*10)/10).replace('.',','):'—'],['Masih ditunggu',String(rows.filter(function(r){return typeof r[5]==='object';}).length),'','warn']],
+    kolom:[{t:'Jenis',w:130},{t:'Vendor',w:150},{t:'Client',w:170},{t:'Item / tahap',w:180},{t:'Diminta'},{t:'Dijawab'},{t:'Hari',n:true},{t:'Kali ditagih',n:true}],baris:rows,
+    catatan:'Harga: tanggal kirim permintaan sampai jawaban tercatat. Foto: sejak permintaan pertama (HUB menagih ulang tiap 2 hari kerja) sampai fotonya diunggah.',kosong:'Tidak ada permintaan ke vendor pada periode ini.'};}});
+lapDef({id:'fotoLewat',grup:'Produksi & vendor',nama:'Tahap foto yang dilewati',tanya:'Tahap foto produksi apa yang dilewati, kenapa, dan siapa yang memutuskan?',boleh:['Project Manager'],buat:function(P){var rows=[];
+  lapOrders().forEach(function(o){var L=((o.prod||{}).lewati)||{};Object.keys(L).forEach(function(slot){var x=L[slot]||{},d=prodTahapDef(slot);if(!d||!lapDalam(x.tgl,P.R))return;rows.push([tglID(x.tgl),lapO(o),d[1],x.alasan||'',x.oleh||'-']);});});
+  return {kpi:[['Tahap dilewati',String(rows.length)]],kolom:[{t:'Tanggal'},{t:'Client',w:180},{t:'Tahap'},{t:'Alasan',w:300},{t:'Oleh'}],baris:rows,catatan:'Foto QC & packing tetap wajib untuk invoice pelunasan walau tahapnya dilewati.',kosong:'Tidak ada tahap foto yang dilewati pada periode ini.'};}});
+lapDef({id:'persetujuanLama',grup:'Produksi & vendor',nama:'Lama persetujuan sketsa dan sample',tanya:'Berapa hari sketsa dan sample menunggu persetujuan, dan berapa kali direvisi?',boleh:['Project Manager','Sales'],buat:function(P){var h=hariIni(),rows=[];
+  lapOrders().forEach(function(o){if(o.status==='Cancel')return;
+    var masuk=o.sketchMasuk?String(o.sketchMasuk).slice(0,10):'',setuju=(o.sketch||{}).tgl||'';if(masuk&&(lapDalam(setuju||masuk,P.R)))rows.push([lapO(o),'Sketsa',tglID(masuk),setuju?tglID(setuju):{v:'menunggu',pil:'warn'},lapHari(masuk,setuju||h),(o.sketchRevisi||[]).length]);
+    var m=(((o.prod||{}).minta)||{}).sampleFiles||{},awal=lapTglHist(m.pertama||m.tgl)||'',ok=(o.prod||{}).sampleTgl||'';if(awal&&lapDalam(ok||awal,P.R))rows.push([lapO(o),'Sample',tglID(awal),ok?tglID(ok):{v:'menunggu',pil:'warn'},lapHari(awal,ok||h),'']);});
+  var S=rows.filter(function(r){return r[1]==='Sketsa'&&typeof r[3]!=='object';}),M=rows.filter(function(r){return r[1]==='Sample'&&typeof r[3]!=='object';});
+  var avg=function(L){return L.length?String(Math.round(lapJumlah(L,function(r){return r[4];})/L.length*10)/10).replace('.',',')+' hari':'—';};
+  return {kpi:[['Sketsa: rata-rata sampai disetujui',avg(S)],['Sample: rata-rata sampai disetujui',avg(M)],['Revisi sketsa',String(lapJumlah(rows,function(r){return r[5]||0;}))]],
+    kolom:[{t:'Client',w:180},{t:'Jenis'},{t:'Masuk / diminta'},{t:'Disetujui'},{t:'Hari',n:true},{t:'Revisi',n:true}],baris:rows,catatan:'Sketsa: sejak masuk ke Creative sampai client setuju. Sample: sejak foto sample diminta ke Radja sampai sample disetujui.',kosong:'Tidak ada sketsa atau sample pada periode ini.'};}});
+lapDef({id:'collateral',grup:'Produksi & vendor',nama:'Status collateral',tanya:'Box, pouch, dan kartu sudah dipesan, sudah sampai ke Radja atau belum?',boleh:['Purchasing','Project Manager'],periode:'tanpa',buat:function(){var rows=[];
+  lapOrders().forEach(function(o){if(o.status==='Cancel'||o.done)return;var f=+o.phase||0;if(f<10||f>13)return;var C=[];try{C=collDipilih(o);}catch(e){}if(!C.length)return;var K=((o.prod||{}).collKirim)||{},L=(((o.pricing||{}).lines)||[]);
+    C.forEach(function(c){var l=L.filter(function(x){return x.coll===c.k&&(+x.qty||0)>0;})[0],v=(l&&l.sumber)||'';try{if(!v)v=vendorForTipe(c.nama);}catch(e){}var p=v?vpoGet(o,v):{};
+      rows.push([lapO(o),(f+1)+'. '+PH[f].n,c.nama,v||'-',p.generated?{v:p.poNo||'terbit',pil:'ok'}:{v:'belum',pil:'warn'},p.deadline?tglID(p.deadline):'—',K[c.k]?{v:'sudah',pil:'ok'}:{v:'belum',pil:'warn'}]);});});
+  return {kpi:[['Collateral dipantau',String(rows.length)],['PO vendor belum terbit',String(rows.filter(function(r){return r[4].pil==='warn';}).length),'','warn'],['Belum sampai ke Radja',String(rows.filter(function(r){return r[6].pil==='warn';}).length),'','warn']],
+    kolom:[{t:'Client',w:180},{t:'Fase',w:190},{t:'Collateral'},{t:'Vendor',w:150},{t:'PO vendor'},{t:'Deadline'},{t:'Ke Radja'}],baris:rows,catatan:'Order dari Purchase Order Issuing sampai QC & Packing. "Ke Radja" dari centang collateral di panel Produksi.',kosong:'Tidak ada order dengan collateral yang sedang berjalan.'};}});
+lapDef({id:'kulit',grup:'Produksi & vendor',nama:'Ketersediaan kulit',tanya:'Kulit artikel apa yang ditawarkan Radja, mana yang ready, mana yang sering kosong?',boleh:['Purchasing'],buat:function(P){var rows=[],S={};
+  lapOrders().forEach(function(o){(((o.pricing||{}).lines)||[]).forEach(function(l){var k=null;try{k=(l.rfq&&l.rfq.kulit)?rfqKulitBaca(l):null;}catch(e){}if(!k||!(k.jawab||[]).length)return;
+    k.jawab.forEach(function(d){var t=d.t||k.terima||k.tanya||'';if(!lapDalam(t,P.R))return;S[d.stok||'-']=(S[d.stok||'-']||0)+1;rows.push([t?tglID(t):'—',lapO(o),d.nama||'-',d.warna||'-',{v:d.stok||'-',pil:/ready/i.test(d.stok||'')?'ok':'warn'},d.minOrder||'',d.catatan||'',k.pilih===d.nama?'✓':'']);});});});
+  return {kpi:Object.keys(S).map(function(s){return [s,String(S[s])];}),kolom:[{t:'Tanggal'},{t:'Client',w:170},{t:'Artikel kulit',w:200},{t:'Warna'},{t:'Stok'},{t:'Min order'},{t:'Catatan',w:200},{t:'Dipilih'}],baris:rows,
+    catatan:'Dari jawaban "Pastikan kulit" Radja di Project Costing.',kosong:'Belum ada jawaban ketersediaan kulit pada periode ini.'};}});
+
+/* ---------- Pengiriman & client ---------- */
+function lapPenutupanDoc(oid){var o=lapOrderCari(oid);if(!o||!lapBoleh('penutupan'))return;var T=tutupGet(o),Pf=profitTotals(o),V=[];try{V=vendorTagihan(o);}catch(e){}var b=o.brief||{},r=lapDokBaris;
+  var fase=lapFaseDurasi(o).map(function(d){return '<tr><td>'+esc((PH[d.fase]||{}).n||'')+'</td><td class="num">'+d.hari+' hari</td><td>'+esc(tglID(d.selesai))+'</td><td>'+esc(d.who)+'</td></tr>';}).join('');
+  var ev=Object.keys(T.evalVendor||{}).map(function(v){var x=T.evalVendor[v]||{};return '<tr><td>'+esc(v)+'</td><td class="num">'+esc(x.nilai||'-')+' / 5</td><td>'+esc(x.catatan||'')+'</td></tr>';}).join('');
+  var kom=((o.cs||{}).komplain||[]).map(function(k){return '<li>'+esc(k.isi||'')+' — '+esc(k.status||'')+(k.solusi?(' · '+esc(k.solusi)):'')+'</li>';}).join('');
+  var foto=[];try{foto=((b.dokumentasiFiles||[]).concat(b.dokProdukFiles||[])).filter(fileGambar).slice(0,6);}catch(e){}
+  var html=lapDokKop('Laporan penutupan proyek','LAPORAN PENUTUPAN',(o.soNo?('SO '+o.soNo+' · '):'')+esc(chName(o)))+
+    '<table class="dinfotbl">'+r('Client',esc(o.customer))+r('Kategori',esc(orderKategori(o)))+r('Produk',esc((o.product||'')+' · '+(o.qty||'')+' pcs'))+r('Acara / kirim',esc((o.eventDate?tglID(o.eventDate):'-')+' · kirim '+(b.tglKirim?tglID(b.tglKirim):'-')))+
+      r('Nilai order','<b>'+fmt0(lapGrand(o))+'</b>')+r('HPP vendor',fmt0(Pf.hpp))+r('Komisi & biaya lain',fmt0((Pf.komisi||0)+(Pf.biayaLain||0)))+r('Profit kotor','<b>'+fmt0(Pf.profit)+'</b> · '+Pf.pct+'%')+r('Ditutup',esc((T.tgl?tglID(T.tgl):'belum')+(T.oleh?(' · '+T.oleh):'')))+'</table>'+
+    '<div class="dsec">Lini waktu</div><table class="dtable grid"><thead><tr><th>Fase</th><th class="num">Lama</th><th>Selesai</th><th>Oleh</th></tr></thead><tbody>'+(fase||'<tr><td colspan="4">belum ada riwayat fase</td></tr>')+'</tbody></table>'+
+    '<div class="dsec">Vendor</div><table class="dtable grid"><thead><tr><th>Vendor</th><th class="num">Nilai</th><th class="num">Dibayar</th></tr></thead><tbody>'+V.map(function(x){var d=0;try{d=bvDibayar(o,x.v);}catch(e){}return '<tr><td>'+esc(vendorTampil(x.v,o))+'</td><td class="num">'+fmt0(x.total)+'</td><td class="num">'+fmt0(d)+'</td></tr>';}).join('')+'</tbody></table>'+
+    (ev?('<div class="djt">Evaluasi vendor</div><table class="dtable grid"><tbody>'+ev+'</tbody></table>'):'')+
+    (adaLive(o)?('<div class="dsec">Live service</div><table class="dinfotbl">'+r('Berjalan sesuai rencana',esc(T.liveSesuai||'-'))+r('Catatan',esc(T.liveCatatan||'-'))+r('Lebihan qty',esc((T.spareKembali||'-')+(T.spareQty?(' · '+T.spareQty):'')))+'</table>'):'')+
+    '<div class="dsec">Spare, komplain, biaya lain</div><table class="dinfotbl">'+r('Spare produksi',esc(String(orderSpare(o))+' pcs (masuk Gudang otomatis)'))+r('Komplain',kom?('<ul style="margin:0;padding-left:16px">'+kom+'</ul>'):'tidak ada')+
+      r('Biaya lain sesudah invoice',(T.biaya||[]).length?(T.biaya.map(function(x){return esc(x.ket)+' '+fmt0(x.nominal);}).join('<br>')):'tidak ada')+r('Kepuasan client',esc(((o.cs||{}).puas||{}).rating?(o.cs.puas.rating+' / 5'+(o.cs.puas.catatan?(' — '+o.cs.puas.catatan):'')):'belum diisi'))+'</table>'+
+    (foto.length?('<div class="dsec">Dokumentasi</div><div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">'+foto.map(function(f){return imgTag(f.data,'width:100%;height:110px;object-fit:cover;border-radius:6px;border:1px solid #ddd');}).join('')+'</div>'):'')+
+    '<div class="dfoot">Laporan otomatis dari ROVE HUB · '+esc(ST.userName||ST.user||'')+' · '+tglID(hariIni())+'</div>';
+  lapDokTampil(html,'Laporan penutupan — Simpan PDF atau cetak');}
+lapDef({id:'penutupan',grup:'Pengiriman & client',nama:'Laporan penutupan proyek',tanya:'Satu halaman rangkuman tiap order yang sudah ditutup — dari nilai sampai evaluasi vendor.',boleh:['Project Manager','Sales'],periode:'tanpa',buat:function(){var rows=[];
+  lapOrders().forEach(function(o){if(o.status==='Cancel')return;var T=o.tutup||{};if(!T.tgl&&(+o.phase||0)<21)return;var Pf=profitTotals(o),ev=Object.keys(T.evalVendor||{}).map(function(v){return +((T.evalVendor[v]||{}).nilai)||0;}).filter(Boolean);
+    rows.push([lapO(o),T.tgl?tglID(T.tgl):{v:'belum ditutup',pil:'warn'},lapGrand(o),Pf.profit,{v:Pf.pct},adaLive(o)?(T.liveSesuai||'—'):'—',lapJumlah(T.biaya||[],function(b){return b.nominal;}),ev.length?String(Math.round(lapJumlah(ev,function(x){return x;})/ev.length*10)/10).replace('.',','):'—',lapFotoN(o,'dokumentasiFiles'),lapTombol('lapPenutupanDoc('+jsArg(o.id)+')','Lihat laporan',true)]);});
+  return {kolom:[{t:'Client',w:180},{t:'Ditutup'},{t:'Nilai order',n:true},{t:'Profit kotor',n:true},{t:'%',n:true,pct:true},{t:'Live sesuai'},{t:'Biaya lain',n:true},{t:'Eval vendor'},{t:'Foto',n:true},{t:''}],baris:rows,
+    catatan:'Laporan satu halaman: client, nilai, profit, lini waktu fase, vendor & evaluasinya, live service, spare, komplain, biaya lain, dokumentasi. Isiannya dari panel Laporan penutupan tiap order.',kosong:'Belum ada order yang sampai Project Closing.'};}});
+lapDef({id:'returAU',grup:'Pengiriman & client',nama:'Retur produk AU',tanya:'Barang apa yang dikembalikan dari Australia, kenapa, dan tindak lanjutnya?',boleh:['Project Manager','Purchasing'],buat:function(P){var rows=[];
+  lapOrders().forEach(function(o){if(!orderAU(o))return;var R=o.retur;if(!R||(!R.aktif&&!R.mulai)||!lapDalam(R.mulai,P.R))return;var L=R.langkah||{},n=Object.keys(L).filter(function(k){return L[k];}).length;
+    rows.push([tglID(R.mulai),lapO(o),o.product||'-',R.kategori||'-',R.alasan||'',R.penyebab||'-',{v:R.putusan||'proses',pil:R.putusan?'ok':'warn'},+R.biaya||0,n+' langkah · '+(R.files||[]).length+' foto']);});
+  return {kolom:[{t:'Mulai'},{t:'Client',w:170},{t:'Produk',w:160},{t:'Kategori'},{t:'Alasan',w:220},{t:'Penyebab'},{t:'Putusan'},{t:'Biaya',n:true},{t:'Tindak lanjut'}],baris:rows,catatan:'Dari panel Retur order AU. Sama dengan AU Master Documents → 9. Return Product AU.',kosong:'Tidak ada retur order AU pada periode ini.'};}});
+
+/* ---------- Live service ---------- */
+lapDef({id:'lsStokLap',grup:'Live service',nama:'Stok yang dibawa ke acara',tanya:'Barang cadangan yang dibawa tim ke acara, terpakai berapa, kembali berapa?',boleh:['Event Management','Warehouse'],buat:function(P){var rows=[];
+  lapOrders().forEach(function(o){(o.lsStok||[]).forEach(function(r){if(!lapDalam(r.tgl,P.R))return;var pakai=Math.max(0,(+r.bawa||0)-(+r.kembali||0));rows.push([tglID(r.tgl),lapO(o),o.eventDate?tglID(o.eventDate):'—',r.nama||'-',+r.bawa||0,+r.kembali||0,pakai,r.sat||'',r.ket||'']);});});
+  return {kpi:[['Dibawa',String(lapJumlah(rows,function(r){return r[4];}))],['Kembali',String(lapJumlah(rows,function(r){return r[5];}))],['Terpakai',String(lapJumlah(rows,function(r){return r[6];}))]],
+    kolom:[{t:'Diambil'},{t:'Client',w:170},{t:'Acara'},{t:'Barang',w:180},{t:'Dibawa',n:true},{t:'Kembali',n:true},{t:'Terpakai',n:true},{t:'Satuan'},{t:'Catatan',w:180}],baris:rows,catatan:'Dari blok "Stok dibawa tim" di acara live service; pergerakannya juga tercatat di Gudang.',kosong:'Tidak ada stok yang dibawa ke acara pada periode ini.'};}});
+lapDef({id:'liveHasil',grup:'Live service',nama:'Hasil live service',tanya:'Acara berjalan sesuai rencana? Lebihan qty sudah kembali?',boleh:['Event Management'],buat:function(P){var rows=[];
+  lapOrders().forEach(function(o){if(o.status==='Cancel'||!adaLive(o))return;var tgl=o.eventDate||(o.brief||{}).tglAcara||'';if(!lapDalam(tgl,P.R))return;var T=o.tutup||{},E=o.event||{},ops=E.ops||[];
+    rows.push([tglID(tgl),lapO(o),E.venue||'-',ops.length?(ops.map(function(x){return x.nama;}).join(', ')):'—',T.liveSesuai?{v:T.liveSesuai,pil:T.liveSesuai==='Sesuai'?'ok':'red'}:{v:'belum diisi',pil:'warn'},T.liveCatatan||'',(T.spareKembali||'—')+(T.spareQty?(' · '+T.spareQty):''),lapJumlah(ops,function(x){return x.fee;})]);});
+  return {kpi:[['Acara',String(rows.length)],['Sesuai rencana',String(rows.filter(function(r){return r[4].v==='Sesuai';}).length),'','ok'],['Tidak sesuai',String(rows.filter(function(r){return r[4].v==='Tidak sesuai';}).length),'','red']],
+    kolom:[{t:'Acara'},{t:'Client',w:170},{t:'Venue',w:180},{t:'Operator',w:160},{t:'Hasil'},{t:'Catatan',w:220},{t:'Lebihan qty'},{t:'Fee operator',n:true}],baris:rows,catatan:'Hasil dan catatan dari panel Laporan penutupan; operator & fee dari tab Live service.',kosong:'Tidak ada acara live service pada periode ini.'};}});
+
+/* ---------- SDM ---------- */
+function lapSlipGajiDoc(periode,idx){if(!lapBoleh('slipGaji'))return;var t=((hrData().payroll)||[]).filter(function(x){return x.periode===periode;})[0];if(!t)return;var r=(t.rows||[])[idx];if(!r)return;var k=(hrData().karyawan||[]).filter(function(x){return x.nama===r.nama;})[0]||{};
+  var thp=(+r.gaji||0)+(+r.tunjangan||0)+(+r.lembur||0)-(+r.potongan||0),b=lapDokBaris;
+  var html=lapDokKop('Slip gaji · '+bulanNama(periode),'SLIP GAJI',esc(r.nama||'-')+' · '+esc(bulanNama(periode)))+
+    '<table class="dinfotbl">'+b('Nama','<b>'+esc(r.nama||'-')+'</b>')+b('Jabatan',esc(k.jabatan||r.jabatan||'-'))+b('Status',esc(k.status||'-'))+b('Periode',esc(bulanNama(periode)))+b('Rekening',esc(((k.bank||'')+' '+(k.rek||'')).trim()||'-'))+'</table>'+
+    '<table class="dtable grid" style="margin-top:12px"><thead><tr><th>Komponen</th><th class="num">Jumlah</th></tr></thead><tbody><tr><td>Gaji pokok</td><td class="num">'+fmt0(r.gaji)+'</td></tr><tr><td>Tunjangan</td><td class="num">'+fmt0(r.tunjangan)+'</td></tr><tr><td>Lembur</td><td class="num">'+fmt0(r.lembur)+'</td></tr><tr><td>Potongan</td><td class="num">− '+fmt0(r.potongan)+'</td></tr><tr style="background:#e6e6e6"><td style="font-weight:800">Diterima</td><td class="num" style="font-weight:800">'+fmt0(thp)+'</td></tr></tbody></table>'+
+    '<div style="font-style:italic;font-size:11px;margin-top:6px">Terbilang: '+esc(lapTerbilang(thp))+' rupiah</div>'+(r.catatan?('<div style="font-size:11px;margin-top:6px">Catatan: '+esc(r.catatan)+'</div>'):'')+
+    lapDokTtd('Finance','Diterima oleh · '+esc(r.nama||''))+'<div class="dfoot">Slip otomatis dari ROVE HUB · status payroll '+esc(t.status||'Draft')+'</div>';
+  lapDokTampil(html,'Slip gaji — Simpan PDF atau cetak');}
+lapDef({id:'slipGaji',grup:'SDM',nama:'Slip gaji',tanya:'Rincian gaji tiap orang per periode — pilih barisnya, slipnya jadi sendiri.',boleh:['Finance'],buat:function(P){var rows=[];
+  ((hrData().payroll)||[]).forEach(function(t){if(!lapDalam(t.periode+'-15',P.R))return;(t.rows||[]).forEach(function(r,i){var thp=(+r.gaji||0)+(+r.tunjangan||0)+(+r.lembur||0)-(+r.potongan||0);
+    rows.push([bulanNama(t.periode),r.nama||'-',thp,t.status||'Draft',lapTombol('lapSlipGajiDoc('+jsArg(t.periode)+','+i+')','Slip gaji',true)]);});});
+  return {kolom:[{t:'Periode'},{t:'Nama',w:190},{t:'Diterima',n:true},{t:'Status payroll'},{t:''}],baris:rows,catatan:'Angka dari Karyawan → Payroll. Slip memuat gaji pokok, tunjangan, lembur, potongan, diterima, terbilang, dan rekening.',kosong:'Belum ada payroll pada periode ini (Karyawan → Payroll).'};}});
+lapDef({id:'onboarding',grup:'SDM',nama:'Onboarding karyawan',tanya:'Karyawan baru sudah lengkap orientasinya? Langkah mana yang belum?',boleh:[],periode:'tanpa',menu:'Karyawan',buat:function(){var K=(hrData().karyawan||[]).filter(function(k){return k.aktif!==false&&k.status!=='Keluar';}),rows=[];
+  K.forEach(function(k){var O=k.onboard||{},done=ONBOARD.filter(function(_,i){return !!O[i];}).length,belum=ONBOARD.filter(function(_,i){return !O[i];});
+    rows.push([k.nama,k.jabatan||'-',k.masuk?tglID(k.masuk):'—',k.status||'-',done+' / '+ONBOARD.length,belum.length?belum.join(', '):'',{v:belum.length?'belum lengkap':'lengkap',pil:belum.length?'warn':'ok'}]);});
+  rows.sort(function(a,b){return (a[6].pil==='warn'?0:1)-(b[6].pil==='warn'?0:1);});
+  return {kpi:[['Karyawan aktif',String(K.length)],['Onboarding lengkap',String(rows.filter(function(r){return r[6].pil==='ok';}).length),'','ok'],['Belum lengkap',String(rows.filter(function(r){return r[6].pil==='warn';}).length),'','warn']],
+    kolom:[{t:'Nama',w:180},{t:'Jabatan',w:150},{t:'Masuk'},{t:'Status'},{t:'Selesai',n:true},{t:'Belum',w:300},{t:''}],baris:rows,catatan:'Langkah onboarding: '+ONBOARD.join(' · ')+'. Dicentang di kartu karyawan.',kosong:'Belum ada karyawan.'};}});
+
+/* ---------- Konten ---------- */
+lapDef({id:'bankKonten',grup:'Konten',nama:'Bank bahan konten dari order',tanya:'Order mana yang punya foto produk, kemasan, dokumentasi acara, dan testimoni untuk bahan konten?',boleh:['Marketing'],periode:'tanpa',buat:function(){var rows=[];
+  lapOrders().forEach(function(o){if(o.status==='Cancel')return;var b=o.brief||{},n1=lapFotoN(o,'dokProdukFiles'),n2=lapFotoN(o,'dokKemasanFiles'),n3=lapFotoN(o,'dokumentasiFiles'),p=(o.cs||{}).puas||{};if(!n1&&!n2&&!n3&&!p.catatan)return;
+    rows.push([lapO(o),orderKategori(o),o.product||'-',n1,n2,n3,b.dokCaption||'',p.catatan||'',p.rating?(p.rating+' / 5'):'']);});
+  rows.sort(function(a,b){return (b[3]+b[4]+b[5])-(a[3]+a[4]+a[5]);});
+  return {kpi:[['Order dengan bahan',String(rows.length)],['Foto produk & kemasan',String(lapJumlah(rows,function(r){return r[3]+r[4];}))],['Testimoni',String(rows.filter(function(r){return r[7];}).length)]],
+    kolom:[{t:'Client',w:180},{t:'Kategori'},{t:'Produk',w:160},{t:'Foto produk',n:true},{t:'Foto kemasan',n:true},{t:'Dokumentasi',n:true},{t:'Caption / catatan konten',w:220},{t:'Testimoni',w:220},{t:'Rating'}],baris:rows,
+    catatan:'Foto dari Product Documentation dan Laporan penutupan; testimoni dari follow-up kepuasan. Izin menyebut nama client belum dicatat HUB — tanyakan ke Sales sebelum tayang.',kosong:'Belum ada order dengan foto dokumentasi atau testimoni.'};}});
+
+/* ---------- Kontrol ---------- */
+lapDef({id:'mundur',grup:'Kontrol',nama:'Fase dimundurkan, order cancel, order dihapus',tanya:'Siapa memundurkan fase, membatalkan, atau menghapus order — kapan dan kenapa?',boleh:[],buat:function(P){var rows=[];
+  (ST.orders||[]).forEach(function(o){if(!o||!cfOrderIkut(o))return;
+    if(o.deleted){var td=o._m?new Date(+o._m):null,t=td&&!isNaN(td)?ymd(td.getFullYear(),td.getMonth()+1,td.getDate()):'';if(lapDalam(t,P.R))rows.push([t?tglID(t):'—',lapO(o),{v:'Order dihapus',pil:'red'},'—',o.reason||'',o.deletedBy||o.hapusOleh||'-']);return;}
+    (o.revisiLog||[]).forEach(function(r){var t=lapTglHist(r.tgl)||String(r.tgl||'').slice(0,10);if(!lapDalam(t,P.R))return;rows.push([tglID(t),lapO(o),{v:'Fase dimundurkan'+(r.poRev?' (PO revisi)':''),pil:'warn'},((PH[r.dari]||{}).n||r.dari)+' → '+((PH[r.ke]||{}).n||r.ke),[r.sebab,r.catatan].filter(Boolean).join(' — '),r.oleh||'-']);});
+    if(o.status==='Cancel'){var hx=(o.hist||[]).filter(function(x){return /dibatalkan/.test(String(x.txt||''));}).slice(-1)[0],tc=hx?lapTglHist(hx.t):'';if(lapDalam(tc||lapTglDeal(o),P.R))rows.push([tc?tglID(tc):'—',lapO(o),{v:'Order cancel',pil:'red'},'—',o.reason||'',hx?(hx.who||'-'):'-']);}});
+  rows.sort(function(a,b){return String(b[0]).localeCompare(String(a[0]));});
+  return {kpi:[['Fase dimundurkan',String(rows.filter(function(r){return /dimundurkan/.test(r[2].v);}).length),'','warn'],['Order cancel',String(rows.filter(function(r){return r[2].v==='Order cancel';}).length),'','red'],['Order dihapus',String(rows.filter(function(r){return r[2].v==='Order dihapus';}).length),'','red']],
+    kolom:[{t:'Tanggal'},{t:'Client',w:180},{t:'Kejadian'},{t:'Dari → ke',w:220},{t:'Alasan',w:280},{t:'Oleh'}],baris:rows,catatan:'Dari log revisi tiap order (tolak Direktur, revisi spec, revisi sketsa, PO revisi), status Cancel dengan alasannya, dan penanda hapus.',kosong:'Tidak ada fase yang dimundurkan, order cancel, atau order dihapus pada periode ini.'};}});
+
+/* ---------- Paket rapat ---------- */
+lapDef({id:'bandingKategori',grup:'Paket rapat',nama:'Perbandingan Wedding, Corporate, Custom',tanya:'Dua jenis client ini bedanya apa dalam angka — nilai, margin, lama proses, revisi, komplain, ketepatan bayar?',boleh:[],buat:function(P){var K=lapKategoriDaftar(),D=lapDeals(P.R),A=lapKirimanSemua(P.R),PI=lapPiutang();
+  var c=function(o){return orderKategori(o);},per=function(k){var O=D.filter(function(o){return c(o)===k;}),KR=A.filter(function(x){return c(x.o)===k;}).map(lapKirimAngka),net=lapJumlah(KR,function(a){return a.net;}),pf=lapJumlah(KR,function(a){return a.profit;});
+    var lama=O.map(function(o){return lapJumlah(lapFaseDurasi(o),function(d){return d.hari;});}).filter(function(x){return x>0;}),rev=lapJumlah(O,function(o){return (o.revisiLog||[]).length;}),kom=lapJumlah(O,function(o){return ((o.cs||{}).komplain||[]).length;});
+    var telat=PI.filter(function(x){return c(x.o)===k&&x.telat!==null&&x.telat>0;}).length,puas=O.map(function(o){return +(((o.cs||{}).puas||{}).rating)||0;}).filter(Boolean);
+    return {n:O.length,nilai:lapJumlah(O,lapGrand),rata:O.length?Math.round(lapJumlah(O,lapGrand)/O.length):0,margin:lapPct(pf,net),lama:lama.length?Math.round(lapJumlah(lama,function(x){return x;})/lama.length):0,rev:O.length?Math.round(rev/O.length*100)/100:0,kom:O.length?Math.round(kom/O.length*100)/100:0,telat:telat,puas:puas.length?Math.round(lapJumlah(puas,function(x){return x;})/puas.length*10)/10:0};};
+  var X={};K.forEach(function(k){X[k]=per(k);});var baris=function(nama,f,pct){return [nama].concat(K.map(function(k){return pct?{v:f(X[k])}:f(X[k]);}));};
+  var rows=[baris('Order deal',function(x){return x.n;}),baris('Nilai deal',function(x){return x.nilai;}),baris('Rata-rata nilai per order',function(x){return x.rata;}),baris('Margin diakui (%)',function(x){return x.margin;},1),baris('Lama proses rata-rata (hari)',function(x){return x.lama;}),baris('Revisi per order',function(x){return x.rev;}),baris('Komplain per order',function(x){return x.kom;}),baris('Termin client lewat jatuh tempo',function(x){return x.telat;}),baris('Kepuasan rata-rata',function(x){return x.puas;})];
+  return {kolom:[{t:'Ukuran',w:240}].concat(K.map(function(k){return {t:k,n:true};})),baris:rows,catatan:'Deal pada periode ini per kategori client. Margin dari pengiriman periode ini (cara AIS). Lama proses = jumlah hari semua fase yang sudah ditutup.'};}});
+lapDef({id:'raporTahun',grup:'Paket rapat',nama:'Rapor tahunan',tanya:'Setahun ini hasilnya apa — angka utama per bulan, produk dan client teratas, vendor terbaik dan terburuk.',boleh:[],buat:function(P){var th=lapTahunDari(P).th,rows=[],bulan=[];
+  for(var m=1;m<=12;m++){var ym=th+'-'+String(m).padStart(2,'0');bulan.push(ym);var U=lapUkur(lapRentang(ym));rows.push([bulanNama(ym),U.deal,U.nilai,U.masuk,U.net,U.profit,{v:U.margin},U.prospek,U.komplain,U.puas||'']);}
+  var RY=[th+'-01-01',th+'-12-31'],prod={},cl={},ev={};
+  lapDeals(RY).forEach(function(o){lineProduk(o).forEach(function(x){prod[x.l.produk||'-']=(prod[x.l.produk||'-']||0)+(+x.l.qty||0);});cl[o.customer]=(cl[o.customer]||0)+lapGrand(o);
+    var E=(o.tutup||{}).evalVendor||{};Object.keys(E).forEach(function(v){var n=+((E[v]||{}).nilai)||0;if(!n)return;ev[v]=ev[v]||{s:0,n:0};ev[v].s+=n;ev[v].n++;});});
+  var top=function(M,f){return Object.keys(M).sort(function(a,b){return f(M[b])-f(M[a]);}).slice(0,5);};
+  var li=function(L,f){return L.length?('<ol style="margin:0;padding-left:18px">'+L.map(function(k){return '<li>'+esc(k)+' — '+f(k)+'</li>';}).join('')+'</ol>'):'<span style="color:var(--muted)">belum ada</span>';};
+  var vend=Object.keys(ev).map(function(v){return [v,Math.round(ev[v].s/ev[v].n*10)/10,ev[v].n];}).sort(function(a,b){return b[1]-a[1];});
+  var html='<div class="lap-kotak-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;margin:10px 0"><div class="lap-kotak"><h3>Produk teratas (pcs)</h3>'+li(top(prod,function(x){return x;}),function(k){return prod[k]+' pcs';})+'</div><div class="lap-kotak"><h3>Client teratas (nilai)</h3>'+li(top(cl,function(x){return x;}),function(k){return fmt0(cl[k]);})+'</div><div class="lap-kotak"><h3>Vendor terbaik → terburuk (evaluasi)</h3>'+(vend.length?('<ol style="margin:0;padding-left:18px">'+vend.map(function(v){return '<li>'+esc(v[0])+' — '+String(v[1]).replace('.',',')+' / 5 ('+v[2]+' order)</li>';}).join('')+'</ol>'):'<span style="color:var(--muted)">belum ada evaluasi</span>')+'</div></div>';
+  return {atas:html,kolom:[{t:'Bulan '+th,w:130},{t:'Deal',n:true},{t:'Nilai deal',n:true},{t:'Uang masuk',n:true},{t:'Pendapatan diakui',n:true},{t:'Profit',n:true},{t:'Margin %',n:true,pct:true},{t:'Prospek',n:true},{t:'Komplain',n:true},{t:'Kepuasan',n:true}],baris:rows,
+    total:['Total '+th,lapJumlah(rows,function(r){return r[1];}),lapJumlah(rows,function(r){return r[2];}),lapJumlah(rows,function(r){return r[3];}),lapJumlah(rows,function(r){return r[4];}),lapJumlah(rows,function(r){return r[5];}),'',lapJumlah(rows,function(r){return r[7];}),lapJumlah(rows,function(r){return r[8];}),''],
+    catatan:'Tahun mengikuti periode yang dipilih. Pendapatan & profit diakui saat kirim (cara AIS); evaluasi vendor dari Laporan penutupan.'};}});
+
+/* ---------- Dokumen per order ---------- */
+function lapInquiryDoc(oid){var o=lapOrderCari(oid);if(!o||!lapBoleh('dokInquiry'))return;var b=briefGet(o),no=lapNoDok(o,'is','IS'),r=lapDokBaris,m=((o.pricing||{}).margin||0)/100;
+  var kontak=[b.woNama?('WO: '+b.woNama+(b.woHp?(' · '+b.woHp):'')):'',b.picNama?('PIC: '+b.picNama+(b.picHp?(' · '+b.picHp):'')):'',b.clientUtama?('Perusahaan: '+b.clientUtama):'',(b.brideNama||b.groomNama)?('Mempelai: '+[b.brideNama,b.groomNama].filter(Boolean).join(' & ')):''].filter(Boolean).join('<br>');
+  var prod=lineProduk(o).map(function(x){var l=x.l,S=[];try{S=spekDokBaris(o,l);}catch(e){}return '<tr><td>'+esc(l.produk||'-')+'</td><td class="num">'+(+l.qty||0)+'</td><td>'+esc(S.map(function(s){return s[0]+': '+s[1];}).join(' · '))+'</td></tr>';}).join('');
+  var perso=[];try{liveList(o.svc).forEach(function(n){perso.push(n+' — '+([jasaTeknikOrder(o,n),svcLetak(o,n)].filter(Boolean).join(', ')||'-'));});}catch(e){}
+  var kem=[];try{collDipilih(o).forEach(function(c){var s='';try{s=packRingkas(c.k,packSpec(o,c.k));}catch(e){}kem.push(c.nama+(s?(' — '+s):''));});}catch(e){}
+  var live=[];try{live=liveList(o.liveSvc);}catch(e){}
+  var html=lapDokKop('Lembar inquiry · Inquiry Sheet','LEMBAR INQUIRY',esc(no)+' · '+tglID(dmyToISO(o.date)||hariIni()))+
+    '<table class="dinfotbl">'+r('Client','<b>'+esc(o.customer)+'</b>'+(kontak?('<div style="font-size:11px">'+kontak+'</div>'):''))+r('Kategori',esc(orderKategori(o)+' · '+(o.type||'')))+r('Acara',esc((o.eventDate?tglID(o.eventDate):'-')+(b.venue?(' · '+b.venue):'')))+r('Tanggal kirim',b.tglKirim?tglID(b.tglKirim):'-')+r('Sales',esc(lapSalesOrder(o)))+r('Order',esc(chName(o)+(o.soNo?(' · SO '+o.soNo):'')))+'</table>'+
+    '<div class="dsec">Produk</div><table class="dtable grid"><thead><tr><th>Produk</th><th class="num">Qty</th><th>Spesifikasi</th></tr></thead><tbody>'+(prod||'<tr><td colspan="3">belum ada produk</td></tr>')+'</tbody></table>'+
+    '<table class="dinfotbl" style="margin-top:10px">'+r('Personalisasi',perso.length?perso.map(esc).join('<br>'):(b.perso&&b.perso!=='-'?esc(b.perso):'-'))+r('Kemasan',kem.length?kem.map(esc).join('<br>'):'-')+r('Live service',live.length?esc(live.join(', ')):'-')+r('Referensi',esc(String((b.refFiles||[]).length)+' gambar acuan'))+r('Catatan',esc(b.catatan||o.note||'-'))+'</table>'+
+    lapDokTtd('Sales · '+esc(lapSalesOrder(o)),'Client')+'<div class="dfoot">Lembar inquiry otomatis dari ROVE HUB · pengganti Inquiry IS - Rove Gift.xlsx</div>';
+  lapDokTampil(html,'Lembar inquiry — Simpan PDF atau cetak');}
+lapDef({id:'dokInquiry',grup:'Penjualan',nama:'Lembar Inquiry bernomor',tanya:'Formulir inquiry per client — bernomor urut, terisi dari Brief.',boleh:['Sales','Project Manager'],buat:function(P){var rows=[];
+  lapOrders().forEach(function(o){var t=dmyToISO(o.date)||'';if(!lapDalam(t,P.R))return;rows.push([tglID(t),lapO(o),orderKategori(o),o.product||'-',+o.qty||0,((o.dokNo||{}).is)||'—',lapTombol('lapInquiryDoc('+jsArg(o.id)+')',((o.dokNo||{}).is)?'Lihat lembar':'Buat lembar',!!((o.dokNo||{}).is))]);});
+  return {kolom:[{t:'Masuk'},{t:'Client',w:180},{t:'Kategori'},{t:'Produk',w:160},{t:'Qty',n:true},{t:'No. inquiry',w:150},{t:''}],baris:rows,catatan:'Nomor IS dibuat sekali dan tetap. Isinya dari Brief: client & kontak, acara, produk & spesifikasi, personalisasi, kemasan, live service.',kosong:'Tidak ada order yang masuk pada periode ini.'};}});
+function lapSpkDoc(oid){var o=lapOrderCari(oid);if(!o||!lapBoleh('dokSPK'))return;var no=lapNoDok(o,'spk','SPK'),p=o.po||{},r=lapDokBaris,b=briefGet(o);
+  var prod=lineProduk(o).map(function(x){var l=x.l,S=[];try{S=spekDokBaris(o,l);}catch(e){}return '<tr><td>'+esc(l.produk||'-')+'</td><td class="num">'+lineQtyPO(l)+'</td><td>'+esc(l.sumber||kulitVendorNama())+'</td><td>'+esc(S.map(function(s){return s[0]+': '+s[1];}).join(' · '))+'</td></tr>';}).join('');
+  var perso=[];try{liveList(o.svc).forEach(function(n){perso.push(n+' — '+([jasaTeknikOrder(o,n),svcLetak(o,n)].filter(Boolean).join(', ')||'-'));});}catch(e){}
+  var kem=[];try{collDipilih(o).forEach(function(c){var l=(((o.pricing||{}).lines)||[]).filter(function(x){return x.coll===c.k;})[0],s='';try{s=packRingkas(c.k,packSpec(o,c.k));}catch(e){}kem.push(c.nama+(l&&l.sumber?(' — '+l.sumber):'')+(s?(' · '+s):''));});}catch(e){}
+  var html=lapDokKop('Surat Perintah Kerja','SURAT PERINTAH KERJA',esc(no)+' · '+tglID(p.tglPO||hariIni()))+
+    '<table class="dinfotbl">'+r('Order',esc(chName(o)+(o.soNo?(' · SO '+o.soNo):'')))+r('Client',esc(o.customer))+r('Deadline produksi','<b>'+(p.deadline?tglID(p.deadline):'-')+'</b>')+r('Tanggal kirim',b.tglKirim?tglID(b.tglKirim):'-')+r('PO vendor',esc(p.poNo||'belum terbit'))+'</table>'+
+    '<div class="dsec">Pekerjaan</div><table class="dtable grid"><thead><tr><th>Produk</th><th class="num">Qty ke vendor</th><th>Dikerjakan</th><th>Spesifikasi</th></tr></thead><tbody>'+(prod||'<tr><td colspan="4">belum ada produk</td></tr>')+'</tbody></table>'+
+    '<table class="dinfotbl" style="margin-top:10px">'+r('Personalisasi',perso.length?perso.map(esc).join('<br>'):'-')+r('Kemasan',kem.length?kem.map(esc).join('<br>'):'-')+r('Packing',esc(p.packing||b.packing||'-'))+r('Catatan produksi',esc(p.note||'-'))+'</table>'+
+    lapDokTtd('Purchasing','PM')+'<div class="dfoot">SPK otomatis dari ROVE HUB · pengganti folder Surat Perintah Kerja</div>';
+  lapDokTampil(html,'SPK — Simpan PDF atau cetak');}
+lapDef({id:'dokSPK',grup:'Produksi & vendor',nama:'Surat Perintah Kerja',tanya:'Perintah kerja per order — dari spesifikasi Brief dan Form PO.',boleh:['Project Manager','Purchasing'],periode:'tanpa',buat:function(){var rows=[];
+  lapOrders().forEach(function(o){if(o.status==='Cancel'||o.done)return;var f=+o.phase||0;if(f<10||f>13)return;var p=o.po||{};rows.push([lapO(o),(f+1)+'. '+PH[f].n,o.product||'-',lapJumlah(lineProduk(o),function(x){return lineQtyPO(x.l);}),p.deadline?tglID(p.deadline):'—',p.poNo||'—',((o.dokNo||{}).spk)||'—',lapTombol('lapSpkDoc('+jsArg(o.id)+')',((o.dokNo||{}).spk)?'Lihat SPK':'Buat SPK',!!((o.dokNo||{}).spk))]);});
+  return {kolom:[{t:'Client',w:180},{t:'Fase',w:190},{t:'Produk',w:160},{t:'Qty vendor',n:true},{t:'Deadline'},{t:'PO',w:150},{t:'No. SPK',w:150},{t:''}],baris:rows,catatan:'Order dari Purchase Order Issuing sampai QC & Packing. SPK memuat produk, qty ke vendor, spesifikasi, personalisasi, kemasan, packing, deadline.',kosong:'Tidak ada order yang sedang diproduksi.'};}});
+function lapSlipKomisiDoc(oid,k){var o=lapOrderCari(oid);if(!o||!lapBoleh('dokSlipKomisi'))return;var K=komisiGet(o),x=K[k]||{},n=0,t='';try{n=komisiNilai(o,k)||0;t=komisiTgl(o,k)||'';}catch(e){}var b=(K.bayar||{})[k],no=lapNoDok(o,'kom'+k,'KOM'),r=lapDokBaris;
+  var penerima=k==='wo'?((o.brief||{}).woNama||'WO'):lapSalesOrder(o),dasar=komisiDasar(o);
+  var html=lapDokKop('Slip komisi · '+(k==='wo'?'Wedding Organizer':'Sales'),'SLIP KOMISI',esc(no)+' · '+tglID((b&&b.tgl)||t||hariIni()))+
+    '<table class="dinfotbl">'+r('Penerima','<b>'+esc(penerima)+'</b>'+(k==='wo'&&(o.brief||{}).woHp?(' · '+esc(o.brief.woHp)):''))+r('Order',esc(chName(o)+(o.soNo?(' · SO '+o.soNo):'')+' — '+o.customer))+r('Dasar komisi',fmt0(dasar)+' (nilai sebelum ongkir & PPN)')+r('Tarif',esc(x.mode==='nom'?('nominal '+fmt0(x.nilai)):((x.nilai==null||x.nilai==='')?'bawaan':(x.nilai+' %'))))+
+      r('Komisi','<b>'+fmt0(b?(+b.nom||0):n)+'</b><div style="font-style:italic">'+esc(lapTerbilang(b?(+b.nom||0):n))+' rupiah</div>')+r('Jatuh tempo',t?tglID(t):'-')+r('Status',b?('dibayar '+tglID(b.tgl)):'belum dibayar')+'</table>'+
+    lapDokTtd('Finance','Diterima oleh · '+esc(penerima))+'<div class="dfoot">Slip komisi otomatis dari ROVE HUB · pengganti berkas "Commision" di folder Invoice</div>';
+  lapDokTampil(html,'Slip komisi — Simpan PDF atau cetak');}
+lapDef({id:'dokSlipKomisi',grup:'Profit',nama:'Slip komisi WO dan Sales',tanya:'Rincian komisi yang dibayarkan ke WO atau Sales — pilih barisnya, slipnya jadi sendiri.',boleh:['Finance'],buat:function(P){var rows=[];
+  lapOrders().filter(lapDeal).forEach(function(o){['sales','wo'].forEach(function(k){var n=0,t='',b=((o.komisi||{}).bayar||{})[k];try{n=komisiNilai(o,k)||0;t=komisiTgl(o,k)||'';}catch(e){}if(!(n>0)&&!b)return;var tgl=b?b.tgl:t;if(!lapDalam(tgl,P.R))return;
+    rows.push([k==='wo'?('WO · '+((o.brief||{}).woNama||'-')):('Sales · '+lapSalesOrder(o)),lapO(o),b?(+b.nom||0):n,{v:b?'dibayar':'belum',pil:b?'ok':'warn'},((o.dokNo||{})['kom'+k])||'—',lapTombol('lapSlipKomisiDoc('+jsArg(o.id)+','+jsArg(k)+')','Slip komisi',true)]);});});
+  return {kolom:[{t:'Penerima',w:180},{t:'Client',w:170},{t:'Komisi',n:true},{t:'Status'},{t:'No. slip',w:150},{t:''}],baris:rows,catatan:'Angka sama dengan laporan Komisi Sales dan WO. Nomor slip dibuat sekali dan tetap.',kosong:'Tidak ada komisi pada periode ini.'};}});
+function lapBastDoc(oid,i){var o=lapOrderCari(oid);if(!o||!lapBoleh('dokBAST'))return;var D=kirimDaftar(o)||[],s=D[i];if(!s)return;var no=lapNoDok(o,'bast'+(s.id||i),'BAST'),r=lapDokBaris,N={};try{kirimProduk(o).forEach(function(p){N[p.key]=p.nama;});}catch(e){}
+  var isi=Object.keys(s.isi||{}).filter(function(k){return +s.isi[k]>0;}).map(function(k){return '<tr><td>'+esc(N[k]||k.replace(/^l:/,''))+'</td><td class="num">'+(+s.isi[k])+'</td><td>baik, lengkap</td></tr>';}).join('');
+  var html=lapDokKop('Berita Acara Serah Terima','BERITA ACARA SERAH TERIMA',esc(no)+' · '+tglID(s.tglTerima||s.tgl||hariIni()))+
+    '<p style="font-size:12px;line-height:1.7">Pada hari ini, tanggal <b>'+esc(tglID(s.tglTerima||s.tgl||hariIni()))+'</b>, telah diserahkan oleh <b>Rove Gifts &amp; Favors</b> kepada <b>'+esc(o.customer)+'</b>'+(s.nama?(' (diterima oleh '+esc(s.nama)+')'):'')+' barang sebagai berikut:</p>'+
+    '<table class="dtable grid"><thead><tr><th>Barang</th><th class="num">Qty</th><th>Kondisi</th></tr></thead><tbody>'+(isi||'<tr><td colspan="3">isi kiriman belum dicatat</td></tr>')+'</tbody></table>'+
+    '<table class="dinfotbl" style="margin-top:10px">'+r('Order',esc(chName(o)+(o.soNo?(' · SO '+o.soNo):'')))+r('Pengiriman',esc((s.sjNo?(s.sjNo+' · '):'')+[s.eksp,s.layanan].filter(Boolean).join(' ')+(s.resi?(' · resi '+s.resi):'')))+r('Alamat',esc(s.alamat||'-'))+r('Catatan',esc(s.catatan||'-'))+'</table>'+
+    '<p style="font-size:11.5px">Barang diterima dalam keadaan baik dan lengkap sesuai daftar di atas. Berita acara ini dibuat rangkap dua untuk masing-masing pihak.</p>'+
+    lapDokTtd('Yang menyerahkan · Rove Gifts &amp; Favors','Yang menerima · '+esc(s.nama||o.customer))+'<div class="dfoot">BAST otomatis dari ROVE HUB · pengganti berkas BAST di folder Berkas Penting</div>';
+  lapDokTampil(html,'BAST — Simpan PDF atau cetak');}
+lapDef({id:'dokBAST',grup:'Pengiriman & client',nama:'Berita Acara Serah Terima',tanya:'Bukti barang sudah diterima client — satu BAST per pengiriman.',boleh:['Packing & Shipping','Sales','Finance'],buat:function(P){var rows=[];
+  lapKirimanSemua(P.R).forEach(function(k){var s=k.s,key='bast'+(s.id||k.i),no=((k.o.dokNo||{})[key])||'';rows.push([tglID(s.tgl),lapO(k.o,k.n>1?('kirim '+(k.i+1)+' dari '+k.n):''),s.nama||'—',k.qty,s.tglTerima?tglID(s.tglTerima):{v:'belum diterima',pil:'warn'},no||'—',lapTombol('lapBastDoc('+jsArg(k.o.id)+','+k.i+')',no?'Lihat BAST':'Buat BAST',!!no)]);});
+  return {kolom:[{t:'Dikirim'},{t:'Client',w:180},{t:'Penerima'},{t:'Qty',n:true},{t:'Diterima'},{t:'No. BAST',w:150},{t:''}],baris:rows,catatan:'Isi kiriman, penerima, alamat, dan tanggal diterima dari panel Pengiriman barang. Nomor dibuat sekali dan tetap.',kosong:'Tidak ada pengiriman pada periode ini.'};}});
+function lapPelaksanaanDoc(oid){var o=lapOrderCari(oid);if(!o||!lapBoleh('dokPelaksanaan'))return;var no=lapNoDok(o,'lap','LP'),b=briefGet(o),T=o.tutup||{},E=o.event||{},r=lapDokBaris;
+  var K=lapKiriman(o),perso=[];try{liveList(o.svc).forEach(function(n){perso.push(n+' — '+([jasaTeknikOrder(o,n),svcLetak(o,n)].filter(Boolean).join(', ')||'-'));});}catch(e){}
+  var foto=[];try{foto=((b.dokumentasiFiles||[]).concat(b.dokProdukFiles||[],b.dokKemasanFiles||[],b.packFiles||[])).filter(fileGambar).slice(0,6);}catch(e){}
+  var html=lapDokKop('Laporan pelaksanaan & dokumentasi','LAPORAN PELAKSANAAN',esc(no)+' · '+tglID(hariIni()))+
+    '<table class="dinfotbl">'+r('Client','<b>'+esc(o.customer)+'</b>')+r('Pekerjaan',esc((o.product||'')+' · '+(o.qty||'')+' pcs'+(perso.length?(' · '+perso.join('; ')):'')))+r('Order',esc(chName(o)+(o.soNo?(' · SO '+o.soNo):'')))+
+      r('Pengiriman',K.length?K.map(function(k){return esc(tglID(k.s.tgl)+' · '+k.qty+' pcs'+(k.s.tglTerima?(' · diterima '+tglID(k.s.tglTerima)):''));}).join('<br>'):'-')+'</table>'+
+    (adaLive(o)?('<div class="dsec">Live service</div><table class="dinfotbl">'+r('Acara',esc((o.eventDate?tglID(o.eventDate):'-')+(E.venue?(' · '+E.venue):'')+(E.time?(' · '+E.time):'')))+r('Tim',esc((E.ops||[]).map(function(x){return x.nama+' ('+(x.job||'')+')';}).join(', ')||'-'))+r('Hasil',esc((T.liveSesuai||'-')+(T.liveCatatan?(' — '+T.liveCatatan):'')))+'</table>'):'')+
+    (foto.length?('<div class="dsec">Dokumentasi</div><div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">'+foto.map(function(f){return imgTag(f.data,'width:100%;height:120px;object-fit:cover;border-radius:6px;border:1px solid #ddd');}).join('')+'</div>'):'<div class="dsec">Dokumentasi</div><p style="font-size:11px">Belum ada foto dokumentasi — unggah di Product Documentation atau Laporan penutupan.</p>')+
+    '<p style="font-size:11.5px;margin-top:10px">Demikian laporan pelaksanaan pekerjaan ini kami sampaikan. Terima kasih atas kepercayaannya.</p>'+lapDokTtd('Rove Gifts &amp; Favors','Diterima · '+esc(o.customer))+'<div class="dfoot">Laporan otomatis dari ROVE HUB · pengganti Laporan Pelaksanaan dan Dokumentasi di folder Berkas Penting</div>';
+  lapDokTampil(html,'Laporan pelaksanaan — Simpan PDF atau cetak');}
+lapDef({id:'dokPelaksanaan',grup:'Pengiriman & client',nama:'Laporan pelaksanaan dan dokumentasi',tanya:'Laporan ke client sesudah pengiriman atau acara — ringkasan pekerjaan, hasil live service, foto.',boleh:['Sales','Project Manager','Event Management'],periode:'tanpa',buat:function(){var rows=[];
+  lapOrders().forEach(function(o){if(o.status==='Cancel')return;if((+o.phase||0)<18)return;var no=((o.dokNo||{}).lap)||'';rows.push([lapO(o),orderKategori(o),o.product||'-',adaLive(o)?'ya':'—',lapFotoN(o,'dokumentasiFiles')+lapFotoN(o,'dokProdukFiles'),no||'—',lapTombol('lapPelaksanaanDoc('+jsArg(o.id)+')',no?'Lihat laporan':'Buat laporan',!!no)]);});
+  return {kolom:[{t:'Client',w:180},{t:'Kategori'},{t:'Produk',w:160},{t:'Live'},{t:'Foto',n:true},{t:'No. laporan',w:150},{t:''}],baris:rows,catatan:'Order dari Product Shipping ke atas. Memuat pekerjaan, pengiriman, live service & hasilnya, dan foto dokumentasi.',kosong:'Belum ada order yang sampai pengiriman.'};}});
 function piutangSemua(){ST._piutangAll=!ST._piutangAll;render();}
 function eventEdit(id,f,v){var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;if(!o.event)o.event={};o.event[f]=v;save();}
 /* ================= LIVE SERVICE — bertab, daftar dulu baru detail =================
