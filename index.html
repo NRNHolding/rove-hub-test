@@ -800,7 +800,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20260924-142318';
+const VERSI='20260924-145213';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -5181,7 +5181,7 @@ function simpanLokal(){
     return false;}}
 function save(){if(ST.cur){var oc=ST.orders.find(function(x){return x.id===ST.cur;});if(oc)oc._m=Date.now();}simpanLokal();cloudSave();}
 var _cloudT=null;
-function cloudBlob(ts){return JSON.stringify({orders:ST.orders,master:ST.master,leads:ST.leads||[],tax:ST.tax||[],konten:ST.konten||[],hr:ST.hr||{},buy:ST.buy||[],inv:ST.inv||{},purgeTs:purgeTs(),seq:{quo:+localStorage.getItem('rovehub_seq_quotation')||0,inv:+localStorage.getItem('rovehub_seq_invoice')||0,
+function cloudBlob(ts){return JSON.stringify({orders:(ST.orders||[]).filter(function(o){return !cloudContoh(o);}),master:ST.master,leads:(ST.leads||[]).filter(function(l){return !cloudContohLead(l);}),tax:ST.tax||[],konten:ST.konten||[],hr:ST.hr||{},buy:ST.buy||[],inv:ST.inv||{},purgeTs:purgeTs(),seq:{quo:+localStorage.getItem('rovehub_seq_quotation')||0,inv:+localStorage.getItem('rovehub_seq_invoice')||0,
   /* RFQ dan PO dulu tak ikut — dua perangkat mengeluarkan nomor yang sama */
   rfq:+localStorage.getItem('rovehub_seq_rfq')||0,po:+localStorage.getItem('rovehub_seq_po')||0},ts:ts});}
 /* Nomor terakhir tiap jenis dokumen. paksa=true dipakai pemulihan penuh
@@ -5204,7 +5204,7 @@ function mergeOrders(cloud,skipCur){
   var changed=false;var byId={};ST.orders.forEach(function(o){byId[o.id]=o;});
   var pt=purgeTs();
   cloud.orders.forEach(function(co){if(skipCur&&co.id===ST.cur)return;
-    if(muatDcSitusUji()&&(co._contoh||co._contohLive||co._contohGab||muatDcKontoh(co)))return;   // salinan terbit: kartu contoh tak ikut
+    if(cloudContoh(co))return;                          // kartu contoh tak pernah datang dari cloud
     if(pt&&(co._m||0)<pt)return;                       // order dari sebelum pembersihan — jangan hidupkan lagi
     var lo=byId[co.id];
     if(!lo){ST.orders.push(co);byId[co.id]=co;changed=true;}                 // order baru orang lain
@@ -5220,6 +5220,7 @@ function mergeLeads(cloud){
   var pt=purgeTs();
   cloud.leads.forEach(function(cl){
     if(!cl||!cl.id)return;
+    if(cloudContohLead(cl))return;               // prospek contoh tak pernah datang dari cloud
     if(pt&&(cl._m||0)<pt)return;              // dari sebelum pembersihan
     var lo=byId[cl.id];
     if(!lo){lokal.push(cl);byId[cl.id]=cl;ubah=true;}
@@ -12608,14 +12609,16 @@ function muatDcContoh(){
    Situs yang diterbitkan dipakai tim untuk order sungguhan (24 Sep 2026).
    Di sana tombol & data uji coba disingkirkan sendiri; berkas HUB di Dropbox
    (VERSI '-') tetap membawa semuanya untuk pengujian. */
+/* kartu & prospek contoh tidak pernah menyeberang ke backend — dari salinan mana pun, ke arah mana pun */
+function cloudContoh(o){return !!(o&&(o._contoh||o._contohLive||o._contohGab||muatDcKontoh(o)));}
+function cloudContohLead(l){if(!l)return false;var id=String(l.id||'');if(/^LC[WX]/.test(id))return true;var b=null;try{b=defLeads().find(function(x){return x.id===id;});}catch(e){}return !!(b&&b.nama===l.nama);}
 function terbitBersih(){
   if(!muatDcSitusUji())return false;
   var ubah=false,n=(ST.orders||[]).length;
-  ST.orders=(ST.orders||[]).filter(function(o){return !(o&&(o._contoh||o._contohLive||o._contohGab||muatDcKontoh(o)));});
+  ST.orders=(ST.orders||[]).filter(function(o){return !cloudContoh(o);});
   if(ST.orders.length!==n)ubah=true;
   var L=leadsAll(),nL=L.length;
-  var bawaan={};try{defLeads().forEach(function(x){bawaan[x.id]=x.nama;});}catch(e){}
-  ST.leads=L.filter(function(l){var id=String((l&&l.id)||'');return !/^LC[WX]/.test(id)&&!(bawaan[id]&&bawaan[id]===l.nama);});   // prospek contoh, prospek asal kartu contoh, prospek bawaan
+  ST.leads=L.filter(function(l){return !cloudContohLead(l);});   // prospek contoh, prospek asal kartu contoh, prospek bawaan
   if(ST.leads.length!==nL)ubah=true;
   try{if(finData()._contoh){finKosongkan();ubah=true;}}catch(e){}
   if(ubah){try{simpanLokal();}catch(e){}try{saveLeads();}catch(e){}try{cloudSave();}catch(e){}}
