@@ -800,7 +800,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20260924-133105';
+const VERSI='20260924-142318';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -2396,6 +2396,7 @@ if(r){ST.orders=JSON.parse(r);}else{ST.orders=[];}
   finData();asetAll();loadCatalogCache();loadMaster();loadLeads();loadTax();loadKonten();loadHR();loadBuy();loadInv();
   try{migrasiContoh();}catch(e){}   // kartu contoh versi lama diganti yang lengkap
   try{if(contohLiveSegarkan())simpanLokal();}catch(e){}   // acara contoh Live service selalu relatif ke hari ini
+  try{terbitBersih();}catch(e){}   // salinan terbit dipakai sungguhan: kartu/prospek/keuangan contoh disingkirkan
   /* Link permintaan dari Discord dibaca paling akhir, sesudah semua data
      termuat — ordernya harus sudah ada sebelum linknya dicari. */
   try{bukaDariTautan();}catch(e){}
@@ -3533,7 +3534,7 @@ function kasSaldo(){
    disalin, jadi tak pernah dobel. */
 /* Kartu contoh = order yang sama di 23 fase. Daftar lintas-order (Cashflow, piutang, ekspor, Live service)
    cukup memakai beberapa kartu supaya tak 23 baris kembar. Order sungguhan selalu ikut. */
-function contohIkut(o,daftar){if(o&&(o._contohLive||o._contohGab))return false;   /* acara contoh Live service: hanya untuk menu Live service */
+function contohIkut(o,daftar){if(o&&(o._contohLive||o._contohGab||muatDcKontoh(o)))return false;   /* acara contoh Live service: hanya untuk menu Live service */
   return !o||!o._contoh||daftar.indexOf(+o.phase)>=0;}
 function cfOrderIkut(o){return contohIkut(o,[2,12,22]);}          // sebelum Deal, produksi, selesai
 function expContohIkut(o){return contohIkut(o,[4,12,22]);}        // ekspor AIS & piutang: quotation terbit, DP masuk, lunas
@@ -5203,6 +5204,7 @@ function mergeOrders(cloud,skipCur){
   var changed=false;var byId={};ST.orders.forEach(function(o){byId[o.id]=o;});
   var pt=purgeTs();
   cloud.orders.forEach(function(co){if(skipCur&&co.id===ST.cur)return;
+    if(muatDcSitusUji()&&(co._contoh||co._contohLive||co._contohGab||muatDcKontoh(co)))return;   // salinan terbit: kartu contoh tak ikut
     if(pt&&(co._m||0)<pt)return;                       // order dari sebelum pembersihan — jangan hidupkan lagi
     var lo=byId[co.id];
     if(!lo){ST.orders.push(co);byId[co.id]=co;changed=true;}                 // order baru orang lain
@@ -5782,7 +5784,7 @@ function migrasiContoh(){
   try{seedContoh();}finally{ST.user=S.user;ST._roles=S.roles;ST.userName=S.nama;}
   return true;}
 function seedContohHapus(diam){
-  ST.orders=(ST.orders||[]).filter(function(o){return !o._contoh;});
+  ST.orders=(ST.orders||[]).filter(function(o){return !o._contoh&&!muatDcKontoh(o);});   // kartu contoh impor Discord ikut
   try{var G=invData(),sblm=G.moves.length;G.moves=G.moves.filter(function(m){return String(m.ref||'').indexOf('spare:contoh:')!==0;});
     if(G.moves.length!==sblm){G.items=G.items.filter(function(it){return !/^SP/.test(it.id)||G.moves.some(function(m){return m.item===it.id;});});saveInv();}}catch(e){}   // spare kartu contoh ikut keluar dari Gudang
   ST.leads=(ST.leads||[]).filter(function(l){return !/^LC[WX]/.test(String(l.id||''));});   // LCW = prospek asal kartu order, LCX = contoh prospek
@@ -9775,16 +9777,17 @@ function renderTasks(){
          <button class="btn ghost" onclick="ST.view='board';ST.cur=null;render()">▦ Lihat Pipeline</button>
        </div>
      </div>
-     <div class="rcard" style="max-width:660px"><h3>Data uji — contoh order</h3>
+${muatDcSitusUji()?'':`     <div class="rcard" style="max-width:660px"><h3>Data uji — contoh order</h3>
        <div style="font-size:11.5px;color:var(--muted);margin-bottom:9px;line-height:1.6">Satu client wedding (<b>Sarah &amp; Kevin</b> — 100 pcs produk katalog (Irvine Card Wallet kalau ada di katalog), box + soft pouch + thank you card dengan logo yang sama, add-on logo, engrave 3 nama, live calligraphy) dengan data <b>persis sama</b> di ${PH.length} kartu: satu kartu per fase, tiap kartu terisi lengkap sampai fase kartunya sendiri (semua harga vendor tercatat, semua persetujuan ada) — tinggal tombol Selesai. Logo Rove asli: monogram di produk, ROVE GIFTS di kemasan. Harga vendor sengaja beda dari katalog. Ikut dimuat: <b>${CONTOH_LIVE.length} acara contoh</b> untuk menu <b>Live service</b> (client berbeda: sudah lewat &amp; fee diajukan, H-2, H-5 persiapan telat, dua acara setanggal dengan operator yang sama = bentrok, H-12 belum ada operator — tanggalnya selalu dihitung dari hari ini) dan <b>spare 5%</b> kartu contoh yang masuk Gudang otomatis. Isinya karangan; kartu contoh lama diganti, order lain tak disentuh.</div>
        <button class="btn sm" onclick="seedContohMuat()">＋ Muat contoh order — 1 client × ${PH.length} fase</button> <button class="btn ghost sm" onclick="if(confirm('Hapus semua kartu contoh Sarah & Kevin?'))seedContohHapus()">Hapus kartu contoh</button>
        <div style="font-size:11.5px;color:var(--muted);margin:12px 0 8px;line-height:1.6"><b>Contoh data keuangan</b> (angka karangan): saldo saat ini, kas &amp; bank, biaya rutin bulan ini yang sudah dibayar, dua baris manual — supaya Cashflow projection &amp; Kas &amp; bank punya gambaran sehat. Ikut dimuat bersama kartu contoh bila data keuangan masih kosong; <b>otomatis dikosongkan</b> saat HUB ditandai dipakai sungguhan (Integrasi backend).</div>
        <button class="btn sm" onclick="finContohMuat()">＋ Muat contoh keuangan</button> <button class="btn ghost sm" onclick="finKosongkanTombol()">Kosongkan data keuangan</button>
      </div>
+`}
      <div class="rcard" style="max-width:660px"><h3>Muat dari Discord</h3>
-       <div style="font-size:11.5px;color:var(--muted);margin-bottom:9px;line-height:1.6">Kartu order dibuat dari berkas <b>muat-discord.json</b> — hasil pembacaan ekspor channel Discord (chat, invoice, cash receipt, lembar inquiry) oleh skrip di folder <i>Ekspor Discord</i>. Kartunya lahir lewat jalur prospek → Inquiry lalu dinaikkan ke fase yang tercatat, jadi pricing, termin, pembayaran, dan laporannya ikut terisi. Kartu yang sudah pernah dimuat dilewati. Berkas berdata sungguhan hanya bisa dimuat di HUB produksi.</div>
+       ${muatDcSitusUji()?`<div style="font-size:11.5px;color:var(--muted);line-height:1.6">Kartu dari ekspor channel Discord dimuat dari <b>HUB admin</b> (berkas Rove_Hub_App.html di Dropbox, tersambung ke backend yang sama) — kartunya muncul di sini lewat sinkron, tak ada yang perlu diunggah di halaman ini. Selama masa transisi Discord → HUB, lihat laporan <b>Kemungkinan kartu dobel</b> (Laporan → Kontrol).</div>`:`<div style="font-size:11.5px;color:var(--muted);margin-bottom:9px;line-height:1.6">Kartu order dibuat dari berkas <b>muat-discord.json</b> — hasil pembacaan ekspor channel Discord (chat, invoice, cash receipt, lembar inquiry) oleh skrip di folder <i>Ekspor Discord</i>. Kartunya lahir lewat jalur prospek → Inquiry lalu dinaikkan ke fase yang tercatat, jadi pricing, termin, pembayaran, dan laporannya ikut terisi. Kartu yang sudah pernah dimuat dilewati; yang mirip kartu yang ada ditandai. Dengan mode live menyala, kartunya tersinkron ke situs yang dipakai tim.</div>
        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><input type="file" id="muatdcfile" accept=".json,application/json" onchange="muatDcPilihBerkas(this)" style="font-size:11px;max-width:300px"> <button class="btn ghost sm" onclick="muatDcContohTampil()">Lihat contoh (data karangan)</button></div>
-       <div id="muatdcpanel">${muatDcPanelHTML()}</div>
+       <div id="muatdcpanel">${muatDcPanelHTML()}</div>`}
      </div>
      <div class="rcard" style="max-width:660px"><h3>Integrasi backend (Discord / Trello)</h3>
        <div style="font-size:11.5px;color:var(--muted);margin-bottom:11px;line-height:1.6">Tempel URL Apps Script Web App (yang meneruskan ke relay Discord/Trello). Saat <b>mode live</b> aktif, aksi <b>Generate PO</b> &amp; <b>trigger fase</b> dikirim ke backend. Kosong = tetap simulasi lokal.</div>
@@ -12376,9 +12379,11 @@ function muatDcBaca(teks){
   var D;try{D=(typeof teks==='string')?JSON.parse(teks):teks;}catch(e){throw new Error('Berkas bukan JSON yang sah: '+e.message);}
   if(!D||D.format!==MUAT_DC_FORMAT)throw new Error('Format berkas tidak dikenal — harap '+MUAT_DC_FORMAT+'.');
   if(!Array.isArray(D.kartu))throw new Error('Berkas tidak memuat daftar kartu.');
-  if(D.nyata&&muatDcSitusUji())throw new Error('Berkas ini berisi data client sungguhan — tidak boleh dimuat di salinan uji. Buka HUB produksi.');
+  if(D.nyata&&!D.anonim&&muatDcSitusUji())throw new Error('Berkas ini berisi data client sungguhan — tidak boleh dimuat di salinan uji (publik). Buka HUB produksi, atau pakai berkas anonim (muat-discord-anonim.json).');
   return D;}
 function muatDcKunci(k){return k.kunci||('discord:'+(k.channelId||k.channel||''));}
+/* kartu impor dari berkas contoh (nyata:false) = kartu contoh: ikut terhapus oleh Hapus kartu contoh, tak masuk laporan */
+function muatDcKontoh(o){return !!(o&&(o._contohDc||(o._discord&&/^discord:contoh-/.test(String(o._discord.kunci||'')))));}
 function muatDcAda(kunci){return (ST.orders||[]).find(function(o){return o&&!o.deleted&&o._discord&&o._discord.kunci===kunci;})||null;}
 function muatDcMime(nama){var e=String(nama||'').split('.').pop().toLowerCase();
   return ({png:'image/png',jpg:'image/jpeg',jpeg:'image/jpeg',gif:'image/gif',webp:'image/webp',svg:'image/svg+xml',pdf:'application/pdf',mp4:'video/mp4',mov:'video/quicktime',
@@ -12491,6 +12496,7 @@ function muatDcBuat(D,k){
   var catDc=[(/RG|RL-AU|Radja/i.test(String(k.server||'')))?'radja':'rove',k.kategoriDiscord||'Discord'];
   o.disc=(k.pesan||[]).map(function(m){return {cat:catDc,who:m.who||'Discord',t:muatDcTgl(m.t),txt:muatDcTeks(m.txt),files:(m.files||[]).map(function(f){return muatDcFile(D,f);})};});
   o._discord={kunci:kunci,channel:k.channel||'',server:k.server||'',kategori:k.kategoriDiscord||'',id:k.channelId||'',pesan:+k.jumlahPesan||0,diimpor:nowStr()};
+  if(!D.nyata){o._contoh='dc';o._contohDc=true;}   // data karangan: kartu contoh
   o._m=Date.now();
   return o;}
 /* pilih = daftar kunci yang dicentang; null = semua yang tidak ditandai pilih:false */
@@ -12509,6 +12515,12 @@ function muatDcTerapkan(D,pilih){
   try{saveMaster();}catch(e){}try{saveLeads();}catch(e){}save();
   ST._muatDcHasil=hasil;return hasil;}
 /* ---- panel Holding ---- */
+function muatDcDariSitus(nama){
+  nama=nama||'muat-discord-anonim.json';
+  if(typeof fetch!=='function'){alert('Browser ini tidak mendukung pengambilan berkas.');return;}
+  fetch(nama+'?v='+Date.now(),{cache:'no-store'}).then(function(r){if(!r.ok)throw new Error('berkas '+nama+' tidak ada di situs ini ('+r.status+')');return r.text();})
+    .then(function(t){var D=muatDcBaca(t);ST._muatDc={D:D,pilih:{},nama:nama};muatDcSegarkan();})
+    .catch(function(e){alert('Berkas tidak bisa dimuat: '+e.message);});}
 function muatDcPilihBerkas(inp){
   var f=inp&&inp.files&&inp.files[0];if(!f)return;
   var r=new FileReader();
@@ -12533,7 +12545,7 @@ function muatDcPanelHTML(){
   var M=ST._muatDc;
   if(!M)return '<div style="font-size:10.5px;color:var(--muted);margin-top:6px">Belum ada berkas dipilih.'+(muatDcSitusUji()?' Salinan uji hanya menerima berkas contoh (data karangan).':'')+'</div>';
   var D=M.D,K=D.kartu||[],nDipilih=muatDcDipilih().length;
-  var h='<div style="font-size:11px;margin:10px 0 6px"><b>'+esc(M.nama)+'</b> — '+K.length+' kartu'+(D.sumber?(' · sumber: '+esc(D.sumber)):'')+(D.nyata?' · <span style="color:var(--warn);font-weight:800">DATA SUNGGUHAN</span>':' · data karangan')+'</div>';
+  var h='<div style="font-size:11px;margin:10px 0 6px"><b>'+esc(M.nama)+'</b> — '+K.length+' kartu'+(D.sumber?(' · sumber: '+esc(D.sumber)):'')+(D.nyata?(D.anonim?' · <span style="color:var(--warn);font-weight:800">DATA SUNGGUHAN — ANONIM</span>':' · <span style="color:var(--warn);font-weight:800">DATA SUNGGUHAN</span>'):' · data karangan')+'</div>';
   h+='<div style="max-height:360px;overflow:auto;border:1px solid var(--line);border-radius:8px"><table class="tbl" style="font-size:10.5px;width:100%"><thead><tr><th></th><th>Channel</th><th>Client</th><th>Jenis</th><th>Fase tujuan</th><th style="text-align:right">Nilai</th><th>Keterangan</th></tr></thead><tbody>';
   K.forEach(function(k){var kunci=muatDcKunci(k),ada=muatDcAda(kunci);
     var on=ada?false:((kunci in M.pilih)?M.pilih[kunci]:(k.pilih!==false));
@@ -12541,7 +12553,7 @@ function muatDcPanelHTML(){
     h+='<tr'+(ada?' style="opacity:.55"':'')+'><td><input type="checkbox" '+(on?'checked':'')+(ada?' disabled':'')+' onchange="muatDcCentang('+jsArg(kunci)+',this.checked)"></td>'+
       '<td><code style="font-size:9.5px">'+esc(k.channel||'')+'</code><div style="font-size:9px;color:var(--muted)">'+esc(k.kategoriDiscord||'')+(k.jumlahPesan?(' · '+k.jumlahPesan+' pesan'):'')+'</div></td>'+
       '<td>'+esc(k.customer||'')+(k.region==='AU'?' <span class="pil" style="font-size:8.5px">AU</span>':'')+'</td><td>'+esc(k.kategori||'')+' · '+esc(k.jenis||'')+'</td><td>'+esc(fn)+(k.batal?' · <b>batal</b>':'')+'</td>'+
-      '<td style="text-align:right">'+(+k.nilai>0?fmt0(+k.nilai):'—')+'</td><td style="font-size:9.5px;color:var(--muted)">'+(ada?('sudah ada: '+esc(ada.id)):esc(k.keterangan||''))+'</td></tr>';});
+      '<td style="text-align:right">'+(+k.nilai>0?fmt0(+k.nilai):'—')+'</td><td style="font-size:9.5px;color:var(--muted)">'+(ada?('sudah ada: '+esc(ada.id)):((function(){var d=dobelCari(k.customer,(k.acara||{}).tgl);return d?('<b>mirip kartu yang ada: '+esc(d.customer)+' #'+esc(chName(d))+'</b> · '):'';})()+esc(k.keterangan||'')))+'</td></tr>';});
   h+='</tbody></table></div>';
   h+='<div style="display:flex;gap:8px;margin-top:10px;align-items:center;flex-wrap:wrap"><button class="btn sm" onclick="muatDcJalankan()">Buat '+nDipilih+' kartu</button><button class="btn ghost sm" onclick="muatDcBatal()">Batal</button>'+
     '<span style="font-size:9.5px;color:var(--muted)">Kartu yang sudah pernah dimuat dilewati (kuncinya diingat di kartu).</span></div>';
@@ -12591,6 +12603,45 @@ function muatDcContoh(){
       {kunci:'discord:contoh-4',channel:'w-test-bot-contoh',channelId:'contoh-4',server:'ROVE - Project Order Management 2',kategoriDiscord:'PRE-DEAL',jumlahPesan:3,
        customer:'Uji bot',kategori:'Wedding',jenis:'Katalog',region:'ID',fase:0,tglMasuk:h(-1),pilih:false,
        produk:[],riwayat:[],pesan:[],lampiran:[],catatan:'Channel uji bot — tidak dipilih.',keterangan:'uji bot · dilewati'}]};}
+
+/* ================= SALINAN TERBIT DIPAKAI SUNGGUHAN (patch159) =================
+   Situs yang diterbitkan dipakai tim untuk order sungguhan (24 Sep 2026).
+   Di sana tombol & data uji coba disingkirkan sendiri; berkas HUB di Dropbox
+   (VERSI '-') tetap membawa semuanya untuk pengujian. */
+function terbitBersih(){
+  if(!muatDcSitusUji())return false;
+  var ubah=false,n=(ST.orders||[]).length;
+  ST.orders=(ST.orders||[]).filter(function(o){return !(o&&(o._contoh||o._contohLive||o._contohGab||muatDcKontoh(o)));});
+  if(ST.orders.length!==n)ubah=true;
+  var L=leadsAll(),nL=L.length;
+  var bawaan={};try{defLeads().forEach(function(x){bawaan[x.id]=x.nama;});}catch(e){}
+  ST.leads=L.filter(function(l){var id=String((l&&l.id)||'');return !/^LC[WX]/.test(id)&&!(bawaan[id]&&bawaan[id]===l.nama);});   // prospek contoh, prospek asal kartu contoh, prospek bawaan
+  if(ST.leads.length!==nL)ubah=true;
+  try{if(finData()._contoh){finKosongkan();ubah=true;}}catch(e){}
+  if(ubah){try{simpanLokal();}catch(e){}try{saveLeads();}catch(e){}try{cloudSave();}catch(e){}}
+  return ubah;}
+/* ---- kartu dobel: masa transisi Discord → HUB, client yang sama bisa masuk dua kali ---- */
+function dobelKunci(s){return String(s||'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();}
+function dobelIkut(o){return !!(o&&!o.deleted&&!o._contoh&&!o._contohLive&&!o._contohGab&&!muatDcKontoh(o));}
+function dobelCari(nama,tgl,kecuali){
+  var k=dobelKunci(nama);if(!k||k==='order baru')return null;
+  return (ST.orders||[]).find(function(o){if(!dobelIkut(o)||o.id===kecuali)return false;
+    if(dobelKunci(o.customer)!==k)return false;
+    if(tgl&&o.eventDate&&String(o.eventDate).slice(0,10)!==String(tgl).slice(0,10))return false;
+    return true;})||null;}
+function dobelKelompok(){
+  var G={},urut=[];
+  (ST.orders||[]).forEach(function(o){if(!dobelIkut(o))return;var k=dobelKunci(o.customer);if(!k)return;if(!G[k]){G[k]=[];urut.push(k);}G[k].push(o);});
+  return urut.map(function(k){return G[k];}).filter(function(g){return g.length>1;});}
+lapDef({id:'dobel',grup:'Kontrol',nama:'Kemungkinan kartu dobel',tanya:'Client mana yang punya lebih dari satu kartu — mungkin dimasukkan dua kali selama pindah dari Discord ke HUB?',boleh:[],periode:'tanpa',buat:function(P){
+  var K=dobelKelompok(),rows=[];
+  K.forEach(function(g){g.forEach(function(o,i){
+    rows.push([i?'':(o.customer||'-'),String(g.length),lapO(o,'#'+chName(o)),((PH[Math.min(+o.phase||0,PH.length-1)]||{}).n||''),o.eventDate?tglID(o.eventDate):'—',
+      o._discord?('impor Discord · '+(o._discord.channel||'')):('diketik · '+(o.sales||'-'))]);});});
+  return {kpi:[['Client berkartu ganda',String(K.length),'','warn'],['Kartu terlibat',String(rows.length),'','']],
+    kolom:[{t:'Client',w:200},{t:'Jumlah'},{t:'Kartu',w:260},{t:'Fase',w:200},{t:'Tanggal acara'},{t:'Asal'}],baris:rows,
+    catatan:'Nama client disamakan tanpa huruf besar/kecil dan tanda baca. Kartu impor Discord dan kartu yang diketik tangan untuk client yang sama muncul di sini — gabungkan atau batalkan salah satunya.',
+    kosong:'Tidak ada client dengan lebih dari satu kartu.'};}});
 
 function renderBoard(){
   if(ST._papanTab==='antrean'&&gabBolehLihat()){$('#main').innerHTML=gabAntreanLayar();return;}
@@ -22908,6 +22959,8 @@ $('#create').onclick=()=>{
   const judul=semuaBaris.length
     ? (semuaBaris[0].produk+(semuaBaris.length>1?(' (+'+(semuaBaris.length-1)+' item)'):''))
     : 'Order Baru';
+  var _dob=dobelCari($('#f_cust').value.trim(),$('#f_event').value);
+  if(_dob&&!confirm('Kartu untuk client ini sudah ada: '+_dob.customer+' — #'+chName(_dob)+' ('+(statusFase(_dob)||'')+').\n\nMasa transisi Discord → HUB: mungkin kartunya sudah diimpor. Tetap buat kartu baru?'))return;
   const o=mk({prefix:$('#f_prefix').value,region:$('#f_region').value,type:type,customer:$('#f_cust').value.trim()||'Order Baru',
     product:judul,
     qty:nolQty,mat:((NOL[0]||{}).bahan||''),nilai:0,date:today(),eventDate:$('#f_event').value,phone:$('#f_phone').value.trim(),
