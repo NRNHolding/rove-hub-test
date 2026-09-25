@@ -800,7 +800,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20260924-145213';
+const VERSI='20260925-101142';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -4157,7 +4157,7 @@ function renderFin(){
   } else {
     isi=cfPanel();
   }
-  $('#main').innerHTML='<div class="topbar"><h1>Keuangan</h1><span class="demo">PROTOTYPE · data lokal</span></div>'+
+  $('#main').innerHTML='<div class="topbar"><h1>Keuangan</h1>'+hubBadge()+'</div>'+
     '<div style="display:flex;flex-wrap:wrap;gap:7px;margin-bottom:14px">'+
       tab('rekon','Rekonsiliasi')+tab('kas','Kas & bank')+tab('jurnal','Jurnal akuntansi')+tab('proyeksi','Cashflow projection')+'</div>'+
     isi;}
@@ -4212,7 +4212,7 @@ function renderAset(){
   var totAkum=A.reduce(function(s,a){return s+asetPenyusutan(a).akum;},0);
   var totNilai=totHarga-totAkum;
   var perBulan=A.reduce(function(s,a){return s+(a.status==='Aktif'?asetPenyusutan(a).perBulan:0);},0);
-  $('#main').innerHTML='<div class="topbar"><h1>Aset tetap</h1><span class="demo">PROTOTYPE · data lokal</span></div>'+
+  $('#main').innerHTML='<div class="topbar"><h1>Aset tetap</h1>'+hubBadge()+'</div>'+
     tabNote('Barang yang dipakai lebih dari setahun — mesin, kendaraan, perangkat. Penyusutan dihitung <b>garis lurus</b>: (harga − residu) ÷ umur manfaat. Angka penyusutan bulanan bisa disalin ke jurnal di menu <b>Keuangan</b>.')+
     '<div class="metrics">'+
       '<div class="metric"><div class="ml">Jumlah aset</div><div class="mv">'+A.length+'</div><div class="ms">'+A.filter(function(a){return a.status==='Aktif';}).length+' aktif</div></div>'+
@@ -9796,7 +9796,7 @@ ${muatDcSitusUji()?'':`     <div class="rcard" style="max-width:660px"><h3>Data 
        <input class="pin" id="cfgurl" value="${esc(ST.cfg&&ST.cfg.url)}" placeholder="https://script.google.com/macros/s/.../exec" style="margin:4px 0 11px">
        ${BACKEND_BAWAAN?`<div style="font-size:10px;color:var(--ink-soft);line-height:1.6;margin:-7px 0 11px;border-left:3px solid var(--brand);padding:6px 10px;background:var(--bg);border-radius:0 7px 7px 0">Salinan ini punya <b>backend bawaan</b>, jadi siapa pun yang membuka linknya langsung ikut sinkron tanpa menyetel apa-apa. ${(ST.cfg&&ST.cfg._bawaan)?'Kotak di atas terisi dari sana.':'Kotak di atas kamu isi sendiri, dan itu yang dipakai.'}<br>Backend uji ini <b>tanpa kata sandi</b> — isinya data karangan saja, jangan data client sungguhan.</div>`:''}
        <label style="font-size:12px;display:flex;align-items:center;gap:8px;margin-bottom:11px"><input type="checkbox" id="cfglive" ${(ST.cfg&&ST.cfg.live)?'checked':''} style="width:auto;accent-color:var(--brand)"> Mode live (kirim ke backend)</label>
-       <label style="font-size:12px;display:flex;align-items:flex-start;gap:8px;margin-bottom:4px"><input type="checkbox" id="cfgdipakai" ${(ST.cfg&&ST.cfg.dipakai)?'checked':''} style="width:auto;accent-color:var(--brand);margin-top:2px"> <span>HUB sudah dipakai order sungguhan<div style="font-size:10px;color:var(--muted);font-weight:400;line-height:1.55">Nyalakan sekali waktu HUB mulai mengurus order betulan. Sejak itu alat coba-coba — seperti tombol <b>mundur ke fase sebelumnya</b> — hilang, supaya order yang berjalan tak bisa dimundurkan sampai channel dan dokumennya tak cocok lagi.</div></span></label>
+       <label style="font-size:12px;display:flex;align-items:flex-start;gap:8px;margin-bottom:4px"><input type="checkbox" id="cfgdipakai" ${hubDipakai()?'checked':''}${muatDcSitusUji()?' disabled':''} style="width:auto;accent-color:var(--brand);margin-top:2px"> <span>HUB sudah dipakai order sungguhan<div style="font-size:10px;color:var(--muted);font-weight:400;line-height:1.55">Nyalakan sekali waktu HUB mulai mengurus order betulan. Sejak itu alat coba-coba — seperti tombol <b>mundur ke fase sebelumnya</b> — hilang, supaya order yang berjalan tak bisa dimundurkan sampai channel dan dokumennya tak cocok lagi.</div></span></label>
        <label style="font-size:12px;display:flex;align-items:flex-start;gap:8px;margin:8px 0 10px"><input type="checkbox" id="cfgdrive" ${(ST.cfg&&ST.cfg.drive)?'checked':''} style="width:auto;accent-color:var(--brand);margin-top:2px"> <span>Unggah berkas besar (&gt; 4 MB) ke Google Drive lewat backend<div style="font-size:10px;color:var(--muted);font-weight:400;line-height:1.55">Berkas ratusan MB (artwork, video) tak muat disimpan di HUB maupun Discord (batas 10 MB). Kalau dicentang <b>dan</b> Apps Script backend sudah punya aksi <b>drive.ping / drive.sesi / drive.selesai</b> (Code.gs versi 15 Sep 2026, izin Google Drive), berkas besar yang diunggah di kotak mana pun dikirim langsung ke folder Drive "ROVE HUB / &lt;order&gt;", dibagikan "siapa saja yang punya link", dan HUB menyimpan tautannya — vendor membukanya lewat tautan itu (ikut tercantum di spesifikasi RFQ). Backend uji bawaan sudah melayani Drive (folder "ROVE HUB" di Drive akun pemilik backend); backend lain perlu Code.gs yang sama. Tanpa ini: unggah manual ke Drive lalu tempel tautannya lewat 🔗 di tiap kotak unggah. <button class="btn ghost sm" onclick="driveUji()" style="margin-top:5px">☁ Uji sambungan Drive</button></div></span></label>
        <label class="nlbl">Katalog Cost Estimator — URL Apps Script <b>Rove Backend</b> (…/exec)</label>
        <input class="pin" id="cfgcatalog" value="${esc(ST.cfg&&ST.cfg.catalogUrl)}" placeholder="https://script.google.com/macros/s/…/exec" style="margin:4px 0 4px">
@@ -9816,12 +9816,13 @@ ${muatDcSitusUji()?'':`     <div class="rcard" style="max-width:660px"><h3>Data 
        <input class="pin" id="cfgklien" value="${esc(ST.cfg&&ST.cfg.klienUrl)}" placeholder="https://rove.github.io/hub/Klien.html" style="margin:4px 0 4px">
        <div style="font-size:10px;color:var(--muted)">Dipakai tombol <b>🔗 Buat link</b> di Master data → Customers. Halaman ini <b>hanya</b> menampilkan progres order milik client pemegang link — datanya disaring di Worker, bukan di browser client.</div>
 
-       <div style="margin-top:16px;border-top:1px solid var(--line);padding-top:13px">
+${muatDcSitusUji()?contohBawaanPanelHTML():`       <div style="margin-top:16px;border-top:1px solid var(--line);padding-top:13px">
          <div style="font-weight:800;font-size:11.5px;margin-bottom:4px">Siap dipakai produksi?</div>
          <div style="font-size:10.5px;color:var(--muted);margin-bottom:9px;line-height:1.6">HUB sekarang berisi <b>data contoh</b> untuk belajar. Sebelum dipakai tim sungguhan, kosongkan dulu — <b>master data tetap aman</b> (vendor, katalog, operator, tarif ongkir, akun).</div>
          <button class="btn" style="background:#b53c3c;border-color:#b53c3c" onclick="prodMulaiBersih()">🧹 Mulai bersih (siap produksi)</button>
          ${purgeTs()?`<span style="margin-left:9px;font-size:10px;color:var(--ok);font-weight:700">✓ sudah dibersihkan ${new Date(purgeTs()).toLocaleDateString('id-ID',{day:'2-digit',month:'short',year:'numeric'})}</span>`:''}
        </div>
+`}
        <div style="margin-top:13px;display:flex;gap:10px;align-items:center;flex-wrap:wrap"><button class="btn" onclick="saveCfg()">Simpan</button>
          <span style="font-size:11px;font-weight:700;color:${(ST.cfg&&ST.cfg.live&&ST.cfg.url)?'var(--ok)':'var(--muted)'}">${(ST.cfg&&ST.cfg.live&&ST.cfg.url)?'● Live — terhubung ke backend':'○ Simulasi (belum live)'}</span></div>
      </div>`;
@@ -10621,7 +10622,7 @@ function renderReportLama(hanyaIsi){
   const isi=t==='pipe'?pipePanel():t==='piutang'?blokPiutang:t==='eval'?blokEval:t==='ekspor'?expPanel():blokRing;
   if(hanyaIsi)return isi;
   $('#main').innerHTML=`
-   <div class="topbar"><h1>Laporan & Evaluasi</h1><span class="demo">PROTOTYPE · data lokal</span></div>
+   <div class="topbar"><h1>Laporan & Evaluasi</h1>${hubBadge()}</div>
    <div style="display:flex;flex-wrap:wrap;gap:7px;margin-bottom:14px">
      ${rtab('ring','Ringkasan')}${rtab('pipe','Pipeline',proses.length)}${rtab('piutang','Piutang',belumLunas.length)}${rtab('eval','Evaluasi',selesai.length)}${rtab('ekspor','Ekspor AIS')}</div>
    ${isi}`;
@@ -12320,7 +12321,7 @@ function gabAntreanHTML(){var K=gabKandidat(),grup={},urut=[];K.forEach(function
   if(lama.length)out+='<div class="sj" style="margin-top:6px">Riwayat</div>'+lama.map(gabGrupHTML).join('');
   return out;}
 function gabAntreanLayar(){
-  return '<div class="topbar"><h1>Order Management</h1><span class="demo">PROTOTYPE · data lokal</span><div class="sp"></div>'+(can('neworder')?'<button class="btn" onclick="openNew()">＋ Order baru</button>':'')+'</div>'+
+  return '<div class="topbar"><h1>Order Management</h1>'+hubBadge()+'<div class="sp"></div>'+cancelTombolHTML()+(can('neworder')?'<button class="btn" onclick="openNew()">＋ Order baru</button>':'')+'</div>'+cancelListHTML()+
     tabNote('<b>Antrean PO vendor.</b> PO yang belum turun dikelompokkan menurut vendor + barang + bahan — vendor kulit maupun kemasan, PO 1 maupun PO tambahan. Digabung jadi satu PO supaya kena tier harga yang lebih murah — perlu approval Direktur, harga ke client tetap, dan PO wajib turun paling lambat '+GAB_HK_BATAS+' hari kerja sebelum tanggal kirim tiap order.')+
     gabTabsHTML('antrean')+gabAntreanHTML();}
 function gabTabsHTML(aktif){if(!gabBolehLihat())return '';var n=gabHitungMenunggu(),nK=gabKandidat().length;
@@ -12646,6 +12647,85 @@ lapDef({id:'dobel',grup:'Kontrol',nama:'Kemungkinan kartu dobel',tanya:'Client m
     catatan:'Nama client disamakan tanpa huruf besar/kecil dan tanda baca. Kartu impor Discord dan kartu yang diketik tangan untuk client yang sama muncul di sini — gabungkan atau batalkan salah satunya.',
     kosong:'Tidak ada client dengan lebih dari satu kartu.'};}});
 
+/* ================= DAFTAR CANCEL di pojok kanan Order Management + salinan terbit = dipakai (patch161) ================= */
+function cancelDaftar(){
+  var out=[];(ST.orders||[]).forEach(function(o){if(!o||o.deleted||o.status!=='Cancel'||!cfOrderIkut(o))return;
+    var h=(o.hist||[]).filter(function(x){return /dibatalkan/i.test(String(x.txt||''));}).slice(-1)[0];
+    var tgl=h?lapTglHist(h.t):'';if(!tgl&&o._m){var d=new Date(+o._m);if(!isNaN(d))tgl=ymd(d.getFullYear(),d.getMonth()+1,d.getDate());}
+    out.push({o:o,tgl:tgl,oleh:h?(h.who||''):'',alasan:o.reason||''});});
+  return out.sort(function(a,b){return String(b.tgl).localeCompare(String(a.tgl));});}
+function cancelListToggle(){ST._cancelBuka=!ST._cancelBuka;render();}
+function cancelTombolHTML(){var n=cancelDaftar().length;
+  return '<button class="btn ghost" data-f="cancelTombol" title="daftar order yang dibatalkan" onclick="cancelListToggle()">✕ Cancel'+(n?(' <span style="font-weight:800;background:var(--bad-bg);color:var(--bad);border-radius:20px;padding:0 7px">'+n+'</span>'):'')+'</button> ';}
+function cancelListHTML(){
+  if(!ST._cancelBuka)return '';var D=cancelDaftar();
+  var h='<div class="rcard" data-f="cancelList" style="margin-bottom:12px"><h3 style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">✕ Order cancel <span style="font-size:10px;font-weight:800;background:var(--bad-bg);color:var(--bad);border-radius:20px;padding:1px 8px">'+D.length+'</span><span style="flex:1"></span><button class="btn ghost sm" onclick="cancelListToggle()">Tutup</button></h3>';
+  if(!D.length)h+='<div style="font-size:11px;color:var(--muted)">Tidak ada order yang dibatalkan.</div>';
+  else h+='<div style="overflow:auto"><table class="tbl" style="font-size:11px;width:100%"><thead><tr><th>Tanggal</th><th>Client</th><th>Channel</th><th>Fase saat dibatalkan</th><th>Alasan</th><th>Oleh</th><th></th></tr></thead><tbody>'+
+    D.map(function(r){var o=r.o;return '<tr><td style="white-space:nowrap">'+esc(r.tgl?tglID(r.tgl):'—')+'</td><td><b>'+esc(o.customer||'')+'</b>'+(o.product?('<div style="font-size:9.5px;color:var(--muted)">'+esc(o.product)+'</div>'):'')+'</td><td><code style="font-size:9.5px">'+esc(chName(o))+'</code></td><td>'+esc((PH[Math.min(+o.phase||0,PH.length-1)]||{}).n||'')+'</td><td>'+esc(r.alasan)+'</td><td>'+esc(r.oleh||'-')+'</td><td><button class="btn ghost sm" onclick="openOrder('+jsArg(o.id)+')">Buka</button></td></tr>';}).join('')+'</tbody></table></div>';
+  return h+'</div>';}
+/* salinan terbit dipakai sungguhan: penanda prototipe hilang, alat coba-coba (Mundur, contoh keuangan otomatis) mati */
+function hubBadge(){return muatDcSitusUji()?'':'<span class="demo">PROTOTYPE · data lokal</span>';}
+
+/* ================= DATA CONTOH BAWAAN DI MODUL LAIN (patch161b) =================
+   Salinan terbit sudah menyingkirkan kartu order, prospek, dan keuangan contoh
+   sendiri (terbitBersih). Modul lain — customer, HR, pembelian, konten, gudang —
+   masih membawa catatan contoh bawaan. Di sini catatan itu dikenali persis dari
+   seed-nya (id + nama/judul, untuk karyawan juga gaji & rekening), jadi catatan
+   yang diketik atau diubah tim tidak pernah ikut terhapus. Tombol Mulai bersih
+   (hapus SEMUA order) tidak ditampilkan di salinan terbit — di sana order sudah
+   sungguhan. */
+var CONTOH_CUSTOMER=[{nama:'United Tractors',pic:'Ida Rahmawati (Purchasing)'},{nama:'Innaz Communique',pic:''},{nama:'Bank Jatim',pic:''}];
+function contohBawaanDaftar(){
+  var D={customers:[],karyawan:[],kandidat:[],buy:[],konten:[],items:[],moves:[]};
+  var sama=function(daftar,seed,kunci){var S={};(seed||[]).forEach(function(x){if(x&&x.id!=null)S[x.id]=x;});
+    return (daftar||[]).filter(function(x){var s=x&&S[x.id];if(!s)return false;
+      return kunci.every(function(k){return String(x[k]==null?'':x[k])===String(s[k]==null?'':s[k]);});});};
+  try{var hr=defHR();D.karyawan=sama(hrData().karyawan,hr.karyawan,['nama','gaji','rek']);D.kandidat=sama(hrData().kandidat,hr.kandidat,['nama']);}catch(e){}
+  try{D.buy=sama(buyAll(),defBuy(),['judul']);}catch(e){}
+  try{D.konten=sama(kontenAll(),defKonten(),['judul']);}catch(e){}
+  try{var inv=defInv(),seedM={};(inv.moves||[]).forEach(function(m){seedM[m.id]=m;});
+    var seedMove=function(m){return !!(m&&seedM[m.id]&&seedM[m.id].item===m.item);};
+    var calon=sama(invData().items,inv.items,['nama']);
+    /* barang contoh yang sudah dipakai tim (ada pergerakan bukan seed) dibiarkan */
+    D.items=calon.filter(function(it){return !(invData().moves||[]).some(function(m){return m&&m.item===it.id&&!seedMove(m);});});
+    var idI={};D.items.forEach(function(x){idI[x.id]=1;});
+    D.moves=(invData().moves||[]).filter(function(m){return seedMove(m)&&idI[m.item];});}catch(e){}
+  try{var C=(ST.master&&ST.master.customers)||[];
+    D.customers=C.filter(function(c){return c&&CONTOH_CUSTOMER.some(function(s){return s.nama===c.nama&&String(c.pic||'')===s.pic;});});}catch(e){}
+  return D;}
+function contohBawaanJumlah(D){D=D||contohBawaanDaftar();return D.customers.length+D.karyawan.length+D.kandidat.length+D.buy.length+D.konten.length+D.items.length;}
+function contohBawaanTeks(D,sep){D=D||contohBawaanDaftar();var t=[];
+  if(D.customers.length)t.push(D.customers.length+' customer');
+  if(D.karyawan.length)t.push(D.karyawan.length+' karyawan');
+  if(D.kandidat.length)t.push(D.kandidat.length+' kandidat');
+  if(D.buy.length)t.push(D.buy.length+' pembelian');
+  if(D.konten.length)t.push(D.konten.length+' konten');
+  if(D.items.length)t.push(D.items.length+' barang gudang'+(D.moves.length?(' ('+D.moves.length+' pergerakan stok)'):''));
+  return t.join(sep||', ');}
+function contohBawaanHapus(){
+  var D=contohBawaanDaftar(),n=contohBawaanJumlah(D);
+  if(!n){alert('Tidak ada data contoh bawaan yang tersisa.');return false;}
+  if(!confirm('Hapus data contoh bawaan?\n\n'+contohBawaanTeks(D,'\n')+'\n\nOrder, prospek, keuangan, dan catatan yang diketik tim tidak disentuh. Master data (vendor, katalog, akun) tetap.'))return false;
+  var idSet=function(a){var S={};a.forEach(function(x){S[x.id]=1;});return S;};
+  try{var K=idSet(D.karyawan),Q=idSet(D.kandidat),H=hrData();H.karyawan=(H.karyawan||[]).filter(function(x){return !K[x.id];});H.kandidat=(H.kandidat||[]).filter(function(x){return !Q[x.id];});saveHR();}catch(e){}
+  try{var B=idSet(D.buy);ST.buy=buyAll().filter(function(x){return !B[x.id];});saveBuy();}catch(e){}
+  try{var N=idSet(D.konten);ST.konten=kontenAll().filter(function(x){return !N[x.id];});saveKonten();}catch(e){}
+  try{var I=idSet(D.items),M=idSet(D.moves),V=invData();V.items=(V.items||[]).filter(function(x){return !I[x.id];});V.moves=(V.moves||[]).filter(function(x){return !M[x.id];});saveInv();}catch(e){}
+  try{if(ST.master&&ST.master.customers){ST.master.customers=ST.master.customers.filter(function(c){return D.customers.indexOf(c)<0;});saveMaster();}}catch(e){}
+  try{cloudSave();}catch(e){}
+  alert('Data contoh bawaan dihapus: '+contohBawaanTeks(D,', ')+'.');
+  try{render();}catch(e){}
+  return true;}
+function contohBawaanPanelHTML(){
+  var D=contohBawaanDaftar(),n=contohBawaanJumlah(D);
+  return '<div style="margin-top:16px;border-top:1px solid var(--line);padding-top:13px">'+
+    '<div style="font-weight:800;font-size:11.5px;margin-bottom:4px">Data contoh bawaan</div>'+
+    '<div style="font-size:10.5px;color:var(--muted);margin-bottom:9px;line-height:1.6">Kartu order, prospek, dan keuangan contoh sudah disingkirkan otomatis di salinan ini. '+
+    (n?('Modul lain masih memuat contoh bawaan: <b>'+esc(contohBawaanTeks(D,', '))+'</b>. Hapus sekali saja — catatan yang diketik tim tidak disentuh, master data (vendor, katalog, akun) tetap. Tombol <i>Mulai bersih</i> (hapus semua order) hanya ada di HUB admin.'):'Tidak ada data contoh bawaan yang tersisa di modul lain.')+'</div>'+
+    (n?'<button class="btn" style="background:#b53c3c;border-color:#b53c3c" onclick="contohBawaanHapus()">🧹 Hapus data contoh bawaan</button>':'<span style="font-size:10px;color:var(--ok);font-weight:700">✓ bersih</span>')+
+    '</div>';}
+
 function renderBoard(){
   if(ST._papanTab==='antrean'&&gabBolehLihat()){$('#main').innerHTML=gabAntreanLayar();return;}
   const ALL=ST.orders.filter(o=>!o.deleted);
@@ -12670,8 +12750,9 @@ function renderBoard(){
   </div>`;
   const seen=new Set();
   $('#main').innerHTML=`
-   <div class="topbar"><h1>Order Management</h1><span class="demo">PROTOTYPE · data lokal</span>
-     <div class="sp"></div>${can('neworder')?`<button class="btn" onclick="openNew()">＋ Order baru</button>`:''}</div>
+   <div class="topbar"><h1>Order Management</h1>${hubBadge()}
+     <div class="sp"></div>${cancelTombolHTML()}${can('neworder')?`<button class="btn" onclick="openNew()">＋ Order baru</button>`:''}</div>
+   ${cancelListHTML()}
    ${tabNote('Semua order dari <b>Inquiry sampai Selesai</b>. <b>Klik kartu</b> untuk buka detail — di dalamnya ada langkah berikutnya, pricing, pembayaran, PO, dan produksi. Order baru? Klik <b>＋ Order baru</b> kanan atas.')}
    ${gabTabsHTML('papan')}${filterBar}
    <div class="board">${(function(){var P=papanProspek();
@@ -14739,7 +14820,7 @@ function tolakBukanMilikku(o,apa){
    Dulu syaratnya "relay Discord mati". Keliru: relay dinyalakan jauh sebelum
    HUB dipakai mengurus order sungguhan, jadi tombolnya hilang justru waktu
    masih dipakai mencoba. Sekarang saklarnya sendiri, di Pengaturan. */
-function hubDipakai(){return !!((ST.cfg||{}).dipakai);}
+function hubDipakai(){return !!((ST.cfg||{}).dipakai)||muatDcSitusUji();}   // salinan terbit selalu dipakai sungguhan
 function bolehMundur(o){
   if(!o||o.status==='Cancel')return false;
   if(hubDipakai())return false;
