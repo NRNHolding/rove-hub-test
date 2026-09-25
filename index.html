@@ -800,7 +800,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20260925-101142';
+const VERSI='20260925-113148';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -12321,7 +12321,7 @@ function gabAntreanHTML(){var K=gabKandidat(),grup={},urut=[];K.forEach(function
   if(lama.length)out+='<div class="sj" style="margin-top:6px">Riwayat</div>'+lama.map(gabGrupHTML).join('');
   return out;}
 function gabAntreanLayar(){
-  return '<div class="topbar"><h1>Order Management</h1>'+hubBadge()+'<div class="sp"></div>'+cancelTombolHTML()+(can('neworder')?'<button class="btn" onclick="openNew()">＋ Order baru</button>':'')+'</div>'+cancelListHTML()+
+  return '<div class="topbar"><h1>Order Management</h1>'+hubBadge()+'<div class="sp"></div>'+(can('neworder')?'<button class="btn" onclick="openNew()">＋ Order baru</button>':'')+'</div>'+
     tabNote('<b>Antrean PO vendor.</b> PO yang belum turun dikelompokkan menurut vendor + barang + bahan — vendor kulit maupun kemasan, PO 1 maupun PO tambahan. Digabung jadi satu PO supaya kena tier harga yang lebih murah — perlu approval Direktur, harga ke client tetap, dan PO wajib turun paling lambat '+GAB_HK_BATAS+' hari kerja sebelum tanggal kirim tiap order.')+
     gabTabsHTML('antrean')+gabAntreanHTML();}
 function gabTabsHTML(aktif){if(!gabBolehLihat())return '';var n=gabHitungMenunggu(),nK=gabKandidat().length;
@@ -12475,6 +12475,7 @@ function muatDcBuat(D,k){
   /* PO ke Radja */
   var Po=k.po||{};o.po=o.po||{};if(Po.deadline)o.po.deadline=Po.deadline;if(Po.tglPOMax)o.po.tglPOMax=Po.tglPOMax;
   if(Po.tglPO){o.po.tglPO=Po.tglPO;o.po.generated=true;if(Po.poNo)o.po.poNo=Po.poNo;if(Po.catatan)o.po.note=Po.catatan;}
+  if(k.terima&&k.terima.tgl&&(+k.fase||0)>=13){var Tr=terimaGet(o);Tr.tgl=k.terima.tgl;Tr.oleh='Discord Radja';Tr.catatan=k.terima.catatan||'tanggal diterima dari chat Radja (perkiraan)';}
   /* pengiriman */
   if((k.kirim||[]).length){var kr=kirimGet(o);kr.nama=k.penerima||kr.nama||'';kr.hp=k.penerimaHp||kr.hp||'';
     kr.daftar=k.kirim.map(function(s,i){return {id:'dc'+i,tgl:s.tgl||'',eksp:s.eksp||'',layanan:s.layanan||'',resi:s.resi||'',nama:s.nama||'',hp:s.hp||'',
@@ -12506,13 +12507,17 @@ function muatDcTerapkan(D,pilih){
   D=muatDcBaca(D);
   var Rn=render,Al=alert,Cf=confirm,Pb=pushBackend,No=notifyOrder,Sp=spareSinkron,S={user:ST.user,cur:ST.cur,view:ST.view};
   render=function(){};alert=function(m){ST._muatDcAlert=m;};confirm=function(){return true;};pushBackend=function(){};notifyOrder=function(){};spareSinkron=function(){return 0;};
-  var hasil={dibuat:[],lewat:[],gagal:[]};
+  var hasil={dibuat:[],lewat:[],gagal:[],dilengkapi:[]};
   try{
     try{muatDcVendor(D);}catch(e){}
     (D.kartu||[]).forEach(function(k){var kunci=muatDcKunci(k);
       if(pilih?pilih.indexOf(kunci)<0:k.pilih===false){hasil.lewat.push((k.channel||kunci)+' — tidak dipilih');return;}
       if(muatDcAda(kunci)){hasil.lewat.push((k.channel||kunci)+' — sudah ada');return;}
       try{var o=muatDcBuat(D,k);if(o)hasil.dibuat.push(o.id);}catch(e){hasil.gagal.push((k.channel||kunci)+': '+e.message);}});
+    muatDcLengkapiAda(D).forEach(function(e){var kunci=muatDcLengkapiKunci(e),nm=((e.radja||{}).channel||e.kunci);
+      if(pilih?pilih.indexOf(kunci)<0:e.pilih===false){hasil.lewat.push(nm+' — tidak dipilih');return;}
+      var o=muatDcAda(e.kunci);if(!o){hasil.lewat.push(nm+' — kartunya belum ada');return;}
+      try{muatDcLengkapi(D,e,o);hasil.dilengkapi.push(o.id);}catch(err){hasil.gagal.push(nm+': '+err.message);}});
   }finally{render=Rn;alert=Al;confirm=Cf;pushBackend=Pb;notifyOrder=No;spareSinkron=Sp;ST.user=S.user;ST.cur=S.cur;ST.view=S.view;}
   try{saveMaster();}catch(e){}try{saveLeads();}catch(e){}save();
   ST._muatDcHasil=hasil;return hasil;}
@@ -12534,20 +12539,25 @@ function muatDcCentang(kunci,on){if(!ST._muatDc)return;ST._muatDc.pilih[kunci]=!
 function muatDcSegarkan(){var el=document.getElementById('muatdcpanel');if(el)el.innerHTML=muatDcPanelHTML();}
 function muatDcDipilih(){
   var M=ST._muatDc;if(!M)return [];
-  return (M.D.kartu||[]).filter(function(k){var kunci=muatDcKunci(k);if(muatDcAda(kunci))return false;
-    return (kunci in M.pilih)?M.pilih[kunci]:(k.pilih!==false);}).map(muatDcKunci);}
+  var K=(M.D.kartu||[]),ada={};K.forEach(function(k){ada[muatDcKunci(k)]=1;});
+  var out=K.filter(function(k){var kunci=muatDcKunci(k);if(muatDcAda(kunci))return false;
+    return (kunci in M.pilih)?M.pilih[kunci]:(k.pilih!==false);}).map(muatDcKunci);
+  muatDcLengkapiAda(M.D).forEach(function(e){var kunci=muatDcLengkapiKunci(e);if(!muatDcAda(e.kunci)&&!ada[e.kunci])return;
+    if((kunci in M.pilih)?M.pilih[kunci]:(e.pilih!==false))out.push(kunci);});
+  return out;}
 function muatDcJalankan(){
   var M=ST._muatDc;if(!M)return;var pilih=muatDcDipilih();
   if(!pilih.length){alert('Tidak ada kartu yang dicentang.');return;}
-  if(!confirm('Buat '+pilih.length+' kartu order dari '+M.nama+'?'))return;
+  var nL=pilih.filter(function(x){return x.indexOf('lengkapi:')===0;}).length,nB=pilih.length-nL;
+  if(!confirm((nB?('Buat '+nB+' kartu order'):'')+(nB&&nL?' dan ':'')+(nL?('lengkapi '+nL+' kartu dari server Radja'):'')+' — dari '+M.nama+'?'))return;
   var H=muatDcTerapkan(M.D,pilih);ST._muatDc=null;
-  alert('Selesai: '+H.dibuat.length+' kartu dibuat'+(H.lewat.length?(', '+H.lewat.length+' dilewati'):'')+(H.gagal.length?('\n\nGAGAL:\n'+H.gagal.join('\n')):''));
+  alert('Selesai: '+H.dibuat.length+' kartu dibuat'+(H.dilengkapi.length?(', '+H.dilengkapi.length+' kartu dilengkapi'):'')+(H.lewat.length?(', '+H.lewat.length+' dilewati'):'')+(H.gagal.length?('\n\nGAGAL:\n'+H.gagal.join('\n')):''));
   render();}
 function muatDcPanelHTML(){
   var M=ST._muatDc;
   if(!M)return '<div style="font-size:10.5px;color:var(--muted);margin-top:6px">Belum ada berkas dipilih.'+(muatDcSitusUji()?' Salinan uji hanya menerima berkas contoh (data karangan).':'')+'</div>';
-  var D=M.D,K=D.kartu||[],nDipilih=muatDcDipilih().length;
-  var h='<div style="font-size:11px;margin:10px 0 6px"><b>'+esc(M.nama)+'</b> — '+K.length+' kartu'+(D.sumber?(' · sumber: '+esc(D.sumber)):'')+(D.nyata?(D.anonim?' · <span style="color:var(--warn);font-weight:800">DATA SUNGGUHAN — ANONIM</span>':' · <span style="color:var(--warn);font-weight:800">DATA SUNGGUHAN</span>'):' · data karangan')+'</div>';
+  var D=M.D,K=D.kartu||[],E=muatDcLengkapiAda(D),Lsel=muatDcDipilih(),nL=Lsel.filter(function(x){return x.indexOf('lengkapi:')===0;}).length,nDipilih=Lsel.length-nL;
+  var h='<div style="font-size:11px;margin:10px 0 6px"><b>'+esc(M.nama)+'</b> — '+K.length+' kartu'+(E.length?(' · '+E.length+' pelengkap dari server Radja'):'')+(D.sumber?(' · sumber: '+esc(D.sumber)):'')+(D.nyata?(D.anonim?' · <span style="color:var(--warn);font-weight:800">DATA SUNGGUHAN — ANONIM</span>':' · <span style="color:var(--warn);font-weight:800">DATA SUNGGUHAN</span>'):' · data karangan')+'</div>';
   h+='<div style="max-height:360px;overflow:auto;border:1px solid var(--line);border-radius:8px"><table class="tbl" style="font-size:10.5px;width:100%"><thead><tr><th></th><th>Channel</th><th>Client</th><th>Jenis</th><th>Fase tujuan</th><th style="text-align:right">Nilai</th><th>Keterangan</th></tr></thead><tbody>';
   K.forEach(function(k){var kunci=muatDcKunci(k),ada=muatDcAda(kunci);
     var on=ada?false:((kunci in M.pilih)?M.pilih[kunci]:(k.pilih!==false));
@@ -12557,7 +12567,8 @@ function muatDcPanelHTML(){
       '<td>'+esc(k.customer||'')+(k.region==='AU'?' <span class="pil" style="font-size:8.5px">AU</span>':'')+'</td><td>'+esc(k.kategori||'')+' · '+esc(k.jenis||'')+'</td><td>'+esc(fn)+(k.batal?' · <b>batal</b>':'')+'</td>'+
       '<td style="text-align:right">'+(+k.nilai>0?fmt0(+k.nilai):'—')+'</td><td style="font-size:9.5px;color:var(--muted)">'+(ada?('sudah ada: '+esc(ada.id)):((function(){var d=dobelCari(k.customer,(k.acara||{}).tgl);return d?('<b>mirip kartu yang ada: '+esc(d.customer)+' #'+esc(chName(d))+'</b> · '):'';})()+esc(k.keterangan||'')))+'</td></tr>';});
   h+='</tbody></table></div>';
-  h+='<div style="display:flex;gap:8px;margin-top:10px;align-items:center;flex-wrap:wrap"><button class="btn sm" onclick="muatDcJalankan()">Buat '+nDipilih+' kartu</button><button class="btn ghost sm" onclick="muatDcBatal()">Batal</button>'+
+  if(E.length)h+=muatDcLengkapiPanelHTML(M,K,E);
+  h+='<div style="display:flex;gap:8px;margin-top:10px;align-items:center;flex-wrap:wrap"><button class="btn sm" onclick="muatDcJalankan()">Buat '+nDipilih+' kartu'+(nL?(' · lengkapi '+nL+' kartu'):'')+'</button><button class="btn ghost sm" onclick="muatDcBatal()">Batal</button>'+
     '<span style="font-size:9.5px;color:var(--muted)">Kartu yang sudah pernah dimuat dilewati (kuncinya diingat di kartu).</span></div>';
   return h;}
 /* contoh berdata karangan — untuk tombol di salinan uji dan pengujian */
@@ -12647,23 +12658,19 @@ lapDef({id:'dobel',grup:'Kontrol',nama:'Kemungkinan kartu dobel',tanya:'Client m
     catatan:'Nama client disamakan tanpa huruf besar/kecil dan tanda baca. Kartu impor Discord dan kartu yang diketik tangan untuk client yang sama muncul di sini — gabungkan atau batalkan salah satunya.',
     kosong:'Tidak ada client dengan lebih dari satu kartu.'};}});
 
-/* ================= DAFTAR CANCEL di pojok kanan Order Management + salinan terbit = dipakai (patch161) ================= */
-function cancelDaftar(){
-  var out=[];(ST.orders||[]).forEach(function(o){if(!o||o.deleted||o.status!=='Cancel'||!cfOrderIkut(o))return;
+/* ================= KOLOM CANCEL di ujung papan, sesudah Selesai (patch161 → patch163) =================
+   Kartu yang dibatalkan tidak lagi menempati kolom fasenya: semuanya berkumpul di
+   kolom terakhir "✕ Cancel" (terbaru dulu) dengan tanggal & alasan pembatalan. */
+function cancelTgl(o){var h=(o.hist||[]).filter(function(x){return /dibatalkan/i.test(String(x.txt||''));}).slice(-1)[0];
+  var tgl=h?lapTglHist(h.t):'';if(!tgl&&o._m){var d=new Date(+o._m);if(!isNaN(d))tgl=ymd(d.getFullYear(),d.getMonth()+1,d.getDate());}return tgl;}
+function cancelDaftar(daftar){
+  var out=[];(daftar||ST.orders||[]).forEach(function(o){if(!o||o.deleted||o.status!=='Cancel')return;
     var h=(o.hist||[]).filter(function(x){return /dibatalkan/i.test(String(x.txt||''));}).slice(-1)[0];
-    var tgl=h?lapTglHist(h.t):'';if(!tgl&&o._m){var d=new Date(+o._m);if(!isNaN(d))tgl=ymd(d.getFullYear(),d.getMonth()+1,d.getDate());}
-    out.push({o:o,tgl:tgl,oleh:h?(h.who||''):'',alasan:o.reason||''});});
+    out.push({o:o,tgl:cancelTgl(o),oleh:h?(h.who||''):'',alasan:o.reason||''});});
   return out.sort(function(a,b){return String(b.tgl).localeCompare(String(a.tgl));});}
-function cancelListToggle(){ST._cancelBuka=!ST._cancelBuka;render();}
-function cancelTombolHTML(){var n=cancelDaftar().length;
-  return '<button class="btn ghost" data-f="cancelTombol" title="daftar order yang dibatalkan" onclick="cancelListToggle()">✕ Cancel'+(n?(' <span style="font-weight:800;background:var(--bad-bg);color:var(--bad);border-radius:20px;padding:0 7px">'+n+'</span>'):'')+'</button> ';}
-function cancelListHTML(){
-  if(!ST._cancelBuka)return '';var D=cancelDaftar();
-  var h='<div class="rcard" data-f="cancelList" style="margin-bottom:12px"><h3 style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">✕ Order cancel <span style="font-size:10px;font-weight:800;background:var(--bad-bg);color:var(--bad);border-radius:20px;padding:1px 8px">'+D.length+'</span><span style="flex:1"></span><button class="btn ghost sm" onclick="cancelListToggle()">Tutup</button></h3>';
-  if(!D.length)h+='<div style="font-size:11px;color:var(--muted)">Tidak ada order yang dibatalkan.</div>';
-  else h+='<div style="overflow:auto"><table class="tbl" style="font-size:11px;width:100%"><thead><tr><th>Tanggal</th><th>Client</th><th>Channel</th><th>Fase saat dibatalkan</th><th>Alasan</th><th>Oleh</th><th></th></tr></thead><tbody>'+
-    D.map(function(r){var o=r.o;return '<tr><td style="white-space:nowrap">'+esc(r.tgl?tglID(r.tgl):'—')+'</td><td><b>'+esc(o.customer||'')+'</b>'+(o.product?('<div style="font-size:9.5px;color:var(--muted)">'+esc(o.product)+'</div>'):'')+'</td><td><code style="font-size:9.5px">'+esc(chName(o))+'</code></td><td>'+esc((PH[Math.min(+o.phase||0,PH.length-1)]||{}).n||'')+'</td><td>'+esc(r.alasan)+'</td><td>'+esc(r.oleh||'-')+'</td><td><button class="btn ghost sm" onclick="openOrder('+jsArg(o.id)+')">Buka</button></td></tr>';}).join('')+'</tbody></table></div>';
-  return h+'</div>';}
+function cancelKolomItems(A){return cancelDaftar(A).map(function(r){return r.o;});}
+function cancelKartuHTML(o){if(!o||o.status!=='Cancel')return '';var t=cancelTgl(o);
+  return '<div class="om" style="margin-top:3px"><span style="font-weight:800;color:var(--red)">✕ '+(t?esc(tglID(t)):'dibatalkan')+'</span><span style="text-align:right">'+esc(o.reason||'')+'</span></div>';}
 /* salinan terbit dipakai sungguhan: penanda prototipe hilang, alat coba-coba (Mundur, contoh keuangan otomatis) mati */
 function hubBadge(){return muatDcSitusUji()?'':'<span class="demo">PROTOTYPE · data lokal</span>';}
 
@@ -12726,6 +12733,73 @@ function contohBawaanPanelHTML(){
     (n?'<button class="btn" style="background:#b53c3c;border-color:#b53c3c" onclick="contohBawaanHapus()">🧹 Hapus data contoh bawaan</button>':'<span style="font-size:10px;color:var(--ok);font-weight:700">✓ bersih</span>')+
     '</div>';}
 
+/* ================= PELENGKAP DARI SERVER RADJA (patch162) =================
+   Berkas muat-discord.json boleh membawa daftar `lengkapi`: catatan sisi vendor
+   (server Rove Gift-Radja Leather 2) untuk kartu yang sudah ada — tanggal PO /
+   deadline / selesai (perkiraan dari chat), riwayat, pesan vendor, dan foto.
+   Digabung tanpa menggandakan; dijalankan ulang = tidak ada yang bertambah.
+   Tanggal hanya mengisi kolom yang masih kosong, dan hanya bila fasenya sudah
+   dilewati kartu (PO ≥ fase 11, deadline ≥ fase 10, diterima ≥ fase 13). */
+function muatDcLengkapiAda(D){return Array.isArray(D&&D.lengkapi)?D.lengkapi:[];}
+function muatDcLengkapiKunci(e){return 'lengkapi:'+String((e&&e.kunci)||'');}
+function muatDcLengkapiRingkas(e){var t=[];
+  if(e.tglPO)t.push('PO '+tglID(e.tglPO));if(e.deadline)t.push('deadline '+tglID(e.deadline));if(e.tglSelesai)t.push('selesai '+tglID(e.tglSelesai));
+  var nR=(e.riwayat||[]).length,nP=(e.pesan||[]).length,nL=(e.lampiran||[]).length;
+  if(nR)t.push(nR+' riwayat');if(nP)t.push(nP+' pesan');if(nL)t.push(nL+' foto');return t.join(' · ');}
+function muatDcHistMs(t){var y=lapTglHist(t);if(!y)return null;var d=new Date(y+'T00:00:00');return isNaN(d)?null:d.getTime();}
+function muatDcLengkapi(D,e,o){
+  var n=0,b=briefGet(o),R=e.radja||{},kat=R.kategoriDiscord||'Radja';
+  o.hist=o.hist||[];o.disc=o.disc||[];
+  /* riwayat: disisipkan urut tanggal, tanpa mengulang yang sudah ada */
+  (e.riwayat||[]).forEach(function(r){if(!r||!r.txt)return;var t=muatDcTgl(r.tgl),txt=String(r.txt);
+    if(o.hist.some(function(h){return h.txt===txt&&h.t===t;}))return;
+    var ms=muatDcMs(r.tgl),i=o.hist.length;
+    for(var j=0;j<o.hist.length;j++){var hj=muatDcHistMs(o.hist[j].t);if(hj!==null&&hj>ms){i=j;break;}}
+    o.hist.splice(i,0,{t:t,txt:txt,who:r.who||'Radja'});n++;});
+  /* pesan channel vendor → log channel (kategori radja) */
+  var tambahPesan=0;
+  (e.pesan||[]).forEach(function(m){if(!m)return;var t=muatDcTgl(m.t),who=m.who||'Radja',txt=muatDcTeks(m.txt);
+    if(o.disc.some(function(d){return d.t===t&&d.who===who&&d.txt===txt;}))return;
+    o.disc.push({cat:['radja',kat],who:who,t:t,txt:txt,files:(m.files||[]).map(function(f){return muatDcFile(D,f);})});n++;tambahPesan++;});
+  if(tambahPesan&&o.disc.every(function(d){return muatDcHistMs(d.t)!==null;}))o.disc.sort(function(a,b){return muatDcHistMs(a.t)-muatDcHistMs(b.t);});
+  /* foto vendor → slot foto produksi (sample awal / barang jadi) */
+  (e.lampiran||[]).forEach(function(f){var slot=f&&f.slot;if(!slot||!f.nama)return;if(!Array.isArray(b[slot]))b[slot]=[];
+    if(b[slot].some(function(x){return x&&x.nama===f.nama;}))return;b[slot].push(muatDcFile(D,f));n++;});
+  /* tanggal — hanya mengisi yang kosong, hanya bila fasenya sudah dilewati */
+  var p=+o.phase||0;o.po=o.po||{};
+  if(e.tglPO&&p>=11&&!o.po.tglPO){o.po.tglPO=e.tglPO;o.po.generated=true;if(!o.po.note)o.po.note='tanggal PO dari chat Radja (perkiraan)';n++;}
+  if(e.deadline&&p>=10&&!o.po.deadline){o.po.deadline=e.deadline;n++;}
+  if(e.tglSelesai&&p>=13){var T=terimaGet(o);if(!T.tgl){T.tgl=e.tglSelesai;T.oleh='Discord Radja';
+    T.catatan=[T.catatan||'','tanggal diterima = foto terakhir vendor di chat Radja (perkiraan)'].filter(Boolean).join(' · ');n++;}}
+  if(!o._radja)n++;
+  o._radja={kunci:'discord:'+String(R.channelId||''),channel:R.channel||'',server:R.server||'',kategori:kat,id:R.channelId||'',pesan:+R.jumlahPesan||0,
+    tglMulai:e.tglMulai||'',tglPO:e.tglPO||'',deadline:e.deadline||'',tglSelesai:e.tglSelesai||'',diimpor:nowStr()};
+  if(n){o.hist.push({t:nowStr(),txt:'Dilengkapi dari Discord Radja #'+(R.channel||'')+' ('+kat+') — '+n+' catatan',who:ST.user||'Sistem'});o._m=Date.now();}
+  return n;}
+function muatDcLengkapiPanelHTML(M,K,E){
+  var h='<div style="font-size:11px;margin:12px 0 6px"><b>Pelengkap dari server Radja</b> — '+E.length+' kartu yang sudah ada mendapat tanggal PO / deadline / selesai (perkiraan dari chat), riwayat, pesan vendor, dan foto. Tidak menggandakan yang sudah ada.</div>';
+  h+='<div style="max-height:300px;overflow:auto;border:1px solid var(--line);border-radius:8px"><table class="tbl" style="font-size:10.5px;width:100%"><thead><tr><th></th><th>Channel Radja</th><th>Kartu tujuan</th><th>Yang ditambahkan</th><th>Keterangan</th></tr></thead><tbody>';
+  E.forEach(function(e){var kunci=muatDcLengkapiKunci(e),o=muatDcAda(e.kunci),akan=!o&&K.some(function(k){return muatDcKunci(k)===e.kunci;}),R=e.radja||{},bisa=!!(o||akan);
+    var on=bisa?((kunci in M.pilih)?M.pilih[kunci]:(e.pilih!==false)):false;
+    h+='<tr'+(bisa?'':' style="opacity:.55"')+'><td><input type="checkbox" '+(on?'checked':'')+(bisa?'':' disabled')+' onchange="muatDcCentang('+jsArg(kunci)+',this.checked)"></td>'+
+      '<td><code style="font-size:9.5px">'+esc(R.channel||'')+'</code><div style="font-size:9px;color:var(--muted)">'+esc(R.kategoriDiscord||'')+(R.jumlahPesan?(' · '+R.jumlahPesan+' pesan'):'')+'</div></td>'+
+      '<td>'+(o?(esc(o.customer||'')+' <code style="font-size:9px">#'+esc(chName(o))+'</code>'):(akan?'<i>kartu dibuat pada muatan ini</i>':'<span style="color:var(--warn)">kartunya belum ada</span>'))+'</td>'+
+      '<td style="font-size:9.5px">'+esc(muatDcLengkapiRingkas(e))+'</td><td style="font-size:9.5px;color:var(--muted)">'+esc(e.keterangan||'')+'</td></tr>';});
+  return h+'</tbody></table></div>';}
+/* ---- laporan: lama produksi vendor (PO → barang diterima) ---- */
+lapDef({id:'leadVendor',grup:'Produksi & vendor',nama:'Lama produksi vendor',tanya:'Berapa lama vendor menyelesaikan PO — dari tanggal PO sampai barang diterima?',boleh:['Purchasing','Project Manager'],buat:function(P){
+  var rows=[];lapOrders().forEach(function(o){if(o.status==='Cancel')return;var po=o.po||{},T=o.terima||{};if(!po.tglPO||!T.tgl)return;if(P&&P.R&&!lapDalam(T.tgl,P.R))return;
+    var hari=lapHari(po.tglPO,T.tgl);if(hari===null||hari<0)return;
+    var v=((((o.pricing||{}).lines)||[]).map(function(l){return vendorDasar(l&&l.sumber);}).filter(function(x){return x&&isLeatherVendor(x);})[0])||'Radja Leather';
+    var telat=po.deadline?Math.max(0,lapHari(po.deadline,T.tgl)||0):null;
+    rows.push([v,lapO(o,(o.product||'')+' · '+lapQty(o)+' pcs'),tglID(po.tglPO),tglID(T.tgl),hari,po.deadline?tglID(po.deadline):'—',telat===null?'':telat]);});
+  rows.sort(function(a,b){return b[4]-a[4];});
+  var H=rows.map(function(r){return r[4];}),n=H.length,avg=n?Math.round(H.reduce(function(s,x){return s+x;},0)/n):0;
+  return {kpi:[['Order dihitung',String(n)],['Rata-rata hari',String(avg)],['Tercepat',n?String(Math.min.apply(null,H)):'—'],['Terlama',n?String(Math.max.apply(null,H)):'—','','warn']],
+    kolom:[{t:'Vendor',w:150},{t:'Order',w:220},{t:'Tanggal PO'},{t:'Diterima'},{t:'Hari',n:true},{t:'Deadline'},{t:'Telat (hari)',n:true}],baris:rows,
+    catatan:'Hari kalender dari tanggal PO sampai barang dicatat diterima di QC & Packing. Kartu hasil impor Discord memakai tanggal perkiraan dari chat Radja.',
+    kosong:'Belum ada order dengan tanggal PO dan tanggal diterima pada periode ini.'};}});
+
 function renderBoard(){
   if(ST._papanTab==='antrean'&&gabBolehLihat()){$('#main').innerHTML=gabAntreanLayar();return;}
   const ALL=ST.orders.filter(o=>!o.deleted);
@@ -12735,8 +12809,9 @@ function renderBoard(){
   const vipDulu=(a,b)=>{var v=(isVip(b)?1:0)-(isVip(a)?1:0);if(v)return v;
     if((a.phase||0)===8&&(b.phase||0)===8)return sketchMasukTs(a)-sketchMasukTs(b);   // antrean Creative
     return 0;};
-  const cols=PH.map((p,i)=>({i,p,items:A.filter(o=>o.phase===i).sort(vipDulu)}));
-  cols.push({i:PH.length,p:{n:'Selesai',cat:['rove','ARCHIVED']},items:A.filter(o=>o.phase>=PH.length||o.done).sort(vipDulu)});
+  const cols=PH.map((p,i)=>({i,p,items:A.filter(o=>o.phase===i&&o.status!=='Cancel').sort(vipDulu)}));
+  cols.push({i:PH.length,p:{n:'Selesai',cat:['rove','ARCHIVED']},items:A.filter(o=>(o.phase>=PH.length||o.done)&&o.status!=='Cancel').sort(vipDulu)});
+  cols.push({i:PH.length+1,p:{n:'✕ Cancel',cat:['rove','CANCEL']},items:cancelKolomItems(A)});   // kartu batal berkumpul di ujung papan, terbaru dulu
   const aktif=(ST._bq||ST._bpf||ST._bst||ST._bhide);
   const jalan=pipeList('FILTER').length;   // yang bisa diringkas: berjalan saja, tanpa selesai/cancel
   const filterBar=`<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px">
@@ -12751,8 +12826,7 @@ function renderBoard(){
   const seen=new Set();
   $('#main').innerHTML=`
    <div class="topbar"><h1>Order Management</h1>${hubBadge()}
-     <div class="sp"></div>${cancelTombolHTML()}${can('neworder')?`<button class="btn" onclick="openNew()">＋ Order baru</button>`:''}</div>
-   ${cancelListHTML()}
+     <div class="sp"></div>${can('neworder')?`<button class="btn" onclick="openNew()">＋ Order baru</button>`:''}</div>
    ${tabNote('Semua order dari <b>Inquiry sampai Selesai</b>. <b>Klik kartu</b> untuk buka detail — di dalamnya ada langkah berikutnya, pricing, pembayaran, PO, dan produksi. Order baru? Klik <b>＋ Order baru</b> kanan atas.')}
    ${gabTabsHTML('papan')}${filterBar}
    <div class="board">${(function(){var P=papanProspek();
@@ -12767,7 +12841,7 @@ function renderBoard(){
        ${c.items.length?c.items.filter(o=>!seen.has(o.id)&&seen.add(o.id)).map(o=>`
          <div class="oc ${o.status==='Cancel'?'cancel':''}" style="border-left-color:${pfColor(o.prefix)}" onclick="openOrder('${o.id}')">
            <div class="on"><span class="pf" style="background:${pfColor(o.prefix)}">${String(o.prefix||'?').toUpperCase()}</span>${esc(o.customer||'(tanpa nama)')}${isVip(o)?(' '+vipLencana(true)):''}</div>
-           <div class="om"><span>${esc(o.product||'-')} · ${o.qty||0}pcs</span><span>${o.trello?'📋':''} ${(o.disc||[]).length?'💬':''}</span></div>
+           <div class="om"><span>${esc(o.product||'-')} · ${o.qty||0}pcs</span><span>${o.trello?'📋':''} ${(o.disc||[]).length?'💬':''}</span></div>${cancelKartuHTML(o)}
            ${(o.phase||0)===8?(function(){var d=sketchDeadline(o),sd=dLeft(ymdDari(d.deadline));return '<div class="om" style="margin-top:3px"><span style="font-weight:800;color:'+((sd!==null&&sd<0)?'#8f2a1e':((sd!==null&&sd<=1)?'var(--warn)':'var(--ok)'))+'">✏️ deadline '+tglID(ymdDari(d.deadline))+'</span><span>antrean '+d.urut+'/'+d.total+'</span></div>';})():''}
            <div class="om" style="margin-top:5px"><span class="stbadge st-${o.status}">${o.status}</span><span>${collIcons(o.coll)}</span></div>
          </div>`).join(''):'<div class="colempty">—</div>'}
