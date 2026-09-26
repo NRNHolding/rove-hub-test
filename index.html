@@ -800,7 +800,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20260926-103313';
+const VERSI='20260926-105515';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -9786,9 +9786,9 @@ ${muatDcSitusUji()?'':`     <div class="rcard" style="max-width:660px"><h3>Data 
      </div>
 `}
      <div class="rcard" style="max-width:660px"><h3>Muat dari Discord</h3>
-       ${muatDcSitusUji()?`<div style="font-size:11.5px;color:var(--muted);line-height:1.6">Impor dari Discord (kartu baru, pelengkap dari server Radja, pembaruan dari konfirmasi PM) hanya lewat <b>HUB admin</b>: buka berkas <b>Rove_Hub_App.html</b> di Dropbox, folder <i>5. Rove Gifts / 3. Struktur Organisasi</i>, masuk sebagai Holding, lalu Panel Holding → <b>Muat dari Discord</b> → pilih <b>muat-discord.json</b> di folder <i>HUB - Sistem &amp; integrasi / Ekspor Discord</i>. Berkas itu berisi data client lengkap, jadi tidak diunggah di situs ini; hasilnya muncul di sini lewat sinkron. Selama masa transisi Discord → HUB, lihat laporan <b>Kemungkinan kartu dobel</b> (Laporan → Kontrol).</div>`:`<div style="font-size:11.5px;color:var(--muted);margin-bottom:9px;line-height:1.6">Kartu order dibuat dari berkas <b>muat-discord.json</b> — hasil pembacaan ekspor channel Discord (chat, invoice, cash receipt, lembar inquiry) oleh skrip di folder <i>Ekspor Discord</i>. Kartunya lahir lewat jalur prospek → Inquiry lalu dinaikkan ke fase yang tercatat, jadi pricing, termin, pembayaran, dan laporannya ikut terisi. Kartu yang sudah pernah dimuat dilewati; yang mirip kartu yang ada ditandai. Dengan mode live menyala, kartunya tersinkron ke situs yang dipakai tim.</div>
-       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><input type="file" id="muatdcfile" accept=".json,application/json" onchange="muatDcPilihBerkas(this)" style="font-size:11px;max-width:300px"> <button class="btn ghost sm" onclick="muatDcContohTampil()">Lihat contoh (data karangan)</button></div>
-       <div id="muatdcpanel">${muatDcPanelHTML()}</div>`}
+       <div style="font-size:11.5px;color:var(--muted);margin-bottom:9px;line-height:1.6">Kartu order dibuat dari berkas <b>muat-discord.json</b> — hasil pembacaan ekspor channel Discord (chat, invoice, cash receipt, lembar inquiry) oleh skrip di folder Dropbox <i>HUB - Sistem &amp; integrasi / Ekspor Discord</i>. Berkas yang sama membawa pelengkap dari server Radja dan pembaruan dari konfirmasi PM. Kartu yang sudah pernah dimuat dilewati; yang mirip kartu yang ada ditandai. ${muatDcSitusUji()?'Pilih berkasnya dari folder Dropbox itu di komputer ini; hasilnya langsung tersinkron ke semua yang membuka HUB. Lampiran (foto, PDF) tetap tersimpan di Dropbox, jadi tautannya hanya terbuka di komputer yang punya folder itu. Selama masa transisi Discord → HUB, lihat laporan <b>Kemungkinan kartu dobel</b> (Laporan → Kontrol).':'Dengan mode live menyala, kartunya tersinkron ke situs yang dipakai tim.'}</div>
+       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><input type="file" id="muatdcfile" accept=".json,application/json" onchange="muatDcPilihBerkas(this)" style="font-size:11px;max-width:300px">${muatDcSitusUji()?'':' <button class="btn ghost sm" onclick="muatDcContohTampil()">Lihat contoh (data karangan)</button>'}</div>
+       <div id="muatdcpanel">${muatDcPanelHTML()}</div>
      </div>
      <div class="rcard" style="max-width:660px"><h3>Integrasi backend (Discord / Trello)</h3>
        <div style="font-size:11.5px;color:var(--muted);margin-bottom:11px;line-height:1.6">Tempel URL Apps Script Web App (yang meneruskan ke relay Discord/Trello). Saat <b>mode live</b> aktif, aksi <b>Generate PO</b> &amp; <b>trigger fase</b> dikirim ke backend. Kosong = tetap simulasi lokal.</div>
@@ -12381,7 +12381,7 @@ function muatDcBaca(teks){
   var D;try{D=(typeof teks==='string')?JSON.parse(teks):teks;}catch(e){throw new Error('Berkas bukan JSON yang sah: '+e.message);}
   if(!D||D.format!==MUAT_DC_FORMAT)throw new Error('Format berkas tidak dikenal — harap '+MUAT_DC_FORMAT+'.');
   if(!Array.isArray(D.kartu))throw new Error('Berkas tidak memuat daftar kartu.');
-  if(D.nyata&&!D.anonim&&muatDcSitusUji())throw new Error('Berkas ini berisi data client sungguhan — tidak boleh dimuat di salinan uji (publik). Buka HUB produksi, atau pakai berkas anonim (muat-discord-anonim.json).');
+  if(D.nyata&&!D.anonim&&muatDcSitusUji()&&myRoles().indexOf('Holding')<0)throw new Error('Berkas ini berisi data client sungguhan — hanya Holding yang boleh memuatnya.');
   return D;}
 function muatDcKunci(k){return k.kunci||('discord:'+(k.channelId||k.channel||''));}
 /* kartu impor dari berkas contoh (nyata:false) = kartu contoh: ikut terhapus oleh Hapus kartu contoh, tak masuk laporan */
@@ -12563,7 +12563,7 @@ function muatDcJalankan(){
   render();}
 function muatDcPanelHTML(){
   var M=ST._muatDc;
-  if(!M)return '<div style="font-size:10.5px;color:var(--muted);margin-top:6px">Belum ada berkas dipilih.'+(muatDcSitusUji()?' Salinan uji hanya menerima berkas contoh (data karangan).':'')+'</div>';
+  if(!M)return '<div style="font-size:10.5px;color:var(--muted);margin-top:6px">Belum ada berkas dipilih.</div>';
   var D=M.D,K=D.kartu||[],E=muatDcLengkapiAda(D),EP=muatDcPerbaruiAda(D),Lsel=muatDcDipilih(),nL=Lsel.filter(function(x){return x.indexOf('lengkapi:')===0;}).length,nP=Lsel.filter(function(x){return x.indexOf('perbarui:')===0;}).length,nDipilih=Lsel.length-nL-nP;
   var h='<div style="font-size:11px;margin:10px 0 6px"><b>'+esc(M.nama)+'</b> — '+K.length+' kartu'+(E.length?(' · '+E.length+' pelengkap dari server Radja'):'')+(EP.length?(' · '+EP.length+' pembaruan dari konfirmasi PM'):'')+(D.sumber?(' · sumber: '+esc(D.sumber)):'')+(D.nyata?(D.anonim?' · <span style="color:var(--warn);font-weight:800">DATA SUNGGUHAN — ANONIM</span>':' · <span style="color:var(--warn);font-weight:800">DATA SUNGGUHAN</span>'):' · data karangan')+'</div>';
   h+='<div style="max-height:360px;overflow:auto;border:1px solid var(--line);border-radius:8px"><table class="tbl" style="font-size:10.5px;width:100%"><thead><tr><th></th><th>Channel</th><th>Client</th><th>Jenis</th><th>Fase tujuan</th><th style="text-align:right">Nilai</th><th>Keterangan</th></tr></thead><tbody>';
