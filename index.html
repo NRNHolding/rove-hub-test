@@ -800,7 +800,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20260925-113148';
+const VERSI='20260926-095331';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -12507,7 +12507,7 @@ function muatDcTerapkan(D,pilih){
   D=muatDcBaca(D);
   var Rn=render,Al=alert,Cf=confirm,Pb=pushBackend,No=notifyOrder,Sp=spareSinkron,S={user:ST.user,cur:ST.cur,view:ST.view};
   render=function(){};alert=function(m){ST._muatDcAlert=m;};confirm=function(){return true;};pushBackend=function(){};notifyOrder=function(){};spareSinkron=function(){return 0;};
-  var hasil={dibuat:[],lewat:[],gagal:[],dilengkapi:[]};
+  var hasil={dibuat:[],lewat:[],gagal:[],dilengkapi:[],diperbarui:[]};
   try{
     try{muatDcVendor(D);}catch(e){}
     (D.kartu||[]).forEach(function(k){var kunci=muatDcKunci(k);
@@ -12518,6 +12518,11 @@ function muatDcTerapkan(D,pilih){
       if(pilih?pilih.indexOf(kunci)<0:e.pilih===false){hasil.lewat.push(nm+' — tidak dipilih');return;}
       var o=muatDcAda(e.kunci);if(!o){hasil.lewat.push(nm+' — kartunya belum ada');return;}
       try{muatDcLengkapi(D,e,o);hasil.dilengkapi.push(o.id);}catch(err){hasil.gagal.push(nm+': '+err.message);}});
+    muatDcPerbaruiAda(D).forEach(function(e){var kunci=muatDcPerbaruiKunci(e),nm=(e.client||e.kunci);
+      if(pilih?pilih.indexOf(kunci)<0:e.pilih===false){hasil.lewat.push(nm+' — pembaruan tidak dipilih');return;}
+      var o=muatDcAda(e.kunci);if(!o){hasil.lewat.push(nm+' — kartunya belum ada');return;}
+      if(muatDcPerbaruiSudah(o,e)){hasil.lewat.push(nm+' — pembaruan sudah pernah diterapkan');return;}
+      try{muatDcPerbarui(D,e,o);hasil.diperbarui.push(o.id);}catch(err){hasil.gagal.push(nm+': '+err.message);}});
   }finally{render=Rn;alert=Al;confirm=Cf;pushBackend=Pb;notifyOrder=No;spareSinkron=Sp;ST.user=S.user;ST.cur=S.cur;ST.view=S.view;}
   try{saveMaster();}catch(e){}try{saveLeads();}catch(e){}save();
   ST._muatDcHasil=hasil;return hasil;}
@@ -12544,20 +12549,23 @@ function muatDcDipilih(){
     return (kunci in M.pilih)?M.pilih[kunci]:(k.pilih!==false);}).map(muatDcKunci);
   muatDcLengkapiAda(M.D).forEach(function(e){var kunci=muatDcLengkapiKunci(e);if(!muatDcAda(e.kunci)&&!ada[e.kunci])return;
     if((kunci in M.pilih)?M.pilih[kunci]:(e.pilih!==false))out.push(kunci);});
+  muatDcPerbaruiAda(M.D).forEach(function(e){var kunci=muatDcPerbaruiKunci(e),o=muatDcAda(e.kunci);if(!o&&!ada[e.kunci])return;if(muatDcPerbaruiSudah(o,e))return;
+    if((kunci in M.pilih)?M.pilih[kunci]:(e.pilih!==false))out.push(kunci);});
   return out;}
 function muatDcJalankan(){
   var M=ST._muatDc;if(!M)return;var pilih=muatDcDipilih();
   if(!pilih.length){alert('Tidak ada kartu yang dicentang.');return;}
-  var nL=pilih.filter(function(x){return x.indexOf('lengkapi:')===0;}).length,nB=pilih.length-nL;
-  if(!confirm((nB?('Buat '+nB+' kartu order'):'')+(nB&&nL?' dan ':'')+(nL?('lengkapi '+nL+' kartu dari server Radja'):'')+' — dari '+M.nama+'?'))return;
+  var nL=pilih.filter(function(x){return x.indexOf('lengkapi:')===0;}).length,nP=pilih.filter(function(x){return x.indexOf('perbarui:')===0;}).length,nB=pilih.length-nL-nP;
+  var bag=[];if(nB)bag.push('buat '+nB+' kartu order');if(nL)bag.push('lengkapi '+nL+' kartu dari server Radja');if(nP)bag.push('perbarui '+nP+' kartu dari konfirmasi PM');
+  if(!confirm(bag.join(', ').replace(/^./,function(c){return c.toUpperCase();})+' — dari '+M.nama+'?'))return;
   var H=muatDcTerapkan(M.D,pilih);ST._muatDc=null;
-  alert('Selesai: '+H.dibuat.length+' kartu dibuat'+(H.dilengkapi.length?(', '+H.dilengkapi.length+' kartu dilengkapi'):'')+(H.lewat.length?(', '+H.lewat.length+' dilewati'):'')+(H.gagal.length?('\n\nGAGAL:\n'+H.gagal.join('\n')):''));
+  alert('Selesai: '+H.dibuat.length+' kartu dibuat'+(H.dilengkapi.length?(', '+H.dilengkapi.length+' kartu dilengkapi'):'')+(H.diperbarui.length?(', '+H.diperbarui.length+' kartu diperbarui'):'')+(H.lewat.length?(', '+H.lewat.length+' dilewati'):'')+(H.gagal.length?('\n\nGAGAL:\n'+H.gagal.join('\n')):''));
   render();}
 function muatDcPanelHTML(){
   var M=ST._muatDc;
   if(!M)return '<div style="font-size:10.5px;color:var(--muted);margin-top:6px">Belum ada berkas dipilih.'+(muatDcSitusUji()?' Salinan uji hanya menerima berkas contoh (data karangan).':'')+'</div>';
-  var D=M.D,K=D.kartu||[],E=muatDcLengkapiAda(D),Lsel=muatDcDipilih(),nL=Lsel.filter(function(x){return x.indexOf('lengkapi:')===0;}).length,nDipilih=Lsel.length-nL;
-  var h='<div style="font-size:11px;margin:10px 0 6px"><b>'+esc(M.nama)+'</b> — '+K.length+' kartu'+(E.length?(' · '+E.length+' pelengkap dari server Radja'):'')+(D.sumber?(' · sumber: '+esc(D.sumber)):'')+(D.nyata?(D.anonim?' · <span style="color:var(--warn);font-weight:800">DATA SUNGGUHAN — ANONIM</span>':' · <span style="color:var(--warn);font-weight:800">DATA SUNGGUHAN</span>'):' · data karangan')+'</div>';
+  var D=M.D,K=D.kartu||[],E=muatDcLengkapiAda(D),EP=muatDcPerbaruiAda(D),Lsel=muatDcDipilih(),nL=Lsel.filter(function(x){return x.indexOf('lengkapi:')===0;}).length,nP=Lsel.filter(function(x){return x.indexOf('perbarui:')===0;}).length,nDipilih=Lsel.length-nL-nP;
+  var h='<div style="font-size:11px;margin:10px 0 6px"><b>'+esc(M.nama)+'</b> — '+K.length+' kartu'+(E.length?(' · '+E.length+' pelengkap dari server Radja'):'')+(EP.length?(' · '+EP.length+' pembaruan dari konfirmasi PM'):'')+(D.sumber?(' · sumber: '+esc(D.sumber)):'')+(D.nyata?(D.anonim?' · <span style="color:var(--warn);font-weight:800">DATA SUNGGUHAN — ANONIM</span>':' · <span style="color:var(--warn);font-weight:800">DATA SUNGGUHAN</span>'):' · data karangan')+'</div>';
   h+='<div style="max-height:360px;overflow:auto;border:1px solid var(--line);border-radius:8px"><table class="tbl" style="font-size:10.5px;width:100%"><thead><tr><th></th><th>Channel</th><th>Client</th><th>Jenis</th><th>Fase tujuan</th><th style="text-align:right">Nilai</th><th>Keterangan</th></tr></thead><tbody>';
   K.forEach(function(k){var kunci=muatDcKunci(k),ada=muatDcAda(kunci);
     var on=ada?false:((kunci in M.pilih)?M.pilih[kunci]:(k.pilih!==false));
@@ -12568,7 +12576,8 @@ function muatDcPanelHTML(){
       '<td style="text-align:right">'+(+k.nilai>0?fmt0(+k.nilai):'—')+'</td><td style="font-size:9.5px;color:var(--muted)">'+(ada?('sudah ada: '+esc(ada.id)):((function(){var d=dobelCari(k.customer,(k.acara||{}).tgl);return d?('<b>mirip kartu yang ada: '+esc(d.customer)+' #'+esc(chName(d))+'</b> · '):'';})()+esc(k.keterangan||'')))+'</td></tr>';});
   h+='</tbody></table></div>';
   if(E.length)h+=muatDcLengkapiPanelHTML(M,K,E);
-  h+='<div style="display:flex;gap:8px;margin-top:10px;align-items:center;flex-wrap:wrap"><button class="btn sm" onclick="muatDcJalankan()">Buat '+nDipilih+' kartu'+(nL?(' · lengkapi '+nL+' kartu'):'')+'</button><button class="btn ghost sm" onclick="muatDcBatal()">Batal</button>'+
+  if(EP.length)h+=muatDcPerbaruiPanelHTML(M,K,EP);
+  h+='<div style="display:flex;gap:8px;margin-top:10px;align-items:center;flex-wrap:wrap"><button class="btn sm" onclick="muatDcJalankan()">Buat '+nDipilih+' kartu'+(nL?(' · lengkapi '+nL+' kartu'):'')+(nP?(' · perbarui '+nP+' kartu'):'')+'</button><button class="btn ghost sm" onclick="muatDcBatal()">Batal</button>'+
     '<span style="font-size:9.5px;color:var(--muted)">Kartu yang sudah pernah dimuat dilewati (kuncinya diingat di kartu).</span></div>';
   return h;}
 /* contoh berdata karangan — untuk tombol di salinan uji dan pengujian */
@@ -12799,6 +12808,55 @@ lapDef({id:'leadVendor',grup:'Produksi & vendor',nama:'Lama produksi vendor',tan
     kolom:[{t:'Vendor',w:150},{t:'Order',w:220},{t:'Tanggal PO'},{t:'Diterima'},{t:'Hari',n:true},{t:'Deadline'},{t:'Telat (hari)',n:true}],baris:rows,
     catatan:'Hari kalender dari tanggal PO sampai barang dicatat diterima di QC & Packing. Kartu hasil impor Discord memakai tanggal perkiraan dari chat Radja.',
     kosong:'Belum ada order dengan tanggal PO dan tanggal diterima pada periode ini.'};}});
+
+/* ================= PEMBARUAN DARI KONFIRMASI PM (patch164) =================
+   Berkas muat-discord.json boleh membawa daftar `perbarui`: keadaan order yang
+   sudah dipastikan PM (fase, cancel, tanggal PO / deadline Radja / barang
+   diterima / rencana kirim). Fase hanya maju, lewat pemicu yang sama dengan
+   tombol Selesai; narasi bawaan pemicu tidak dipakai, diganti satu catatan
+   "Konfirmasi PM". Tiap entri diterapkan sekali per kartu (o._perbarui). */
+function muatDcPerbaruiAda(D){return Array.isArray(D&&D.perbarui)?D.perbarui.filter(function(e){return e&&e.id&&e.kunci;}):[];}
+function muatDcPerbaruiKunci(e){return 'perbarui:'+String((e&&e.id)||'');}
+function muatDcPerbaruiSudah(o,e){return !!(o&&e&&(o._perbarui||[]).indexOf(e.id)>=0);}
+function muatDcNamaFase(f){f=+f||0;return f>=PH.length?'Selesai':((PH[f]||{}).n||('fase '+f));}
+function muatDcPerbaruiRingkas(e,o){var t=[];
+  if(e.batal)t.push('Cancel'+(e.alasan?(' ('+e.alasan+')'):''));
+  else if(e.fase!=null){var f=Math.max(0,Math.min(PH.length,+e.fase)),dari=o?(+o.phase||0):null;
+    if(dari===null)t.push('fase '+muatDcNamaFase(f));else if(f>dari)t.push(muatDcNamaFase(dari)+' → '+muatDcNamaFase(f));}
+  var P=e.po||{};if(P.tglPO)t.push('PO '+tglID(P.tglPO));if(P.deadline)t.push('deadline Radja '+tglID(P.deadline));
+  if(e.terima)t.push('diterima dari Radja '+tglID(e.terima));if(e.kirimRencana)t.push('rencana kirim '+tglID(e.kirimRencana));
+  if(!t.length)t.push('catatan saja');return t.join(' · ');}
+function muatDcPerbarui(D,e,o){
+  if(!o||muatDcPerbaruiSudah(o,e))return 0;
+  var hs=(o.hist||[]).slice(),ds=(o.disc||[]).slice(),lama=+o.phase||0,catat=[],n=0,oleh=e.oleh||'PM';
+  if(e.batal){if(o.status!=='Cancel'){o.status='Cancel';o.reason=e.alasan||'dibatalkan — konfirmasi PM';n++;catat.push({txt:'Order dibatalkan ('+o.reason+')',who:oleh});}}
+  else if(e.fase!=null){var t=Math.max(0,Math.min(PH.length,+e.fase)),k=0;
+    while((+o.phase||0)<t&&k++<40)applyTrigger(o,true);
+    if((+o.phase||0)!==lama){n++;catat.push({txt:'Fase → '+muatDcNamaFase(o.phase)+' (konfirmasi PM; sebelumnya '+muatDcNamaFase(lama)+')',who:oleh});}}
+  o.hist=hs;o.disc=ds;                          // narasi bawaan pemicu tidak dipakai
+  if(o.status!=='Cancel'){try{syncStatus(o);}catch(err){}}
+  var P=e.po||{};o.po=o.po||{};
+  if(P.tglPO&&o.po.tglPO!==P.tglPO){o.po.tglPO=P.tglPO;o.po.generated=true;n++;}
+  if(P.deadline&&o.po.deadline!==P.deadline){o.po.deadline=P.deadline;n++;}
+  if(e.terima){var T=terimaGet(o);if(T.tgl!==e.terima){T.tgl=e.terima;T.oleh=T.oleh||'konfirmasi PM';n++;}}
+  if(e.kirimRencana){var b=briefGet(o);if(b.tglKirim!==e.kirimRencana){b.tglKirim=e.kirimRencana;n++;}}
+  var isi=[e.catatan||'',e.jawaban?('Jawaban PM: "'+String(e.jawaban).replace(/\s+/g,' ').trim()+'"'):''].filter(Boolean).join(' — ');
+  catat.push({txt:'Konfirmasi PM'+(e.sumber?(' ('+e.sumber+')'):'')+(isi?(': '+isi):''),who:oleh});
+  o.hist=o.hist||[];catat.forEach(function(c){o.hist.push({t:nowStr(),txt:c.txt,who:c.who});});
+  o._perbarui=(o._perbarui||[]).concat([e.id]);o._m=Date.now();
+  return n+1;}
+function muatDcPerbaruiPanelHTML(M,K,E){
+  var akanDibuat={};K.forEach(function(k){akanDibuat[muatDcKunci(k)]=1;});
+  var h='<div style="font-size:11px;margin:12px 0 6px"><b>Pembaruan dari konfirmasi PM</b> — '+E.length+' kartu: fase maju, cancel, tanggal PO / deadline Radja / diterima / rencana kirim, dan satu catatan berisi jawaban PM di riwayat kartu. Fase tidak pernah dimundurkan; yang sudah pernah diterapkan dilewati.</div>';
+  h+='<div style="max-height:360px;overflow:auto;border:1px solid var(--line);border-radius:8px"><table class="tbl" style="font-size:10.5px;width:100%"><thead><tr><th></th><th>Client</th><th>Kartu tujuan</th><th>Perubahan</th><th>Jawaban PM</th></tr></thead><tbody>';
+  E.forEach(function(e){var kunci=muatDcPerbaruiKunci(e),o=muatDcAda(e.kunci),akan=!o&&!!akanDibuat[e.kunci],sudah=muatDcPerbaruiSudah(o,e),bisa=!!(o||akan)&&!sudah;
+    var on=bisa?((kunci in M.pilih)?M.pilih[kunci]:(e.pilih!==false)):false;
+    h+='<tr'+(bisa?'':' style="opacity:.55"')+'><td><input type="checkbox" '+(on?'checked':'')+(bisa?'':' disabled')+' onchange="muatDcCentang('+jsArg(kunci)+',this.checked)"></td>'+
+      '<td><b>'+esc(e.client||'')+'</b>'+(e.sumber?('<div style="font-size:9px;color:var(--muted)">'+esc(e.sumber)+'</div>'):'')+'</td>'+
+      '<td>'+(o?('<code style="font-size:9px">#'+esc(chName(o))+'</code>'+(sudah?' <i>sudah diterapkan</i>':'')):(akan?'<i>kartu dibuat pada muatan ini</i>':'<span style="color:var(--warn)">kartunya belum ada</span>'))+'</td>'+
+      '<td style="font-size:9.5px">'+esc(muatDcPerbaruiRingkas(e,o))+(e.catatan?('<div style="color:var(--muted)">'+esc(e.catatan)+'</div>'):'')+'</td>'+
+      '<td style="font-size:9.5px;color:var(--muted)">'+esc(String(e.jawaban||'—').slice(0,220))+'</td></tr>';});
+  return h+'</tbody></table></div>';}
 
 function renderBoard(){
   if(ST._papanTab==='antrean'&&gabBolehLihat()){$('#main').innerHTML=gabAntreanLayar();return;}
