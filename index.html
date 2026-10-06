@@ -187,6 +187,32 @@
   .adm-btns{display:flex;flex-direction:column;gap:5px;flex:0 0 auto}
   .adm-kosong{font-size:11px;color:var(--ok);margin:8px 0}
   .adm-lagi{margin:6px 0 2px}
+  /* master dikelompokkan (patch169): kelompok terlipat seperti chip Jasa */
+  .mgrp{border:1px solid var(--line);border-radius:10px;margin-bottom:8px;background:var(--panel);overflow:hidden}
+  .mgrp-h{display:flex;align-items:center;gap:9px;padding:8px 11px;cursor:pointer;flex-wrap:wrap}
+  .mgrp-h:hover{background:var(--bg)}
+  .mgrp-pan{width:14px;color:var(--brand);font-weight:800}
+  .mgrp-nm{font-size:12.5px}
+  .mgrp-n{font-size:9.5px;font-weight:800;color:var(--muted);background:var(--bg);border:1px solid var(--line);border-radius:20px;padding:0 7px}
+  .mgrp-meta{font-size:10px;color:var(--muted)}
+  .mgrp-rng{margin-left:auto;font-size:11px;font-weight:700;color:var(--brand-dark);white-space:nowrap}
+  .mgrp-b{border-top:1px solid var(--line);padding:9px 11px;background:var(--bg)}
+  .mgrp-akhir{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:8px}
+  .mgrp-ket{font-size:10px;color:var(--muted)}
+  .mfil{display:flex;flex-wrap:wrap;gap:5px;align-items:center;margin-bottom:8px}
+  .mfil-k{font-size:9px;font-weight:800;text-transform:uppercase;color:var(--muted);margin:0 2px 0 8px}
+  .mfil-k:first-child{margin-left:0}
+  .mchip{border:1px solid var(--line);background:var(--panel);color:var(--ink-soft);border-radius:20px;padding:2px 9px;font-size:10.5px;font-weight:700;cursor:pointer;font-family:inherit}
+  .mchip.on{background:var(--brand);border-color:var(--brand);color:#fff}
+  .mprod{border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--panel)}
+  .mprod-r{display:grid;grid-template-columns:42px minmax(150px,1.5fr) minmax(110px,1fr) 120px 150px 16px;gap:10px;align-items:center;padding:7px 11px;border-bottom:1px solid var(--line);cursor:pointer}
+  .mprod-r:hover{background:var(--bg)}
+  .mprod-del{opacity:.55;background:var(--warn-bg)}
+  .mprod-nm b{font-size:12px}
+  .mprod-w{font-size:10.5px}
+  .mprod-rng{font-size:11px;font-weight:700;color:var(--brand-dark);text-align:right;white-space:nowrap}
+  .mprod-ed{padding:10px 12px 12px;background:var(--bg);border-bottom:1px solid var(--line);cursor:default}
+  @media(max-width:700px){.mprod-r{grid-template-columns:38px 1fr 100px 14px}.mprod-w,.mprod-uk{display:none}}
   .adm-tunda{margin-top:10px;font-size:11px}.adm-tunda summary{cursor:pointer;font-weight:800;color:var(--muted)}
   @media(max-width:520px){.adm-row{flex-direction:column}.adm-btns{flex-direction:row;flex-wrap:wrap}.adm-main{font-size:12px}.adm-pilih{font-size:12px}}
   .rtable{width:100%;border-collapse:collapse;font-size:11.5px}
@@ -862,7 +888,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20261006-153429';
+const VERSI='20261006-165302';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -1016,6 +1042,14 @@ const EN_RULES=[
   [/^Ditunda \((\d+)\)$/,function(m,n){return 'Postponed ('+n+')';}],
   [/^\+ (\d+) lagi$/,function(m,n){return '+ '+n+' more';}],
   [/^Tampilkan (\d+) lainnya$/,function(m,n){return 'Show '+n+' more';}],
+  /* master dikelompokkan (patch169) */
+  [/^(\d+) kombinasi$/,function(m,n){return n+' combination'+(+n===1?'':'s');}],
+  [/^(\d+) dari (\d+) tampil$/,function(m,a,b){return a+' of '+b+' shown';}],
+  [/^Tampilkan semua (\d+)$/,function(m,n){return 'Show all '+n;}],
+  [/^(\d+) cocok dari (\d+)$/,function(m,a,b){return a+' match of '+b;}],
+  [/^(\d+) harga khusus$/,function(m,n){return n+' special price'+(+n===1?'':'s');}],
+  [/^(\d+) ada di Kombinasi harga, belum jadi opsi$/,function(m,n){return n+' in price combinations, not an option yet';}],
+  [/^(\d+) produk berjenis Katalog bernama “… for …” — dikelompokkan di sini otomatis\. Ubah Jenis-nya ke Custom bila memang produk proyek\.$/,function(m,n){return n+' Catalogue products named “… for …” are grouped here automatically. Change their Type to Custom if they are project products.';}],
   [/^tahap (\d+)$/,function(m,n){return 'stage '+n;}],
   [/^✓ Fakta administrasi diterapkan ke (\d+) kartu\.$/,function(m,n){return '✓ Administration facts applied to '+n+' card'+(+n===1?'':'s')+'.';}],
   [/^Gagal menerapkan usulan: (.*)$/,function(m,x){return 'Could not apply the proposal: '+x;}],
@@ -1222,7 +1256,16 @@ const EN={
 'Hanya Holding, Direktur Utama, dan Finance yang memutuskan di sini.':'Only Holding, the Managing Director and Finance decide here.',
 'Tidak ada usulan yang menunggu keputusan.':'No proposals are waiting for a decision.',
 'Cocokkan nama client':'Match client name','Kartu baru':'New card','Pindah fase':'Phase change','Cancel order':'Cancel order','Nilai berbeda':'Different value','Pembayaran ke vendor':'Vendor payment','Kemungkinan dobel':'Possible duplicate','Info':'Info',
-'✓ Setujui':'✓ Approve','Ringkas lagi':'Show fewer','⏸ Tunda':'⏸ Postpone','Ditunda':'Postponed','kartu belum ada':'no card yet','bukan client HUB':'not a HUB client','buat kartu baru':'create a new card',
+'✓ Setujui':'✓ Approve','Ringkas lagi':'Show fewer',
+'✎ Ganti nama':'✎ Rename','semua':'all','Belum jadi opsi':'Not an option yet','tanpa harga':'no price',
+'Model / feature':'Model / feature',
+'Belum ada opsi.':'No options yet.','semua warna':'all colours','Harga produk':'Product price','Harga khusus':'Special price',
+'＋ Harga khusus warna':'＋ Colour special price','＋ Warna':'＋ Colour','Warna tersedia':'Available colours','Kelompok':'Group',
+'Proyek / custom':'Project / custom','Aksesori lain':'Other accessories','Home & desk':'Home & desk','Passport':'Passport',
+'Card wallet & case':'Card wallet & case','Luggage & ID tag':'Luggage & ID tag','Keychain & key case':'Keychain & key case',
+'Pouch, bag & clutch':'Pouch, bag & clutch','📷 Gambar':'📷 Image','📷 Ganti gambar':'📷 Change image','✕ Hapus':'✕ Delete','✕ Ajukan hapus':'✕ Request delete',
+'Salin harga dari':'Copy prices from','Salin harga kombinasi dari':'Copy combination prices from','— tanpa harga dulu —':'— no price yet —',
+'Nama warna':'Colour name','Nama baru':'New name','Tambahkan juga ke daftar warna umum (Opsi form)':'Also add to the general colour list (Form options)','⏸ Tunda':'⏸ Postpone','Ditunda':'Postponed','kartu belum ada':'no card yet','bukan client HUB':'not a HUB client','buat kartu baru':'create a new card',
 'tinggi':'high','sedang':'medium','rendah':'low','→ administrasi':'→ administration','mirip':'similar to','robot administrasi':'administration robot',
 'No. PO':'PO no.','tanggal PO':'PO date','deadline Radja':'Radja deadline','No. invoice DP':'Deposit invoice no.','No. invoice pelunasan':'Final invoice no.','tanggal DP':'Deposit date','tanggal pelunasan':'Final payment date','tanggal acara':'Event date','tanggal diterima':'Received date','(kosong)':'(empty)',
 'Tidak ada fakta baru yang bisa diterapkan.':'There are no new facts to apply.','Usulan ini sudah tidak ada di kotak masuk.':'This proposal is no longer in the inbox.',
@@ -9344,7 +9387,8 @@ function tabAktif(nama,bawaan){
   if(!v||v==='ALL'||v==='Tanpa tipe')return bawaan;
   return v;}
 function mAdd(sec){var r=(sec==='users'?{username:'',password:'',jabatan:'Sales',jabatans:['Sales'],aktif:true,namaLengkap:'',ttd:''}:sec==='shipping'?{ekspedisi:'JNE',kota:'',layanan:'Regular',lama:'',tarif:0}:sec==='jenis'?{label:'',code:''}:(sec==='perso'||sec==='bank'||sec==='vtipe'||sec==='cogs'||sec==='mainmat'||sec==='filler'||sec==='lining'||sec==='finreq'||sec==='stitch'||sec==='warna')?{v:''}:sec==='customers'?{nama:'',termin:'DP',bride:'',groom:'',kontak:'',email:'',alamat:'',alamatKantor:'',kota:'',npwp:'',pic:'',
-    tipe:((ST._custTab&&ST._custTab!=='ALL')?ST._custTab:'Corporate'),lokasi:'HQ',catatan:''}:sec==='coll'?{type:'Hardbox',kind:'Material',value:''}:sec==='catalog'?{name:'',material:'',jenis:'Katalog',t:[0,0,0,0,0,0,0]}:sec==='operator'?(function(){
+    tipe:((ST._custTab&&ST._custTab!=='ALL')?ST._custTab:'Corporate'),lokasi:'HQ',catatan:''}:sec==='coll'?{type:'Hardbox',kind:'Material',value:''}:sec==='catalog'?(function(){var k=prodKatAktif(),r={name:'',material:'',jenis:(k===PROD_KAT_PROYEK)?'Custom':'Katalog',t:[0,0,0,0,0,0,0]};
+      if(k!=='*'&&k!==PROD_KAT_PROYEK)r.kategori=k;return r;})():sec==='operator'?(function(){
     var t=ST._opTab||'',v=svcVendors().filter(function(x){return x.nama===t;})[0];
     /* dibuat dari chip grup \u2192 langsung masuk grup itu, lokasinya ikut kota grup */
     return {nama:'',grup:v?v.nama:'',lokasi:(v&&v.kota)||'',hp:'',tarif:0,stamper:true,assist:true,aktif:true};})():sec==='tools'?{nama:'',qty:1}:sec==='kardus'?{size:'',L:0,W:0,H:0,wg:0}:sec==='collDim'?{tipe:'',L:0,W:0,H:0,wg:0}:sec==='kurs'?{kode:'',nilai:0}:sec==='jasa'?(function(){var t=ST._jasaTab;
@@ -9355,7 +9399,9 @@ function mAdd(sec){var r=(sec==='users'?{username:'',password:'',jabatan:'Sales'
      selalu Packaging. Kalau tipenya sudah diketahui, tak perlu ditanya lagi. */
   if(sec==='vendors'&&r.tipe)
     r.cogs=(r.tipe==='Kulit')?'Main Product':((r.tipe==='Live Service')?'Service':'Packaging');
-  ST.master[sec].push(stampRow(r));if(sec==='coll')buildCollatData();saveMaster();render();}
+  ST.master[sec].push(stampRow(r));if(sec==='coll')buildCollatData();
+  if(sec==='catalog'){ST._prodBuka=ST._prodBuka||{};ST._prodBuka[ST.master.catalog.length-1]=true;}
+  saveMaster();render();}
 function mDel(sec,i){delRow(sec,i);}
 /* ============ URUTAN BARIS MASTER: SERET & JATUHKAN ============
    Urutan baris master = urutan tampil di dropdown order. Dulu menyusunnya
@@ -9542,18 +9588,11 @@ function renderMaster(){
          '<button class="btn sm" style="background:#6a6f8a;border-color:#6a6f8a" onclick="pullCustomProducts()">⟳ Tarik produk custom dari deal ('+customCandidates().length+' baru)</button>'+
          '<span style="font-size:9.5px;color:var(--muted);align-self:center">'+esc(ST.catStatus||'')+'</span></div>'+
          imporStatus()+
-         (CT.length?'<div class="xscroll"><table class="rtable"><thead><tr><th style="width:80px;font-size:9px">Gambar</th><th style="min-width:140px">Produk</th><th style="width:96px">Jenis</th><th style="min-width:88px">Material</th>'+
-           '<th style="width:56px;font-size:9px">P cm</th><th style="width:56px;font-size:9px">L cm</th><th style="width:56px;font-size:9px">T cm</th><th style="width:66px;font-size:9px">Berat g</th>'+
-           CATALOG_TIERS.map(function(t){return '<th style="text-align:right;font-size:9px">≤'+t.max+'</th>';}).join('')+
-           '<th style="width:110px;font-size:9px">Diubah</th><th style="width:60px"></th></tr></thead><tbody>'+CT.map(row).join('')+'</tbody></table></div>'
-           :'<div style="color:var(--muted);font-size:11px;padding:6px 0">Belum ada. Klik “Tarik dari Cost Estimator”.</div>')+
-         '<button class="btn ghost sm" style="margin-top:9px" onclick="mAdd(\'catalog\')">＋ Tambah produk manual</button>'+
+         prodDaftar(CT)+
+         '<button class="btn ghost sm" style="margin-top:9px" onclick="mAdd(\'catalog\')">＋ Tambah produk manual'+((prodKatAktif()!=='*')?(' ke '+esc(prodKatAktif())):'')+'</button>'+
          (CT.some(function(r){return !r.pjg||!r.berat;})?'<div style="margin-top:9px;font-size:10.5px;color:var(--warn);font-weight:700">⚠ '+CT.filter(function(r){return !r.pjg||!r.berat;}).length+' produk belum ada ukuran/berat — perhitungan kardus &amp; ongkir tak bisa jalan untuk produk itu.</div>':'');
      } else if(sub==='coll'){
-       isi='<div style="font-size:10.5px;color:var(--muted);margin-bottom:9px">Opsi collateral (Feature/Material/Tali/Finishing/Ukuran) per tipe — sumber dropdown di baris pricing. Klik <b>📷</b> untuk unggah gambar; gambar ikut tampil di <b>quotation, invoice &amp; PO</b>. Gambar unggahan tidak hilang saat “Tarik dari Cost Estimator”.</div>'+
-         '<button class="btn sm" style="margin-bottom:11px" onclick="syncEstMaster()">⟳ Tarik dari Cost Estimator</button>'+
-         '<div class="xscroll">'+tbl('coll',[['img','Gambar','img'],['type','Tipe',['Hardbox','Softbox','Soft Pouch','Thank You Card']],['kind','Atribut',['Feature','Material','Tali','Finishing','Ukuran']],['value','Nilai']],M.coll||[])+'</div>'+
-         '<button class="btn ghost sm" style="margin-top:9px" onclick="mAdd(\'coll\')">＋ Tambah opsi</button>';
+       isi=collPanel(actCell);
      } else if(sub==='komb'){
        isi=kombPanel();
      } else {
@@ -12886,15 +12925,22 @@ function adminTerapkanSatu(o,f){
 /* semua fakta yang belum diterapkan → kartunya. Idempoten: penanda o._admin.sudah[id]; menjalankannya lagi di perangkat
    mana pun tak menggandakan apa pun. Kolom terisi berbeda dilewati (tak ditandai — robot mengusulkan `beda`).
    Mengembalikan jumlah kartu yang datanya berubah; save() sekali untuk semua. */
+/* fakta yang gagal diterapkan di perangkat ini dicatat di kartunya supaya bisa dilacak (bukan ditelan); dicoba lagi tiap muat */
+function adminCatatGagal(o,f,e){try{
+  if(!o._admin||typeof o._admin!=='object')o._admin={};var G=o._admin.gagal||(o._admin.gagal={});
+  var pesan=String((e&&e.message)||e||'galat').slice(0,160);if(G[f.id]&&G[f.id].pesan===pesan)return;
+  G[f.id]={pesan:pesan,tgl:nowStr()};var K=Object.keys(G);if(K.length>10)delete G[K[0]];
+  try{console.warn('Fakta administrasi gagal diterapkan',f.id,pesan);}catch(x){}}catch(x){}}
 function adminTerapkanFakta(tanpaSimpan,tanpaRender){
   var A=adminGet();if(!A.fakta.length)return 0;
   var t=Date.now(),n=0,tanda=0,kena={};
   A.fakta.forEach(function(f){
     if(!f||!f.id||!f.kartu)return;
     var o=adminKartu(f.kartu);if(!o||adminSudah(o,f.id))return;
-    var r;try{r=adminTerapkanSatu(o,f);}catch(e){return;}
+    var r;try{r=adminTerapkanSatu(o,f);}catch(e){adminCatatGagal(o,f,e);return;}
     if(!r.U.length&&r.beda)return;                 // terisi & berbeda — dibiarkan
     adminTandai(o,f.id,t);tanda++;
+    if(o._admin.gagal&&o._admin.gagal[f.id]){delete o._admin.gagal[f.id];if(!Object.keys(o._admin.gagal).length)delete o._admin.gagal;}
     if(r.U.length){adminHist(o,'Dari administrasi: '+r.U.join(', ')+(f.sumber?(' ('+f.sumber+')'):''));
       try{if(o.status!=='Cancel')syncStatus(o);}catch(e){}
       o._m=t+n;n++;kena[o.id]=1;}});
@@ -12922,7 +12968,30 @@ function adminFaktaRingkas(f){var d=(f&&f.data)||{};switch(String((f&&f.jenis)||
   default:return String((f&&f.jenis)||'');}}
 /* ---- usulan & keputusan ---- */
 function adminPutusan(id){return adminGet().putusan[id]||null;}
-function adminUsulanTerbuka(){var A=adminGet(),P=A.putusan;return A.usulan.filter(function(u){return u&&u.id&&!(P[u.id]&&P[u.id].aksi!=='tunda');});}
+/* kotak masuk hanya untuk yang masih berjalan (6 Okt): kartu selesai / cancel / terhapus tak diusulkan lagi;
+   kartu susulan dinilai lewat kartu induknya; usulan tanpa kartu disaring robot (proyek AIS "Project Selesai") */
+function adminKartuBerjalan(o){return !!o&&!o.deleted&&o.status!=='Cancel'&&!o.done&&(+o.phase||0)<PH.length;}
+function adminUsulanBerjalan(u){if(!u)return false;if(!u.kartu)return u.selesai!==true;
+  var o=(ST.orders||[]).find(function(x){return x&&x.id===u.kartu&&!x.deleted;});
+  if(o&&susulanInduk(o)){var p=indukDari(o);if(p&&adminKartuBerjalan(p))return true;}
+  return adminKartuBerjalan(o);}
+function adminUsulanTerbuka(){var A=adminGet(),P=A.putusan;
+  return A.usulan.filter(function(u){return u&&u.id&&!(P[u.id]&&P[u.id].aksi!=='tunda')&&adminUsulanBerjalan(u);});}
+/* fakta yang sudah masuk kartu dihitung dari kartunya sendiri — robot berhenti mengirim fakta yang kolomnya sudah terisi */
+function adminSudahTotal(){var n=0;(ST.orders||[]).forEach(function(o){if(o&&!o.deleted&&o._admin&&o._admin.sudah)n+=Object.keys(o._admin.sudah).length;});return n;}
+function adminDiterapkanHariIni(){
+  var A=adminGet(),hari=hariIni(),ada={},out=[];
+  A.fakta.forEach(function(f){if(f&&f.id)ada[f.id]=1;});
+  adminFaktaStatus().hariIni.forEach(function(x){out.push({o:x.o,teks:adminFaktaRingkas(x.f),sumber:x.f.sumber||'',ts:x.ts});});
+  var tglH=String(nowStr()).slice(0,11);
+  (ST.orders||[]).forEach(function(o){if(!o||o.deleted)return;var S=(o._admin&&o._admin.sudah)||{};
+    var hilang=Object.keys(S).filter(function(id){return !ada[id]&&ymdDari(+S[id]||0)===hari;});
+    if(!hilang.length)return;
+    /* satu baris riwayat robot per fakta; diambil yang hari ini, sebanyak fakta yang sudah tak dikirim robot */
+    var H=(o.hist||[]).filter(function(h){return h&&h.who==='robot administrasi'&&/^Dari administrasi: /.test(h.txt||'')&&String(h.t||'').slice(0,11)===tglH;});
+    H.slice(-hilang.length).forEach(function(h){var m=String(h.txt).replace(/^Dari administrasi: /,''),mm=m.match(/^(.*) \(([^()]*)\)$/);
+      out.push({o:o,teks:mm?mm[1]:m,sumber:mm?mm[2]:'',ts:+S[hilang[0]]||0});});});
+  return out;}
 function adminBolehPutus(){var R=myRoles();return ADMIN_PUTUS_ROLE.some(function(r){return R.indexOf(r)>=0;});}
 function adminJenisLabel(j){var x=ADMIN_JENIS.filter(function(a){return a[0]===j;})[0];return x?x[1]:String(j||'');}
 /* menjalankan pemicu fase tanpa layar / dialog / Discord (pola muatDcTerapkan) */
@@ -13078,20 +13147,20 @@ function adminUsulanBarisHTML(u,boleh){
 function adminInboxHTML(){
   var A=adminGet(),boleh=adminBolehPutus(),U=adminUsulanTerbuka(),aktif=U.filter(function(u){return !adminPutusan(u.id);}),tunda=U.filter(function(u){return !!adminPutusan(u.id);});
   var F=adminFaktaStatus(),nPutus=Object.keys(A.putusan).filter(function(k){return A.putusan[k]&&A.putusan[k].aksi!=='tunda';}).length;
+  var DH=adminDiterapkanHariIni(),DHb=DH.filter(function(x){return adminKartuBerjalan(x.o)||(susulanInduk(x.o)&&adminKartuBerjalan(indukDari(x.o)));});
   var h='<div class="rcard adm-card" data-f="adminInbox" style="max-width:660px"><h3 style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">📥 Kotak masuk administrasi<span class="adm-badge'+(aktif.length?' on':'')+'">'+aktif.length+' usulan terbuka</span></h3>'+
     '<div class="adm-note">Fakta (data tanpa keputusan) diterapkan sendiri ke kartu — nomor SO, invoice, PO, uang masuk, pengiriman, tanggal diterima & acara. Yang butuh keputusan tampil di bawah.</div>'+adminRobotHTML(A)+
-    '<div class="adm-fakta"><div class="adm-chips"><span class="adm-chip">'+F.hariIni.length+' diterapkan hari ini</span><span class="adm-chip">'+F.sudah+' sudah diterapkan</span>'+
+    '<div class="adm-fakta"><div class="adm-chips"><span class="adm-chip">'+DH.length+' diterapkan hari ini</span><span class="adm-chip">'+Math.max(F.sudah,adminSudahTotal())+' sudah diterapkan</span>'+
       (F.siap.length?('<span class="adm-chip on">'+F.siap.length+' siap diterapkan</span>'):'')+(F.beda?('<span class="adm-chip">'+F.beda+' terisi berbeda — robot mengusulkan</span>'):'')+(F.tanpaKartu?('<span class="adm-chip">'+F.tanpaKartu+' kartu belum ada</span>'):'')+'</div>'+
       (F.siap.length?'<button class="btn sm" style="margin-top:6px" data-f="adminTerapkan" onclick="adminTerapkanTombol()">⚡ Terapkan fakta sekarang</button>':'')+
-      (F.hariIni.length?('<div class="adm-sub">Diterapkan hari ini</div>'+F.hariIni.slice(0,12).map(function(x){return '<div class="adm-fline"><a href="#" class="adm-link" onclick="openOrder('+jsArg(x.o.id)+');return false">'+esc(x.o.customer||x.o.id)+'</a> <span>'+esc(adminFaktaRingkas(x.f))+'</span>'+(x.f.sumber?('<span class="adm-muted"> · '+esc(x.f.sumber)+'</span>'):'')+'</div>';}).join('')+
-        (F.hariIni.length>12?('<div class="adm-muted">+ '+(F.hariIni.length-12)+' lagi</div>'):'')):'')+'</div>';
+      (DHb.length?('<div class="adm-sub">Diterapkan hari ini</div>'+DHb.slice(0,12).map(function(x){return '<div class="adm-fline"><a href="#" class="adm-link" onclick="openOrder('+jsArg(x.o.id)+');return false">'+esc(x.o.customer||x.o.id)+'</a> <span>'+esc(x.teks)+'</span>'+(x.sumber?('<span class="adm-muted"> · '+esc(x.sumber)+'</span>'):'')+'</div>';}).join('')+
+        (DHb.length>12?('<div class="adm-muted">+ '+(DHb.length-12)+' lagi</div>'):'')):'')+'</div>';
   if(!boleh)h+='<div class="adm-note">Hanya Holding, Direktur Utama, dan Finance yang memutuskan di sini.</div>';
   if(!aktif.length)h+='<div class="adm-kosong">Tidak ada usulan yang menunggu keputusan.</div>';
-  /* antrean awal bisa ratusan usulan: per kelompok yang paling penting dulu, 5 teratas tampil, sisanya di balik tombol */
+  /* semua usulan langsung tampil (6 Okt: "langsung tampilkan aja") — per kelompok, yang paling penting dulu;
+     yang sudah selesai tak ikut (adminUsulanTerbuka hanya yang masih berjalan) */
   var grup=function(kunci,judul,L){if(!L.length)return '';L=adminUrutUsulan(L);
-    var semua=!!(ST._admBuka&&ST._admBuka[kunci]),T=semua?L:L.slice(0,ADMIN_BATAS_GRUP);
-    return '<div class="adm-grp" data-jenis="'+kunci+'"><span>'+esc(judul)+'</span><span class="adm-n">'+L.length+'</span></div>'+T.map(function(u){return adminUsulanBarisHTML(u,boleh);}).join('')+
-      (L.length>ADMIN_BATAS_GRUP?('<button class="btn ghost sm adm-lagi" data-f="admLagi" onclick="adminGrupBuka('+jsArg(kunci)+')">'+(semua?'Ringkas lagi':('Tampilkan '+(L.length-ADMIN_BATAS_GRUP)+' lainnya'))+'</button>'):'');};
+    return '<div class="adm-grp" data-jenis="'+kunci+'"><span>'+esc(judul)+'</span><span class="adm-n">'+L.length+'</span></div>'+L.map(function(u){return adminUsulanBarisHTML(u,boleh);}).join('');};
   ADMIN_JENIS.forEach(function(j){h+=grup(j[0],j[1],aktif.filter(function(u){return u.jenis===j[0];}));});
   h+=grup('lain','Lainnya',aktif.filter(function(u){return !ADMIN_JENIS.some(function(j){return j[0]===u.jenis;});}));
   if(tunda.length)h+='<details class="adm-tunda"><summary>Ditunda ('+tunda.length+')</summary>'+tunda.map(function(u){return adminUsulanBarisHTML(u,boleh);}).join('')+'</details>';
@@ -17601,6 +17670,7 @@ function spekSet(id,li,f,v){
   var l=(((o.pricing||{}).lines)||[])[li];if(!l)return;
   v=(typeof v==='string')?v.trim():v;if(v==='-')v='';
   if(f==='mainMat')l.bahan=v;else lineSpek(l)[f]=v;
+  if(f==='mainMatWarna'){try{katalogHppSegarkan(o,l);}catch(e){}}   // harga khusus warna (Master Product)
   o._m=Date.now();save();render();}
 function spekMatSet(id,li,v){spekSet(id,li,'mainMat',v);}
 /* baris-baris produk ber-varian di order ini (dipakai grid spec & checklist) */
@@ -17680,6 +17750,8 @@ function varianPisah(o,i,k){
   V.splice(k,1);if(!V.length)delete l.varian;
   l.qty=Math.max(0,(+l.qty||0)-c.qty);
   L.splice(i+1,0,c);
+  /* baris pisahan = warna varian itu; baris katalog mengambil harga khusus warnanya bila ada */
+  if(c.fixed&&v.w){lineSpek(c).mainMatWarna=v.w;try{katalogHppSegarkan(o,c);}catch(e){}}
   logHist(o,'⇄ '+c.qty+' pcs '+(v.w||'?')+' dipisah jadi baris sendiri (harga sendiri)');
   o._m=Date.now();save();render();return c;}
 /* ---- varian diedit INLINE di kartu spec produknya (briefPanel) ---- */
@@ -21561,45 +21633,331 @@ function imporEstFile(){
     rd.readAsText(f);};
   unggahMulai(inp);}
 
-/* ---- panel Kombinasi harga collateral ---- */
+/* ---- panel Kombinasi harga collateral ----
+   6 Okt: 653 kombinasi dulu satu tabel datar (dipotong 150 baris). Sekarang dikelompokkan per MODEL (Soft Pouch,
+   Hardbox, Softbox) atau per MATERIAL (Thank You Card): kelompok terlipat, dibuka satu-satu, disaring per atribut.
+   Datanya tetap tabel yang sama — pencarian HPP otomatis di baris pricing tidak berubah. */
+const KOMB_GRUP={sp:'model',hb:'model',sb:'model',cd:'material'};
 function kombTab(k){ST._kombTab=k;ST._kombQ='';render();}
 function kombCari2(v){ST._kombQ=v;render();}
-function kombEdit(k,i,f,v){var r=(ST.master.komb[k]||[])[i];if(!r)return;r[f]=v;stampRow(r);saveMaster();}
+/* nama kombinasi = atribut berurutan seperti hasil impor Estimator ("Standard Drawstring Calico Tali Katun 10 x 15 Polos") */
+function kombNama(k,r){var sec=KOMB_SECS.find(function(x){return x[0]===k;});if(!sec)return (r&&r.kombinasi)||'';
+  return sec[3].map(function(f){return String(r[f]==null?'':r[f]).trim();}).filter(Boolean).join(' ');}
+function kombEdit(k,i,f,v){var r=(ST.master.komb[k]||[])[i];if(!r)return;r[f]=String(v==null?'':v).trim();
+  r.kombinasi=kombNama(k,r);stampRow(r);saveMaster();
+  if(f===KOMB_GRUP[k])render();}
+/* tingkat yang dikosongkan = belum ada harga (null), bukan Rp 0 — HPP mengambil tingkat terdekat yang ada */
 function kombEditT(k,i,ti,v){var r=(ST.master.komb[k]||[])[i];if(!r)return;
-  if(!r.t)r.t=[];r.t[ti]=moneyVal(v);stampRow(r);saveMaster();}
+  if(!r.t)r.t=[];r.t[ti]=(String(v==null?'':v).trim()==='')?null:moneyVal(v);stampRow(r);saveMaster();}
 function kombDel(k,i){var a=ST.master.komb[k]||[];
-  if(!confirm('Hapus kombinasi "'+(a[i]&&a[i].kombinasi)+'"?'))return;
+  if(!confirm('Hapus kombinasi "'+(a[i]&&(a[i].kombinasi||kombNama(k,a[i])))+'"?'))return;
   a.splice(i,1);saveMaster();render();}
+function kombKunci(k,g){return k+'|'+g;}
 function kombAdd(k){var sec=KOMB_SECS.find(function(x){return x[0]===k;});if(!sec)return;
-  if(!ST.master.komb[k])ST.master.komb[k]=[];
+  if(!ST.master.komb)ST.master.komb={};if(!ST.master.komb[k])ST.master.komb[k]=[];
   var o={kombinasi:'',t:[]};sec[3].forEach(function(f){o[f]='';});
-  ST.master.komb[k].unshift(stampRow(o));saveMaster();render();}
+  ST.master.komb[k].unshift(stampRow(o));
+  ST._kombBuka=ST._kombBuka||{};ST._kombBuka[kombKunci(k,'')]=true;
+  saveMaster();render();}
+function kombBuka(k,g){var key=kombKunci(k,g);ST._kombBuka=ST._kombBuka||{};ST._kombBuka[key]=!ST._kombBuka[key];render();}
+function kombFil(k,g,f,v){var key=kombKunci(k,g);ST._kombFil=ST._kombFil||{};var F=ST._kombFil[key]=ST._kombFil[key]||{};
+  if(v===''||F[f]===v)delete F[f];else F[f]=v;render();}
+function kombSemua(k,g){var key=kombKunci(k,g);ST._kombSemua=ST._kombSemua||{};ST._kombSemua[key]=!ST._kombSemua[key];render();}
+function kombGrupDaftar(k){var gf=KOMB_GRUP[k],out=[];
+  kombRows(k).forEach(function(r){var g=String(r[gf]==null?'':r[gf]);if(out.indexOf(g)<0)out.push(g);});return out;}
+/* kombinasi baru langsung di kelompoknya: kolom model/material terisi, letaknya di ujung kelompok itu */
+function kombAddGrup(k,g){var sec=KOMB_SECS.find(function(x){return x[0]===k;});if(!sec)return;
+  if(!ST.master.komb)ST.master.komb={};if(!ST.master.komb[k])ST.master.komb[k]=[];
+  var a=ST.master.komb[k],gf=KOMB_GRUP[k],o={kombinasi:'',t:[]};sec[3].forEach(function(f){o[f]='';});o[gf]=g;o.kombinasi=kombNama(k,o);
+  var akhir=-1;a.forEach(function(r,i){if(String(r[gf]==null?'':r[gf])===g)akhir=i;});
+  a.splice(akhir<0?a.length:akhir+1,0,stampRow(o));
+  ST._kombBuka=ST._kombBuka||{};ST._kombBuka[kombKunci(k,g)]=true;
+  saveMaster();render();}
+/* model / material baru: semua kombinasi kelompok sumber disalin, harganya jadi titik awal */
+function kombGrupSalin(k,dari){
+  var sec=KOMB_SECS.find(function(x){return x[0]===k;});if(!sec)return;
+  var gf=KOMB_GRUP[k],lbl=KOMB_LABEL[gf]||gf,G=kombGrupDaftar(k).filter(Boolean);
+  if(!G.length){kombAdd(k);return;}
+  askForm({judul:'＋ '+lbl+' baru — '+sec[1],sub:'Semua kombinasi '+lbl.toLowerCase()+' sumber disalin beserta harganya; tinggal ubah angka yang berbeda.',
+    fields:[{k:'nama',label:'Nama '+lbl.toLowerCase()+' baru',req:true,ph:'mis. '+G[0]+' Premium'},
+      {k:'dari',label:'Salin harga dari',type:'select',opts:G,val:(dari&&G.indexOf(dari)>=0)?dari:G[0]}],
+    ok:function(v){var nm=String(v.nama||'').trim();if(!nm)return;
+      if(G.some(function(g){return g.toLowerCase()===nm.toLowerCase();})){alert(lbl+' "'+nm+'" sudah ada — buka kelompoknya untuk menambah kombinasi.');return;}
+      var a=ST.master.komb[k],n=0;
+      a.filter(function(r){return String(r[gf]==null?'':r[gf])===v.dari;}).forEach(function(r){
+        var c=JSON.parse(JSON.stringify(r));delete c._u;delete c._by;delete c._del;
+        c[gf]=nm;c.kombinasi=kombNama(k,c);a.push(stampRow(c));n++;});
+      ST._kombBuka=ST._kombBuka||{};ST._kombBuka[kombKunci(k,nm)]=true;
+      saveMaster();render();
+      alert('✓ '+lbl+' "'+nm+'" dibuat — '+n+' kombinasi disalin dari '+v.dari+'.');}});}
+function kombGrupGanti(k,g){
+  var gf=KOMB_GRUP[k],lbl=KOMB_LABEL[gf]||gf;
+  askForm({judul:'✎ Ganti nama '+lbl.toLowerCase(),sub:'Semua kombinasi "'+g+'" ikut berganti nama.',
+    fields:[{k:'nama',label:'Nama baru',req:true,val:g}],
+    ok:function(v){var nm=String(v.nama||'').trim();if(!nm||nm===g)return;
+      var a=ST.master.komb[k]||[];
+      if(a.some(function(r){return String(r[gf]==null?'':r[gf])===nm;})&&!confirm('"'+nm+'" sudah ada — gabungkan kedua kelompok?'))return;
+      a.forEach(function(r){if(String(r[gf]==null?'':r[gf])===g){r[gf]=nm;r.kombinasi=kombNama(k,r);stampRow(r);}});
+      ST._kombBuka=ST._kombBuka||{};delete ST._kombBuka[kombKunci(k,g)];ST._kombBuka[kombKunci(k,nm)]=true;
+      saveMaster();render();}});}
+function kombRentang(R){var a=[];R.forEach(function(r){(r.t||[]).forEach(function(v){if(v!=null&&v!==''&&+v>0)a.push(+v);});});
+  if(!a.length)return '';var mn=Math.min.apply(null,a),mx=Math.max.apply(null,a);
+  return mn===mx?fmt0(mn):(fmt0(mn)+' – '+fmt0(mx).replace('Rp ',''));}
 function kombPanel(){
-  var k=ST._kombTab||'sp',sec=KOMB_SECS.find(function(x){return x[0]===k;})||KOMB_SECS[0];
-  var semua=kombRows(k),q=(ST._kombQ||'').toLowerCase();
-  var rows=q?semua.filter(function(r){return (r.kombinasi||'').toLowerCase().indexOf(q)>=0;}):semua;
-  var BATAS=150,potong=rows.length>BATAS,tampil=potong?rows.slice(0,BATAS):rows;
+  var k=ST._kombTab||'sp',sec=KOMB_SECS.find(function(x){return x[0]===k;})||KOMB_SECS[0];k=sec[0];
+  var gf=KOMB_GRUP[k]||sec[3][0],gl=KOMB_LABEL[gf]||gf,attrs=sec[3].filter(function(f){return f!==gf;});
+  var semua=kombRows(k),q=String(ST._kombQ||'').toLowerCase().trim();
+  var cocok=function(r){if(!q)return true;
+    return String(r.kombinasi||'').toLowerCase().indexOf(q)>=0||sec[3].some(function(f){return String(r[f]==null?'':r[f]).toLowerCase().indexOf(q)>=0;});};
+  var nilai=function(I,f){var o=[];I.forEach(function(i){var v=String(semua[i][f]==null?'':semua[i][f]);if(o.indexOf(v)<0)o.push(v);});return o;};
   var tb=function(x){return '<button class="btn '+(k===x[0]?'':'ghost')+' sm" onclick="kombTab(\''+x[0]+'\')">'+esc(x[1])+' ('+kombRows(x[0]).length+')</button>';};
-  return '<div style="font-size:10.5px;color:var(--muted);margin-bottom:9px">Harga collateral per kombinasi atribut, dengan tingkatan jumlah sendiri (<b>'+
-      PACK_TIERS.map(function(t){return t.label;}).join(' · ')+'</b>). Dipakai <b>mengisi HPP otomatis</b> di baris pricing begitu tipe &amp; atribut collateral dipilih — jadi tak perlu tanya vendor untuk barang standar.</div>'+
+  var h='<div style="font-size:10.5px;color:var(--muted);margin-bottom:9px">Harga collateral per kombinasi atribut, dengan tingkatan jumlah sendiri (<b>'+
+      PACK_TIERS.map(function(t){return t.label;}).join(' · ')+'</b>). Dipakai <b>mengisi HPP otomatis</b> di baris pricing begitu tipe &amp; atribut collateral dipilih. '+
+      'Dikelompokkan per <b>'+esc(gl.toLowerCase())+'</b> — buka satu kelompok untuk melihat &amp; menyaring kombinasinya.</div>'+
     '<div style="display:flex;flex-wrap:wrap;gap:7px;margin-bottom:11px">'+KOMB_SECS.map(tb).join('')+
-      '<input class="pin" style="width:auto;min-width:180px;margin-left:auto" value="'+esc(ST._kombQ||'')+'" oninput="kombCari2(this.value)" placeholder="🔍 Cari kombinasi…"></div>'+
-    (semua.length?
-      '<div class="xscroll"><table class="rtable"><thead><tr>'+
-        sec[3].map(function(f){return '<th style="min-width:96px;font-size:9px">'+esc(KOMB_LABEL[f]||f)+'</th>';}).join('')+
-        PACK_TIERS.map(function(t){return '<th style="text-align:right;font-size:9px">'+esc(t.label)+'</th>';}).join('')+
-        '<th style="width:110px;font-size:9px">Diubah</th><th style="width:36px"></th></tr></thead><tbody>'+
-      tampil.map(function(r,i){var idx=semua.indexOf(r);
-        return '<tr>'+
-          sec[3].map(function(f){return '<td><input class="pin" style="min-width:96px" value="'+esc(r[f]||'')+'" onchange="kombEdit(\''+k+'\','+idx+',\''+f+'\',this.value)"></td>';}).join('')+
-          PACK_TIERS.map(function(t,ti){return '<td><input class="pin n money" inputmode="numeric" style="min-width:74px" value="'+moneyInp((r.t||[])[ti])+'" onchange="kombEditT(\''+k+'\','+idx+','+ti+',this.value)"></td>';}).join('')+
-          '<td style="font-size:9px;color:var(--muted)">'+fmtStamp(r)+'</td>'+
-          '<td><button class="xrow" onclick="kombDel(\''+k+'\','+idx+')">✕</button></td></tr>';}).join('')+
-      '</tbody></table></div>'+
-      (potong?'<div style="font-size:10.5px;color:var(--muted);margin-top:8px">Menampilkan '+BATAS+' dari '+rows.length+' baris — pakai kotak cari di atas untuk menyaring.</div>':'')+
-      (q?'<div style="font-size:10.5px;color:var(--brand);font-weight:700;margin-top:6px">'+rows.length+' cocok dari '+semua.length+'</div>':'')
-      :'<div style="color:var(--muted);font-size:11px;padding:6px 0">Belum ada kombinasi harga. Jalankan impor dari Cost Estimator di tab <b>Produk</b>.</div>')+
-    '<button class="btn ghost sm" style="margin-top:9px" onclick="kombAdd(\''+k+'\')">＋ Tambah kombinasi</button>';}
+      '<input class="pin" style="width:auto;min-width:180px;margin-left:auto" value="'+esc(ST._kombQ||'')+'" oninput="kombCari2(this.value)" placeholder="🔍 Cari kombinasi…"></div>';
+  if(!semua.length)return h+'<div style="color:var(--muted);font-size:11px;padding:6px 0">Belum ada kombinasi harga. Jalankan impor dari Cost Estimator di tab <b>Produk</b>.</div>'+
+    '<button class="btn ghost sm" style="margin-top:9px" onclick="kombAdd(\''+k+'\')">＋ Tambah kombinasi</button>';
+  var G=kombGrupDaftar(k),nCocok=0,BATAS=60;
+  G.forEach(function(g){
+    var I=[];semua.forEach(function(r,i){if(String(r[gf]==null?'':r[gf])===g)I.push(i);});
+    var Iq=I.filter(function(i){return cocok(semua[i]);});if(q&&!Iq.length)return;nCocok+=Iq.length;
+    var key=kombKunci(k,g),buka=!!q||!!((ST._kombBuka||{})[key]);
+    var meta=attrs.map(function(f){return esc(KOMB_LABEL[f]||f)+' '+nilai(I,f).filter(Boolean).length;}).join(' · ');
+    h+='<div class="mgrp" data-f="kombGrup" data-g="'+esc(g)+'"><div class="mgrp-h" onclick="kombBuka('+jsArg(k)+','+jsArg(g)+')">'+
+      '<span class="mgrp-pan">'+(buka?'▾':'▸')+'</span><b class="mgrp-nm">'+esc(g||('(tanpa '+gl.toLowerCase()+')'))+'</b>'+
+      '<span class="mgrp-n">'+I.length+' kombinasi</span><span class="mgrp-meta">'+meta+'</span>'+
+      '<span class="mgrp-rng">'+kombRentang(I.map(function(i){return semua[i];}))+'</span></div>';
+    if(buka){
+      var F=(ST._kombFil||{})[key]||{};
+      var If=Iq.filter(function(i){return attrs.every(function(f){return !F[f]||String(semua[i][f]==null?'':semua[i][f])===F[f];});});
+      var semuaT=!!((ST._kombSemua||{})[key]),tampil=semuaT?If:If.slice(0,BATAS);
+      h+='<div class="mgrp-b"><div class="mfil">'+attrs.map(function(f){var V=nilai(I,f);if(V.length<2)return '';
+          return '<span class="mfil-k">'+esc(KOMB_LABEL[f]||f)+'</span><button class="mchip'+(!F[f]?' on':'')+'" onclick="kombFil('+jsArg(k)+','+jsArg(g)+',\''+f+'\',\'\')">semua</button>'+
+            V.map(function(v){return '<button class="mchip'+(F[f]===v?' on':'')+'" onclick="kombFil('+jsArg(k)+','+jsArg(g)+',\''+f+'\','+jsArg(v)+')">'+esc(v||'—')+'</button>';}).join('');}).join('')+'</div>'+
+        '<div class="xscroll"><table class="rtable"><thead><tr>'+
+          attrs.map(function(f){return '<th style="min-width:96px;font-size:9px">'+esc(KOMB_LABEL[f]||f)+'</th>';}).join('')+
+          PACK_TIERS.map(function(t){return '<th style="text-align:right;font-size:9px">'+esc(t.label)+'</th>';}).join('')+
+          '<th style="width:110px;font-size:9px">Diubah</th><th style="width:36px"></th></tr></thead><tbody>'+
+        tampil.map(function(i){var r=semua[i];
+          return '<tr>'+attrs.map(function(f){return '<td><input class="pin" style="min-width:96px" value="'+esc(r[f]==null?'':r[f])+'" onchange="kombEdit(\''+k+'\','+i+',\''+f+'\',this.value)"></td>';}).join('')+
+            PACK_TIERS.map(function(t,ti){return '<td><input class="pin n money" inputmode="numeric" style="min-width:74px" value="'+moneyInp((r.t||[])[ti])+'" onchange="kombEditT(\''+k+'\','+i+','+ti+',this.value)"></td>';}).join('')+
+            '<td style="font-size:9px;color:var(--muted)">'+fmtStamp(r)+'</td><td><button class="xrow" onclick="kombDel(\''+k+'\','+i+')">✕</button></td></tr>';}).join('')+
+        '</tbody></table></div>'+
+        '<div class="mgrp-akhir"><button class="btn ghost sm" data-f="kombTambahGrup" onclick="kombAddGrup('+jsArg(k)+','+jsArg(g)+')">＋ Kombinasi '+esc(g||'')+'</button>'+
+          (g?'<button class="btn ghost sm" onclick="kombGrupGanti('+jsArg(k)+','+jsArg(g)+')">✎ Ganti nama</button>':'')+
+          (If.length>BATAS?'<button class="btn ghost sm" onclick="kombSemua('+jsArg(k)+','+jsArg(g)+')">'+(semuaT?'Ringkas lagi':('Tampilkan semua '+If.length))+'</button>':'')+
+          '<span class="mgrp-ket">'+tampil.length+' dari '+I.length+' tampil</span></div></div>';}
+    h+='</div>';});
+  if(q)h+='<div style="font-size:10.5px;color:var(--brand);font-weight:700;margin-top:6px">'+nCocok+' cocok dari '+semua.length+'</div>';
+  return h+'<button class="btn ghost sm" style="margin-top:9px" data-f="kombGrupBaru" onclick="kombGrupSalin(\''+k+'\')">＋ '+esc(gl)+' baru (salin harga dari '+esc(gl.toLowerCase())+' lain)</button>';}
+
+/* ---- Collateral per TIPE (6 Okt): chip tipe, isi dikelompokkan per atribut. Nilai baru langsung masuk tipe &
+   atribut tempat tombolnya ditekan, dan bisa menyalin harga kombinasi dari nilai yang sudah ada. ---- */
+const COLL_TIPE_M=['Hardbox','Softbox','Soft Pouch','Thank You Card'];
+const COLL_ATR=['Feature','Material','Tali','Finishing','Ukuran'];
+const COLL_ATR_LBL={Feature:'Model / feature',Material:'Material',Tali:'Tali',Finishing:'Finishing',Ukuran:'Ukuran'};
+/* atribut collateral → kolom tabel Kombinasi harga; nilai gabungan "A - B" mengisi dua kolom berurutan */
+const COLL_KOMB_F={'Soft Pouch':{Feature:['model'],Material:['material'],Tali:['tali'],Finishing:['finishing'],Ukuran:['sise']},
+  'Hardbox':{Feature:['model','construction'],Finishing:['finishing'],Ukuran:['ukuran']},
+  'Softbox':{Feature:['model','construction'],Finishing:['finishing'],Ukuran:['ukuran']},
+  'Thank You Card':{Material:['material'],Finishing:['finishing','coat'],Ukuran:['sise']}};
+function collNorm(v){return String(v==null?'':v).toLowerCase().replace(/\(foil\)/g,'').replace(/collapsable/g,'collapsible').replace(/[\s\-]+/g,'');}
+function collBagian(v){return String(v==null?'':v).split(' - ').map(function(x){return x.trim();}).filter(Boolean);}
+/* indeks baris Kombinasi harga yang memakai nilai collateral ini ("Top Bottom - Standard" = model + konstruksi) */
+function collKombIdx(tipe,kind,nilai){
+  var k=kombTipe2Key(tipe),F=(COLL_KOMB_F[tipe]||{})[kind];if(!k||!F)return [];
+  var B=collBagian(nilai).map(collNorm);if(!B.length||B.length>F.length)return [];
+  var out=[];kombRows(k).forEach(function(r,i){if(B.every(function(b,j){return collNorm(r[F[j]])===b;}))out.push(i);});
+  return out;}
+/* nilai yang ada di Kombinasi harga tetapi belum jadi opsi collateral (mis. ukuran soft pouch) */
+function collBelumOpsi(tipe,kind){
+  var k=kombTipe2Key(tipe),F=(COLL_KOMB_F[tipe]||{})[kind];if(!k||!F)return [];
+  var ada=((ST.master&&ST.master.coll)||[]).filter(function(c){return c.type===tipe&&c.kind===kind;})
+    .map(function(c){return collBagian(c.value).map(collNorm).join('|');});
+  var out=[],lihat={};
+  kombRows(k).forEach(function(r){var P=F.map(function(f){return String(r[f]==null?'':r[f]).trim();});if(!P[0])return;
+    var kunci=P.map(collNorm).join('|');if(lihat[kunci])return;lihat[kunci]=1;
+    if(ada.indexOf(kunci)>=0||ada.indexOf(collNorm(P[0]))>=0)return;   // opsi satu bagian ("Print") mencakup pasangannya
+    out.push(P.filter(Boolean).join(' - '));});
+  return out;}
+function collTipeAktif(){var t=ST._collTipe;return COLL_TIPE_M.indexOf(t)>=0?t:COLL_TIPE_M[0];}
+function collTipeSet(t){ST._collTipe=t;render();}
+function collJadikanOpsi(tipe,kind,nilai){
+  if(!ST.master.coll)ST.master.coll=[];
+  ST.master.coll.push(stampRow({type:tipe,kind:kind,value:nilai}));buildCollatData();saveMaster();render();}
+function collTambah(tipe,kind){
+  var lbl=COLL_ATR_LBL[kind]||kind,F=(COLL_KOMB_F[tipe]||{})[kind];
+  var ada=((ST.master&&ST.master.coll)||[]).filter(function(c){return c.type===tipe&&c.kind===kind;});
+  var sumber=ada.filter(function(c){return collKombIdx(tipe,kind,c.value).length>0;}).map(function(c){return c.value;});
+  var fields=[{k:'nilai',label:lbl+' baru',req:true,ph:(F&&F.length>1)?'mis. '+((ada[0]||{}).value||'Nama - Standard'):'mis. '+((ada[0]||{}).value||'')}];
+  if(F&&sumber.length)fields.push({k:'salin',label:'Salin harga kombinasi dari',type:'select',val:sumber[0],
+    opts:[{v:'',l:'— tanpa harga dulu —'}].concat(sumber.map(function(x){return {v:x,l:x+' ('+collKombIdx(tipe,kind,x).length+' kombinasi)'};})),
+    hint:'Kombinasi harga untuk nilai baru dibuat dari nilai ini — tinggal ubah angkanya di tab Kombinasi harga.'});
+  askForm({judul:'＋ '+lbl+' '+tipe,sub:'Masuk ke '+tipe+' → '+lbl,fields:fields,ok:function(v){
+    var nilai=String(v.nilai||'').trim();if(!nilai)return;
+    if(ada.some(function(c){return collNorm(c.value)===collNorm(nilai);})){alert(lbl+' "'+nilai+'" sudah ada di '+tipe+'.');return;}
+    if(!ST.master.coll)ST.master.coll=[];
+    ST.master.coll.push(stampRow({type:tipe,kind:kind,value:nilai}));
+    var n=0;
+    if(v.salin&&F){var k=kombTipe2Key(tipe),A=kombRows(k),Bn=collBagian(nilai);
+      collKombIdx(tipe,kind,v.salin).forEach(function(i){var c=JSON.parse(JSON.stringify(A[i]));delete c._u;delete c._by;delete c._del;
+        F.forEach(function(f,j){if(Bn[j]!==undefined)c[f]=Bn[j];});c.kombinasi=kombNama(k,c);A.push(stampRow(c));n++;});}
+    buildCollatData();saveMaster();render();
+    if(n)alert('✓ '+lbl+' "'+nilai+'" ditambahkan ke '+tipe+' — '+n+' kombinasi harga disalin dari '+v.salin+'.');}});}
+function collPanel(actCell){
+  var C=(ST.master&&ST.master.coll)||[],tipe=collTipeAktif();
+  var h='<div style="font-size:10.5px;color:var(--muted);margin-bottom:9px">Opsi collateral per <b>tipe</b>, dikelompokkan per atribut — sumber dropdown di baris pricing. '+
+      'Klik <b>📷</b> untuk unggah gambar; gambar ikut tampil di <b>quotation, invoice &amp; PO</b>. Nilai baru langsung masuk tipe &amp; atribut tempat tombolnya ditekan.</div>'+
+    '<div style="display:flex;flex-wrap:wrap;gap:7px;margin-bottom:11px">'+COLL_TIPE_M.map(function(t){
+      return '<button class="btn '+(t===tipe?'':'ghost')+' sm" onclick="collTipeSet('+jsArg(t)+')">'+esc(t)+' ('+C.filter(function(c){return c.type===t;}).length+')</button>';}).join('')+
+      '<button class="btn sm" style="margin-left:auto" onclick="syncEstMaster()">⟳ Tarik dari Cost Estimator</button></div>';
+  var kinds=COLL_ATR.slice();C.forEach(function(c){if(c.type===tipe&&c.kind&&kinds.indexOf(c.kind)<0)kinds.push(c.kind);});
+  kinds.forEach(function(kind){
+    var I=[];C.forEach(function(c,i){if(c.type===tipe&&c.kind===kind)I.push(i);});
+    var F=(COLL_KOMB_F[tipe]||{})[kind],belum=collBelumOpsi(tipe,kind),lbl=COLL_ATR_LBL[kind]||kind;
+    if(!I.length&&!belum.length&&!F)return;      // atribut yang memang tak dipakai tipe ini (mis. Tali di Hardbox)
+    h+='<div class="mgrp" data-f="collAtr" data-k="'+esc(kind)+'"><div class="mgrp-h" style="cursor:default"><b class="mgrp-nm">'+esc(lbl)+'</b><span class="mgrp-n">'+I.length+'</span>'+
+      (belum.length?'<span class="mgrp-meta">'+belum.length+' ada di Kombinasi harga, belum jadi opsi</span>':'')+
+      '<button class="btn ghost sm" style="margin-left:auto" data-f="collTambah" onclick="collTambah('+jsArg(tipe)+','+jsArg(kind)+')">＋ '+esc(lbl)+' '+esc(tipe)+'</button></div>';
+    h+='<div class="mgrp-b">'+(I.length?'<div class="xscroll"><table class="rtable" style="table-layout:fixed"><thead><tr><th style="width:24px"></th><th style="width:84px;font-size:9px">Gambar</th><th>Nilai</th><th style="width:140px;font-size:9px">Atribut</th><th style="width:120px;font-size:9px">Kombinasi harga</th><th style="width:120px;font-size:9px">Diubah</th><th style="width:60px"></th></tr></thead><tbody>'+
+      I.map(function(i){var r=C[i],n=F?collKombIdx(tipe,kind,r.value).length:0;
+        return '<tr ondragover="mSeretLewat(event)" ondrop="mSeretJatuh(\'coll\','+i+',event)"'+(r._del?' style="opacity:.55;background:var(--warn-bg)"':'')+'>'+
+          '<td draggable="true" ondragstart="mSeretMulai(\'coll\','+i+',event)" style="cursor:grab;color:var(--muted);text-align:center;font-size:12px;user-select:none" title="seret untuk mengubah urutan">⋮⋮</td>'+
+          mImgCell('coll',i,r)+
+          '<td><input class="pin" value="'+esc(r.value)+'" onchange="mEdit(\'coll\','+i+',\'value\',this.value);render()" placeholder="Nilai"></td>'+
+          '<td><select class="pin" onchange="mEdit(\'coll\','+i+',\'kind\',this.value);render()">'+
+            COLL_ATR.concat(COLL_ATR.indexOf(r.kind)<0?[r.kind]:[]).map(function(a){return '<option value="'+esc(a)+'" '+(a===r.kind?'selected':'')+'>'+esc(COLL_ATR_LBL[a]||a)+'</option>';}).join('')+'</select></td>'+
+          '<td style="font-size:10px">'+(F?(n?('<b>'+n+'</b> kombinasi'):'<span class="tlabel" style="background:var(--warn)">tanpa harga</span>'):'<span style="color:var(--muted)">—</span>')+'</td>'+
+          '<td style="font-size:9px;color:var(--muted)">'+fmtStamp(r)+'</td>'+actCell('coll',i,r)+'</tr>';}).join('')+'</tbody></table></div>':'')+
+      (belum.length?'<div class="mfil" style="margin:6px 0 0"><span class="mfil-k">Belum jadi opsi</span>'+belum.map(function(b){
+        return '<button class="mchip" data-f="collJadikan" title="jadikan opsi" onclick="collJadikanOpsi('+jsArg(tipe)+','+jsArg(kind)+','+jsArg(b)+')">＋ '+esc(b)+'</button>';}).join('')+'</div>':'')+
+      ((!I.length&&!belum.length)?'<div style="font-size:10.5px;color:var(--muted)">Belum ada opsi.</div>':'')+
+      '</div></div>';});
+  return h;}
+
+/* ---- Produk per PRODUK (6 Okt): chip kelompok seperti Jasa; satu baris ringkas per produk, dibuka untuk warna yang
+   tersedia & harga khusus per warna. Kelompok diturunkan dari nama bila kolom kategori kosong. ---- */
+const PROD_KAT_PROYEK='Proyek / custom';
+const PROD_KAT_KATA=[['passport','Passport'],['card','Card wallet & case'],['luggage tag','Luggage & ID tag'],['id tag','Luggage & ID tag'],
+  ['key','Keychain & key case'],['pouch','Pouch, bag & clutch'],['clutch','Pouch, bag & clutch'],['bag','Pouch, bag & clutch'],
+  ['tote','Pouch, bag & clutch'],['toiletries','Pouch, bag & clutch'],['tray','Home & desk'],['coaster','Home & desk'],['wine','Home & desk'],
+  ['mirror','Home & desk'],['frame','Home & desk'],['menu book','Home & desk'],['desk','Home & desk']];
+function prodKat(r){var k=String((r&&r.kategori)||'').trim();if(k)return k;
+  var n=' '+String((r&&r.name)||'').toLowerCase()+' ';
+  if((r&&r.jenis)==='Custom'||n.indexOf(' for ')>=0)return PROD_KAT_PROYEK;      // "Tray for <nama client>" = produk proyek
+  for(var i=0;i<PROD_KAT_KATA.length;i++)if(n.indexOf(PROD_KAT_KATA[i][0])>=0)return PROD_KAT_KATA[i][1];
+  return 'Aksesori lain';}
+function prodKatAktif(){return ST._prodKat||'*';}
+function prodKatSet(k){ST._prodKat=k;render();}
+function prodBuka(i){ST._prodBuka=ST._prodBuka||{};ST._prodBuka[i]=!ST._prodBuka[i];render();}
+function prodKatalog(nama){var n=String(nama||'').trim().toLowerCase();if(!n)return null;
+  return ((ST.master&&ST.master.catalog)||[]).find(function(x){return String(x.name||'').trim().toLowerCase()===n;})||null;}
+function prodWarnaDaftar(p){return (p&&Array.isArray(p.warna))?p.warna.map(function(w){return String(w||'').trim();}).filter(Boolean):[];}
+function prodHargaWarna(r){return (r&&Array.isArray(r.hargaWarna))?r.hargaWarna:[];}
+function prodWarnaTog(i,w){var r=(ST.master.catalog||[])[i];if(!r)return;var a=prodWarnaDaftar(r),k=a.indexOf(w);
+  if(k>=0)a.splice(k,1);else a.push(w);
+  if(a.length)r.warna=a;else delete r.warna;stampRow(r);saveMaster();render();}
+function prodWarnaTambah(i){var r=(ST.master.catalog||[])[i];if(!r)return;
+  askForm({judul:'＋ Warna — '+(r.name||'produk'),sub:'Warna ini jadi saran pertama di kolom warna spec untuk produk ini.',
+    fields:[{k:'w',label:'Nama warna',req:true,ph:'mis. Olive'},{k:'umum',label:'Tambahkan juga ke daftar warna umum (Opsi form)',type:'checkbox',val:true}],
+    ok:function(v){var w=String(v.w||'').trim();if(!w)return;var a=prodWarnaDaftar(r);
+      if(a.some(function(x){return x.toLowerCase()===w.toLowerCase();})){alert('Warna "'+w+'" sudah ada di produk ini.');return;}
+      a.push(w);r.warna=a;stampRow(r);
+      if(v.umum&&listArr('warna').every(function(x){return String(x).toLowerCase()!==w.toLowerCase();})){
+        if(!ST.master.warna)ST.master.warna=[];ST.master.warna.push(stampRow({v:w}));}
+      saveMaster();render();}});}
+function prodHwTambah(i){var r=(ST.master.catalog||[])[i];if(!r)return;
+  var W=prodWarnaDaftar(r).concat(listArr('warna')).filter(function(x,j,a){return a.indexOf(x)===j;});
+  if(!W.length){alert('Belum ada warna — tambah warna dulu.');return;}
+  askForm({judul:'＋ Harga khusus — '+(r.name||'produk'),sub:'Untuk warna yang harganya beda dari harga produk. Tingkatannya disalin dari harga produk; ubah yang berbeda.',
+    fields:[{k:'w',label:'Warna',type:'select',opts:W,val:W[0],req:true}],
+    ok:function(v){var w=String(v.w||'').trim();if(!w)return;var H=prodHargaWarna(r);
+      if(H.some(function(x){return String(x.warna||'').toLowerCase()===w.toLowerCase();})){alert('Harga khusus '+w+' sudah ada.');return;}
+      H.push({warna:w,t:(r.t||[0,0,0,0,0,0,0]).slice()});r.hargaWarna=H;
+      if(prodWarnaDaftar(r).length&&prodWarnaDaftar(r).indexOf(w)<0)r.warna=prodWarnaDaftar(r).concat([w]);
+      stampRow(r);saveMaster();render();}});}
+function prodHwEdit(i,j,ti,v){var r=(ST.master.catalog||[])[i];if(!r)return;var h=prodHargaWarna(r)[j];if(!h)return;
+  if(!h.t)h.t=[];h.t[ti]=(String(v==null?'':v).trim()==='')?null:moneyVal(v);stampRow(r);saveMaster();}
+function prodHwDel(i,j){var r=(ST.master.catalog||[])[i];if(!r)return;var H=prodHargaWarna(r);if(!H[j])return;
+  if(!confirm('Hapus harga khusus '+H[j].warna+'?'))return;
+  H.splice(j,1);if(H.length)r.hargaWarna=H;else delete r.hargaWarna;stampRow(r);saveMaster();render();}
+function prodRentang(t){var a=(t||[]).filter(function(v){return v!=null&&+v>0;}).map(Number);if(!a.length)return '—';
+  var mn=Math.min.apply(null,a),mx=Math.max.apply(null,a);return mn===mx?fmt0(mn):(fmt0(mn)+' – '+fmt0(mx).replace('Rp ',''));}
+function prodImgKecil(r){var st='width:38px;height:38px;object-fit:cover;border-radius:7px;border:1px solid var(--line)';
+  return r.img?imgTag(r.img,st,'onclick="event.stopPropagation();openLB(this.src)"')
+    :'<span style="display:inline-block;width:38px;height:38px;border-radius:7px;border:1px dashed var(--line)"></span>';}
+function prodDaftar(CT){
+  var kat=prodKatAktif(),cnt={};CT.forEach(function(r){var k=prodKat(r);cnt[k]=(cnt[k]||0)+1;});
+  var K=Object.keys(cnt).sort(function(a,b){if(a===PROD_KAT_PROYEK)return 1;if(b===PROD_KAT_PROYEK)return -1;return cnt[b]-cnt[a]||a.localeCompare(b);});
+  if(kat!=='*'&&!cnt[kat])kat='*';
+  var chip=function(k,lbl,n){return '<button class="btn '+(kat===k?'':'ghost')+' sm" onclick="prodKatSet('+jsArg(k)+')">'+esc(lbl)+' <span style="opacity:.7">('+n+')</span></button>';};
+  var h='<div style="display:flex;flex-wrap:wrap;gap:7px;margin-bottom:11px">'+chip('*','Semua',CT.length)+K.map(function(k){return chip(k,k,cnt[k]);}).join('')+'</div>';
+  if(!CT.length)return h+'<div style="color:var(--muted);font-size:11px;padding:6px 0">Belum ada. Klik “Tarik dari Cost Estimator”.</div>';
+  var terselip=CT.filter(function(r){return prodKat(r)===PROD_KAT_PROYEK&&(r.jenis||'Katalog')!=='Custom'&&!String(r.kategori||'').trim();}).length;
+  if(kat===PROD_KAT_PROYEK&&terselip)h+='<div style="font-size:10.5px;color:var(--brand-dark);background:var(--warn-bg);border:1px solid var(--line);border-radius:8px;padding:7px 10px;margin-bottom:9px">'+
+    terselip+' produk berjenis Katalog bernama “… for …” — dikelompokkan di sini otomatis. Ubah Jenis-nya ke Custom bila memang produk proyek.</div>';
+  var I=[];CT.forEach(function(r,i){if(kat==='*'||prodKat(r)===kat)I.push(i);});
+  h+='<div class="mprod">';
+  I.forEach(function(i){var r=CT[i],buka=!!((ST._prodBuka||{})[i]),W=prodWarnaDaftar(r),H=prodHargaWarna(r);
+    var uk=r.ukuranTeks||((r.pjg&&r.lbr)?(r.pjg+' x '+r.lbr+(r.tgi?(' x '+r.tgi):'')+' cm'):'');
+    h+='<div class="mprod-r'+(r._del?' mprod-del':'')+'" data-f="prodBaris" data-i="'+i+'" onclick="prodBuka('+i+')">'+prodImgKecil(r)+
+      '<div class="mprod-nm"><b>'+esc(r.name||'(tanpa nama)')+'</b>'+((r.jenis||'Katalog')==='Custom'?' <span class="tlabel" style="background:#6a6f8a">Custom</span>':'')+
+        '<div class="mgrp-meta">'+esc(r.material||'—')+'</div></div>'+
+      '<div class="mprod-w">'+(W.length?esc(W.slice(0,3).join(', ')+(W.length>3?(' +'+(W.length-3)):'')):'<span class="mgrp-meta">semua warna</span>')+
+        (H.length?' <span class="tlabel" style="background:var(--warn)">'+H.length+' harga khusus</span>':'')+'</div>'+
+      '<div class="mprod-uk mgrp-meta">'+esc(uk)+'</div><div class="mprod-rng">'+prodRentang(r.t)+'</div><span class="mgrp-pan">'+(buka?'▾':'▸')+'</span></div>';
+    if(buka)h+=prodEditor(CT,i);});
+  return h+'</div>';}
+function prodEditor(CT,i){
+  var r=CT[i],W=prodWarnaDaftar(r),H=prodHargaWarna(r),U=listArr('warna');
+  var semuaW=W.concat(U.filter(function(x){return W.indexOf(x)<0;}));
+  var katL=[];CT.forEach(function(x){var k=prodKat(x);if(katL.indexOf(k)<0)katL.push(k);});
+  var inp=function(f,lbl,lebar,num){return '<label class="nlbl" style="flex:0 0 '+lebar+'px">'+lbl+'<input class="pin'+(num?' n':'')+'" '+(num?'type="number" step="0.1" ':'')+
+    'style="margin-top:3px" value="'+esc(r[f]==null?'':r[f])+'" onchange="mEdit(\'catalog\','+i+',\''+f+'\','+(num?'(+this.value||0)':'this.value')+')"></label>';};
+  var hapus=r._del
+    ?(ST.user==='Holding'
+      ?('<span style="font-size:9.5px;color:var(--warn);font-weight:700" title="Alasan: '+esc(r._del.reason)+'">minta hapus</span> <button class="xrow" style="color:var(--ok)" title="setujui hapus" onclick="delApprove(\'catalog\','+i+')">✓</button><button class="xrow" title="tolak" onclick="delReject(\'catalog\','+i+')">↺</button>')
+      :'<span style="font-size:9.5px;color:var(--warn);font-weight:700">menunggu Holding</span>')
+    :'<button class="btn ghost sm" onclick="mDel(\'catalog\','+i+')">✕ '+(ST.user==='Holding'?'Hapus':'Ajukan hapus')+'</button>';
+  var tierHead='<tr><th>Harga</th>'+CATALOG_TIERS.map(function(t){return '<th style="text-align:right;font-size:9px">'+esc(t.label)+'</th>';}).join('')+'<th></th></tr>';
+  return '<div class="mprod-ed" onclick="event.stopPropagation()" data-f="prodEditor" data-i="'+i+'">'+
+    '<div style="display:flex;flex-wrap:wrap;gap:9px;align-items:flex-end">'+
+      inp('name','Produk',220)+
+      '<label class="nlbl" style="flex:0 0 110px">Jenis<select class="pin" style="margin-top:3px" onchange="mEdit(\'catalog\','+i+',\'jenis\',this.value);render()">'+
+        ['Katalog','Custom'].map(function(j){return '<option '+(((r.jenis||'Katalog')===j)?'selected':'')+'>'+j+'</option>';}).join('')+'</select></label>'+
+      '<label class="nlbl" style="flex:0 0 170px">Kelompok<input class="pin" list="prodKatDl" style="margin-top:3px" value="'+esc(r.kategori||'')+'" placeholder="'+esc(prodKat({name:r.name,jenis:r.jenis}))+'" onchange="mEdit(\'catalog\','+i+',\'kategori\',this.value);render()"></label>'+
+      inp('material','Material',170)+inp('pjg','P cm',62,1)+inp('lbr','L cm',62,1)+inp('tgi','T cm',62,1)+inp('berat','Berat g',72,1)+
+      '<div style="margin-left:auto;display:flex;gap:6px;align-items:center;flex-wrap:wrap">'+
+        '<button class="btn ghost sm" onclick="mImgUpload(\'catalog\','+i+')">📷 '+(r.img?'Ganti gambar':'Gambar')+'</button>'+
+        (r.img?'<button class="xrow" title="hapus gambar" onclick="mImgDel(\'catalog\','+i+')">✕</button>':'')+hapus+'</div></div>'+
+    '<div class="xscroll" style="margin-top:9px"><table class="rtable"><thead>'+tierHead+'</thead><tbody>'+
+      '<tr><td style="white-space:nowrap"><b>Harga produk</b> <span style="font-size:9px;color:var(--muted)">semua warna</span></td>'+
+        (r.t||[0,0,0,0,0,0,0]).map(function(v,ti){return '<td><input class="pin n money" inputmode="numeric" style="min-width:72px" value="'+moneyInp(v)+'" onchange="mEditTier('+i+','+ti+',this.value)"></td>';}).join('')+'<td></td></tr>'+
+      H.map(function(x,j){return '<tr style="background:var(--warn-bg)"><td style="white-space:nowrap">Harga khusus <b>'+esc(x.warna||'')+'</b></td>'+
+        CATALOG_TIERS.map(function(t,ti){return '<td><input class="pin n money" inputmode="numeric" style="min-width:72px" value="'+moneyInp((x.t||[])[ti])+'" onchange="prodHwEdit('+i+','+j+','+ti+',this.value)"></td>';}).join('')+
+        '<td><button class="xrow" title="hapus harga khusus" onclick="prodHwDel('+i+','+j+')">✕</button></td></tr>';}).join('')+
+    '</tbody></table></div>'+
+    '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:7px"><button class="btn ghost sm" data-f="prodHwTambah" onclick="prodHwTambah('+i+')">＋ Harga khusus warna</button></div>'+
+    '<div style="margin-top:10px"><div class="nlbl" style="margin-bottom:5px">Warna tersedia <span style="font-weight:400;text-transform:none;color:var(--muted)">— '+
+      (W.length?'jadi saran pertama di kolom warna spec produk ini':'kosong = semua warna umum')+'</span></div><div class="mfil" style="margin:0">'+
+      semuaW.map(function(w){var on=W.indexOf(w)>=0;return '<button class="mchip'+(on?' on':'')+'" onclick="prodWarnaTog('+i+','+jsArg(w)+')">'+(on?'✓ ':'')+esc(w)+'</button>';}).join('')+
+      '<button class="btn ghost sm" data-f="prodWarnaTambah" onclick="prodWarnaTambah('+i+')">＋ Warna</button></div></div>'+
+    '<div style="font-size:9px;color:var(--muted);margin-top:8px">Diubah '+fmtStamp(r)+'</div>'+
+    '<datalist id="prodKatDl">'+katL.map(function(k){return '<option value="'+esc(k)+'">';}).join('')+'</datalist></div>';}
+/* harga produk mengikuti warna bahannya bila Master Product punya harga khusus warna itu (6 Okt) */
+function prodTiersWarna(p,warna){if(!p)return null;var w=String(warna||'').trim().toLowerCase();
+  if(w){var h=prodHargaWarna(p).find(function(x){return x&&String(x.warna||'').trim().toLowerCase()===w&&Array.isArray(x.t)&&x.t.some(function(v){return +v>0;});});
+    if(h)return h.t;}
+  return Array.isArray(p.t)?p.t:null;}
+/* baris katalog (fixed): tier & HPP mengikuti warna bahannya; HPP yang diketik sendiri tak disentuh */
+function katalogHppSegarkan(o,l){
+  if(!l||!l.fixed||l._hppManual)return false;
+  var p=prodKatalog(l.produk);if(!p)return false;
+  var t=prodTiersWarna(p,spekVal(o,l,'mainMatWarna'));if(!t)return false;
+  var lama=JSON.stringify(l.tiers||null);l.tiers=t.slice();
+  var h=catPriceT(l.tiers,l.qty||0);if(h>0)l.hpp=h;
+  return lama!==JSON.stringify(l.tiers);}
 
 /* Ringkasan impor terakhir + konfigurasi yang ikut terbawa dari Estimator. */
 function imporStatus(){
@@ -21843,6 +22201,7 @@ function addFromCatalog(id,i){
   o.pricing.lines.push({produk:item.name,bahan:item.material||'Katalog',sumber:'Radja Leather',qty:qty,
     hpp:hppKat,jual:Math.round(hppKat*(1+(((o.pricing||{}).margin)||30)/100)),
     perso:'',img:(item&&item.img)||'',fixed:true,tiers:(item&&item.t)||null});
+  try{katalogHppSegarkan(o,o.pricing.lines[o.pricing.lines.length-1]);}catch(e){}   // warna brief sudah ada → harga khususnya
   logHist(o,'Item katalog ditambah: '+item.name+' × '+qty+' pcs');
   kembaliKePricingVendor(o,'Item katalog ditambah: '+item.name+' × '+qty+' pcs');
   o._m=Date.now();save();render();
@@ -22044,6 +22403,8 @@ function salesRingkasBlok(o){
 function briefGet(o){if(!o.brief)o.brief={fitur:['','','']};if(!o.brief.fitur)o.brief.fitur=['','',''];return o.brief;}
 function briefSet(id,f,v){var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
   briefGet(o)[f]=v;o._m=Date.now();
+  /* warna bawaan brief dipakai baris katalog yang tak punya warna sendiri — harga khusus warnanya ikut */
+  if(f==='mainMatWarna'){try{lineProduk(o).forEach(function(x){katalogHppSegarkan(o,x.l);});}catch(e){}}
   /* kemasan dicentang belakangan pun vendornya ikut masuk antrean harga */
   if(['boxAda','pouchAda','cardAda'].indexOf(f)>=0){try{barisVendorLengkapi(o);}catch(e){}}
   /* tanggal acara dipakai dua tempat: kolom Brief dan o.eventDate yang jadi
@@ -22682,7 +23043,11 @@ function briefPanel(o){
             return '<label class="nlbl">Warna main material'+
               '<button type="button" class="btn ghost sm" style="width:100%;margin-top:3px;text-align:left;font-size:10.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" '+
               'title="diatur per varian — klik untuk mengubah" onclick="bagiWarna('+jsArg(o.id)+','+li+')">⑂ '+V.length+' varian — '+esc(teks)+'</button></label>';})()
-          :inp('mainMatWarna','Warna main material','spekDlW');
+          :(function(){var pw=prodWarnaDaftar(prodKatalog(l.produk));
+              if(!pw.length)return inp('mainMatWarna','Warna main material','spekDlW');
+              var sw=pw.concat(listArr('warna').filter(function(x){return pw.indexOf(x)<0;}));
+              return '<datalist id="spekDlWp'+li+'">'+sw.map(function(x){return '<option value="'+esc(x)+'">';}).join('')+'</datalist>'+
+                inp('mainMatWarna','Warna main material','spekDlWp'+li);})();
         var dyeL=/dye|celup/i.test(g('finishing')||'');
         return '<div style="border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:10px;background:var(--bg)">'+
           '<div style="display:flex;gap:8px;align-items:baseline;margin-bottom:7px">'+
