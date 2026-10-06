@@ -167,6 +167,28 @@
   .metric .ms{font-size:10px;color:var(--muted);margin-top:2px}
   .rcard{background:var(--panel);border:1px solid var(--line);border-radius:13px;box-shadow:var(--shadow);padding:14px 16px;margin-bottom:16px}
   .rcard h3{font-size:13px;font-weight:800;color:var(--hub);margin-bottom:10px}
+  /* kotak masuk administrasi (robot administrasi) */
+  .adm-note{font-size:10.5px;color:var(--muted);line-height:1.6;margin-bottom:8px}
+  .adm-muted{color:var(--muted);font-size:10px}
+  .adm-robot{font-size:11px;margin-bottom:8px}.adm-robot>span{color:var(--muted)}
+  .adm-chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:5px}
+  .adm-chip{font-size:9.5px;font-weight:800;background:var(--bg);border:1px solid var(--line);border-radius:20px;padding:1px 8px;color:var(--muted)}.adm-chip.on{background:var(--warn-bg);color:var(--brand-dark);border-color:transparent}
+  .adm-badge{font-size:10px;font-weight:800;color:var(--muted);background:var(--bg);border-radius:20px;padding:1px 8px}.adm-badge.on{color:#2b1d0e;background:var(--gold)}
+  .adm-fakta{border-top:1px dashed var(--line);padding-top:8px;margin:8px 0}
+  .adm-sub{font-size:10px;font-weight:800;color:var(--muted);margin:8px 0 3px;letter-spacing:.03em}
+  .adm-fline{font-size:11px;padding:3px 0;border-bottom:1px dashed var(--line)}
+  .adm-grp{display:flex;align-items:center;gap:8px;margin:12px 0 5px;font-size:11px;font-weight:800;color:var(--brand)}.adm-grp .adm-n{font-size:10px;color:var(--muted);background:var(--bg);border:1px solid var(--line);border-radius:20px;padding:0 7px}.adm-grp:after{content:'';flex:1;height:1px;background:var(--line)}
+  .adm-row{display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-bottom:1px dashed var(--line)}
+  .adm-main{flex:1;min-width:0;font-size:11px;line-height:1.55}.adm-head{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+  .adm-link{color:var(--brand);font-weight:700;text-decoration:none;font-family:ui-monospace,monospace;font-size:10px}
+  .adm-pri{font-size:9px;font-weight:800;border-radius:20px;padding:0 6px;background:var(--bg);color:var(--muted)}.adm-pri-tinggi{background:var(--red-bg);color:var(--red)}.adm-pri-sedang{background:var(--warn-bg);color:var(--brand-dark)}
+  .adm-src{font-size:9.5px;color:var(--muted);margin-top:2px}
+  .adm-pilih{display:flex;flex-direction:column;gap:3px;margin-top:5px;font-size:11px}.adm-pilih label{display:flex;gap:6px;align-items:center;flex-wrap:wrap}.adm-pilih input{width:auto;accent-color:var(--brand)}
+  .adm-btns{display:flex;flex-direction:column;gap:5px;flex:0 0 auto}
+  .adm-kosong{font-size:11px;color:var(--ok);margin:8px 0}
+  .adm-lagi{margin:6px 0 2px}
+  .adm-tunda{margin-top:10px;font-size:11px}.adm-tunda summary{cursor:pointer;font-weight:800;color:var(--muted)}
+  @media(max-width:520px){.adm-row{flex-direction:column}.adm-btns{flex-direction:row;flex-wrap:wrap}.adm-main{font-size:12px}.adm-pilih{font-size:12px}}
   .rtable{width:100%;border-collapse:collapse;font-size:11.5px}
   .rtable th{text-align:left;color:var(--muted);font-weight:800;font-size:10px;text-transform:uppercase;padding:6px 8px;border-bottom:1px solid var(--line)}
   .rtable td{padding:7px 8px;border-bottom:1px solid var(--line)}
@@ -840,7 +862,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20260929-115155';
+const VERSI='20261006-153429';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -979,6 +1001,29 @@ const BULAN_EN={Januari:'January',Februari:'February',Maret:'March',April:'April
 
 /* Aturan untuk kalimat yang mengandung angka — dicoba setelah kamus persis gagal. */
 const EN_RULES=[
+  /* kotak masuk administrasi */
+  [/^(\d+) usulan terbuka$/,function(m,n){return n+' open proposal'+(+n===1?'':'s');}],
+  [/^(\d+) fakta$/,function(m,n){return n+' fact'+(+n===1?'':'s');}],
+  [/^(\d+) usulan$/,function(m,n){return n+' proposal'+(+n===1?'':'s');}],
+  [/^(\d+) kartu cocok$/,function(m,n){return n+' card'+(+n===1?'':'s')+' matched';}],
+  [/^(\d+) nama tak cocok$/,function(m,n){return n+' unmatched name'+(+n===1?'':'s');}],
+  [/^(\d+) diterapkan hari ini$/,function(m,n){return n+' applied today';}],
+  [/^(\d+) sudah diterapkan$/,function(m,n){return n+' already applied';}],
+  [/^(\d+) siap diterapkan$/,function(m,n){return n+' ready to apply';}],
+  [/^(\d+) terisi berbeda — robot mengusulkan$/,function(m,n){return n+' filled differently — the robot proposes';}],
+  [/^(\d+) kartu belum ada$/,function(m,n){return n+' without a card yet';}],
+  [/^(\d+) sudah diputus$/,function(m,n){return n+' decided';}],
+  [/^Ditunda \((\d+)\)$/,function(m,n){return 'Postponed ('+n+')';}],
+  [/^\+ (\d+) lagi$/,function(m,n){return '+ '+n+' more';}],
+  [/^Tampilkan (\d+) lainnya$/,function(m,n){return 'Show '+n+' more';}],
+  [/^tahap (\d+)$/,function(m,n){return 'stage '+n;}],
+  [/^✓ Fakta administrasi diterapkan ke (\d+) kartu\.$/,function(m,n){return '✓ Administration facts applied to '+n+' card'+(+n===1?'':'s')+'.';}],
+  [/^Gagal menerapkan usulan: (.*)$/,function(m,x){return 'Could not apply the proposal: '+x;}],
+  [/^Usulan ini sudah diputus \((.*)\)\.$/,function(m,x){return 'This proposal was already decided ('+x+').';}],
+  [/^Dari administrasi: (.*)$/,function(m,x){return 'From administration: '+x;}],
+  [/^Dibuat dari administrasi: (.*)$/,function(m,x){return 'Created from administration: '+x;}],
+  [/^Fase → (.+) \(administrasi: (.*); sebelumnya (.+)\)(.*)$/,function(m,a,b,c,d){return 'Phase → '+a+' (administration: '+b+'; previously '+c+')'+d;}],
+  [/^Order dibatalkan \((.*)\) — administrasi: (.*)$/,function(m,a,b){return 'Order cancelled ('+a+') — administration: '+b;}],
   [/^PO kartu induk (.*) tetap berlaku — tidak ada PO baru$/,function(m,n){return 'The parent card PO '+n+' still applies — no new PO';}],
   [/^Kartu susulan ini memakai PO kartu induk(?: \((.*)\))? — tidak ada PO baru\. Dokumen PO ada di kartu induk\.$/,function(m,n){return 'This follow-up card uses the parent card PO'+(n?(' ('+n+')'):'')+' — no new PO. The PO document is on the parent card.';}],
   /* kartu susulan */
@@ -1170,6 +1215,22 @@ const EN_RULES=[
 
 /* Kamus persis. Kunci = teks Indonesia apa adanya yang muncul di layar. */
 const EN={
+'📥 Kotak masuk administrasi':'📥 Administration inbox','Kotak masuk administrasi':'Administration inbox',
+'Fakta (data tanpa keputusan) diterapkan sendiri ke kartu — nomor SO, invoice, PO, uang masuk, pengiriman, tanggal diterima & acara. Yang butuh keputusan tampil di bawah.':'Facts (data that needs no decision) are applied to the cards automatically — SO, invoice and PO numbers, client payments, shipments, received and event dates. Whatever needs a decision is listed below.',
+'Robot administrasi belum pernah menulis ke sini — jalankan jalankan.py di komputer yang punya folder administrasi.':'The administration robot has not written here yet — run jalankan.py on the computer that has the administration folder.',
+'Robot terakhir jalan':'Robot last ran','Diterapkan hari ini':'Applied today','⚡ Terapkan fakta sekarang':'⚡ Apply the facts now',
+'Hanya Holding, Direktur Utama, dan Finance yang memutuskan di sini.':'Only Holding, the Managing Director and Finance decide here.',
+'Tidak ada usulan yang menunggu keputusan.':'No proposals are waiting for a decision.',
+'Cocokkan nama client':'Match client name','Kartu baru':'New card','Pindah fase':'Phase change','Cancel order':'Cancel order','Nilai berbeda':'Different value','Pembayaran ke vendor':'Vendor payment','Kemungkinan dobel':'Possible duplicate','Info':'Info',
+'✓ Setujui':'✓ Approve','Ringkas lagi':'Show fewer','⏸ Tunda':'⏸ Postpone','Ditunda':'Postponed','kartu belum ada':'no card yet','bukan client HUB':'not a HUB client','buat kartu baru':'create a new card',
+'tinggi':'high','sedang':'medium','rendah':'low','→ administrasi':'→ administration','mirip':'similar to','robot administrasi':'administration robot',
+'No. PO':'PO no.','tanggal PO':'PO date','deadline Radja':'Radja deadline','No. invoice DP':'Deposit invoice no.','No. invoice pelunasan':'Final invoice no.','tanggal DP':'Deposit date','tanggal pelunasan':'Final payment date','tanggal acara':'Event date','tanggal diterima':'Received date','(kosong)':'(empty)',
+'Tidak ada fakta baru yang bisa diterapkan.':'There are no new facts to apply.','Usulan ini sudah tidak ada di kotak masuk.':'This proposal is no longer in the inbox.',
+'Keputusan kotak masuk administrasi hanya untuk Holding, Direktur Utama, dan Finance.':'Administration inbox decisions are for Holding, the Managing Director and Finance only.',
+'Pilih dulu kartu yang cocok, "bukan client HUB", atau "buat kartu baru".':'First pick the matching card, "not a HUB client" or "create a new card".',
+'Kartunya tidak ada lagi di HUB (terhapus / Cancel).':'The card is no longer in HUB (deleted / cancelled).','Kartu pilihan tidak ditemukan.':'The chosen card was not found.',
+'Kartu susulan masih berjalan — batalkan manual sesudah kartu susulan selesai atau dihapus.':'A follow-up card is still running — cancel manually once the follow-up card is finished or deleted.',
+'Nominal pembayaran vendor kosong.':'The vendor payment amount is empty.',
 'Target kirim sudah lewat — isi tanggal ke depan.':'The target ship date has passed — enter a future date.',
 'DICATAT DI KARTU INDUK':'RECORDED ON THE PARENT CARD','Kartu susulan tidak ditagih sendiri — DP, pelunasan, invoice, dan SO dicatat di kartu induk.':'A follow-up card is not billed on its own — the deposit, final payment, invoices and SO are recorded on the parent card.','Pembayaran client kartu susulan dicatat di kartu induk — DP, pelunasan, invoice, dan SO ada di sana.':'Client payments for a follow-up card are recorded on the parent card — the deposit, final payment, invoices and SO are there.','Quotation dan invoice dibuat di kartu induk — kartu susulan tidak ditagih sendiri.':'Quotations and invoices are made on the parent card — a follow-up card is not billed on its own.','↳ Termasuk kredit':'↳ Includes a credit of','dari pembayaran di kartu induk':'from payments on the parent card','— bukan uang baru, tak masuk kas & cashflow':'— not new money; not counted in cash or cash flow','✂ Kredit ke':'✂ Credit to','— tagihan barang yang dipindah ikut kartu susulan; pembayaran di sini tetap tercatat utuh':'— the bill for the moved items follows the follow-up card; payments here stay recorded in full','Tagihan vendor':'Vendor bill','· kredit dari kartu induk':'· credit from the parent card','· sisa':'· remaining','qty & nilai di kartu induk':'qty & value on the parent card',
 'Arsip channel Discord':'Discord channel archive','Channel Discord kartu susulan adalah channel kartu induk — diarsipkan otomatis sekali, saat kartu terakhir keluarga ini selesai.':'A follow-up card\'s Discord channel is the parent card\'s channel — it is archived automatically, once, when the last card of this family is finished.','Kartu susulan masih memakai channel ini — arsipnya ditunda dan dijalankan otomatis sekali, saat kartu susulan terakhir selesai.':'Follow-up cards still use this channel — archiving is postponed and runs automatically, once, when the last follow-up card is finished.','⏸ ditunda — susulan masih berjalan':'⏸ postponed — follow-ups still running','⏸ diarsipkan otomatis saat order ini selesai':'⏸ archived automatically when this order is finished','ditandai':'marked','Belum ada pesan.':'No messages yet.','Pesan di channel induk':'Messages in the parent channel','Channel yang sama, tercatat di kartu induk':'Same channel, logged on the parent card','— foto vendor di sini bisa dipakai ke slot kartu susulan ini.':'— vendor photos here can be used for this follow-up card\'s slots.','· kartu induk':'· parent card','✅ Order SELESAI — lead time tercatat, channel ARCHIVED, masuk laporan & evaluasi.':'✅ Order DONE — lead time recorded, channel ARCHIVED, included in reports & evaluation.','✅ Order SELESAI — lead time tercatat, masuk laporan & evaluasi. Channel tetap aktif — susulan masih berjalan; diarsipkan saat kartu susulan terakhir selesai.':'✅ Order DONE — lead time recorded, included in reports & evaluation. The channel stays active — follow-ups still running; archived when the last follow-up card is finished.','✅ Kartu susulan SELESAI — channel Discord milik kartu induk tetap aktif sampai kartu terakhir keluarga ini selesai.':'✅ Follow-up card DONE — the parent card\'s Discord channel stays active until the last card of this family is finished.','✅ Kartu susulan SELESAI — kartu terakhir keluarga ini; channel kartu induk ARCHIVED.':'✅ Follow-up card DONE — the last card of this family; parent card channel ARCHIVED.','✅ Kartu susulan SELESAI — kartu induk tidak ditemukan.':'✅ Follow-up card DONE — parent card not found.','Kartu susulan order ini masih berjalan — channel Discord-nya masih dipakai.':'This order\'s follow-up cards are still running — its Discord channel is still in use.','Arsip ditunda: channel dipindah ke ARCHIVED otomatis sekali, saat kartu susulan terakhir selesai. Tandai sekarang?':'Archiving is postponed: the channel moves to ARCHIVED automatically, once, when the last follow-up card is finished. Mark it now?',
@@ -2492,7 +2553,7 @@ if(r){ST.orders=JSON.parse(r);}else{ST.orders=[];}
   pastikanBentukSemua();
   loadLang();migrasiFaseProfit();migrasiFase12();migrasiFase15();migrasiFase17();migrasiFase22();migrasiFase23();migrasiFaseInvoiceDulu();migrasiStatus();
   try{migrasiTeknikJasa();}catch(e){}
-  finData();asetAll();loadCatalogCache();loadMaster();loadLeads();loadTax();loadKonten();loadHR();loadBuy();loadInv();
+  finData();asetAll();loadCatalogCache();loadMaster();loadLeads();loadTax();loadKonten();loadHR();loadBuy();loadInv();adminLoad();
   try{migrasiContoh();}catch(e){}   // kartu contoh versi lama diganti yang lengkap
   try{if(contohLiveSegarkan())simpanLokal();}catch(e){}   // acara contoh Live service selalu relatif ke hari ini
   try{terbitBersih();}catch(e){}   // salinan terbit dipakai sungguhan: kartu/prospek/keuangan contoh disingkirkan
@@ -5285,7 +5346,7 @@ function simpanLokal(){
     return false;}}
 function save(){if(ST.cur){var oc=ST.orders.find(function(x){return x.id===ST.cur;});if(oc)oc._m=Date.now();}simpanLokal();cloudSave();}
 var _cloudT=null;
-function cloudBlob(ts){return JSON.stringify({orders:(ST.orders||[]).filter(function(o){return !cloudContoh(o);}),master:ST.master,leads:(ST.leads||[]).filter(function(l){return !cloudContohLead(l);}),tax:ST.tax||[],konten:ST.konten||[],hr:ST.hr||{},buy:ST.buy||[],inv:ST.inv||{},purgeTs:purgeTs(),seq:{quo:+localStorage.getItem('rovehub_seq_quotation')||0,inv:+localStorage.getItem('rovehub_seq_invoice')||0,
+function cloudBlob(ts){return JSON.stringify({orders:(ST.orders||[]).filter(function(o){return !cloudContoh(o);}),master:ST.master,leads:(ST.leads||[]).filter(function(l){return !cloudContohLead(l);}),tax:ST.tax||[],konten:ST.konten||[],hr:ST.hr||{},buy:ST.buy||[],inv:ST.inv||{},admin:adminGet(),purgeTs:purgeTs(),seq:{quo:+localStorage.getItem('rovehub_seq_quotation')||0,inv:+localStorage.getItem('rovehub_seq_invoice')||0,
   /* RFQ dan PO dulu tak ikut — dua perangkat mengeluarkan nomor yang sama */
   rfq:+localStorage.getItem('rovehub_seq_rfq')||0,po:+localStorage.getItem('rovehub_seq_po')||0},ts:ts});}
 /* Nomor terakhir tiap jenis dokumen. paksa=true dipakai pemulihan penuh
@@ -5346,6 +5407,9 @@ function pushCloudAman(){
     var ubah=false;
     try{if(mergeOrders(cloud,false)){simpanLokal();ubah=true;}}catch(e){}
     try{if(mergeLeads(cloud))ubah=true;}catch(e){}
+    /* admin yang lebih baru di cloud (robot baru menulis) jangan tertimpa salinan lama perangkat ini */
+    try{if(adminTerimaCloud(cloud))ubah=true;}catch(e){}
+    try{if(adminTerapkanFakta(true,true)){simpanLokal();ubah=true;}}catch(e){}
     pushCloud();
     if(ubah&&ST.user)render();
   }).catch(function(){pushCloud();});}
@@ -5420,6 +5484,9 @@ function cloudAutoLoad(){var c=ST.cfg||{};if(!c.dbUrl)return;
     if(d.buy&&(d.ts||0)>localTs){ST.buy=d.buy;localStorage.setItem(BUY_KEY,JSON.stringify(ST.buy));changed=true;}
     if(d.inv&&(d.ts||0)>localTs){ST.inv=d.inv;localStorage.setItem(INV_KEY,JSON.stringify(ST.inv));changed=true;}
     if(d.seq)seqTarik(d.seq);
+    /* kunci admin (robot administrasi): versi cloud diterima utuh bila lebih baru, lalu faktanya diterapkan ke kartu */
+    try{if(adminTerimaCloud(d))changed=true;}catch(e){}
+    try{if(adminTerapkanFakta(false,true))changed=true;}catch(e){}
     if(changed){simpanLokal();ST.cloudStatus='sinkron '+new Date().toLocaleTimeString('id-ID');if(ST.user)render();}
     else{ST.cloudStatus='sinkron '+new Date().toLocaleTimeString('id-ID')+' · tak ada yang baru';}
     try{sinkronBadge();}catch(e){}
@@ -5508,6 +5575,7 @@ function tabLainBerubah(e){
       pastikanBentukSemua();try{ST.orders.forEach(migrasiFaseSatu);}catch(x){}
       if(ST.cur&&!ST.orders.some(function(o){return o.id===ST.cur;}))ST.cur=null;
       render();return;}
+    if(e.key===ADMIN_KEY){adminLoad();render();return;}
     if(e.key===LEAD_KEY){
       try{ST.leads=JSON.parse(e.newValue||'[]')||[];}catch(x){return;}
       render();return;}
@@ -5537,6 +5605,7 @@ function cloudLoad(){var c=cfgSerap();if(!c.dbUrl){alert('Kotak "Cloud DB" di Ho
     if(d.buy){ST.buy=d.buy;localStorage.setItem(BUY_KEY,JSON.stringify(ST.buy));}
     if(d.inv){ST.inv=d.inv;localStorage.setItem(INV_KEY,JSON.stringify(ST.inv));}
     if(d.seq)seqTarik(d.seq,true);
+    if(d.admin){ST.admin=adminRapikan(JSON.parse(JSON.stringify(d.admin)));adminSimpanLokal();}
     if(d.ts)localStorage.setItem('rovehub_ts',String(d.ts));
     if(d.purgeTs)setPurgeTs(d.purgeTs);
     ST.cloudStatus='dimuat dari cloud '+new Date().toLocaleTimeString('id-ID');ST.cur=null;render();
@@ -9970,6 +10039,7 @@ ${muatDcSitusUji()?'':`     <div class="rcard" style="max-width:660px"><h3>Data 
        <button class="btn sm" onclick="finContohMuat()">＋ Muat contoh keuangan</button> <button class="btn ghost sm" onclick="finKosongkanTombol()">Kosongkan data keuangan</button>
      </div>
 `}
+${adminInboxAman()}
      <div class="rcard" style="max-width:660px"><h3>Muat dari Discord</h3>
        <div style="font-size:11.5px;color:var(--muted);margin-bottom:9px;line-height:1.6">Kartu order dibuat dari berkas <b>muat-discord.json</b> — hasil pembacaan ekspor channel Discord (chat, invoice, cash receipt, lembar inquiry) oleh skrip di folder Dropbox <i>HUB - Sistem &amp; integrasi / Ekspor Discord</i>. Berkas yang sama membawa pelengkap dari server Radja dan pembaruan dari konfirmasi PM. Kartu yang sudah pernah dimuat dilewati; yang mirip kartu yang ada ditandai. ${muatDcSitusUji()?'Pilih berkasnya dari folder Dropbox itu di komputer ini; hasilnya langsung tersinkron ke semua yang membuka HUB. Lampiran (foto, PDF) tetap tersimpan di Dropbox, jadi tautannya hanya terbuka di komputer yang punya folder itu. Selama masa transisi Discord → HUB, lihat laporan <b>Kemungkinan kartu dobel</b> (Laporan → Kontrol).':'Dengan mode live menyala, kartunya tersinkron ke situs yang dipakai tim.'}</div>
        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><input type="file" id="muatdcfile" accept=".json,application/json" onchange="muatDcPilihBerkas(this)" style="font-size:11px;max-width:300px">${muatDcSitusUji()?'':' <button class="btn ghost sm" onclick="muatDcContohTampil()">Lihat contoh (data karangan)</button>'}</div>
@@ -10016,7 +10086,7 @@ ${muatDcSitusUji()?contohBawaanPanelHTML():`       <div style="margin-top:16px;b
   $('#main').innerHTML=`
    <div class="topbar"><h1>Tugas saya</h1><span class="demo">${role}</span><div class="sp"></div>${can('neworder')?`<button class="btn" onclick="openNew()">＋ Order baru</button>`:''}</div>
    ${tabNote('Hanya order yang <b>menunggu tindakan jabatanmu ('+role+')</b>. Klik kartu → kerjakan langkah yang tertulis → klik <b>✓ Selesai — lanjut fase</b>. Order akan hilang dari sini setelah berpindah ke PIC lain.')}
-   ${akuDirektur?bayarAjuDirekturBlok():((myRoles().indexOf('Finance')>=0||myRoles().indexOf('Purchasing')>=0)?bayarAjuFinanceBlok():'')}
+   ${akuDirektur?bayarAjuDirekturBlok():((myRoles().indexOf('Finance')>=0||myRoles().indexOf('Purchasing')>=0)?bayarAjuFinanceBlok():'')}${adminTugasBlok()}
    ${myRoles().indexOf('Marketing')>=0?konTugasBlok():''}${tbhTugasBlok()}${gabTugasBlok()}
    <div style="font-size:12px;color:var(--muted);margin-bottom:14px">${(function(){
      if(tasks.length)return tasks.length+' order menunggu tindakanmu.';
@@ -12736,6 +12806,307 @@ function muatDcTerapkan(D,pilih){
   }finally{render=Rn;alert=Al;confirm=Cf;pushBackend=Pb;notifyOrder=No;spareSinkron=Sp;ST.user=S.user;ST.cur=S.cur;ST.view=S.view;}
   try{saveMaster();}catch(e){}try{saveLeads();}catch(e){}save();
   ST._muatDcHasil=hasil;return hasil;}
+/* ================= KOTAK MASUK ADMINISTRASI (robot administrasi, rovehub-admin/1) =================
+   Robot Python membaca folder administrasi (AIS, Inquiry, dokumen bulanan, AU) — hanya membaca — dan menulis
+   kunci `admin` di blob backend. App: menerapkan FAKTA sendiri (idempoten, hanya kolom kosong) dan menampilkan
+   USULAN di Panel Holding → "Kotak masuk administrasi" untuk diputus Holding / Direktur Utama / Finance.
+   Kontrak: HUB - Sistem & integrasi / Robot administrasi / KONTRAK admin-blob.md */
+const ADMIN_KEY='rovehub_admin';
+const ADMIN_PUTUS_ROLE=['Holding','Direktur Utama','Finance'];
+const ADMIN_JENIS=[['cocokkan','Cocokkan nama client'],['kartuBaru','Kartu baru'],['fase','Pindah fase'],['cancel','Cancel order'],['beda','Nilai berbeda'],['bayarVendor','Pembayaran ke vendor'],['dobel','Kemungkinan dobel'],['info','Info']];
+function adminBawaan(){return {versi:'rovehub-admin/1',ts:0,alias:{},fakta:[],usulan:[],putusan:{},log:[]};}
+function adminRapikan(a){
+  if(!a||typeof a!=='object'||Array.isArray(a))a={};
+  if(!a.versi)a.versi='rovehub-admin/1';a.ts=+a.ts||0;
+  if(!a.alias||typeof a.alias!=='object'||Array.isArray(a.alias))a.alias={};
+  if(!Array.isArray(a.fakta))a.fakta=[];if(!Array.isArray(a.usulan))a.usulan=[];
+  if(!a.putusan||typeof a.putusan!=='object'||Array.isArray(a.putusan))a.putusan={};
+  if(!Array.isArray(a.log))a.log=[];
+  return a;}
+function adminGet(){if(!ST.admin||typeof ST.admin!=='object')ST.admin=adminBawaan();return adminRapikan(ST.admin);}
+function adminLoad(){var a=null;try{a=JSON.parse(localStorage.getItem(ADMIN_KEY)||'null');}catch(e){a=null;}ST.admin=adminRapikan(a||adminBawaan());return ST.admin;}
+function adminSimpanLokal(){try{localStorage.setItem(ADMIN_KEY,JSON.stringify(adminGet()));}catch(e){}}
+/* app mengubah alias / putusan: ts naik supaya versi ini menang di perangkat lain dan di robot */
+function adminSimpan(){var a=adminGet();a.ts=Date.now();adminSimpanLokal();save();}
+/* versi cloud diterima utuh hanya bila lebih baru (robot baru menulis, atau perangkat lain baru memutus) */
+function adminTerimaCloud(d){
+  var ca=d&&d.admin;if(!ca||typeof ca!=='object')return false;
+  if(!((+ca.ts||0)>(+(adminGet().ts)||0)))return false;
+  ST.admin=adminRapikan(JSON.parse(JSON.stringify(ca)));adminSimpanLokal();return true;}
+/* kunci nama client (alias) — lihat KONTRAK admin-blob.md */
+function adminKunciNama(s){
+  /* SAMA PERSIS dengan kunci_nama() robot (Python): apostrof & tanda kutip dibuang, tanda baca lain jadi spasi
+     ("Jaya-Abadi" = "jaya abadi", "Nandhi's" = "nandhis"), sapaan / badan usaha di awal dibuang berulang */
+  s=String(s==null?'':s).toLowerCase().replace(/&/g,' dan ').replace(/['\u2018\u2019"\u201c\u201d]/g,'').replace(/[.,()\/\-_+]/g,' ');
+  var k=s.split(/\s+/).filter(Boolean);
+  while(k.length&&/^(pt|cv|mrs|mr|ibu|bapak)$/.test(k[0]))k.shift();
+  return k.join(' ');}
+function adminYmd(x){if(x==null||x==='')return '';if(x instanceof Date)return isNaN(x)?'':ymdDari(x.getTime());var t=String(x).trim(),m=t.match(/^(\d{4}-\d{2}-\d{2})/);return m?m[1]:t;}
+function adminKosong(v){return v==null||String(v).trim()==='';}
+/* kartu tujuan fakta / usulan: kartu susulan dipetakan ke induknya; yang terhapus / Cancel tak dipakai */
+function adminKartu(id){
+  if(!id)return null;var o=(ST.orders||[]).find(function(x){return x&&x.id===id&&!x.deleted;});if(!o)return null;
+  if(susulanInduk(o)){var p=indukDari(o);if(p)o=p;}
+  return (o.status==='Cancel'||o.deleted)?null:o;}
+function adminSudah(o,id){return !!(o&&o._admin&&o._admin.sudah&&o._admin.sudah[id]);}
+function adminTandai(o,id,t){if(!o._admin||typeof o._admin!=='object')o._admin={};if(!o._admin.sudah||typeof o._admin.sudah!=='object')o._admin.sudah={};o._admin.sudah[id]=t;o._admin.terakhir=t;}
+function adminHist(o,txt,who){if(!Array.isArray(o.hist))o.hist=[];o.hist.push({t:nowStr(),txt:txt,who:who||'robot administrasi'});}
+/* satu fakta ke satu kartu — hanya kolom yang KOSONG diisi; terisi & berbeda → beda=true (robot mengusulkan `beda`).
+   Mengembalikan {U:[ringkasan tiap kolom yang ditulis], beda} — tanpa menyimpan, boleh dipanggil pada salinan kartu (uji coba) */
+function adminTerapkanSatu(o,f){
+  var d=(f&&f.data)||{},U=[],beda=false,p=+o.phase||0;
+  var isi=function(obj,k,v,label,tgl){if(adminKosong(v))return;var v2=tgl?adminYmd(v):String(v).trim();var ada=obj[k];
+    if(adminKosong(ada)){obj[k]=v2;U.push(label+' '+(tgl?tglID(v2):v2));}
+    else if((tgl?adminYmd(ada):String(ada).trim())!==v2)beda=true;};
+  switch(String((f&&f.jenis)||'')){
+    case 'so':isi(o,'soNo',d.soNo,'No. SO');break;
+    case 'invoice':{o.docs=o.docs||{};var pel=(d.jenisInv==='pelunasan'),kNo=pel?'invPelNo':'invNo',kAda=pel?'invoicePel':'invoice',kTgl=pel?'invoicePelDate':'invoiceDate',n0=U.length;
+      isi(o.docs,kNo,d.invNo,pel?'invoice pelunasan':'invoice DP');
+      if(U.length>n0){if(!o.docs[kAda])o.docs[kAda]=true;if(adminKosong(o.docs[kTgl])&&d.tgl)o.docs[kTgl]=adminYmd(d.tgl);}   // tanggalnya ikut supaya "✓ Invoice <tanggal>" tak kosong
+      break;}
+    case 'po':{o.po=o.po||{};isi(o.po,'poNo',d.poNo,'No. PO');isi(o.po,'tglPO',d.tglPO,'tanggal PO',true);isi(o.po,'deadline',d.deadline,'deadline Radja',true);
+      if(p>=11&&!o.po.generated){o.po.generated=true;U.push('PO ditandai terbit');}   // fase PO sudah dilewati; fase < 11 → robot mengusulkan `fase`
+      break;}
+    case 'bayar':{o.pay=o.pay||{};
+      [['dp','dpTgl','dpDate','DP'],['pel','pelTgl','pelDate','pelunasan']].forEach(function(k){var v=+d[k[0]]||0;if(!(v>0))return;
+        if((+o.pay[k[0]]||0)<v){o.pay[k[0]]=v;U.push(k[3]+' '+fmt0(v));}            // HUB < AIS → dinaikkan; HUB > AIS → robot mengusulkan `beda`
+        if(adminKosong(o.pay[k[2]])&&d[k[1]]){o.pay[k[2]]=adminYmd(d[k[1]]);U.push('tanggal '+k[3]+' '+tglID(o.pay[k[2]]));}});
+      break;}
+    case 'kirim':{var K=kirimDaftarTulis(o),shp=String(d.shp||'').trim(),resi=String(d.resi||'').trim(),tgl=adminYmd(d.tgl);
+      var ada=K.some(function(x){return !!x&&((shp&&x.id==='adm:'+shp)||(resi&&String(x.resi||'').trim()===resi)||(tgl&&adminYmd(x.tgl)===tgl));});
+      if(!ada){K.push({id:'adm:'+(shp||resi||tgl),tgl:tgl,eksp:String(d.eksp||''),layanan:'',resi:resi,nama:'',hp:'',alamat:'',isi:{},
+          catatan:'dari administrasi SHP '+(shp||'-')+((+d.qty>0)?(' · '+(+d.qty)+' pcs'):'')+(d.catatan?(' — '+d.catatan):''),tglTerima:'',sjNo:'',tujuan:'Client'});
+        try{kirimSinkron(o);}catch(e){}
+        U.push('pengiriman '+[shp,tgl?tglID(tgl):'',resi?('resi '+resi):''].filter(Boolean).join(' · '));}
+      break;}
+    case 'terima':{if(d.tgl){var T=terimaGet(o);if(adminKosong(T.tgl)){T.tgl=adminYmd(d.tgl);T.oleh=T.oleh||'administrasi';U.push('diterima '+tglID(T.tgl));}else if(adminYmd(T.tgl)!==adminYmd(d.tgl))beda=true;}break;}
+    case 'acara':{var n1=U.length;isi(o,'eventDate',d.tgl,'tanggal acara',true);if(U.length>n1){var b=briefGet(o);if(adminKosong(b.tglAcara))b.tglAcara=o.eventDate;}break;}
+    default:break;}
+  return {U:U,beda:beda};}
+/* semua fakta yang belum diterapkan → kartunya. Idempoten: penanda o._admin.sudah[id]; menjalankannya lagi di perangkat
+   mana pun tak menggandakan apa pun. Kolom terisi berbeda dilewati (tak ditandai — robot mengusulkan `beda`).
+   Mengembalikan jumlah kartu yang datanya berubah; save() sekali untuk semua. */
+function adminTerapkanFakta(tanpaSimpan,tanpaRender){
+  var A=adminGet();if(!A.fakta.length)return 0;
+  var t=Date.now(),n=0,tanda=0,kena={};
+  A.fakta.forEach(function(f){
+    if(!f||!f.id||!f.kartu)return;
+    var o=adminKartu(f.kartu);if(!o||adminSudah(o,f.id))return;
+    var r;try{r=adminTerapkanSatu(o,f);}catch(e){return;}
+    if(!r.U.length&&r.beda)return;                 // terisi & berbeda — dibiarkan
+    adminTandai(o,f.id,t);tanda++;
+    if(r.U.length){adminHist(o,'Dari administrasi: '+r.U.join(', ')+(f.sumber?(' ('+f.sumber+')'):''));
+      try{if(o.status!=='Cancel')syncStatus(o);}catch(e){}
+      o._m=t+n;n++;kena[o.id]=1;}});
+  if(tanda&&!tanpaSimpan)save();
+  if(n&&!tanpaRender&&ST.user){try{render();}catch(e){}}
+  return Object.keys(kena).length;}
+/* keadaan fakta untuk kotak masuk: diterapkan hari ini / sudah / siap (uji coba pada salinan kartu) / berbeda / tanpa kartu */
+function adminFaktaStatus(){
+  var A=adminGet(),hari=hariIni(),out={hariIni:[],sudah:0,siap:[],beda:0,tanpaKartu:0};
+  A.fakta.forEach(function(f){if(!f||!f.id)return;var o=adminKartu(f.kartu);
+    if(!o){out.tanpaKartu++;return;}
+    var ts=(o._admin&&o._admin.sudah&&o._admin.sudah[f.id])||0;
+    if(ts){out.sudah++;if(ymdDari(ts)===hari)out.hariIni.push({f:f,o:o,ts:ts});return;}
+    var r;try{r=adminTerapkanSatu(JSON.parse(JSON.stringify(o)),f);}catch(e){r={U:[],beda:true};}
+    if(r.U.length||!r.beda)out.siap.push({f:f,o:o});else out.beda++;});
+  return out;}
+function adminFaktaRingkas(f){var d=(f&&f.data)||{};switch(String((f&&f.jenis)||'')){
+  case 'so':return 'No. SO '+(d.soNo||'');
+  case 'invoice':return (d.jenisInv==='pelunasan'?'invoice pelunasan ':'invoice DP ')+(d.invNo||'')+(d.tgl?(' · '+tglID(adminYmd(d.tgl))):'');
+  case 'po':return 'PO '+(d.poNo||'')+(d.tglPO?(' · '+tglID(adminYmd(d.tglPO))):'')+(d.deadline?(' · deadline '+tglID(adminYmd(d.deadline))):'');
+  case 'bayar':return [(+d.dp>0?('DP '+fmt0(+d.dp)):''),(+d.pel>0?('pelunasan '+fmt0(+d.pel)):'')].filter(Boolean).join(' · ')||'uang masuk';
+  case 'kirim':return 'pengiriman'+(d.shp?(' SHP '+d.shp):'')+(d.tgl?(' · '+tglID(adminYmd(d.tgl))):'')+(d.resi?(' · resi '+d.resi):'');
+  case 'terima':return 'diterima '+tglID(adminYmd(d.tgl));
+  case 'acara':return 'acara '+tglID(adminYmd(d.tgl));
+  default:return String((f&&f.jenis)||'');}}
+/* ---- usulan & keputusan ---- */
+function adminPutusan(id){return adminGet().putusan[id]||null;}
+function adminUsulanTerbuka(){var A=adminGet(),P=A.putusan;return A.usulan.filter(function(u){return u&&u.id&&!(P[u.id]&&P[u.id].aksi!=='tunda');});}
+function adminBolehPutus(){var R=myRoles();return ADMIN_PUTUS_ROLE.some(function(r){return R.indexOf(r)>=0;});}
+function adminJenisLabel(j){var x=ADMIN_JENIS.filter(function(a){return a[0]===j;})[0];return x?x[1]:String(j||'');}
+/* menjalankan pemicu fase tanpa layar / dialog / Discord (pola muatDcTerapkan) */
+function adminDiam(fn){
+  var Rn=render,Al=alert,Cf=confirm,Pb=pushBackend,No=notifyOrder,Sp=spareSinkron,S={user:ST.user,cur:ST.cur,view:ST.view};
+  render=function(){};alert=function(){};confirm=function(){return true;};pushBackend=function(){};notifyOrder=function(){};spareSinkron=function(){return 0;};
+  try{return fn();}finally{render=Rn;alert=Al;confirm=Cf;pushBackend=Pb;notifyOrder=No;spareSinkron=Sp;ST.user=S.user;ST.cur=S.cur;ST.view=S.view;}}
+/* naik fase sampai `target` lewat pemicu yang sama dengan tombol Selesai; riwayat & log channel dipulihkan (pola muatDcPerbarui) */
+function adminNaikFase(o,target){
+  var hs=(o.hist||[]).slice(),ds=(o.disc||[]).slice(),lama=+o.phase||0,t=Math.max(0,Math.min(PH.length,+target||0));
+  adminDiam(function(){var k=0;while((+o.phase||0)<t&&k++<40)applyTrigger(o,true);});
+  o.hist=hs;o.disc=ds;if(o.status!=='Cancel'){try{syncStatus(o);}catch(e){}}
+  return (+o.phase||0)!==lama;}
+/* medan untuk usulan `beda` → jalur di kartu */
+const ADMIN_MEDAN={soNo:['soNo','No. SO'],invNo:['docs.invNo','No. invoice DP'],invPelNo:['docs.invPelNo','No. invoice pelunasan'],'po.poNo':['po.poNo','No. PO'],'po.tglPO':['po.tglPO','tanggal PO'],'po.deadline':['po.deadline','deadline Radja'],
+  'pay.dp':['pay.dp','DP'],'pay.pel':['pay.pel','pelunasan'],'pay.dpDate':['pay.dpDate','tanggal DP'],'pay.pelDate':['pay.pelDate','tanggal pelunasan'],eventDate:['eventDate','tanggal acara'],'terima.tgl':['terima.tgl','tanggal diterima']};
+function adminMedanJalur(m){return (ADMIN_MEDAN[m]||[m])[0];}
+function adminMedanLabel(m){return (ADMIN_MEDAN[m]||[m,m])[1];}
+function adminMedanTgl(m){return /(tglPO|deadline|Date|eventDate|terima\.tgl)$/.test(String(m));}
+function adminMedanUang(m){return /^(pay\.dp|pay\.pel)$/.test(String(m));}
+function adminMedanBaca(o,m){var J=adminMedanJalur(m).split('.'),x=o;for(var i=0;i<J.length;i++){if(x==null)return undefined;x=x[J[i]];}return x;}
+function adminMedanTulis(o,m,v){var J=adminMedanJalur(m).split('.'),x=o;
+  for(var i=0;i<J.length-1;i++){if(!x[J[i]]||typeof x[J[i]]!=='object')x[J[i]]={};x=x[J[i]];}
+  var k=J[J.length-1];
+  if(adminMedanUang(m))x[k]=+v||0;else if(adminMedanTgl(m))x[k]=adminYmd(v);else x[k]=(v==null)?'':String(v);
+  if(m==='invNo'&&x[k]&&!o.docs.invoice)o.docs.invoice=true;if(m==='invPelNo'&&x[k]&&!o.docs.invoicePel)o.docs.invoicePel=true;
+  if(m==='eventDate')briefGet(o).tglAcara=x[k];
+  if(m==='terima.tgl'){var T=terimaGet(o);T.oleh=T.oleh||'administrasi';}}
+function adminMedanTeks(m,v){if(v==null||v==='')return '(kosong)';if(adminMedanUang(m))return fmt0(+v||0);if(adminMedanTgl(m))return tglID(adminYmd(v));return String(v);}
+/* kartu baru dari data administrasi (pola muatDcBuat, tanpa prospek & tanpa _discord): mk() + medan + naik fase lewat pemicu */
+function adminBuatKartu(d,u){
+  d=d||{};var kat=d.kategori||'Corporate';if(!KAT_PREFIX[kat])kat=(/^(Others|Retail|Custom)$/i.test(String(kat)))?'Custom':'Corporate';
+  var region=(d.region==='AU')?'AU':'ID',prefix=d.prefix||((region==='AU')?'au':(KAT_PREFIX[kat]||'c'));
+  var lines=(Array.isArray(d.lines)?d.lines:[]).filter(function(l){return l&&l.produk;}).map(function(l){
+    return {produk:String(l.produk),bahan:l.bahan||'',sumber:l.sumber||'Radja Leather',qty:+l.qty||0,hpp:+l.hpp||0,jual:+l.jual||0,img:'',imgs:[],detail:l.catatan||'',perso:'-',fixed:false,_hppManual:!!(+l.hpp),tiers:null};});
+  var nama=String(d.customer||(u&&u.client)||'').trim()||'Order administrasi';
+  var o=mk({customer:nama,prefix:prefix,kategori:kat,type:d.type||'Custom',product:lines.length?(lines[0].produk+(lines.length>1?(' (+'+(lines.length-1)+' item)'):'')):'(belum dirinci)',
+    qty:0,mat:lines.length?(lines[0].bahan||''):'',date:muatDcDDMMYY(d.tglDeal||d.tglMasuk||''),region:region,sales:d.sales||'',phone:d.phone||'',status:'Inquiry'});
+  o.pricing={margin:(d.margin!=null)?+d.margin:MARGIN_BAWAAN,lines:lines};
+  o.qty=produkQtyTotal(o)||(+d.qty||0);
+  var b=briefGet(o);if(d.eventDate){o.eventDate=adminYmd(d.eventDate);b.tglAcara=o.eventDate;}if(d.tglKirim)b.tglKirim=adminYmd(d.tglKirim);
+  if(d.soNo)o.soNo=String(d.soNo);
+  o.docs=o.docs||{};
+  if(d.invNo){o.docs.invoice=true;o.docs.invNo=String(d.invNo);o.docs.invoiceDate=adminYmd(d.invTgl)||'';o.inv={status:'Terkirim'};}
+  if(d.invPelNo){o.docs.invoicePel=true;o.docs.invPelNo=String(d.invPelNo);o.docs.invoicePelDate=adminYmd(d.invPelTgl)||'';o.invPel={status:'Terkirim'};}
+  if(+d.dpPct>0)o.dpPct=+d.dpPct;
+  o.pay=o.pay||{};if(+d.dp>0){o.pay.dp=+d.dp;o.pay.dpDate=adminYmd(d.dpTgl)||'';}if(+d.pel>0){o.pay.pel=+d.pel;o.pay.pelDate=adminYmd(d.pelTgl)||'';}
+  var Po=d.po||{};o.po=o.po||{};if(Po.poNo)o.po.poNo=String(Po.poNo);if(Po.tglPO)o.po.tglPO=adminYmd(Po.tglPO);if(Po.deadline)o.po.deadline=adminYmd(Po.deadline);
+  var target=Math.max(0,Math.min(PH.length,+d.fase||0));
+  adminDiam(function(){var k=0;while((+o.phase||0)<target&&k++<40)applyTrigger(o,true);});
+  if(target>=11||Po.poNo||Po.tglPO)o.po.generated=true;
+  (Array.isArray(d.kirim)?d.kirim:[]).forEach(function(x){if(x)try{adminTerapkanSatu(o,{jenis:'kirim',data:x});}catch(e){}});
+  var sumber=(Array.isArray(d.sumberList)&&d.sumberList.length)?d.sumberList.join(', '):((u&&u.sumber)||'');
+  var ringkas=[nama,kat+' · '+(d.type||'Custom'),(o.qty?(o.qty+' pcs'):''),(+d.grand>0?fmt0(+d.grand):''),'fase '+muatDcNamaFase(o.phase)].filter(Boolean).join(' · ');
+  o.hist=[{t:nowStr(),txt:'Dibuat dari administrasi: '+ringkas+(sumber?(' ('+sumber+')'):''),who:ST.user||'Sistem'}];   // narasi bawaan pemicu tak dipakai
+  o.disc=[];o._faseSejak=Date.now();o.ingatOtomatis={};
+  if(o.status!=='Cancel'){try{syncStatus(o);}catch(e){}}
+  o._admin={sudah:{},terakhir:Date.now(),usulan:(u&&u.id)||''};o._m=Date.now();
+  ST.orders.unshift(o);
+  var A=adminGet(),k=adminKunciNama(nama);if(k)A.alias[k]={kartu:o.id,customer:nama,oleh:(ST.userName||ST.user||''),tgl:hariIni()};
+  return o;}
+/* aksi "setuju" per jenis usulan. Mengembalikan catatan (string) atau false bila dibatalkan (belum memilih, kartu susulan masih jalan) */
+function adminJalankan(u,pilihan){
+  var d=u.data||{},A=adminGet(),oleh=(ST.userName||ST.user||''),tgl=hariIni(),t=Date.now(),sumber=u.sumber?(' ('+u.sumber+')'):'';
+  var kartu=function(){var o=adminKartu(u.kartu);if(!o)throw new Error('Kartunya tidak ada lagi di HUB (terhapus / Cancel).');return o;};
+  switch(String(u.jenis||'')){
+    case 'cocokkan':{var k=d.kunciNama||adminKunciNama(d.namaAdmin||u.client);if(!k)throw new Error('Kunci nama kosong.');
+      var p=(pilihan&&typeof pilihan==='object')?pilihan.pilih:pilihan;p=String(p==null?'':p).trim();
+      if(!p){alert('Pilih dulu kartu yang cocok, "bukan client HUB", atau "buat kartu baru".');return false;}
+      if(p==='bukan'){A.alias[k]={kartu:null,customer:'',bukan:true,oleh:oleh,tgl:tgl};return 'bukan client HUB';}
+      if(p==='baru'){
+        if(d.baru&&typeof d.baru==='object'){var ob=adminBuatKartu(Object.assign({customer:d.namaAdmin||u.client},d.baru),u);A.alias[k]={kartu:ob.id,customer:ob.customer,oleh:oleh,tgl:tgl};return 'kartu baru '+ob.id;}
+        A.alias[k]={kartu:null,customer:String(d.namaAdmin||u.client||''),oleh:oleh,tgl:tgl};return 'kartu baru — menunggu usulan kartuBaru dari robot';}   // robot mengusulkan kartuBaru berisi datanya di putaran berikutnya
+      var oc=(ST.orders||[]).find(function(x){return x&&x.id===p&&!x.deleted;});if(!oc)throw new Error('Kartu pilihan tidak ditemukan.');
+      A.alias[k]={kartu:oc.id,customer:oc.customer||'',oleh:oleh,tgl:tgl};return 'kartu '+oc.id;}
+    case 'kartuBaru':{var o2=adminBuatKartu(Object.assign({customer:u.client},d),u);return 'kartu '+o2.id;}
+    case 'fase':{var o3=kartu(),lama=+o3.phase||0;
+      if(!adminNaikFase(o3,d.ke))return 'fase sudah '+muatDcNamaFase(o3.phase);
+      adminHist(o3,'Fase → '+muatDcNamaFase(o3.phase)+' (administrasi: '+(d.bukti||'-')+'; sebelumnya '+muatDcNamaFase(lama)+')'+sumber,oleh);o3._m=t;return 'fase '+muatDcNamaFase(o3.phase);}
+    case 'cancel':{var o4=kartu();if(susulanAktif(o4).length){alert('Kartu susulan masih berjalan — batalkan manual sesudah kartu susulan selesai atau dihapus.');return false;}
+      o4.reason=String(d.alasan||'dibatalkan — administrasi');o4.status='Cancel';
+      adminHist(o4,'Order dibatalkan ('+o4.reason+') — administrasi: '+(d.bukti||'-')+sumber,oleh);o4._m=t;return 'cancel';}
+    case 'beda':{var o5=kartu(),m=String(d.medan||'');if(!m)throw new Error('Medan tidak disebut.');
+      var lamaV=adminMedanBaca(o5,m);adminMedanTulis(o5,m,d.admin);
+      adminHist(o5,'Dari administrasi: '+adminMedanLabel(m)+' '+adminMedanTeks(m,lamaV)+' → '+adminMedanTeks(m,d.admin)+' (disetujui '+oleh+')'+sumber,oleh);
+      try{syncStatus(o5);}catch(e){}o5._m=t;return 'beda '+m;}
+    case 'bayarVendor':{var o6=kartu(),v6=String(d.vendor||'').trim(),nom=+d.nominal||0;if(!v6)throw new Error('Vendor tidak disebut.');
+      if(!(nom>0)){alert('Nominal pembayaran vendor kosong.');return false;}
+      var tahap=Math.max(1,Math.min(3,+d.tahap||1)),tb=adminYmd(d.tgl)||tgl;
+      bvDaftar(o6,v6).push({tahap:tahap,nominal:nom,tgl:tb,catatan:'dari administrasi'+(d.ref?(' · '+d.ref):'')+(d.poNo?(' · PO '+d.poNo):''),oleh:oleh,aju:'admin:'+u.id});
+      var s2=0;try{s2=bvSisa(o6,v6);}catch(e){}var vt=v6;try{vt=vendorTampil(v6,o6);}catch(e){}
+      adminHist(o6,'💸 Bayar vendor tahap '+tahap+' — '+vt+': '+fmt0(nom)+(s2<=0?' (lunas)':(' · sisa '+fmt0(s2)))+' · dari administrasi'+(d.ref?(' '+d.ref):'')+', disetujui '+oleh+sumber,oleh);o6._m=t;return 'bayar vendor '+fmt0(nom);}
+    default:return '';}}   // dobel / info: tak ada perubahan data — keputusannya cuma dicatat
+/* keputusan satu klik: putusan dicatat (aksi, oleh, tgl, pilih), aksinya dijalankan, admin.ts naik, disimpan */
+function adminPutus(id,aksi,pilihan){
+  var A=adminGet(),u=A.usulan.find(function(x){return x&&x.id===id;});
+  if(!u){alert('Usulan ini sudah tidak ada di kotak masuk.');return false;}
+  if(!adminBolehPutus()){alert('Keputusan kotak masuk administrasi hanya untuk Holding, Direktur Utama, dan Finance.');return false;}
+  aksi=String(aksi||'');if(['setuju','tolak','tunda'].indexOf(aksi)<0)return false;
+  var lama=A.putusan[id];
+  if(lama&&lama.aksi!=='tunda'){alert('Usulan ini sudah diputus ('+lama.aksi+' · '+(lama.oleh||'')+' '+(lama.tgl||'')+').');return false;}
+  var hasil='';
+  if(aksi==='setuju'){
+    try{hasil=adminJalankan(u,pilihan);}catch(e){alert('Gagal menerapkan usulan: '+(e&&e.message||e));return false;}
+    if(hasil===false)return false;}
+  var P={aksi:aksi,oleh:(ST.userName||ST.user||''),tgl:hariIni()};
+  if(aksi==='setuju'&&pilihan!=null&&pilihan!=='')P.pilih=(typeof pilihan==='object')?pilihan:String(pilihan);
+  if(typeof hasil==='string'&&hasil)P.catatan=hasil;
+  A.putusan[id]=P;
+  adminSimpan();
+  try{render();}catch(e){}
+  return true;}
+function adminPutusPilih(id){var p='';try{var e=document.querySelector('input[name="adm_'+String(id).replace(/[^A-Za-z0-9]/g,'_')+'"]:checked');p=e?String(e.value||''):'';}catch(err){}return adminPutus(id,'setuju',p);}
+function adminTerapkanTombol(){var n=adminTerapkanFakta(false,true);try{kilat(n?('✓ Fakta administrasi diterapkan ke '+n+' kartu.'):'Tidak ada fakta baru yang bisa diterapkan.');}catch(e){}render();}
+/* ---- tampilan kotak masuk ---- */
+function adminRobotHTML(A){
+  var r=A.robot;if(!r||!r.dibuat)return '<div class="adm-note">Robot administrasi belum pernah menulis ke sini — jalankan jalankan.py di komputer yang punya folder administrasi.</div>';
+  var rk=r.ringkas||{},chip=function(n,t){return '<span class="adm-chip">'+(+n||0)+' '+t+'</span>';};
+  return '<div class="adm-robot"><span>Robot terakhir jalan</span> <b>'+esc(muatDcTgl(String(r.dibuat).replace('T',' ').slice(0,16)))+'</b>'+(r.mesin?(' <span class="adm-muted">· '+esc(r.mesin)+'</span>'):'')+(r.versi?(' <span class="adm-muted">· v'+esc(r.versi)+'</span>'):'')+
+    '<div class="adm-chips">'+chip(rk.fakta,'fakta')+chip(rk.usulan,'usulan')+chip(rk.kartuCocok,'kartu cocok')+chip(rk.namaTakCocok,'nama tak cocok')+'</div>'+
+    ((A.log||[])[0]&&A.log[0].ringkas?('<div class="adm-muted" style="margin-top:4px">'+esc(A.log[0].ringkas)+'</div>'):'')+'</div>';}
+function adminTautanKartu(o){return '<a href="#" class="adm-link" onclick="openOrder('+jsArg(o.id)+');return false">#'+esc(chName(o))+'</a>';}
+function adminUsulanRingkas(u){var d=u.data||{},M=function(t){return ' <span class="adm-muted">· '+esc(t)+'</span>';};
+  switch(String(u.jenis||'')){
+    case 'cocokkan':return esc(d.namaAdmin||u.client||'')+((Array.isArray(d.contohSumber)&&d.contohSumber.length)?M(d.contohSumber.slice(0,3).join(', ')):'');
+    case 'kartuBaru':{var nL=Array.isArray(d.lines)?d.lines.length:0,kt=[d.kategori||'',d.type||''].filter(Boolean).join(' · ');
+      return esc(d.customer||u.client||'')+(kt?M(kt):'')+' <span class="adm-muted">· </span><span class="adm-muted">'+nL+' baris</span>'+(+d.grand>0?M(fmt0(+d.grand)):'')+' <span class="adm-muted">→ </span><span class="adm-muted">'+esc(muatDcNamaFase(d.fase||0))+'</span>';}
+    case 'fase':return '<b>'+esc(muatDcNamaFase(d.dari))+' → '+esc(muatDcNamaFase(d.ke))+'</b>'+(d.bukti?M(d.bukti):'');
+    case 'cancel':return esc(d.alasan||'')+(d.bukti?M(d.bukti):'');
+    case 'beda':return '<b>'+esc(adminMedanLabel(d.medan))+'</b> <span class="adm-muted">HUB</span> '+esc(adminMedanTeks(d.medan,d.hub))+' <span class="adm-muted">→ administrasi</span> <b>'+esc(adminMedanTeks(d.medan,d.admin))+'</b>';
+    case 'bayarVendor':return '<b>'+esc(d.vendor||'')+'</b> '+esc(fmt0(+d.nominal||0))+(d.tgl?(' · '+esc(tglID(adminYmd(d.tgl)))):'')+(d.ref?M(d.ref):'')+(d.poNo?M('PO '+d.poNo):'')+(d.tahap?(' <span class="adm-muted">· </span><span class="adm-muted">tahap '+(+d.tahap||1)+'</span>'):'');
+    case 'dobel':{var ol=(ST.orders||[]).find(function(x){return x&&x.id===d.kartuLain&&!x.deleted;});return '<span class="adm-muted">mirip</span> '+(ol?(esc(ol.customer||'')+' '+adminTautanKartu(ol)):esc(d.kartuLain||''))+(d.alasan?M(d.alasan):'');}
+    case 'info':return esc(d.teks||'');
+    default:return esc(JSON.stringify(d).slice(0,160));}}
+function adminCocokkanPilihanHTML(u,boleh){
+  var d=u.data||{},nm='adm_'+String(u.id).replace(/[^A-Za-z0-9]/g,'_'),dis=boleh?'':' disabled';
+  var K=(Array.isArray(d.kandidat)?d.kandidat:[]).slice(0,6),h='<div class="adm-pilih">';
+  K.forEach(function(k){var o=(ST.orders||[]).find(function(x){return x&&x.id===k.kartu&&!x.deleted;}),sk=(k.skor==null)?null:(+k.skor<=1?Math.round(+k.skor*100):Math.round(+k.skor));
+    h+='<label><input type="radio" name="'+esc(nm)+'" value="'+esc(k.kartu||'')+'"'+dis+'> '+esc(k.customer||(o&&o.customer)||k.kartu||'')+(o?(' '+adminTautanKartu(o)):'')+(sk!=null?(' <span class="adm-muted">'+sk+'%</span>'):'')+'</label>';});
+  h+='<label><input type="radio" name="'+esc(nm)+'" value="bukan"'+dis+'> bukan client HUB</label><label><input type="radio" name="'+esc(nm)+'" value="baru"'+dis+'> buat kartu baru</label></div>';
+  return h;}
+function adminUsulanBarisHTML(u,boleh){
+  var o=u.kartu?(ST.orders||[]).find(function(x){return x&&x.id===u.kartu&&!x.deleted;}):null,P=adminPutusan(u.id),tunda=!!(P&&P.aksi==='tunda'),pr=String(u.prioritas||'sedang'),d=u.data||{};
+  var klien=u.client||d.namaAdmin||d.customer||(o?o.customer:'')||'';
+  return '<div class="adm-row" data-f="admUsulan" data-id="'+esc(u.id)+'"><div class="adm-main"><div class="adm-head"><b>'+esc(klien)+'</b> '+
+      (o?('<span class="adm-muted">→</span> '+adminTautanKartu(o)):((u.jenis==='kartuBaru'||u.jenis==='cocokkan')?'':'<span class="adm-muted">kartu belum ada</span>'))+
+      ' <span class="adm-pri adm-pri-'+esc(pr)+'">'+esc(pr)+'</span>'+(tunda?' <span class="adm-pri">Ditunda</span>':'')+'</div>'+
+    '<div class="adm-data">'+adminUsulanRingkas(u)+'</div>'+(u.alasan?('<div class="adm-muted">'+esc(u.alasan)+'</div>'):'')+
+    '<div class="adm-src"><span>Sumber</span> '+esc(u.sumber||'-')+(u.tgl?(' · '+esc(tglID(adminYmd(u.tgl)))):'')+'</div>'+
+    (u.jenis==='cocokkan'?adminCocokkanPilihanHTML(u,boleh):'')+'</div>'+
+    '<div class="adm-btns">'+(boleh?('<button class="btn sm" onclick="'+(u.jenis==='cocokkan'?('adminPutusPilih('+jsArg(u.id)+')'):('adminPutus('+jsArg(u.id)+',\'setuju\')'))+'">✓ Setujui</button>'+
+      '<button class="btn ghost sm" onclick="adminPutus('+jsArg(u.id)+',\'tolak\')">✕ Tolak</button>'+(tunda?'':('<button class="btn ghost sm" onclick="adminPutus('+jsArg(u.id)+',\'tunda\')">⏸ Tunda</button>'))):'')+'</div></div>';}
+function adminInboxHTML(){
+  var A=adminGet(),boleh=adminBolehPutus(),U=adminUsulanTerbuka(),aktif=U.filter(function(u){return !adminPutusan(u.id);}),tunda=U.filter(function(u){return !!adminPutusan(u.id);});
+  var F=adminFaktaStatus(),nPutus=Object.keys(A.putusan).filter(function(k){return A.putusan[k]&&A.putusan[k].aksi!=='tunda';}).length;
+  var h='<div class="rcard adm-card" data-f="adminInbox" style="max-width:660px"><h3 style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">📥 Kotak masuk administrasi<span class="adm-badge'+(aktif.length?' on':'')+'">'+aktif.length+' usulan terbuka</span></h3>'+
+    '<div class="adm-note">Fakta (data tanpa keputusan) diterapkan sendiri ke kartu — nomor SO, invoice, PO, uang masuk, pengiriman, tanggal diterima & acara. Yang butuh keputusan tampil di bawah.</div>'+adminRobotHTML(A)+
+    '<div class="adm-fakta"><div class="adm-chips"><span class="adm-chip">'+F.hariIni.length+' diterapkan hari ini</span><span class="adm-chip">'+F.sudah+' sudah diterapkan</span>'+
+      (F.siap.length?('<span class="adm-chip on">'+F.siap.length+' siap diterapkan</span>'):'')+(F.beda?('<span class="adm-chip">'+F.beda+' terisi berbeda — robot mengusulkan</span>'):'')+(F.tanpaKartu?('<span class="adm-chip">'+F.tanpaKartu+' kartu belum ada</span>'):'')+'</div>'+
+      (F.siap.length?'<button class="btn sm" style="margin-top:6px" data-f="adminTerapkan" onclick="adminTerapkanTombol()">⚡ Terapkan fakta sekarang</button>':'')+
+      (F.hariIni.length?('<div class="adm-sub">Diterapkan hari ini</div>'+F.hariIni.slice(0,12).map(function(x){return '<div class="adm-fline"><a href="#" class="adm-link" onclick="openOrder('+jsArg(x.o.id)+');return false">'+esc(x.o.customer||x.o.id)+'</a> <span>'+esc(adminFaktaRingkas(x.f))+'</span>'+(x.f.sumber?('<span class="adm-muted"> · '+esc(x.f.sumber)+'</span>'):'')+'</div>';}).join('')+
+        (F.hariIni.length>12?('<div class="adm-muted">+ '+(F.hariIni.length-12)+' lagi</div>'):'')):'')+'</div>';
+  if(!boleh)h+='<div class="adm-note">Hanya Holding, Direktur Utama, dan Finance yang memutuskan di sini.</div>';
+  if(!aktif.length)h+='<div class="adm-kosong">Tidak ada usulan yang menunggu keputusan.</div>';
+  /* antrean awal bisa ratusan usulan: per kelompok yang paling penting dulu, 5 teratas tampil, sisanya di balik tombol */
+  var grup=function(kunci,judul,L){if(!L.length)return '';L=adminUrutUsulan(L);
+    var semua=!!(ST._admBuka&&ST._admBuka[kunci]),T=semua?L:L.slice(0,ADMIN_BATAS_GRUP);
+    return '<div class="adm-grp" data-jenis="'+kunci+'"><span>'+esc(judul)+'</span><span class="adm-n">'+L.length+'</span></div>'+T.map(function(u){return adminUsulanBarisHTML(u,boleh);}).join('')+
+      (L.length>ADMIN_BATAS_GRUP?('<button class="btn ghost sm adm-lagi" data-f="admLagi" onclick="adminGrupBuka('+jsArg(kunci)+')">'+(semua?'Ringkas lagi':('Tampilkan '+(L.length-ADMIN_BATAS_GRUP)+' lainnya'))+'</button>'):'');};
+  ADMIN_JENIS.forEach(function(j){h+=grup(j[0],j[1],aktif.filter(function(u){return u.jenis===j[0];}));});
+  h+=grup('lain','Lainnya',aktif.filter(function(u){return !ADMIN_JENIS.some(function(j){return j[0]===u.jenis;});}));
+  if(tunda.length)h+='<details class="adm-tunda"><summary>Ditunda ('+tunda.length+')</summary>'+tunda.map(function(u){return adminUsulanBarisHTML(u,boleh);}).join('')+'</details>';
+  if(nPutus)h+='<div class="adm-muted" style="margin-top:8px">'+nPutus+' sudah diputus</div>';
+  return h+'</div>';}
+const ADMIN_BATAS_GRUP=5;
+function adminUrutUsulan(L){var P={tinggi:0,sedang:1,rendah:2},pr=function(u){var x=P[String(u.prioritas||'sedang')];return x==null?1:x;};
+  return L.slice().sort(function(a,b){var d=pr(a)-pr(b);if(d)return d;var ta=String(a.tgl||''),tb=String(b.tgl||'');return ta<tb?1:(ta>tb?-1:0);});}
+function adminGrupBuka(k){ST._admBuka=ST._admBuka||{};ST._admBuka[k]=!ST._admBuka[k];render();}
+function adminInboxAman(){try{return adminInboxHTML();}catch(e){return '<div class="rcard" data-f="adminInbox" style="max-width:660px"><h3>📥 Kotak masuk administrasi</h3><div class="adm-note">'+esc((e&&e.message)||e)+'</div></div>';}}
+/* Direktur Utama & Finance memutus dari "Tugas saya" — kartunya tampil hanya bila ada yang menunggu (usulan terbuka / fakta siap) */
+function adminTugasBlok(){if(!adminBolehPutus())return '';
+  var ada=adminUsulanTerbuka().some(function(u){return !adminPutusan(u.id);});
+  if(!ada){try{ada=adminFaktaStatus().siap.length>0;}catch(e){ada=false;}}
+  return ada?adminInboxAman():'';}
 /* ---- panel Holding ---- */
 function muatDcDariSitus(nama){
   nama=nama||'muat-discord-anonim.json';
@@ -24233,7 +24604,7 @@ document.addEventListener('keydown',function(e){
   if(!t||t.tagName!=='INPUT')return;
   if(t.type==='checkbox'||t.type==='radio'||t.type==='button'||t.type==='submit')return;
   try{t.blur();}catch(err){}});
-load();render();fetchCatalog();cloudAutoLoad();startCloudPoll();
+load();try{adminTerapkanFakta(false,true);}catch(e){}render();fetchCatalog();cloudAutoLoad();startCloudPoll();
 try{sinkronBadge();}catch(e){}
 setTimeout(checkDeadlines,4000);
 setTimeout(function(){
