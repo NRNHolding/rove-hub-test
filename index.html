@@ -897,7 +897,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20261008-103035';
+const VERSI='20261008-112548';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -5438,7 +5438,7 @@ function simpanLokal(){
     return false;}}
 function save(){if(ST.cur){var oc=ST.orders.find(function(x){return x.id===ST.cur;});if(oc)oc._m=Date.now();}simpanLokal();cloudSave();}
 var _cloudT=null;
-function cloudBlob(ts){return JSON.stringify({orders:(ST.orders||[]).filter(function(o){return !cloudContoh(o);}),master:ST.master,leads:(ST.leads||[]).filter(function(l){return !cloudContohLead(l);}),tax:ST.tax||[],konten:ST.konten||[],hr:ST.hr||{},buy:ST.buy||[],inv:ST.inv||{},admin:adminGet(),purgeTs:purgeTs(),seq:{quo:+localStorage.getItem('rovehub_seq_quotation')||0,inv:+localStorage.getItem('rovehub_seq_invoice')||0,
+function cloudBlob(ts){return JSON.stringify({orders:(ST.orders||[]).filter(function(o){return !cloudContoh(o);}),master:ST.master,leads:(ST.leads||[]).filter(function(l){return !cloudContohLead(l);}),tax:ST.tax||[],konten:ST.konten||[],hr:ST.hr||{},buy:ST.buy||[],inv:ST.inv||{},admin:adminGet(),purgeTs:purgeTs(),masterDasarTs:+ST._masterDasarTs||0,seq:{quo:+localStorage.getItem('rovehub_seq_quotation')||0,inv:+localStorage.getItem('rovehub_seq_invoice')||0,
   /* RFQ dan PO dulu tak ikut — dua perangkat mengeluarkan nomor yang sama */
   rfq:+localStorage.getItem('rovehub_seq_rfq')||0,po:+localStorage.getItem('rovehub_seq_po')||0},ts:ts});}
 /* Nomor terakhir tiap jenis dokumen. paksa=true dipakai pemulihan penuh
@@ -5505,7 +5505,10 @@ function pushCloudAman(){
     try{if(masterTerimaCloud(cloud))ubah=true;}catch(e){}
     pushCloud();
     if(ubah&&ST.user)render();
-  }).catch(function(){pushCloud();});}
+  }).catch(function(){
+    /* perangkat yang belum pernah sinkron tak boleh mendorong master bawaannya tanpa menggabung dulu */
+    if(!(+localStorage.getItem('rovehub_ts')||0)&&!msDasarGet()){ST.cloudStatus='gagal membaca cloud — belum dikirim, dicoba lagi saat menyimpan berikutnya';try{sinkronBadge();}catch(e){}return;}
+    pushCloud();});}
 /* Sesudah mendorong, benar-benar diperiksa: order yang ada di sini ada juga di
    sana? Dorongannya memakai mode no-cors — jawabannya tak bisa dibaca browser,
    jadi tanpa pemeriksaan ini status "tersimpan cloud" cuma pengakuan sepihak,
@@ -5540,6 +5543,8 @@ function pushPeriksa(){
       try{sinkronBadge();}catch(e){}});
   },2500);}
 function pushCloud(){var c=ST.cfg||{};var ts=Date.now();localStorage.setItem('rovehub_ts',String(ts));ST.cloudStatus='mengirim ke cloud…';
+  /* sidik master yang dikirim — jadi dasar gabungan berikutnya begitu cloud memuatnya */
+  try{_msMemo=(typeof WeakMap==='function')?new WeakMap():null;msSidikSet(MASTER_KIRIM_KEY,ST.master,ts);}catch(e){}finally{_msMemo=null;}
   /* try/catch tak menangkap penolakan promise — tanpa .catch, backend yang mati
      memuntahkan "Uncaught (in promise)" ke konsol tiap kali menyimpan. */
   try{fetch(c.url,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'db.save',payload:{data:cloudBlob(ts)}})})
@@ -5563,11 +5568,10 @@ function cloudAutoLoad(){var c=ST.cfg||{};if(!c.dbUrl)return;
     var changed=mergeOrders(d,true); // merge per-order, jangan ganggu order yg lagi dibuka
     try{if(dcArsipTertunda())changed=true;}catch(e){}   // arsip keluarga yang tertunda di dua perangkat sekaligus
     var localTs=+localStorage.getItem('rovehub_ts')||0;
-    if(d.master&&(d.ts||0)>localTs){var _kitLama=ST.master;ST.master=d.master;try{kitGabung(_kitLama);}catch(e){}   // alat deboss yang baru dipindah di sini tak hilang
-      /* master dari perangkat lain bisa belum kenal jenis 'Teknik' dan kolom
-         tekList — tanpa migrasi ulang, dropdown teknik kembali jadi label mati */
-      try{migrasiTeknikJasa();}catch(e){}
-      saveMaster();buildCollatData();changed=true;}
+    /* master digabung per baris (tiga arah) — dulu diganti sekaligus bila cloud lebih baru, dan ubahan master perangkat ini
+       yang belum terdorong ikut hilang; migrasi teknik ikut di dalam masterTerimaCloud */
+    if(d.master){var _mg=false;try{_mg=masterTerimaCloud(d);}catch(e){}if(_mg)changed=true;
+      if(ST._masterPerluDorong){try{cloudSave();}catch(e){}}}
     /* digabung per baris — dulu diganti sekaligus, dan prospek yang dibuat di
        perangkat lain hilang begitu perangkat ini menyimpan sesuatu */
     if(mergeLeads(d))changed=true;
@@ -5690,7 +5694,7 @@ function cloudLoad(){var c=cfgSerap();if(!c.dbUrl){alert('Kotak "Cloud DB" di Ho
   fetch(c.dbUrl).then(function(r){return r.json();}).then(function(d){
     if(!d||!d.orders){ST.cloudStatus='cloud kosong / format salah';render();return;}
     ST.orders=d.orders;simpanLokal();
-    if(d.master){ST.master=d.master;try{migrasiTeknikJasa();}catch(e){}saveMaster();buildCollatData();}
+    if(d.master){ST.master=d.master;msDasarSet(d.master);try{migrasiTeknikJasa();}catch(e){}saveMaster();buildCollatData();}
     if(d.leads){ST.leads=d.leads;localStorage.setItem(LEAD_KEY,JSON.stringify(ST.leads));}
     if(d.tax){ST.tax=d.tax;localStorage.setItem(TAX_KEY,JSON.stringify(ST.tax));}
     if(d.konten){ST.konten=d.konten;try{konMigrasi();}catch(e){}localStorage.setItem(KON_KEY,JSON.stringify(ST.konten));}
@@ -8208,7 +8212,7 @@ function kitTambah(){
     fields:[{k:'kota',label:'Kota asal',req:true,ph:'mis. Surabaya'},{k:'grup',label:'Tim',type:'select',opts:['—'].concat(G),val:'—'},
       {k:'nama',label:'Nama (opsional)',ph:'kosong = "Alat deboss <kota>"'}],
     ok:function(v){var kota=kitKotaNama(v.kota)||String(v.kota||'').trim();if(!kota)return;if(!ST.master.kitAlat)ST.master.kitAlat=[];
-      var id=kitIdKota(kota),n=2;while(kitCari(id)){id=kitIdKota(kota)+'-'+n;n++;}
+      var id=kitIdKota(kota),n=2;while(kitCari(id)||((ST.master.kitHapus||[]).indexOf(id)>=0)){id=kitIdKota(kota)+'-'+n;n++;}   // id alat yang pernah dihapus tak dipakai lagi
       var nama=String(v.nama||'').trim()||('Alat deboss '+kota+(id!==kitIdKota(kota)?(' '+(n-1)):''));
       var k={id:id,nama:nama,kotaAsal:kota,grup:(v.grup&&v.grup!=='—')?v.grup:'',lokasi:{kota:kota,sejak:hariIni(),ket:'kota asal'},kurang:[],riwayat:[]};
       kitRiwayat(k,'dibuat di '+kota);ST.master.kitAlat.push(k);ST._kitBuka=ST._kitBuka||{};ST._kitBuka[id]=true;kitSimpan();render();}});}
@@ -8220,7 +8224,7 @@ function kitHapus(id){if(ST.user!=='Holding'){alert('Hapus alat deboss hanya ole
 function kitEdit(id,f,v){var k=kitCari(id);if(!k)return;k[f]=String(v||'').trim();k._m=Date.now();kitSimpan();render();}
 /* alat deboss disimpan seperti master lain, tapi ditandai: di cloud ia digabung PER ALAT (cap waktu _m), jadi dua perangkat
    yang memindah alat berbeda tak saling menimpa, dan perangkat yang belum melihat master terbaru boleh mengambilnya dulu */
-function kitSimpan(){ST._masterJenis='kit';saveMaster();}
+function kitSimpan(){ST._masterJenis='kit';saveMaster();}   // sinkronnya lewat gabungan master per baris (masterTerimaCloud)
 function kitGabung(dari){var M=ST.master;if(!M||!dari||dari===M)return false;
   var Dk=Array.isArray(dari.kitAlat)?dari.kitAlat:[],H=Array.isArray(M.kitHapus)?M.kitHapus.slice():[],ubah=false;
   (Array.isArray(dari.kitHapus)?dari.kitHapus:[]).forEach(function(id){if(H.indexOf(id)<0){H.push(id);ubah=true;}});
@@ -8231,15 +8235,121 @@ function kitGabung(dari){var M=ST.master;if(!M||!dari||dari===M)return false;
   var n=L.length;L=L.filter(function(x){return x&&H.indexOf(x.id)<0;});if(L.length!==n)ubah=true;
   if(ubah){M.kitAlat=L;M.kitHapus=H;}
   return ubah;}
-/* Master di cloud lebih baru dari dorongan terakhir perangkat ini, dan perangkat ini tak punya ubahan master sendiri
-   (atau hanya alat deboss): ambil master cloud dulu — kalau tidak, dorongan berikut menimpa master yang lebih baru. */
-function masterTerimaCloud(cloud){if(!cloud||!Array.isArray(cloud.orders)||!cloud.master||typeof cloud.master!=='object'||!Array.isArray(cloud.master.vendors)||!Array.isArray(cloud.master.catalog))return false;   // jawaban kosong / cacat: abaikan
-  var lts=+localStorage.getItem('rovehub_ts')||0,mu=+localStorage.getItem('rovehub_master_ubah')||0,mj=localStorage.getItem('rovehub_master_ubah_jenis')||'';
-  if((cloud.ts||0)>lts&&(mu<=lts||mj==='kit')){var lama=ST.master;ST.master=JSON.parse(JSON.stringify(cloud.master));
-    try{migrasiTeknikJasa();}catch(e){}try{kitGabung(lama);}catch(e){}
-    localStorage.setItem('rovehub_master',JSON.stringify(ST.master));try{buildCollatData();}catch(e){}return true;}
-  if(kitGabung(cloud.master)){localStorage.setItem('rovehub_master',JSON.stringify(ST.master));return true;}
-  return false;}
+/* ================= MASTER DIGABUNG PER BARIS (8 Okt) =================
+   Dulu master satu blob: dorongan terakhir menang — ubahan master perangkat lain yang belum termuat ikut hilang.
+   Sekarang digabung TIGA ARAH: master perangkat ini · master cloud · DASAR = sidik versi bersama terakhir yang diketahui
+   (sidik yang terakhir DIDORONG perangkat ini bila cloud sudah memuatnya; kalau belum, sidik cloud terakhir yang dilihat).
+   Yang berubah di satu sisi saja diambil dari sisi itu; daftar ber-baris (vendor, produk, kombinasi harga, user, alat
+   deboss, …) digabung PER BARIS dengan kunci alaminya (kunci kembar dibedakan per isi) — baris yang dihapus di satu sisi
+   tetap terhapus. Berubah di dua sisi: cap waktu baris (_m / _u) yang lebih baru menang, seri → perangkat ini.
+   Pendorong cloud yang belum melihat versi dasar kita (perangkat basi, atau HUB versi lama tanpa masterDasarTs) →
+   digabung tanpa dasar: tak ada yang dianggap dihapus, jadi tak ada yang hilang. */
+const MASTER_DASAR_KEY='rovehub_master_dasar',MASTER_KIRIM_KEY='rovehub_master_kirim';
+var _msMemo=null;   // WeakMap selama satu penggabungan: hash tiap objek dihitung sekali
+function msH32(t,h,m){for(var i=0;i<t.length;i++){h^=t.charCodeAt(i);h=Math.imul(h,m)>>>0;}return h;}
+function msHashTeks(t){t=String(t);return msH32(t,0x811c9dc5,16777619).toString(36)+'.'+msH32(t,0x2c1b3c6d,0x85ebca77).toString(36);}
+/* hash bertingkat: objek / daftar = hash dari hash anak-anaknya (kunci diurutkan, nilai undefined dilewati, lubang daftar = null) */
+function msHash(v){
+  if(v===null||v===undefined||typeof v!=='object'){var j=JSON.stringify(v===undefined?null:v);return msHashTeks(j===undefined?'null':j);}
+  if(_msMemo){var c=_msMemo.get(v);if(c!==undefined)return c;}
+  var t=Array.isArray(v)?('['+Array.from(v,function(x){return msHash(x);}).join(',')+']')
+    :('{'+Object.keys(v).filter(function(k){return v[k]!==undefined&&typeof v[k]!=='function';}).sort().map(function(k){return JSON.stringify(k)+':'+msHash(v[k]);}).join(',')+'}');
+  var h=msHashTeks(t);if(_msMemo)_msMemo.set(v,h);return h;}
+function msObj(v){return v!==null&&typeof v==='object'&&!Array.isArray(v);}
+function msPunya(o,k){return Object.prototype.hasOwnProperty.call(o,k);}
+const MS_ID={coll:['type','kind','value'],shipping:['ekspedisi','kota'],jasa:['jenis','nama'],collDim:['tipe'],kardus:['size'],jenis:['code'],kurs:['kode'],vtipe:['kode','v']};
+function msIdBaris(jalur,r){
+  if(!msObj(r))return 'p:'+JSON.stringify(r===undefined?null:r);
+  var F=MS_ID[jalur];
+  if(!F&&/^komb\./.test(jalur)){var sec=KOMB_SECS.find(function(x){return 'komb.'+x[0]===jalur;});if(sec)F=sec[3];}
+  if(F)return 'f:'+F.map(function(f){return String(r[f]==null?'':r[f]).toLowerCase().replace(/\s+/g,' ').trim();}).join('|');
+  var K=['id','username','nama','name','code','kode','v'];
+  for(var i=0;i<K.length;i++){var x=r[K[i]];if(x!=null&&String(x).trim()!=='')return K[i]+':'+String(x).trim().toLowerCase();}
+  return 'j:'+msHash(r);}
+/* kunci kembar (mis. dua vendor bernama sama) dibedakan per ISI, bukan per posisi — urutan / hapus satu tak menukar keduanya */
+function msIdDaftar(jalur,A,kembar){var dasar=A.map(function(r){return msIdBaris(jalur,r);}),n={},m={};
+  dasar.forEach(function(id){n[id]=(n[id]||0)+1;});
+  return dasar.map(function(id,i){var x=(n[id]>1||(kembar&&kembar[id]))?(id+'~'+msHash(A[i])):id;m[x]=(m[x]||0)+1;return m[x]>1?(x+'#'+m[x]):x;});}
+/* daftar yang digabung per baris: semua isinya objek (baris). Daftar nilai / daftar daftar dipakai utuh. */
+function msDaftarBaris(A){return Array.isArray(A)&&A.every(msObj);}
+/* sidik: hash tiap kunci & sub-kunci objek (sampai tingkat 3) + hash tiap baris daftar (id diringkas jadi hash) */
+function msSidik(M,ts){var k={},r={};
+  var jalan=function(jalur,v,d){k[jalur]=msHash(v);
+    if(Array.isArray(v)){if(msDaftarBaris(v)){var ids=msIdDaftar(jalur,v),o={};v.forEach(function(x,i){o[msHashTeks(ids[i])]=msHash(x);});r[jalur]=o;}}
+    else if(msObj(v)&&d<3)Object.keys(v).forEach(function(b){if(v[b]!==undefined)jalan(jalur+'.'+b,v[b],d+1);});};
+  if(msObj(M))Object.keys(M).forEach(function(a){if(M[a]!==undefined)jalan(a,M[a],1);});
+  return {ts:+ts||0,k:k,r:r};}
+function msSidikGet(kunci){try{var d=JSON.parse(localStorage.getItem(kunci)||'null');return (d&&d.k&&d.r)?d:null;}catch(e){return null;}}
+function msSidikSet(kunci,M,ts){try{localStorage.setItem(kunci,JSON.stringify(msSidik(M,ts)));}catch(e){try{console.warn('sidik master tak tersimpan',e);}catch(e2){}}}
+function msDasarGet(){return msSidikGet(MASTER_DASAR_KEY);}
+function msDasarSet(M,ts){msSidikSet(MASTER_DASAR_KEY,M,ts);}
+var MS_BULAN={jan:0,feb:1,mar:2,apr:3,mei:4,may:4,jun:5,jul:6,agu:7,agt:7,aug:7,sep:8,okt:9,oct:9,nov:10,des:11,dec:11};
+function msWaktu(r){if(!msObj(r))return 0;if(+r._m>0)return +r._m;
+  var m=/(\d{1,2})\s+([A-Za-z]{3})[a-z]*\.?\s+(\d{4}),?\s+(\d{1,2})[.:](\d{2})/.exec(String(r._u||''));
+  if(!m)return 0;var b=MS_BULAN[m[2].toLowerCase()];if(b==null)return 0;return new Date(+m[3],b,+m[1],+m[4],+m[5]).getTime();}
+function msGabungBaris(jalur,L,C,D){   // D: hash baris dasar per hash-id (null = tanpa dasar → gabungan)
+  var kembar={};[L,C].forEach(function(A){var c={};A.forEach(function(r){var id=msIdBaris(jalur,r);c[id]=(c[id]||0)+1;if(c[id]>1)kembar[id]=1;});});   // kembar di salah satu sisi
+  var idL=msIdDaftar(jalur,L,kembar),idC=msIdDaftar(jalur,C,kembar),mC={},mL={},out=[],ada=!!D;D=D||{};
+  C.forEach(function(x,i){mC[idC[i]]=x;});L.forEach(function(x,i){mL[idL[i]]=x;});
+  var dasar=function(id){return D[msHashTeks(id)];};
+  var pilih=function(id,l,c){var hl=msHash(l),hc=msHash(c);if(hl===hc)return l;var hb=dasar(id);
+    if(hb!==undefined&&hl===hb)return c;           // hanya berubah di cloud
+    if(hb!==undefined&&hc===hb)return l;           // hanya berubah di sini
+    return msWaktu(c)>msWaktu(l)?c:l;};            // berubah di dua sisi
+  L.forEach(function(l,i){var id=idL[i];
+    if(msPunya(mC,id)){out.push(pilih(id,l,mC[id]));return;}
+    if(ada){var hb=dasar(id);if(hb!==undefined&&msHash(l)===hb)return;}   // dihapus di cloud, di sini tak berubah → ikut terhapus
+    out.push(l);});                                         // baru / diubah di sini → tetap
+  C.forEach(function(c,i){var id=idC[i];if(msPunya(mL,id))return;
+    if(ada){var hb=dasar(id);if(hb!==undefined&&msHash(c)===hb)return;}   // dihapus di sini, di cloud tak berubah → jangan hidup lagi
+    out.push(c);});                                         // baru / diubah di cloud → ambil
+  return out;}
+function msGabungNilai(jalur,L,C,S){   // S: sidik dasar {k,r} atau null
+  var hb=S?S.k[jalur]:undefined;
+  if(L===undefined)return (hb!==undefined&&msHash(C)===hb)?undefined:C;
+  if(C===undefined)return (hb!==undefined&&msHash(L)===hb)?undefined:L;
+  var hl=msHash(L),hc=msHash(C);if(hl===hc)return L;
+  if(hb!==undefined&&hl===hb)return C;
+  if(hb!==undefined&&hc===hb)return L;
+  if(Array.isArray(L)&&Array.isArray(C)){
+    if(jalur==='kitHapus'){var u=L.slice();C.forEach(function(x){if(u.indexOf(x)<0)u.push(x);});return u;}   // tombstone: himpunan
+    if(msDaftarBaris(L)&&msDaftarBaris(C))return msGabungBaris(jalur,L,C,(S&&S.r[jalur])||null);
+    return L;}                                // daftar nilai / daftar daftar: urutannya bermakna — utuh, perangkat ini
+  if(msObj(L)&&msObj(C)&&jalur.split('.').length<4){var o={};
+    Object.keys(L).concat(Object.keys(C).filter(function(x){return !msPunya(L,x);})).forEach(function(x){
+      var v=msGabungNilai(jalur+'.'+x,L[x],C[x],S);if(v!==undefined)o[x]=v;});return o;}
+  return L;}                                  // nilai tunggal diubah di dua sisi: perangkat ini
+function msGabung(L,C,S){var o={};L=msObj(L)?L:{};C=msObj(C)?C:{};
+  Object.keys(L).concat(Object.keys(C).filter(function(x){return !msPunya(L,x);})).forEach(function(x){
+    var v=msGabungNilai(x,L[x],C[x],S);if(v!==undefined)o[x]=v;});return o;}
+/* Master cloud diterima: digabung tiga arah dengan master perangkat ini; cloud yang baru dilihat jadi dasar berikutnya.
+   ST._masterPerluDorong = hasil gabungan masih berbeda dari cloud (perangkat ini punya ubahan yang belum sampai).
+   ST._masterDasarTs = versi cloud yang jadi dasar master ini — ikut tiap dorongan (masterDasarTs). */
+function masterTerimaCloud(cloud){ST._masterPerluDorong=false;
+  if(!cloud||!Array.isArray(cloud.orders)||!cloud.master||typeof cloud.master!=='object'||!Array.isArray(cloud.master.vendors)||!Array.isArray(cloud.master.catalog))return false;   // jawaban kosong / cacat: abaikan
+  try{_msMemo=(typeof WeakMap==='function')?new WeakMap():null;}catch(e){_msMemo=null;}
+  try{
+  var C=JSON.parse(JSON.stringify(cloud.master)),L=ST.master||{},cts=+cloud.ts||0,hC=msHash(C),hL0=msHash(L);
+  var mu=+localStorage.getItem('rovehub_master_ubah')||0,lts=+localStorage.getItem('rovehub_ts')||0;
+  /* tak ada yang berubah sejak gabungan terakhir (cloud sama, master perangkat ini sama) → tak perlu menggabung lagi */
+  var Z=ST._msAkhir;if(Z&&Z.hC===hC&&Z.hL===hL0){ST._masterPerluDorong=Z.perlu;ST._masterDasarTs=Z.dts;return false;}
+  var K=msSidikGet(MASTER_KIRIM_KEY),B=msDasarGet(),S=null,sTs=0;
+  if(K&&cts>=(+K.ts||0)){S=K;sTs=+K.ts||0;}          // cloud sudah memuat dorongan terakhir perangkat ini → itu dasarnya
+  else if(B){S=B;sTs=+B.ts||0;}                      // dorongan belum sampai / belum pernah mendorong → cloud terakhir yang dilihat
+  else if(!lts||mu<=lts){S=msSidik(L);sTs=cts;}      // belum pernah sinkron, atau tanpa ubahan master tertunda: master di sini = yang terakhir dikenal
+  /* pendorong cloud belum melihat versi dasar kita (perangkat basi / HUB versi lama): yang tak ada di cloud belum tentu dihapus */
+  if(S&&cts>sTs&&(+cloud.masterDasarTs||0)<sTs)S=null;
+  var G=msGabung(L,C,S);
+  if(Array.isArray(G.kitAlat)&&Array.isArray(G.kitHapus)&&G.kitHapus.length)G.kitAlat=G.kitAlat.filter(function(k){return !k||G.kitHapus.indexOf(k.id)<0;});   // alat yang dihapus tak hidup lagi
+  msDasarSet(C,cts);ST._masterDasarTs=cts;
+  var ubah=msHash(G)!==hL0;
+  _msMemo=null;                                    // migrasi di bawah mengubah master — cache tak boleh dipakai lagi
+  if(ubah){ST.master=G;try{migrasiTeknikJasa();}catch(e){}localStorage.setItem('rovehub_master',JSON.stringify(ST.master));try{buildCollatData();}catch(e){}}
+  var hAkhir=msHash(ST.master);
+  ST._masterPerluDorong=hAkhir!==hC;
+  ST._msAkhir={hC:hC,hL:hAkhir,perlu:ST._masterPerluDorong,dts:cts};
+  return ubah;
+  }finally{_msMemo=null;}}
 function alatDebossPanel(tbl){
   var K=kitAlatDaftar(),f=ST._kitKota||'',boleh=true;
   var kota={};K.forEach(function(k){var x=(k.lokasi||{}).kota||'—';kota[x]=(kota[x]||0)+1;});
@@ -8678,7 +8788,7 @@ function msecEdit(role,s,v){if(role==='Holding'){alert('Akses Holding tidak bisa
   if(!ST.master.msec)ST.master.msec=defMsec();if(!ST.master.msec[role])ST.master.msec[role]={};
   ST.master.msec[role][s]=v;saveMaster();render();}
 /* ---- jejak perubahan + hapus butuh persetujuan Holding ---- */
-function stampRow(r){r._u=nowStr();r._by=ST.userName||ST.user||'-';return r;}
+function stampRow(r){r._u=nowStr();r._m=Date.now();r._by=ST.userName||ST.user||'-';return r;}   // _m: penentu baris yang diubah di dua perangkat
 /* produk CUSTOM = hasil deal yang pernah masuk (baris pricing non-fixed), dikumpulkan otomatis */
 function customCandidates(){
   var ada={};((ST.master&&ST.master.catalog)||[]).forEach(function(r){ada[String(r.name||'').toLowerCase()]=1;});
