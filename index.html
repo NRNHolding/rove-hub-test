@@ -213,6 +213,14 @@
   .mprod-rng{font-size:11px;font-weight:700;color:var(--brand-dark);text-align:right;white-space:nowrap}
   .mprod-ed{padding:10px 12px 12px;background:var(--bg);border-bottom:1px solid var(--line);cursor:default}
   @media(max-width:700px){.mprod-r{grid-template-columns:38px 1fr 100px 14px}.mprod-w,.mprod-uk{display:none}}
+  .kit-lok{margin-left:auto;text-align:right;font-size:11px}.kit-lok b{font-size:12.5px}
+  .kit-g{margin-bottom:7px}.kit-gk{font-size:9px;font-weight:800;text-transform:uppercase;color:var(--muted);margin-bottom:4px}
+  .kit-t{display:inline-flex;gap:4px;align-items:center;border:1px solid var(--line);border-radius:8px;padding:2px 7px;font-size:10.5px;background:var(--panel);margin:0 4px 4px 0}
+  .kit-t b{color:var(--brand)}.kit-t.x{border-color:var(--red);background:var(--red-bg);color:var(--red)}
+  .kit-huruf{display:flex;flex-wrap:wrap;gap:3px}.kit-huruf span{width:21px;height:21px;border:1px solid var(--line);border-radius:4px;font:800 10px/19px ui-monospace,monospace;text-align:center;background:var(--panel)}
+  .kit-huruf span.x{background:var(--red-bg);color:var(--red);border-color:var(--red)}
+  .kit-riw{margin-top:8px;font-size:10.5px}.kit-riw summary{cursor:pointer;font-weight:800;color:var(--muted)}
+  .kit-ev{border:1px solid var(--line);border-radius:9px;padding:8px 10px;margin-bottom:6px;font-size:11px}.kit-ev.on{border-color:var(--brand);background:var(--warn-bg)}
   .adm-tunda{margin-top:10px;font-size:11px}.adm-tunda summary{cursor:pointer;font-weight:800;color:var(--muted)}
   @media(max-width:520px){.adm-row{flex-direction:column}.adm-btns{flex-direction:row;flex-wrap:wrap}.adm-main{font-size:12px}.adm-pilih{font-size:12px}}
   .rtable{width:100%;border-collapse:collapse;font-size:11.5px}
@@ -794,6 +802,7 @@ body.seret .dz.dzOver{outline-style:solid;background:var(--warn-bg);position:rel
         <div id="f_catpick" style="max-height:330px;overflow-y:auto;border:1px solid var(--line);border-radius:9px;padding:8px;background:var(--card,#fff)"></div>
       </div>
       <button type="button" class="btn ghost sm" style="margin-bottom:11px" onclick="nolAddCustom()">＋ Tambah item custom (non-katalog)</button>
+      <button type="button" class="btn ghost sm" style="margin-bottom:11px" data-f="nolNonProduk" onclick="nolAddNonProduk()">＋ Greeting card / non-produk</button>
       <div id="f_catlist"></div>
     </div>
 
@@ -888,7 +897,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20261006-165302';
+const VERSI='20261008-103035';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -1048,6 +1057,13 @@ const EN_RULES=[
   [/^Tampilkan semua (\d+)$/,function(m,n){return 'Show all '+n;}],
   [/^(\d+) cocok dari (\d+)$/,function(m,a,b){return a+' match of '+b;}],
   [/^(\d+) harga khusus$/,function(m,n){return n+' special price'+(+n===1?'':'s');}],
+  [/^(\d+) barang kurang$/,function(m,n){return n+' item'+(+n===1?'':'s')+' missing';}],
+  [/^di (.+)$/,function(m,k){var K=[];try{K=kitKotaPilihan();}catch(e){}return (K.indexOf(k)>=0||k==='—')?('in '+k):m;}],   // hanya chip lokasi alat — catatan lain tak diterjemahkan
+  [/^perlu dikirim ke (.+)$/,function(m,k){return 'needs shipping to '+k;}],
+  [/^Riwayat lokasi \((\d+)\)$/,function(m,n){return 'Location history ('+n+')';}],
+  [/^📦 Berangkat ke (.+)$/,function(m,k){return '📦 Leaving for '+k;}],
+  [/^↩ Kembali ke (.+)$/,function(m,k){return '↩ Back to '+k;}],
+  [/^Tinggal di (.+)$/,function(m,k){return 'Stays in '+k;}],
   [/^(\d+) ada di Kombinasi harga, belum jadi opsi$/,function(m,n){return n+' in price combinations, not an option yet';}],
   [/^(\d+) produk berjenis Katalog bernama “… for …” — dikelompokkan di sini otomatis\. Ubah Jenis-nya ke Custom bila memang produk proyek\.$/,function(m,n){return n+' Catalogue products named “… for …” are grouped here automatically. Change their Type to Custom if they are project products.';}],
   [/^tahap (\d+)$/,function(m,n){return 'stage '+n;}],
@@ -1265,7 +1281,16 @@ const EN={
 'Card wallet & case':'Card wallet & case','Luggage & ID tag':'Luggage & ID tag','Keychain & key case':'Keychain & key case',
 'Pouch, bag & clutch':'Pouch, bag & clutch','📷 Gambar':'📷 Image','📷 Ganti gambar':'📷 Change image','✕ Hapus':'✕ Delete','✕ Ajukan hapus':'✕ Request delete',
 'Salin harga dari':'Copy prices from','Salin harga kombinasi dari':'Copy combination prices from','— tanpa harga dulu —':'— no price yet —',
-'Nama warna':'Colour name','Nama baru':'New name','Tambahkan juga ke daftar warna umum (Opsi form)':'Also add to the general colour list (Form options)','⏸ Tunda':'⏸ Postpone','Ditunda':'Postponed','kartu belum ada':'no card yet','bukan client HUB':'not a HUB client','buat kartu baru':'create a new card',
+'Non-produk':'Non-product','＋ Greeting card / non-produk':'＋ Greeting card / non-product','Spesifikasi item non-produk':'Non-product item spec',
+'Diatur oleh item non-produk':'Set by the non-product item','ubah di blok "Spesifikasi item non-produk" di atas':'change it in the "Non-product item spec" block above',
+'ITEM NON-PRODUK — tanpa produk kulit':'NON-PRODUCT ITEMS — no leather product','belum ada item':'no items yet',
+'Harga dari Kombinasi harga (mis. Thank You Card) — spesifikasi & jumlah bisa diubah PM di Brief Inquiry.':'Price from the Price combinations (e.g. Thank You Card) — the PM can change the spec & quantity in the Inquiry brief.',
+'Pilih jenisnya dulu — isian berikutnya menyesuaikan. Katalog menampilkan produk yang sudah ada, custom cukup ditulis apa adanya, Non-produk untuk greeting card saja (tanpa produk kulit).':'Pick the type first — the next fields adapt. Catalogue shows existing products, custom is written as is, Non-product is for greeting cards only (no leather product).',
+'Tambahkan dulu item non-produknya (mis. Greeting Card) di "Brief singkat untuk PM".':'First add the non-product item (e.g. Greeting Card) in "Short brief for the PM".',
+'Nama warna':'Colour name','Alat deboss':'Deboss kits','＋ Tambah alat deboss':'＋ Add deboss kit','📍 Pindahkan lokasi':'📍 Move location',
+'Lokasi terakhir':'Last location','Alat deboss yang dibawa':'Deboss kits taken','disarankan':'suggested','lengkap':'complete','di luar kota asal':'away from home city',
+'Mesin & perkakas':'Machine & tools','Display & sign':'Display & signs','Meja & perlengkapan':'Table & supplies','Kota asal':'Home city','Tim':'Team',
+'Sekarang ada di kota':'Now in city','Keterangan':'Note','＋ Tambah barang ke isi standar':'＋ Add item to the standard contents','Nama baru':'New name','Tambahkan juga ke daftar warna umum (Opsi form)':'Also add to the general colour list (Form options)','⏸ Tunda':'⏸ Postpone','Ditunda':'Postponed','kartu belum ada':'no card yet','bukan client HUB':'not a HUB client','buat kartu baru':'create a new card',
 'tinggi':'high','sedang':'medium','rendah':'low','→ administrasi':'→ administration','mirip':'similar to','robot administrasi':'administration robot',
 'No. PO':'PO no.','tanggal PO':'PO date','deadline Radja':'Radja deadline','No. invoice DP':'Deposit invoice no.','No. invoice pelunasan':'Final invoice no.','tanggal DP':'Deposit date','tanggal pelunasan':'Final payment date','tanggal acara':'Event date','tanggal diterima':'Received date','(kosong)':'(empty)',
 'Tidak ada fakta baru yang bisa diterapkan.':'There are no new facts to apply.','Usulan ini sudah tidak ada di kotak masuk.':'This proposal is no longer in the inbox.',
@@ -2699,8 +2724,23 @@ function leadNadaToggle(id,k,n){
 function leadSpekBuka(id){ST._lspek=ST._lspek||{};ST._lspek[id]=!ST._lspek[id];render();}
 
 /* Kalimat ringkas untuk dibaca PM — dipakai di kartu prospek & ringkasan order. */
+function leadNonAdd(id){var l=leadsAll().find(function(x){return x.id===id;});if(!l)return;
+  nonProdukForm(function(x){leadNonItems(l).push(x);l._m=Date.now();saveLeads();render();});}
+function leadNonQty(id,i,v){var l=leadsAll().find(function(x){return x.id===id;});if(!l)return;var x=leadNonItems(l)[i];if(!x)return;
+  x.qty=Math.max(0,+v||0);nonProdukHarga(x,MARGIN_BAWAAN);l._m=Date.now();saveLeads();render();}
+function leadNonHapus(id,i){var l=leadsAll().find(function(x){return x.id===id;});if(!l)return;leadNonItems(l).splice(i,1);l._m=Date.now();saveLeads();render();}
+function leadNonBlok(l){var I=leadNonItems(l);
+  return '<div data-f="leadNon" style="margin-top:10px">'+
+    '<div style="font-size:10px;font-weight:800;color:var(--muted);margin-bottom:5px;letter-spacing:.03em">ITEM NON-PRODUK — tanpa produk kulit</div>'+
+    I.map(function(x,i){return '<div style="display:flex;gap:7px;align-items:center;border:1px solid var(--line);border-radius:9px;padding:7px 9px;margin-bottom:6px;background:var(--panel)">'+
+      '<div style="flex:1;min-width:0"><b style="font-size:11.5px">'+esc(x.produk||'')+'</b><div style="font-size:9.5px;color:var(--muted)">'+esc(nonProdukSpekTeks(x)||'-')+(x.sumber?(' · '+esc(x.sumber)):'')+'</div></div>'+
+      '<input class="pin n" type="number" style="width:76px" value="'+(x.qty||'')+'" onchange="leadNonQty('+jsArg(l.id)+','+i+',this.value)"><span style="font-size:10px;color:var(--muted)">pcs</span>'+
+      '<button class="xrow" onclick="leadNonHapus('+jsArg(l.id)+','+i+')" aria-label="hapus">✕</button></div>';}).join('')+
+    '<button class="btn ghost sm" data-f="leadNonTambah" onclick="leadNonAdd('+jsArg(l.id)+')">＋ Greeting card / non-produk</button>'+
+    '<div style="font-size:9.5px;color:var(--muted);margin-top:5px;line-height:1.5">Harga dari Kombinasi harga (mis. Thank You Card) — spesifikasi &amp; jumlah bisa diubah PM di Brief Inquiry.</div></div>';}
 function leadSpecRingkas(l){
   var out=[];
+  if(l.jenis==='Non-produk')leadNonItems(l).forEach(function(x){out.push((x.produk||'item')+(x.qty?(' '+x.qty+'pcs'):'')+' — '+(nonProdukSpekTeks(x)||'-'));});
   leadItems(l).forEach(function(it){
     var c=PACK_TIPE.map(function(pt){var x=(it.coll||{})[pt[0]];
       return (x&&x.ada)?(pt[1]+(x.note?(' ('+x.note+')'):'')):'';}).filter(Boolean).join(', ');
@@ -2713,7 +2753,7 @@ function leadSpecRingkas(l){
 
 
 /* ---- item katalog di prospek ---- */
-const LEAD_JENIS=['Katalog','Custom','Mix'];
+const LEAD_JENIS=['Katalog','Custom','Mix','Non-produk'];   // Non-produk = greeting card saja, tanpa produk kulit (6 Okt)
 function leadItems(l){if(!Array.isArray(l.items))l.items=[];return l.items;}
 /* Ringkasan prospek — dipakai kartu di papan DAN kirimKeInquiry, supaya
    kartunya tak pernah menjanjikan sesuatu yang lain dari yang lahir. */
@@ -2726,7 +2766,9 @@ function leadProdukBersih(l){
   if(!q)return t;
   var m=t.match(/^(.*?)[\s,\u2014-]*\b(\d+)\s*(pcs|pc|buah)\b\.?$/i);
   return (m&&+m[2]===q&&m[1].trim())?m[1].trim().replace(/[\s,\u2014-]+$/,''):t;}
+function leadNonItems(l){if(!Array.isArray(l.nonItems))l.nonItems=[];return l.nonItems;}
 function leadBaris(l){
+  if(l.jenis==='Non-produk'&&leadNonItems(l).length)return leadNonItems(l).map(function(x){return {nama:x.produk,qty:+x.qty||0};});
   var out=leadItems(l).map(function(it){return {nama:it.nama,qty:+it.qty||0};});
   if(!out.length)out.push({nama:leadProdukBersih(l)||'(belum dirinci)',qty:+l.qty||0});
   return out;}
@@ -2740,7 +2782,7 @@ function leadQty(l){
 function leadColl(l){var c={others:''};
   ['box','pouch','card'].forEach(function(k){
     c[k]=leadSpec(l,k).ada||leadItems(l).some(function(it){
-      var x=(it.coll||{})[k];return !!(x&&x.ada);});});
+      var x=(it.coll||{})[k];return !!(x&&x.ada);})||(l.jenis==='Non-produk'&&leadNonItems(l).some(function(x){return x.coll===k;}));});
   return c;}
 function leadJenisSet(id,v){
   var l=leadsAll().find(function(x){return x.id===id;});if(!l)return;
@@ -2878,7 +2920,7 @@ function leadPilihJenis(l){
         (on?'var(--brand)':'var(--line)')+';background:'+(on?'var(--brand)':'var(--panel)')+
         ';color:'+(on?'#fff':'var(--muted)')+';border-radius:9px;padding:8px 10px;font-size:11px;font-weight:800;cursor:pointer">'+
         esc(j)+'</button>';}).join('')+'</div>'+
-    (l.jenis?'':'<div style="font-size:10px;color:var(--muted);margin-top:7px;line-height:1.55">Pilih jenisnya dulu — isian berikutnya menyesuaikan. Katalog menampilkan produk yang sudah ada, custom cukup ditulis apa adanya.</div>');}
+    (l.jenis?'':'<div style="font-size:10px;color:var(--muted);margin-top:7px;line-height:1.55">Pilih jenisnya dulu — isian berikutnya menyesuaikan. Katalog menampilkan produk yang sudah ada, custom cukup ditulis apa adanya, Non-produk untuk greeting card saja (tanpa produk kulit).</div>');}
 
 function leadKatalogBlok(l){
   var I=leadItems(l),K=catalog()||[];
@@ -2959,12 +3001,14 @@ function leadRawBlok(l){
 
 /* Berapa bagian yang sudah terisi — dipakai badge di kartu papan. */
 function leadIsiN(l){
+  if(l.jenis==='Non-produk')return leadNonItems(l).length;
   if(l.jenis==='Katalog')return leadItems(l).length;
   if(l.jenis==='Mix')return leadItems(l).length+leadSpecN(l);
   return leadSpecN(l);}
 function leadIsiKet(l){
   if(!l.jenis)return 'jenis belum dipilih';
   var n=leadIsiN(l);
+  if(l.jenis==='Non-produk')return n?(n+' item non-produk'):'belum ada item';
   if(l.jenis==='Katalog')return n?(n+' produk'):'belum ada produk';
   if(l.jenis==='Mix')return n?(leadItems(l).length+' produk · '+leadSpecN(l)+' catatan'):'belum diisi';
   return n?(n+'/'+LEAD_SEK.length+' bagian'):'belum diisi';}
@@ -2977,7 +3021,8 @@ function leadSpekBlok(l){
   if(!buka)return kepala;
   var isi=leadPilihJenis(l)+
     ((l.jenis==='Katalog'||l.jenis==='Mix')?leadKatalogBlok(l):'')+
-    ((l.jenis==='Custom'||l.jenis==='Mix')?leadRawBlok(l):'');
+    ((l.jenis==='Custom'||l.jenis==='Mix')?leadRawBlok(l):'')+
+    ((l.jenis==='Non-produk')?leadNonBlok(l):'');
   return kepala+'<div style="background:var(--bg);border:1px solid var(--line);border-radius:9px;padding:11px 12px;margin-top:6px">'+
     '<div style="font-size:9.5px;font-weight:800;color:var(--muted);letter-spacing:.04em">BRIEF SINGKAT UNTUK PM</div>'+
     isi+'</div>';}
@@ -3143,11 +3188,14 @@ function leadDel(id){var i=leadsAll().findIndex(function(x){return x.id===id;});
 function kirimKeInquiry(id){
   var l=leadsAll().find(function(x){return x.id===id;});if(!l)return;
   if(!leadAktif(l)){alert('Prospek ini sudah tidak aktif.');return;}
-  if(!l.jenis){alert('Pilih jenis ordernya dulu — Katalog, Custom, atau Mix.\n\nAda di "Brief singkat untuk PM" pada kartu ini.');return;}
+  if(!l.jenis){alert('Pilih jenis ordernya dulu — Katalog, Custom, Mix, atau Non-produk.\n\nAda di "Brief singkat untuk PM" pada kartu ini.');return;}
+  if(l.jenis==='Non-produk'&&!leadNonItems(l).length){alert('Tambahkan dulu item non-produknya (mis. Greeting Card) di "Brief singkat untuk PM".');return;}
 
   /* baris pricing dari produk katalog yang sudah ditunjuk Sales */
   var lines=[];
-  leadItems(l).forEach(function(it){
+  /* prospek Non-produk: hanya item non-produknya — harga dihitung ulang dari Kombinasi harga hari ini */
+  if(l.jenis==='Non-produk')leadNonItems(l).forEach(function(x){var c=JSON.parse(JSON.stringify(x));nonProdukHarga(c,MARGIN_BAWAAN);lines.push(c);});
+  else leadItems(l).forEach(function(it){
     var K=(catalog()||[]).find(function(c){return c.name===it.nama;});
     var q=+it.qty||0, hpp=K?catPrice(K,q||1):0;
     lines.push({produk:it.nama,bahan:(K&&K.material)||'',sumber:'Radja Leather',qty:q,
@@ -3171,7 +3219,7 @@ function kirimKeInquiry(id){
   var qtyTotal=leadQty(l);
   var judul=leadJudul(l);
   var o=mk({prefix:leadPrefix(l),kategori:leadKategori(l),
-    type:l.jenis,customer:l.nama||'Order Baru',product:judul,
+    type:(l.jenis==='Non-produk'?'Collateral':l.jenis),customer:l.nama||'Order Baru',product:judul,
     qty:qtyTotal,mat:lines[0].bahan||'',date:today(),
     phone:l.kontak||'',sales:l.pic||(ST.userName||ST.user||''),
     status:'Inquiry',coll:coll});
@@ -3184,6 +3232,7 @@ function kirimKeInquiry(id){
   o.coll=coll;
   try{barisVendorLengkapi(o);}catch(e){}
   o.brief=Object.assign({fitur:['','','']},o.brief||{});
+  try{nonProdukKeKemasan(o);}catch(e){}   // greeting card: spesifikasi kartu satu sumber
   /* ringkasan Personalization di Brief ikut terisi dari prospek — kalau tidak,
      yang sudah dijawab client tampak belum dijawab */
   try{persoSinkron(o);}catch(e){}
@@ -3205,7 +3254,7 @@ function kirimKeInquiry(id){
   if(vipMinta(l))o.vipMinta=JSON.parse(JSON.stringify(l.vipMinta));  // pengajuan ikut juga
   o.dariSales={dari:l.nama,channel:l.channel,pic:l.pic,catatan:l.catatan||'',
     jenis:l.jenis||'',spec:JSON.parse(JSON.stringify(l.spec||{})),
-    items:JSON.parse(JSON.stringify(l.items||[])),tgl:hariIni()};
+    items:(l.jenis==='Non-produk')?[]:JSON.parse(JSON.stringify(l.items||[])),tgl:hariIni()};   // sisa item katalog dari jenis sebelumnya tak ikut
   o.fromLead=l.id;
   o._faseSejak=Date.now();o.ingatOtomatis={};
 
@@ -5453,6 +5502,7 @@ function pushCloudAman(){
     /* admin yang lebih baru di cloud (robot baru menulis) jangan tertimpa salinan lama perangkat ini */
     try{if(adminTerimaCloud(cloud))ubah=true;}catch(e){}
     try{if(adminTerapkanFakta(true,true)){simpanLokal();ubah=true;}}catch(e){}
+    try{if(masterTerimaCloud(cloud))ubah=true;}catch(e){}
     pushCloud();
     if(ubah&&ST.user)render();
   }).catch(function(){pushCloud();});}
@@ -5513,7 +5563,7 @@ function cloudAutoLoad(){var c=ST.cfg||{};if(!c.dbUrl)return;
     var changed=mergeOrders(d,true); // merge per-order, jangan ganggu order yg lagi dibuka
     try{if(dcArsipTertunda())changed=true;}catch(e){}   // arsip keluarga yang tertunda di dua perangkat sekaligus
     var localTs=+localStorage.getItem('rovehub_ts')||0;
-    if(d.master&&(d.ts||0)>localTs){ST.master=d.master;
+    if(d.master&&(d.ts||0)>localTs){var _kitLama=ST.master;ST.master=d.master;try{kitGabung(_kitLama);}catch(e){}   // alat deboss yang baru dipindah di sini tak hilang
       /* master dari perangkat lain bisa belum kenal jenis 'Teknik' dan kolom
          tekList — tanpa migrasi ulang, dropdown teknik kembali jadi label mati */
       try{migrasiTeknikJasa();}catch(e){}
@@ -6219,7 +6269,7 @@ function dokCatatanBaris(o,r){
     var V=lineVarian(l);if(V.length)out.push('Variants: '+V.map(function(v){return (v.q||0)+' '+(v.w||'');}).join(', '));
     if(l.detail&&String(l.detail).indexOf('dari prospek')<0)out.push(l.detail);}
   if(r.jenis==='coll'&&l){
-    var spec='';try{spec=packRingkas(l.coll||'',packSpec(o,l.coll||''));}catch(e){}
+    var spec='';try{spec=l.kombPilih?nonProdukSpekTeks(l):packRingkas(l.coll||'',packSpec(o,l.coll||''));}catch(e){}
     if(spec)out.push(spec);
     if(l.detail&&String(l.detail).indexOf('dari prospek')<0)out.push(l.detail);}
   if(r.jenis==='live'&&r.jb)out.push('On-site service'+((r.jb.teknik&&r.jb.teknik!=='-')?(' · '+r.jb.teknik):''));
@@ -7494,6 +7544,11 @@ function syncSidebar(){
   }
 }
 function saveMaster(){localStorage.setItem('rovehub_master',JSON.stringify(ST.master));
+  /* catat: master perangkat ini punya ubahan yang belum terdorong (dan jenisnya — hanya alat deboss, atau lainnya) */
+  try{var _lts=+localStorage.getItem('rovehub_ts')||0,_mu=+localStorage.getItem('rovehub_master_ubah')||0,_j=ST._masterJenis||'lain',
+    _lama=(_mu>_lts)?(localStorage.getItem('rovehub_master_ubah_jenis')||'lain'):_j;
+    localStorage.setItem('rovehub_master_ubah',String(Date.now()));localStorage.setItem('rovehub_master_ubah_jenis',(_lama===_j)?_j:'lain');}catch(e){}
+  ST._masterJenis='';
   /* perubahan master harus menyeberang juga — dulu ia cuma menunggu tumpangan
      dari penyimpanan order berikutnya, jadi tab/perangkat lain bisa lama
      sekali tak tahu */
@@ -8095,6 +8150,171 @@ function evChkPanel(o){
       '<label style="font-size:10px;font-weight:700;color:var(--muted)">Resi<br><input class="pin" style="margin-top:3px;width:140px" value="'+esc(kirim.resi)+'" onchange="evKirimSet(\''+o.id+'\',\'resi\',this.value)"></label>'+
       '<label style="font-size:10px;font-weight:700;color:var(--muted)">Tgl kirim<br><input type="date" class="pin" style="margin-top:3px" value="'+esc(kirim.tgl)+'" onchange="evKirimSet(\''+o.id+'\',\'tgl\',this.value)"></label>'):'')+
     '</div></div>';}
+/* ================= ALAT DEBOSS PER KOTA (6 Okt) =================
+   Dulu "Alat standar" satu daftar 52 barang untuk semua tim. Sekarang satu kartu per alat deboss (jumlahnya = alat
+   yang diinput), masing-masing dengan kota asal, tim, dan LOKASI TERAKHIR — alat berpindah kota saat dibawa ke acara.
+   Isi standarnya sama untuk semua alat (jawaban user), jadi daftar barangnya tetap satu: master.tools = template. */
+function kitAlatDaftar(){var M=ST.master;if(!M)return [];if(!Array.isArray(M.kitAlat)){try{kitAlatSiapkan();}catch(e){}}   // master dari cloud yang belum punya: bawaan di memori
+  return Array.isArray(M.kitAlat)?M.kitAlat:[];}
+function kitCari(id){return kitAlatDaftar().find(function(k){return k&&k.id===id;})||null;}
+function kitKotaNama(teks){var i=kotaInduk(teks);if(i)return i.charAt(0).toUpperCase()+i.slice(1);return String(teks||'').split(',').pop().trim();}
+function kitIdKota(kota){return 'kit-'+String(kota||'x').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');}
+/* sekali saja: satu alat deboss per tim deboss di Vendors (urut Surabaya, Jakarta, Bali bila ada) — id tetap per kota */
+function kitAlatSiapkan(){
+  var M=ST.master;if(!M||Array.isArray(M.kitAlat))return false;
+  var V=((M.vendors)||[]).filter(function(v){return v&&(v.tipe==='Live Service'||v.cogs==='Service')&&/deboss/i.test(v.nama||'');});
+  var urut=['surabaya','jakarta','bali'];
+  V.sort(function(a,b){var ia=urut.indexOf(kotaInduk(a.kota||a.nama)),ib=urut.indexOf(kotaInduk(b.kota||b.nama));return (ia<0?9:ia)-(ib<0?9:ib);});
+  var hari='';try{hari=hariIni();}catch(e){}
+  var lihat={};M.kitAlat=[];
+  V.forEach(function(v){var kota=kitKotaNama(v.kota||v.nama);if(!kota)return;var id=kitIdKota(kota);if(lihat[id])return;lihat[id]=1;
+    M.kitAlat.push({id:id,nama:'Alat deboss '+kota,kotaAsal:kota,grup:v.nama,lokasi:{kota:kota,sejak:hari,ket:'kota asal'},kurang:[],riwayat:[]});});
+  return true;}
+/* barang kurang yang masih ada di isi standar (yang sudah dihapus dari isi standar tak membuat alat merah) */
+function kitKurangAktif(k){var T=((ST.master&&ST.master.tools)||defTools()).map(function(t){return t&&t.nama;});return ((k&&k.kurang)||[]).filter(function(n){return T.indexOf(n)>=0;});}
+function kitStatus(k){var n=kitKurangAktif(k).length,luar=k.lokasi&&k.lokasi.kota&&k.kotaAsal&&!kotaCocok(k.lokasi.kota,k.kotaAsal);
+  if(n)return ['red',n+' barang kurang'];if(luar)return ['warn','di luar kota asal'];return ['ok','lengkap'];}
+const KIT_GRUP=[['Mesin & perkakas',/mesin|kunci|pinset|gunting|^mal$|kabel|lampu|kotak alat/i],['Display & sign',/tray|tatakan|tempat kartu|gantungan|sign/i],
+  ['Meja & perlengkapan',/taplak|brosur|kertas|bolpoin|seragam|lebihan/i]];
+function kitIsiHTML(k,boleh){
+  var T=((ST.master&&ST.master.tools)||defTools()).filter(function(t){return t&&t.nama;}),K=k.kurang||[];
+  var huruf=T.filter(function(t){return /^huruf\s+[a-z]$/i.test(t.nama);}),lain=T.filter(function(t){return huruf.indexOf(t)<0;});
+  var kel=KIT_GRUP.map(function(g){return [g[0],lain.filter(function(t){return g[1].test(t.nama);})];});
+  var sisa=lain.filter(function(t){return !KIT_GRUP.some(function(g){return g[1].test(t.nama);});});if(sisa.length)kel.push(['Lainnya',sisa]);
+  var klik=function(t){return boleh?(' onclick="kitKurangTog('+jsArg(k.id)+','+jsArg(t.nama)+')" style="cursor:pointer"'):'';};
+  return kel.filter(function(g){return g[1].length;}).map(function(g){return '<div class="kit-g"><div class="kit-gk">'+esc(g[0])+' ('+g[1].length+')</div>'+
+      g[1].map(function(t){var x=K.indexOf(t.nama)>=0;return '<span class="kit-t'+(x?' x':'')+'"'+klik(t)+' title="'+(boleh?'klik untuk menandai kurang / ada':'')+'">'+esc(t.nama)+' <b>×'+(t.qty||1)+'</b>'+(x?' · kurang':'')+'</span>';}).join('')+'</div>';}).join('')+
+    (huruf.length?('<div class="kit-g"><div class="kit-gk">Huruf A–Z ('+huruf.length+')</div><div class="kit-huruf">'+huruf.map(function(t){var x=K.indexOf(t.nama)>=0;
+      return '<span class="'+(x?'x':'')+'"'+klik(t)+' title="'+esc(t.nama)+(x?' — kurang':'')+'">'+esc(t.nama.slice(-1).toUpperCase())+'</span>';}).join('')+'</div></div>'):'');}
+function kitBuka(id){ST._kitBuka=ST._kitBuka||{};ST._kitBuka[id]=!ST._kitBuka[id];render();}
+function kitKotaSet(k){ST._kitKota=k;render();}
+function kitKurangTog(id,nama){var k=kitCari(id);if(!k)return;if(!Array.isArray(k.kurang))k.kurang=[];var i=k.kurang.indexOf(nama);
+  if(i>=0)k.kurang.splice(i,1);else k.kurang.push(nama);
+  kitRiwayat(k,(i>=0?'ada lagi: ':'kurang: ')+nama);kitSimpan();render();}
+function kitRiwayat(k,ket){k._m=Date.now();if(!Array.isArray(k.riwayat))k.riwayat=[];k.riwayat.unshift({tgl:nowStr(),kota:(k.lokasi||{}).kota||'',ket:ket,oleh:(ST.userName||ST.user||'')});
+  if(k.riwayat.length>30)k.riwayat.length=30;}
+function kitPindahKe(k,kota,ket){kota=String(kota||'').trim();if(!kota)return;var lama=(k.lokasi||{}).kota||'';
+  k.lokasi={kota:kota,sejak:hariIni(),ket:String(ket||'').trim()};kitRiwayat(k,(lama&&lama!==kota?(lama+' → '+kota):kota)+(ket?(' — '+ket):''));}
+function kitKotaPilihan(){var o=[];kitAlatDaftar().forEach(function(k){[k.kotaAsal,(k.lokasi||{}).kota].forEach(function(x){if(x&&o.indexOf(x)<0)o.push(x);});});
+  ((ST.master&&ST.master.operator)||[]).forEach(function(r){var x=kitKotaNama(r.lokasi);if(x&&o.indexOf(x)<0)o.push(x);});return o;}
+function kitPindah(id){var k=kitCari(id);if(!k)return;
+  askForm({judul:'📍 Pindahkan '+k.nama,sub:'Lokasi terakhir sekarang: '+((k.lokasi||{}).kota||'—'),
+    fields:[{k:'kota',label:'Sekarang ada di kota',type:'select',opts:kitKotaPilihan(),val:(k.lokasi||{}).kota||k.kotaAsal,req:true},
+      {k:'ket',label:'Keterangan',ph:'mis. dititipkan ke tim Jakarta untuk acara minggu depan'}],
+    ok:function(v){kitPindahKe(k,v.kota,v.ket||'dipindah manual');kitSimpan();render();}});}
+function kitTambah(){
+  var G=svcVendors().map(function(v){return v.nama;}).filter(function(n,i,a){return a.indexOf(n)===i;});
+  askForm({judul:'＋ Alat deboss',sub:'Isinya mengikuti isi standar (sama untuk semua alat deboss).',
+    fields:[{k:'kota',label:'Kota asal',req:true,ph:'mis. Surabaya'},{k:'grup',label:'Tim',type:'select',opts:['—'].concat(G),val:'—'},
+      {k:'nama',label:'Nama (opsional)',ph:'kosong = "Alat deboss <kota>"'}],
+    ok:function(v){var kota=kitKotaNama(v.kota)||String(v.kota||'').trim();if(!kota)return;if(!ST.master.kitAlat)ST.master.kitAlat=[];
+      var id=kitIdKota(kota),n=2;while(kitCari(id)){id=kitIdKota(kota)+'-'+n;n++;}
+      var nama=String(v.nama||'').trim()||('Alat deboss '+kota+(id!==kitIdKota(kota)?(' '+(n-1)):''));
+      var k={id:id,nama:nama,kotaAsal:kota,grup:(v.grup&&v.grup!=='—')?v.grup:'',lokasi:{kota:kota,sejak:hariIni(),ket:'kota asal'},kurang:[],riwayat:[]};
+      kitRiwayat(k,'dibuat di '+kota);ST.master.kitAlat.push(k);ST._kitBuka=ST._kitBuka||{};ST._kitBuka[id]=true;kitSimpan();render();}});}
+function kitHapus(id){if(ST.user!=='Holding'){alert('Hapus alat deboss hanya oleh Holding.');return;}var k=kitCari(id);if(!k)return;
+  if(!confirm('Hapus '+k.nama+'? Riwayat lokasinya ikut hilang.'))return;
+  ST.master.kitAlat=kitAlatDaftar().filter(function(x){return x.id!==id;});
+  if(!Array.isArray(ST.master.kitHapus))ST.master.kitHapus=[];if(ST.master.kitHapus.indexOf(id)<0)ST.master.kitHapus.push(id);   // supaya tak hidup lagi dari salinan perangkat lain
+  kitSimpan();render();}
+function kitEdit(id,f,v){var k=kitCari(id);if(!k)return;k[f]=String(v||'').trim();k._m=Date.now();kitSimpan();render();}
+/* alat deboss disimpan seperti master lain, tapi ditandai: di cloud ia digabung PER ALAT (cap waktu _m), jadi dua perangkat
+   yang memindah alat berbeda tak saling menimpa, dan perangkat yang belum melihat master terbaru boleh mengambilnya dulu */
+function kitSimpan(){ST._masterJenis='kit';saveMaster();}
+function kitGabung(dari){var M=ST.master;if(!M||!dari||dari===M)return false;
+  var Dk=Array.isArray(dari.kitAlat)?dari.kitAlat:[],H=Array.isArray(M.kitHapus)?M.kitHapus.slice():[],ubah=false;
+  (Array.isArray(dari.kitHapus)?dari.kitHapus:[]).forEach(function(id){if(H.indexOf(id)<0){H.push(id);ubah=true;}});
+  var L=kitAlatDaftar().slice();
+  Dk.forEach(function(c){if(!c||!c.id||H.indexOf(c.id)>=0)return;var i=-1;L.forEach(function(x,j){if(x&&x.id===c.id)i=j;});
+    if(i<0){L.push(JSON.parse(JSON.stringify(c)));ubah=true;}
+    else if((+c._m||0)>(+L[i]._m||0)){L[i]=JSON.parse(JSON.stringify(c));ubah=true;}});
+  var n=L.length;L=L.filter(function(x){return x&&H.indexOf(x.id)<0;});if(L.length!==n)ubah=true;
+  if(ubah){M.kitAlat=L;M.kitHapus=H;}
+  return ubah;}
+/* Master di cloud lebih baru dari dorongan terakhir perangkat ini, dan perangkat ini tak punya ubahan master sendiri
+   (atau hanya alat deboss): ambil master cloud dulu — kalau tidak, dorongan berikut menimpa master yang lebih baru. */
+function masterTerimaCloud(cloud){if(!cloud||!Array.isArray(cloud.orders)||!cloud.master||typeof cloud.master!=='object'||!Array.isArray(cloud.master.vendors)||!Array.isArray(cloud.master.catalog))return false;   // jawaban kosong / cacat: abaikan
+  var lts=+localStorage.getItem('rovehub_ts')||0,mu=+localStorage.getItem('rovehub_master_ubah')||0,mj=localStorage.getItem('rovehub_master_ubah_jenis')||'';
+  if((cloud.ts||0)>lts&&(mu<=lts||mj==='kit')){var lama=ST.master;ST.master=JSON.parse(JSON.stringify(cloud.master));
+    try{migrasiTeknikJasa();}catch(e){}try{kitGabung(lama);}catch(e){}
+    localStorage.setItem('rovehub_master',JSON.stringify(ST.master));try{buildCollatData();}catch(e){}return true;}
+  if(kitGabung(cloud.master)){localStorage.setItem('rovehub_master',JSON.stringify(ST.master));return true;}
+  return false;}
+function alatDebossPanel(tbl){
+  var K=kitAlatDaftar(),f=ST._kitKota||'',boleh=true;
+  var kota={};K.forEach(function(k){var x=(k.lokasi||{}).kota||'—';kota[x]=(kota[x]||0)+1;});
+  if(f&&!kota[f])f='';
+  var chip=function(x,lbl,n){return '<button class="btn '+(f===x?'':'ghost')+' sm" onclick="kitKotaSet('+jsArg(x)+')">'+esc(lbl)+' <span style="opacity:.7">('+n+')</span></button>';};
+  var ops=function(g){return ((ST.master&&ST.master.operator)||[]).filter(function(r){return (r.grup||'')===g&&r.aktif!==false;}).map(function(r){return r.nama;});};
+  var h='<div style="font-size:10.5px;color:var(--muted);margin-bottom:9px">Satu kartu = satu <b>alat deboss</b> (mesin + isi standarnya). <b>Lokasi terakhir</b> berpindah sendiri saat alat '+
+      'dicatat berangkat / kembali di acara Live service, atau dipindah manual di sini. Klik barang di isinya untuk menandai <b>kurang</b>.</div>'+
+    '<div style="display:flex;flex-wrap:wrap;gap:7px;margin-bottom:11px">'+chip('','Semua',K.length)+Object.keys(kota).map(function(x){return chip(x,'di '+x,kota[x]);}).join('')+'</div>';
+  if(!K.length)h+='<div style="color:var(--muted);font-size:11px;padding:6px 0">Belum ada alat deboss. Tambahkan dengan tombol di bawah.</div>';
+  K.filter(function(k){return !f||((k.lokasi||{}).kota||'—')===f;}).forEach(function(k){
+    var buka=!!((ST._kitBuka||{})[k.id]),st=kitStatus(k),L=k.lokasi||{},op=ops(k.grup);
+    h+='<div class="mgrp" data-f="kitAlat" data-id="'+esc(k.id)+'"><div class="mgrp-h" onclick="kitBuka('+jsArg(k.id)+')"><span class="mgrp-pan">'+(buka?'▾':'▸')+'</span>'+
+      '<div><b class="mgrp-nm">'+esc(k.nama)+'</b><div class="mgrp-meta">kota asal '+esc(k.kotaAsal||'—')+(k.grup?(' · '+esc(k.grup)):'')+(op.length?(' ('+esc(op.join(', '))+')'):'')+'</div></div>'+
+      '<span class="tlabel" style="background:'+(st[0]==='red'?'var(--red)':(st[0]==='warn'?'var(--warn)':'var(--ok)'))+'">'+esc(st[1])+'</span>'+
+      '<div class="kit-lok"><div class="mgrp-meta">Lokasi terakhir</div><b>📍 '+esc(L.kota||'—')+'</b><div class="mgrp-meta">'+(L.sejak?('sejak '+esc(tglID(L.sejak))):'')+(L.ket?(' — '+esc(L.ket)):'')+'</div></div></div>';
+    if(buka)h+='<div class="mgrp-b">'+kitIsiHTML(k,boleh)+
+      '<div class="mgrp-akhir"><button class="btn ghost sm" data-f="kitPindah" onclick="kitPindah('+jsArg(k.id)+')">📍 Pindahkan lokasi</button>'+
+        '<label class="nlbl" style="display:inline-flex;gap:5px;align-items:center;margin:0">Nama <input class="pin" style="width:170px" value="'+esc(k.nama)+'" onchange="kitEdit('+jsArg(k.id)+',\'nama\',this.value)"></label>'+
+        '<label class="nlbl" style="display:inline-flex;gap:5px;align-items:center;margin:0">Kota asal <input class="pin" style="width:110px" value="'+esc(k.kotaAsal||'')+'" onchange="kitEdit('+jsArg(k.id)+',\'kotaAsal\',this.value)"></label>'+
+        (ST.user==='Holding'?'<button class="xrow" title="hapus alat deboss" onclick="kitHapus('+jsArg(k.id)+')">✕</button>':'')+'</div>'+
+      ((k.riwayat||[]).length?('<details class="kit-riw"><summary>Riwayat lokasi ('+k.riwayat.length+')</summary>'+k.riwayat.slice(0,12).map(function(r){
+        return '<div>'+esc(r.tgl||'')+' · <b>'+esc(r.kota||'')+'</b> — '+esc(r.ket||'')+(r.oleh?(' <span style="color:var(--muted)">('+esc(r.oleh)+')</span>'):'')+'</div>';}).join('')+'</details>'):'')+'</div>';
+    h+='</div>';});
+  h+='<button class="btn ghost sm" style="margin-top:6px" data-f="kitTambah" onclick="kitTambah()">＋ Tambah alat deboss</button>'+
+    '<div style="margin-top:14px;border-top:1px solid var(--line);padding-top:10px"><div style="font-weight:800;font-size:11px;margin-bottom:4px">Isi standar tiap alat deboss <span style="font-weight:400;color:var(--muted)">— sama untuk semua alat; juga template form Keluar / Kembali tiap operator di Live service</span></div>'+
+    '<div class="xscroll">'+tbl('tools',[['nama','Nama alat'],['qty','Jumlah standar']],(ST.master&&ST.master.tools)||[])+'</div>'+
+    '<button class="btn ghost sm" style="margin-top:9px" onclick="mAdd(\'tools\')">＋ Tambah barang ke isi standar</button></div>';
+  return h;}
+/* ---- di acara Live service: alat deboss yang dibawa ---- */
+function kitDipakai(id,tgl,kecuali){return (ST.orders||[]).filter(function(o){
+  if(!o||o.deleted||o.status==='Cancel'||o.id===kecuali||!o.eventDate||o.eventDate!==tgl)return false;
+  if(o._contoh&&!liveContohIkut(o))return false;
+  return (((o.event||{}).alatDeboss)||[]).indexOf(id)>=0;});}
+function evKitPilih(oid,id,on){var o=ST.orders.find(function(x){return x.id===oid;});if(!o)return;if(!o.event)o.event={};
+  var A=Array.isArray(o.event.alatDeboss)?o.event.alatDeboss:[];var i=A.indexOf(id);
+  if(on&&i<0)A.push(id);if(!on&&i>=0)A.splice(i,1);o.event.alatDeboss=A;
+  var k=kitCari(id);logHist(o,(on?'Alat deboss dipilih: ':'Alat deboss dilepas: ')+((k&&k.nama)||id));o._m=Date.now();save();render();}
+function evKitKurangDariForm(o){var out=[];(((o.event||{}).ops)||[]).forEach(function(op){(op.tools||[]).forEach(function(t){
+  if((+t.out||0)>(+t['in']||0)&&out.indexOf(t.nama)<0)out.push(t.nama);});});return out;}
+function evKitGerak(oid,id,arah){var o=ST.orders.find(function(x){return x.id===oid;});var k=kitCari(id);if(!o||!k)return;
+  var kotaAcara=kitKotaNama(opCity(o));
+  if(arah==='berangkat'){if(!kotaAcara){alert('Kota acara belum diisi — isi Venue dulu.');return;}
+    kitPindahKe(k,kotaAcara,'dibawa ke acara '+(o.customer||'')+(o.eventDate?(' ('+tglID(o.eventDate)+')'):''));
+    logHist(o,'📦 '+k.nama+' berangkat ke '+kotaAcara);}
+  else{var tujuan=(arah==='tinggal')?kotaAcara:k.kotaAsal;
+    var kurang=evKitKurangDariForm(o);
+    var nAlat=(((o.event||{}).alatDeboss)||[]).length;
+    if(kurang.length&&confirm('Form alat mencatat barang yang belum kembali:\n• '+kurang.join('\n• ')+'\n\nTandai kurang di '+k.nama+'?'+(nAlat>1?('\n\n(Acara ini memakai '+nAlat+' alat — tandai hanya di alat yang memang kehilangan barang itu.)'):''))){
+      if(!Array.isArray(k.kurang))k.kurang=[];kurang.forEach(function(n){if(k.kurang.indexOf(n)<0)k.kurang.push(n);});}
+    kitPindahKe(k,tujuan,(arah==='tinggal'?'tinggal sesudah acara ':'kembali dari acara ')+(o.customer||''));
+    logHist(o,'↩ '+k.nama+(arah==='tinggal'?' tinggal di ':' kembali ke ')+tujuan);}
+  kitSimpan();o._m=Date.now();save();render();}
+function evKitPanel(o){
+  var K=kitAlatDaftar();if(!K.length)return '';
+  var e=o.event||{},pilih=Array.isArray(e.alatDeboss)?e.alatDeboss:[],kota=opCity(o),kotaN=kitKotaNama(kota);
+  var saran=K.filter(function(k){return kota&&kotaCocok(kota,(k.lokasi||{}).kota||'')&&!kitKurangAktif(k).length&&!kitDipakai(k.id,o.eventDate,o.id).length;})[0];
+  var baris=K.map(function(k){var on=pilih.indexOf(k.id)>=0,L=k.lokasi||{},sini=kota&&kotaCocok(kota,L.kota||''),bt=o.eventDate?kitDipakai(k.id,o.eventDate,o.id):[],st=kitStatus(k);
+    var tag=[];if(saran&&saran.id===k.id&&!on)tag.push('<span class="tlabel" style="background:var(--ok)">disarankan</span>');
+    if(kota&&!sini)tag.push('<span class="tlabel" style="background:var(--warn)">perlu dikirim ke '+esc(kotaN||kota)+'</span>');
+    if(kitKurangAktif(k).length)tag.push('<span class="tlabel" style="background:var(--red)">'+(kitKurangAktif(k).length)+' barang kurang</span>');
+    if(bt.length)tag.push('<span class="tlabel" style="background:#d9534f" title="'+esc(bt.map(function(x){return x.customer;}).join(', '))+'">bentrok: '+esc(bt[0].customer)+'</span>');
+    return '<div class="kit-ev'+(on?' on':'')+'" data-f="evKit" data-id="'+esc(k.id)+'"><label style="display:flex;gap:8px;align-items:flex-start;cursor:pointer"><input type="checkbox" '+(on?'checked':'')+' style="width:auto;margin-top:2px;accent-color:var(--brand)" onchange="evKitPilih('+jsArg(o.id)+','+jsArg(k.id)+',this.checked)">'+
+      '<div><b>'+esc(k.nama)+'</b> <span style="color:var(--muted)">📍 '+esc(L.kota||'—')+(L.sejak?(' sejak '+esc(tglID(L.sejak))):'')+'</span><div style="margin-top:3px;display:flex;gap:4px;flex-wrap:wrap">'+tag.join('')+'</div></div></label>'+
+      (on?('<div style="display:flex;gap:6px;flex-wrap:wrap;margin:6px 0 0 24px">'+
+        (!sini&&kota?'<button class="btn ghost sm" data-f="kitBerangkat" onclick="evKitGerak('+jsArg(o.id)+','+jsArg(k.id)+',\'berangkat\')">📦 Berangkat ke '+esc(kotaN||kota)+'</button>':'')+
+        ((L.kota&&k.kotaAsal&&!kotaCocok(L.kota,k.kotaAsal))?'<button class="btn ghost sm" data-f="kitKembali" onclick="evKitGerak('+jsArg(o.id)+','+jsArg(k.id)+',\'kembali\')">↩ Kembali ke '+esc(k.kotaAsal)+'</button>':'')+
+        ((L.kota&&kota&&kotaCocok(kota,L.kota)&&k.kotaAsal&&!kotaCocok(kota,k.kotaAsal))?'<button class="btn ghost sm" onclick="evKitGerak('+jsArg(o.id)+','+jsArg(k.id)+',\'tinggal\')">Tinggal di '+esc(kotaN||kota)+'</button>':'')+
+        ((evKitKurangDariForm(o).length&&sini&&kotaCocok(L.kota||'',k.kotaAsal||''))?'<button class="btn ghost sm" onclick="evKitGerak('+jsArg(o.id)+','+jsArg(k.id)+',\'kembali\')">Catat kembali + barang kurang</button>':'')+
+        '</div>'):'')+'</div>';}).join('');
+  var perlu=pilih.some(function(id){var k=kitCari(id);return k&&kota&&!kotaCocok(kota,(k.lokasi||{}).kota||'');})&&!((e.kirim||{}).perlu);
+  return '<div style="border-top:1px solid var(--line);margin-top:11px;padding-top:10px" data-f="evKitPanel">'+
+    '<div style="font-weight:800;font-size:11px;margin-bottom:6px">Alat deboss yang dibawa <span style="font-weight:400;color:var(--muted)">— '+
+      (kota?('acara di <b>'+esc(kotaN||kota)+'</b>; '):'isi Venue supaya HUB tahu kotanya; ')+'yang lokasinya sudah di kota acara & lengkap disarankan.</span></div>'+baris+
+    (perlu?('<div class="adm-note" style="margin-top:6px">Alat yang dipilih ada di kota lain — <button class="btn ghost sm" onclick="evKirimSet('+jsArg(o.id)+',\'perlu\',true)">Tandai alat perlu dikirim (luar kota)</button></div>'):'')+'</div>';}
 /* ---- form alat per operator: keluar vs kembali ---- */
 function evToolsFor(o,i){var op=(o.event&&o.event.ops||[])[i];if(!op)return [];
   if(!op.tools)op.tools=((ST.master&&ST.master.tools)||defTools()).map(function(t){return {nama:t.nama,out:0,in:0,std:t.qty};});
@@ -9063,7 +9283,7 @@ function barisVendorLengkapi(o){
   PACK_TIPE.forEach(function(pt){
     if(!((o.coll||{})[pt[0]]))return;
     var nama=pt[1];
-    if(ada(nama))return;
+    if(ada(nama)||L.some(function(l){return l&&l.coll===pt[0];}))return;   // greeting card / baris kemasan lain sudah ada
     L.push({produk:nama,bahan:'',sumber:vendorForTipe(pt[1]),qty:qty,hpp:0,jual:0,
       img:'',imgs:[],detail:'dari prospek — harganya belum ditanyakan',perso:'-',fixed:false,coll:pt[0]});
     baru.push(nama+' ('+vendorForTipe(pt[1])+')');});
@@ -9298,7 +9518,9 @@ function loadMaster(){try{ST.master=JSON.parse(localStorage.getItem('rovehub_mas
    /* satu orang bisa banyak jabatan — data lama yang masih string dinaikkan ke daftar */
    (ST.master.users||[]).forEach(function(u){if(!Array.isArray(u.jabatans))u.jabatans=u.jabatan?[u.jabatan]:[];});
    if(!ST.master.discordRole)ST.master.discordRole={};
-   if(!ST.master.catalog){ST.master.catalog=[];saveMaster();} if(!ST.master.access){ST.master.access=defAccess();saveMaster();} var da=defAccess(),ubah=false;
+   if(!ST.master.catalog){ST.master.catalog=[];saveMaster();}
+   /* bawaan dibuat di memori saja — menyimpan master saat dimuat bisa menimpa master cloud yang lebih baru */
+   try{kitAlatSiapkan();itemLainSiapkan();}catch(e){} if(!ST.master.access){ST.master.access=defAccess();saveMaster();} var da=defAccess(),ubah=false;
    ROLES.forEach(function(r){
      if(!ST.master.access[r]){ST.master.access[r]=da[r];ubah=true;return;}
      ACCESS_FEATURES.forEach(function(f){                 // menu baru → isi dari bawaan jabatan
@@ -9593,6 +9815,8 @@ function renderMaster(){
          (CT.some(function(r){return !r.pjg||!r.berat;})?'<div style="margin-top:9px;font-size:10.5px;color:var(--warn);font-weight:700">⚠ '+CT.filter(function(r){return !r.pjg||!r.berat;}).length+' produk belum ada ukuran/berat — perhitungan kardus &amp; ongkir tak bisa jalan untuk produk itu.</div>':'');
      } else if(sub==='coll'){
        isi=collPanel(actCell);
+     } else if(sub==='nonproduk'){
+       isi=itemLainPanel();
      } else if(sub==='komb'){
        isi=kombPanel();
      } else {
@@ -9652,7 +9876,7 @@ function renderMaster(){
              bt.map(function(j){return esc(j.nama)+' → '+j.perPcTiers.map(function(t){return (t.max>=999999?'di atas itu':'s/d '+t.max)+' = '+fmt0(t.price);}).join(' · ');}).join('<br>')+'</div>'):'';})();
      }
      return `<div class="rcard"><h3>Master Product</h3>
-       <div style="margin:10px 0 13px">${tab('produk','Produk ('+CT.length+')')}${tab('coll','Collateral ('+((M.coll||[]).length)+')')}${tab('komb','Kombinasi harga ('+kombTotal()+')')}${tab('jasa','Jasa ('+((M.jasa||[]).length)+')')}</div>
+       <div style="margin:10px 0 13px">${tab('produk','Produk ('+CT.length+')')}${tab('coll','Collateral ('+((M.coll||[]).length)+')')}${tab('komb','Kombinasi harga ('+kombTotal()+')')}${tab('jasa','Jasa ('+((M.jasa||[]).length)+')')}${tab('nonproduk','Non-produk ('+itemLainDaftar().length+')')}</div>
        ${isi}</div>`;})(),
    operator:(function(){
      var OP=M.operator||[],f=ST._opTab||'tim';
@@ -9676,14 +9900,11 @@ function renderMaster(){
        chip('vendor','Tim vendor',svcVendors().length)+
        chip('jadwal','Jadwal acara',jadwalLive().length)+
        '<span style="width:1px;background:var(--line);margin:0 3px"></span>'+
-       chip('alat','Alat standar',(M.tools||[]).length)+chip('tpl','Template WA')+'</div>';
+       chip('alat','Alat deboss',kitAlatDaftar().length)+chip('tpl','Template WA')+'</div>';
      var isi;
      if(f==='vendor')isi=timVendorBlok();
      else if(f==='jadwal')isi=jadwalLiveBlok();
-     else if(f==='alat')isi=
-       '<div style="font-size:10.5px;color:var(--muted);margin-bottom:8px">Jadi <b>template form checklist</b> tiap operator (kolom Keluar / Kembali di tab Live service).</div>'+
-       '<div class="xscroll">'+tbl('tools',[['nama','Nama alat'],['qty','Jumlah standar']],M.tools||[])+'</div>'+
-       '<button class="btn ghost sm" style="margin-top:9px" onclick="mAdd(\'tools\')">＋ Tambah alat</button>';
+     else if(f==='alat')isi=alatDebossPanel(tbl);
      else if(f==='tpl')isi=
        '<div style="font-size:10.5px;color:var(--muted);margin-bottom:9px">Diedit di menu <b>Live service</b> (klik tombol 📋 pada checklist persiapan) — di sana teksnya bisa langsung dilihat hasil jadinya. Master data hanya membaca dari situ.</div>'+
        Object.keys(EV_TPL_LABEL).map(function(k){
@@ -12050,7 +12271,7 @@ function liveDetail(o){
       fld('team','Team','1 mesin 1 operator')+fld('wardrobe','Wardrobe','Black on Black')+
       fld('picName','PIC WO Event','Juju')+fld('picPhone','No. HP PIC WO','+62 812-3968-7849')+
     '</div>'+
-    opPanel(o)+evChkPanel(o)+evToolsPanel(o)+lsStokBlok(o)+evFeePanel(o)+
+    opPanel(o)+evChkPanel(o)+evKitPanel(o)+evToolsPanel(o)+lsStokBlok(o)+evFeePanel(o)+
     '<div style="display:flex;gap:9px;margin-top:12px;flex-wrap:wrap"><button class="btn" onclick="genBrief(\''+o.id+'\')">📄 Generate brief operator</button>'+
       (e.picPhone?'<a class="btn ghost" href="https://wa.me/'+e.picPhone.replace(/[^0-9]/g,'')+'" target="_blank" style="text-decoration:none">💬 WA PIC event</a>':'')+'</div></div>';}
 function liveJadwal(L){
@@ -13953,12 +14174,13 @@ const PH_CHECK=[
        return isi(mm)&&warnaOk
          &&(!isi(g('lining'))||isi(g('liningWarna')))
          &&(!isi(g('stitch'))||isi(g('benangWarna')));});},
-   k:'bahanWarna', t:'Pilih bahan & warnanya: main material + warna, warna lining (kalau pakai), warna benang',
+   jika:'adaKulit', k:'bahanWarna', t:'Pilih bahan & warnanya: main material + warna, warna lining (kalau pakai), warna benang',
    en:'Pick the materials & colours: main material + colour, lining colour (if used), thread colour',
    guna:'bahan menentukan harganya; warnanya pilihan client — ditanyakan sekarang supaya produksi tak menebak',
    gunaEn:'the material sets the price; the colours are the client’s choice — ask now so production does not guess',
    /* menahan fase (keputusan user 8 Sep 2026): bahan & warnanya dibutuhkan untuk pricing */
    pic:'Sales', w:true},
+  {auto:function(o){return nonProdukSpekLengkap(o);}, jika:'nonProduk', k:'specNon', t:'Lengkapi spesifikasi & jumlah tiap item non-produk (kertas, coating, finishing, potongan, ukuran)', en:'Complete the spec and quantity of every non-product item (paper, coating, finishing, cut, size)', guna:'supaya vendor kartu bisa memberi harga & mencetak tanpa menebak', gunaEn:'so the card vendor can quote and print without guessing', pic:'PM', w:true},
   {auto:function(o){return !!(o.phone&&String(o.phone).trim());}, k:'kontak', t:'Catat nama PIC client beserta nomor HP-nya', en:'Record the client PIC and their phone number', guna:'supaya semua komunikasi order punya tujuan yang jelas', gunaEn:'so every message about this order has somewhere to go',                 pic:'PM', w:true},
   {auto:function(o){var b=o.brief||{};return !!o.eventDate&&!!b.tglKirim;},
    k:'acara', t:'Tanyakan tanggal acara dan tanggal kirim yang diminta', en:'Ask for the event date and the requested ship date', guna:'supaya seluruh hitung mundur produksi punya acuan', gunaEn:'so the whole production countdown has a reference', pic:'PM', w:true},
@@ -13999,7 +14221,7 @@ const PH_CHECK=[
        var nama=k.pilih||l.bahan;                // yang dijawab Radja HABIS tak boleh lolos
        var d=J.filter(function(x){return x.nama===nama;})[0];
        return !!d&&d.stok!=='Habis';});},
-   k:'kulit', t:'Pastikan kulit yang dipakai ready di Radja — tanya, lalu pilih dari jawabannya',
+   jika:'adaKulit', k:'kulit', t:'Pastikan kulit yang dipakai ready di Radja — tanya, lalu pilih dari jawabannya',
    en:'Confirm the leather is ready at Radja — ask, then pick from the reply',
    guna:'kalau kulitnya habis, harus ketahuan sekarang — bukan saat produksi mulai, ketika DP sudah masuk dan tanggal sudah dijanjikan',
    gunaEn:'if the leather is out of stock it must show now — not when production starts, with the DP in and the date promised',
@@ -14026,11 +14248,12 @@ const PH_CHECK=[
      return L.length>0&&L.every(function(l){return lineHppVendor(l)>0||(+l.hppFix||0)>0;});},
    k:'hpp', t:'Kumpulkan HPP tiap item dari Radja atau katalog', en:'Collect the cost of every item from Radja or the catalogue', guna:'supaya harga jual dihitung dari biaya nyata, bukan kira-kira', gunaEn:'so the selling price is built on real cost, not a guess', pic:'PM', w:true},
   {auto:function(o){return !!((o.po||{}).deadline);},
-   k:'deadlineProd', t:'Tanyakan deadline produksi ke Radja', en:'Ask Radja for the production deadline', guna:'supaya tanggal janji ke client bukan tebakan', gunaEn:'so the date promised to the client is not a guess', pic:'PM', w:true},
+   jika:'adaKulit', k:'deadlineProd', t:'Tanyakan deadline produksi ke Radja', en:'Ask Radja for the production deadline', guna:'supaya tanggal janji ke client bukan tebakan', gunaEn:'so the date promised to the client is not a guess', pic:'PM', w:true},
   {auto:function(o){return !!((o.po||{}).tglPOMax);},
-   k:'tglPOMax', t:'Tanyakan tanggal paling lambat PO boleh turun ke Radja', en:'Ask Radja the latest date the PO can still be issued', guna:'supaya ketahuan lebih awal kalau PO terancam lewat tanggal', gunaEn:'so it shows early if the PO risks missing that date', pic:'PM', w:true},
+   jika:'adaKulit', k:'tglPOMax', t:'Tanyakan tanggal paling lambat PO boleh turun ke Radja', en:'Ask Radja the latest date the PO can still be issued', guna:'supaya ketahuan lebih awal kalau PO terancam lewat tanggal', gunaEn:'so it shows early if the PO risks missing that date', pic:'PM', w:true},
   /* biayaList, bukan o.pricing.biayaLain — nama itu tak pernah ditulis siapa
      pun, jadi itemnya merah selamanya sementara biayanya sudah tercatat */
+  {auto:function(o){return vendorNonTglLengkap(o);}, jika:'nonProduk', k:'tglVendor', t:'Tanyakan deadline produksi & batas PO ke vendor item (mis. CardPrint)', en:'Ask the item vendor (e.g. CardPrint) for the production deadline and the latest PO date', guna:'supaya tanggal janji ke client bukan tebakan', gunaEn:'so the date promised to the client is not a guess', pic:'PM', w:true},
   {auto:function(o){
      var ada=0;try{ada=(((o.pricing||{}).biaya)||[]).length;}catch(e){}
      return ada>0||!!(o.pricing||{}).biayaLainNol;},
@@ -14131,9 +14354,9 @@ const PH_CHECK=[
    k:'poRevDir', t:'Setujui PO revisi beserta biaya tambahannya', en:'Approve the revised PO and any extra cost it brings', guna:'supaya biaya tambahan revisi disetujui dulu, bukan baru ketahuan saat tagihan vendor datang', gunaEn:'so the extra cost of the revision is approved first, not discovered when the vendor bill arrives', pic:'Direktur', w:true, jika:'poRev'},
   {auto:function(o){return poMissing(o).length===0;}, k:'spec', t:'Periksa spesifikasi dari Brief yang terkunci: bahan utama tiap produk dan deadline produksi', en:'Check the locked spec from the Brief: main material of every product and the production deadline', guna:'supaya vendor tak menebak spesifikasi', gunaEn:'so the vendor is not guessing the spec',               pic:'Purchasing', w:true},
   {auto:function(o){return !!(((o.pricing||{}).marginAppr||{}).tgl)&&!susulanHppBerubah(o);}, k:'appr', t:'Setujui kelengkapan spesifikasi sebelum PO turun ke produksi', en:'Approve that the specification is complete before the PO goes to production', guna:'yang diperiksa di sini kesiapan produksi — profitnya sudah diputus di Profitability Checking', gunaEn:'what is checked here is production readiness — the profit was already decided at Profitability Checking',                 pic:'Direktur',      w:true},
-  {auto:function(o){return !!((o.po||{}).generated);}, k:'poR', t:'Terbitkan PO ke Radja', en:'Issue the PO to Radja', guna:'supaya vendor punya dasar mulai produksi', gunaEn:'so the vendor has authority to start',                       pic:'Purchasing', w:true},
+  {auto:function(o){return !!((o.po||{}).generated);}, jika:'adaKulit', k:'poR', t:'Terbitkan PO ke Radja', en:'Issue the PO to Radja', guna:'supaya vendor punya dasar mulai produksi', gunaEn:'so the vendor has authority to start',                       pic:'Purchasing', w:true},
   {auto:function(o){var V=poVendors(o);return V.length===0||V.every(function(v){return !!(((o.vpo||{})[v]||{}).generated);});}, k:'poV', t:'Terbitkan PO ke tiap vendor collateral, lengkap dengan ukuran', en:'Issue a PO to each collateral vendor, sizes included', guna:'supaya kemasan siap bersamaan dengan produknya', gunaEn:'so packaging is ready at the same time as the product',           pic:'Purchasing', w:true},
-  {auto:function(o){return !!((o.trello||{}).created);}, k:'trello', t:'Pastikan kartu Trello Production sudah terbentuk', en:'Make sure the Trello Production card was created', guna:'supaya progres produksi bisa dipantau', gunaEn:'so production progress can be tracked',               pic:'PM', w:true},
+  {auto:function(o){return !!((o.trello||{}).created);}, jika:'adaKulit', k:'trello', t:'Pastikan kartu Trello Production sudah terbentuk', en:'Make sure the Trello Production card was created', guna:'supaya progres produksi bisa dipantau', gunaEn:'so production progress can be tracked',               pic:'PM', w:true},
   {auto:function(o){return !!((o.pricing||{}).spareTgl);},
    k:'spare', t:'Tentukan qty spare produksi', en:'Decide the production spare qty', guna:'supaya ada cadangan kalau ada yang reject', gunaEn:'so there is cover if something is rejected',            pic:'Purchasing', w:true},
   /* Sesudah fase ini barang mulai diproduksi untuk acara yang tanggalnya
@@ -14154,11 +14377,11 @@ const PH_CHECK=[
  ],
  [ // 12 Produksi
   {auto:function(o){return prodLangkahLewat(o,'sampleFiles')||(!!((o.prod||{}).sampleTgl)&&(((o.brief||{}).sampleFiles)||[]).length>0);}, k:'sample', t:'Setujui sample / first article sebelum produksi massal', en:'Approve the sample / first article before mass production', guna:'supaya kesalahan tak terlanjur di semua pcs', gunaEn:'so a mistake does not run through every piece',             pic:'PM', w:true},
-  {auto:function(o){return collKirimLengkap(o);}, jika:'coll', k:'coll', t:'Catat collateral yang sudah terkirim ke Radja — centang tiap collateral', en:'Record which collaterals have been delivered to Radja — tick each one', guna:'supaya paket tak sampai tanpa kemasannya', gunaEn:'so the parcel does not arrive without its packaging',             pic:'Packing', w:true},
+  {auto:function(o){return collKirimLengkap(o);}, jika:'collKulit', k:'coll', t:'Catat collateral yang sudah terkirim ke Radja — centang tiap collateral', en:'Record which collaterals have been delivered to Radja — tick each one', guna:'supaya paket tak sampai tanpa kemasannya', gunaEn:'so the parcel does not arrive without its packaging',             pic:'Packing', w:true},
   {auto:function(o){return !!((o.prod||{}).updated)||prodFotoAda(o)>=2;}, k:'progres', t:'Perbarui tahap dan catatan progres produksi', en:'Update the production stage and progress notes', guna:'supaya tim tahu produksi sampai mana', gunaEn:'so the team knows how far production has got',           pic:'PM', w:true},
-  {auto:function(o){return (((o.brief||{}).potongFiles)||[]).length>0||prodLangkahLewat(o,'potongFiles');}, k:'fotoPotong', t:'Minta & unggah foto setelah potong dari Radja', en:'Request and upload the post-cutting photo from Radja', guna:'supaya bahan yang dipakai terbukti sebelum dijahit', gunaEn:'so the material used is documented before stitching', pic:'PM', w:true},
-  {auto:function(o){return (((o.brief||{}).qcFiles)||[]).length>0||prodLangkahLewat(o,'qcFiles');}, k:'qc', t:'Minta & unggah foto QC dari Radja (retur: satu foto satu alasan)', en:'Request and upload the QC photos from Radja', guna:'supaya invoice pelunasan membawa bukti barang lolos QC', gunaEn:'so the final invoice carries proof of QC', pic:'PM', w:true},
-  {auto:function(o){return (((o.brief||{}).packFiles)||[]).length>0||prodLangkahLewat(o,'packFiles');}, k:'pack', t:'Minta & unggah foto packing dari Radja', en:'Request and upload the packing photos from Radja', guna:'supaya invoice pelunasan membawa bukti barang terpacking', gunaEn:'so the final invoice carries proof of packing', pic:'PM', w:true},
+  {auto:function(o){return (((o.brief||{}).potongFiles)||[]).length>0||prodLangkahLewat(o,'potongFiles');}, jika:'adaKulit', k:'fotoPotong', t:'Minta & unggah foto setelah potong dari Radja', en:'Request and upload the post-cutting photo from Radja', guna:'supaya bahan yang dipakai terbukti sebelum dijahit', gunaEn:'so the material used is documented before stitching', pic:'PM', w:true},
+  {auto:function(o){return (((o.brief||{}).qcFiles)||[]).length>0||prodLangkahLewat(o,'qcFiles');}, jika:'adaKulit', k:'qc', t:'Minta & unggah foto QC dari Radja (retur: satu foto satu alasan)', en:'Request and upload the QC photos from Radja', guna:'supaya invoice pelunasan membawa bukti barang lolos QC', gunaEn:'so the final invoice carries proof of QC', pic:'PM', w:true},
+  {auto:function(o){return (((o.brief||{}).packFiles)||[]).length>0||prodLangkahLewat(o,'packFiles');}, jika:'adaKulit', k:'pack', t:'Minta & unggah foto packing dari Radja', en:'Request and upload the packing photos from Radja', guna:'supaya invoice pelunasan membawa bukti barang terpacking', gunaEn:'so the final invoice carries proof of packing', pic:'PM', w:true},
  ],
  [ // 13 QC & Packing — kelengkapan barang diterima Rove
   {auto:function(o){return terimaLengkap(o);}, k:'terima', t:'Catat kelengkapan barang yang diterima Rove — qty tiap produk & collateral yang ikut', en:'Record what Rove received — qty of each product and the collaterals included', guna:'supaya yang dikirim ke client sama dengan yang diterima dari Radja', gunaEn:'so what ships to the client matches what came from Radja', pic:'Packing', w:true},
@@ -14169,7 +14392,7 @@ const PH_CHECK=[
    k:'fotoProduk', t:'Foto produk jadi untuk dokumentasi — produk utama, beberapa sudut, close-up personalisasi', en:'Photograph the finished product for documentation — main product, several angles, close-up of the personalisation',
    guna:'supaya tiap order punya foto produk jadinya sendiri: arsip Rove, bahan konten, dan bukti ke client', gunaEn:'so every order has photos of its own finished product: archive, content material, and proof for the client',
    pic:'Marketing', w:true},
-  {auto:function(o){return (((o.brief||{}).dokKemasanFiles)||[]).length>0;}, jika:'coll',
+  {auto:function(o){return (((o.brief||{}).dokKemasanFiles)||[]).length>0;}, jika:'collKulit',
    k:'fotoKemasan', t:'Foto kemasan & set lengkap — produk di dalam box / pouch beserta thank you card', en:'Photograph the packaging & the complete set',
    guna:'supaya konten dan arsip memperlihatkan paket utuhnya, bukan produknya saja', gunaEn:'so content and the archive show the whole package, not just the product',
    pic:'Marketing', w:true},
@@ -14185,7 +14408,7 @@ const PH_CHECK=[
   /* benderanya sendiri — dulu membaca o.docs.invoice, bendera invoice DP, jadi
      fase Second Invoice Processing bisa ditutup tanpa invoice pelunasan pernah terbit */
   {auto:function(o){return !!(o.docs&&o.docs.invoicePel);}, k:'invP', t:'Generate & kirim invoice pelunasan (lampiran foto barang jadi & terpacking ikut otomatis)', en:'Send the final invoice', guna:'supaya sisa tagihan tertagih sebelum barang dikirim', gunaEn:'so the balance is billed before the goods go out',                     pic:'Finance', w:true},
-  {auto:function(o){return fotoJadiLengkap(o);}, k:'fotoJadi', t:'Foto barang jadi (QC) & terpacking sudah ada — dari fase Production Process', en:'Photos of the finished (QC) and packed goods are on file — from the Production Process phase', guna:'supaya invoice pelunasan membawa bukti barangnya sudah jadi', gunaEn:'so the final invoice carries proof the goods are done', pic:'Packing', w:true},
+  {auto:function(o){return fotoJadiLengkap(o);}, jika:'adaKulit', k:'fotoJadi', t:'Foto barang jadi (QC) & terpacking sudah ada — dari fase Production Process', en:'Photos of the finished (QC) and packed goods are on file — from the Production Process phase', guna:'supaya invoice pelunasan membawa bukti barangnya sudah jadi', gunaEn:'so the final invoice carries proof the goods are done', pic:'Packing', w:true},
  ],
  [ // 16 Second Payment Processing
   {auto:function(o){return pelTerpenuhi(o);}, k:'lunas', t:'Catat pelunasan yang masuk — client bertermin PO resmi yang disetujui boleh lanjut tanpa bukti bayar', en:'Record the incoming final payment', guna:'supaya barang tak terkirim sebelum lunas', gunaEn:'so nothing ships before it is paid',                               pic:'Finance', w:true},
@@ -14216,6 +14439,10 @@ const PH_CHECK=[
 /* Sebagian item hanya berlaku pada kondisi tertentu — mis. daftar nama tamu
    cuma relevan kalau personalisasinya beda tiap pcs. */
 function chkBerlaku(o,it){
+  /* order tanpa produk kulit (greeting card saja, 6 Okt): langkah khusus kulit / Radja tak berlaku */
+  if(it.jika==='adaKulit')return !orderNonProduk(o);
+  if(it.jika==='nonProduk')return orderNonProduk(o);
+  if(it.jika==='collKulit')return ['box','pouch','card'].some(function(k){return (o.coll||{})[k];})&&!orderNonProduk(o);
   if(it.jika==='perPcs')return persoPerPcs(o);
   if(it.jika==='custom')return String(o.type||'Custom')!=='Katalog';   // order Katalog acuannya foto katalog
   if(it.jika==='ppn')return !!pajakGet(o).kena;
@@ -14581,7 +14808,7 @@ const CHK_PANEL={jualJasa:'_master',operator:'_live',opFix:'_live',logoLetak:'br
   kirimData:'quo', alamatKantor:'quo', ppn:'quo',
   /* item yang ditambahkan belakangan — tanpa didaftarkan di sini, klik-lompat
      dan tombol "Minta isikan" diam saja di baris itu */
-  terjemah:'brief', deadlineProd:'profit', tglPOMax:'profit', accJual:'profit',
+  terjemah:'brief', deadlineProd:'profit', tglPOMax:'profit', accJual:'profit', specNon:'brief', tglVendor:'profit',
   dirAcc:'ringkas', quoAcc:'quoJawab', sketsaAcc:'sketsaJawab', dpMasuk:'pay',
   poRevRadja:'po', poRevDir:'po',
   logoCl:'brief', logoPch:'brief', logoBox:'brief', logoCard:'brief',
@@ -15612,12 +15839,14 @@ function barisClient(o){
 function docGrup(o){
   var m=((o.pricing||{}).margin||0)/100;
   var L=(((o.pricing||{}).lines)||[]).filter(function(l){return (l.qty||0)>0;});
-  var produk=[],coll=[];
+  var produk=[],coll=[],non=[];
   L.forEach(function(l){var j=lineJenis(l);
-    if(j==='produk')produk.push(l);else if(j==='coll')coll.push(l);});
+    if(l.nonProduk)non.push(l);              // greeting card: barang yang dijual sendiri, tak dilebur ke produk
+    else if(j==='produk')produk.push(l);else if(j==='coll')coll.push(l);});
   var nilai=function(l){return lineNet(l,m)*(l.qty||0);};
+  var sendiri=function(c){return {induk:c,ikut:[],qty:c.qty||0,amount:nilai(c)};};
   if(!produk.length){                      // order collateral saja — tampil apa adanya
-    return coll.map(function(c){return {induk:c,ikut:[],qty:c.qty||0,amount:nilai(c)};});
+    return non.concat(coll).map(sendiri);
   }
   var G=produk.map(function(l){return {induk:l,ikut:[],qty:l.qty||0,amount:nilai(l)};});
   var collNilai=coll.reduce(function(s,c){return s+nilai(c);},0);
@@ -15630,7 +15859,7 @@ function docGrup(o){
               :Math.round(collNilai*(g.qty||1)/bobot);
       terbagi+=bagi;g.amount+=bagi;});
   }
-  return G;}
+  return G.concat(non.map(sendiri));}
 /* Nama collateral yang ikut, untuk keterangan singkat di bawah nama produk. */
 function ikutNama(g){
   var n=[];g.ikut.forEach(function(c){
@@ -15963,7 +16192,9 @@ function pelTerpenuhi(o){
 function terimaGet(o){if(!o.terima)o.terima={produk:{},coll:{},catatan:'',tgl:''};if(!o.terima.produk)o.terima.produk={};if(!o.terima.coll)o.terima.coll={};return o.terima;}
 function terimaLengkap(o){
   var T=(o&&o.terima)||{produk:{},coll:{}};
-  var P=terimaBaris(o);if(!P.length&&!Object.keys(susulPindah(o)).length)return false;   // semua produk pindah ke kartu susulan: tinggal collateral
+  var P=terimaBaris(o);
+  if(!P.length&&orderNonProduk(o)){var C=collDipilih(o);return C.length>0&&C.every(function(c){return !!((T.coll||{})[c.k]);});}   // greeting card saja
+  if(!P.length&&!Object.keys(susulPindah(o)).length)return false;   // semua produk pindah ke kartu susulan: tinggal collateral
   if(!P.every(function(p){return (+((T.produk||{})[p.key])||0)>0;}))return false;
   return collDipilih(o).every(function(c){return !!((T.coll||{})[c.k]);});}
 function terimaSet(id,jenis,k,v){
@@ -18406,7 +18637,7 @@ function rfqPesanGabung(o,l){
       if(!U.length)P.push('_Belum ada produk berukuran di order ini — mohon tunggu, akan kami susulkan._');
       else U.forEach(function(u){
         P.push('• '+u.nama+((u.jenis==='produk'&&u.qty)?(' ('+u.qty+' pcs)'):'')+' — '+(u.ukuran||'**ukuran belum ada di data kami, akan kami susulkan**'));});}
-    var spek='';try{if(ck)spek=packRingkas(ck,packSpec(o,ck));}catch(e){}
+    var spek='';try{if(l&&l.kombPilih)spek=nonProdukSpekTeks(l);else if(ck)spek=packRingkas(ck,packSpec(o,ck));}catch(e){}   // greeting card: spesifikasinya sendiri
     if(ck!=='card'&&rekomendasiTeks(o,ck))P.push('Rekomendasi ukuran dari isinya: **'+rekomendasiTeks(o,ck)+'** — vendor boleh menyesuaikan.');
     P.push('','**Spesifikasi '+(l.produk||'kemasan')+' yang diminta**',
       spek||'_Belum ditentukan — mohon disarankan yang cocok untuk ukuran di atas._');
@@ -19234,10 +19465,11 @@ function radjaBlok(o){
     '<div class="sj">Info dari vendor — deadline &amp; batas PO turun</div>'+
     '<div style="font-size:10px;color:var(--muted);margin-bottom:9px;line-height:1.55">Dikorek PM ke tiap vendor sebelum harga jual ditetapkan: kapan produksi selesai, dan paling lambat kapan PO harus turun. Tanpa ini, tanggal janji ke client cuma tebakan.</div>'+
     '<div class="xscroll"><table class="rtable mstack" data-f="tglVendor"><thead><tr><th>Vendor</th><th style="width:170px">Deadline produksi</th><th style="width:170px">Paling lambat PO turun</th><th style="width:150px"></th></tr></thead><tbody>'+
+      (orderNonProduk(o)?'':   // greeting card saja: tak ada produk kulit, jadi tak ada tanggal Radja
       '<tr><td><b>'+esc(kulitVendorNama())+'</b><div style="font-size:9px;color:var(--muted)">produk utama</div></td>'+
         '<td data-l="Deadline produksi"><input type="date" class="pin" style="width:100%" value="'+esc(P.deadline||'')+'" onchange="radjaSet(\''+o.id+'\',\'deadline\',this.value)"></td>'+
         '<td data-l="Paling lambat PO turun"><input type="date" class="pin" style="width:100%" value="'+esc(P.tglPOMax||'')+'" onchange="radjaSet(\''+o.id+'\',\'tglPOMax\',this.value)"></td>'+
-        '<td style="font-size:10px;font-weight:800;color:'+warna+'">'+esc(ket)+'</td></tr>'+
+        '<td style="font-size:10px;font-weight:800;color:'+warna+'">'+esc(ket)+'</td></tr>')+
       poVendors(o).map(function(v){var T=vendorTglGet(o,v),dv=T.tglPOMax?dLeft(T.tglPOMax):null;
         var kv=(dv===null)?'':(dv<0?('telat '+(-dv)+' hari'):(dv===0?'batas PO hari ini':(dv+' hari lagi')));
         return '<tr><td><b>'+esc(v)+'</b><div style="font-size:9px;color:var(--muted)">'+esc(tipeLabel(vendorTipe(v))||'collateral / jasa')+'</div></td>'+
@@ -20339,7 +20571,9 @@ function kirimSet(id,f,v){
 const KIRIM_BUKAN_BARANG=/^\s*(?:jasa\s+|biaya\s+)?(?:monogram\w*|deboss\w*|emboss\w*|engrav\w*|grafir\w*|klise|cliche|plate)(?:\s+(?:plate|deboss|emboss|foil|logo|nama|initial|inisial))*\s*$/i;   // seluruh nama baris = jasa/alat; "Tray L emboss depan-belakang" tetap barang
 const KIRIM_BUKAN_ONGKIR=/^\s*(?:ongkir|ongkos\s+kirim|biaya\s+(?:kirim|pengiriman)|shipping\s+(?:fee|cost|paxel|jne|j&t|jnt|sicepat|anteraja|gosend|grab\w*|lalamove|dhl|fedex|tiki|pos))\b/i;
 function kirimFisik(o,key,nama){var T=((o||{}).kirim||{}).tanpaKirim||{};if(Object.prototype.hasOwnProperty.call(T,key))return !T[key];var n=String(nama||'');return !KIRIM_BUKAN_BARANG.test(n)&&!KIRIM_BUKAN_ONGKIR.test(n);}
-function kirimProdukSemua(o){var G={},urut=[];((((o||{}).pricing||{}).lines)||[]).forEach(function(l){if(!l||l.svcFee||lineJenis(l)!=='produk')return;var k='l:'+(l.produk||'');
+function kirimProdukSemua(o){var G={},urut=[],nonP=orderNonProduk(o);((((o||{}).pricing||{}).lines)||[]).forEach(function(l){if(!l||l.svcFee)return;var j=lineJenis(l);
+  if(j!=='produk'&&!(nonP&&j==='coll'))return;   // greeting card saja: kartunya yang dikirim
+  var k='l:'+(l.produk||'');
   if(!G[k]){G[k]={key:k,nama:l.produk||'',qty:0};urut.push(k);}G[k].qty+=(+l.qty||0);});   /* batch 1 + tambahan dijumlah per produk (patch153) */
   /* kartu induk: qty yang pindah ke kartu susulan bukan tanggungan kirim kartu ini lagi. Barisnya TETAP ada (qty boleh 0)
      supaya rekap kirim, BAST, dan surat jalan tetap bisa membaca nama tiap kunci. qtyAsli = qty order, susul = yang pindah. */
@@ -21537,10 +21771,12 @@ function kombTipe2Key(tipe){return {'Soft Pouch':'sp','Hardbox':'hb','Softbox':'
 /* Baris pricing → kunci tabel kombinasi. Tiap tipe menaruh atributnya di kolom
    yang berbeda (kartu: nama produk = material, bahan = coating). */
 function kombKeyLine(l){
+  if(l&&l.nonProduk){var kn=itemLainKomb(itemLainCari(l.nonProduk));if(kn)return kn;}   // greeting card: dari master itemnya, bukan dari vendor baris
   var t=vendorTipe(l.sumber),k=kombTipe2Key(t);
   if(!k&&t==='Box')k=/soft/i.test(l.produk||'')?'sb':'hb';
   return k;}
 function kombPilihDariLine(k,l){
+  if(l&&l.kombPilih&&typeof l.kombPilih==='object')return l.kombPilih;   // item non-produk: atribut dipilih langsung (6 Okt)
   if(k==='sp')return {model:l.produk,material:l.bahan,tali:l.tali,sise:l.ukuran,finishing:l.finishing};
   if(k==='hb'||k==='sb')return {model:l.produk,finishing:l.finishing,ukuran:l.ukuran};
   if(k==='cd')return {material:l.produk,coat:l.bahan,finishing:l.finishing,sise:l.ukuran};
@@ -21752,6 +21988,118 @@ function kombPanel(){
   if(q)h+='<div style="font-size:10.5px;color:var(--brand);font-weight:700;margin-top:6px">'+nCocok+' cocok dari '+semua.length+'</div>';
   return h+'<button class="btn ghost sm" style="margin-top:9px" data-f="kombGrupBaru" onclick="kombGrupSalin(\''+k+'\')">＋ '+esc(gl)+' baru (salin harga dari '+esc(gl.toLowerCase())+' lain)</button>';}
 
+/* ================= ITEM NON-PRODUK (6 Okt) =================
+   Order bisa hanya berisi greeting card (atau item non-produk lain dari master) — tanpa produk kulit. Harga greeting card =
+   Kombinasi harga Thank You Card (vendor & harga sama, jawaban user). Baris item non-produk menyimpan pilihan atributnya
+   di l.kombPilih, jadi pencarian HPP dari Kombinasi harga berjalan seperti baris collateral biasa. */
+const NONPROD_SUMBER=[['komb:cd','Kombinasi harga Thank You Card'],['komb:sp','Kombinasi harga Soft Pouch'],['komb:hb','Kombinasi harga Hardbox'],['komb:sb','Kombinasi harga Softbox']];   // "harga sendiri" dibuang: item tanpa kemasan / kartu tak punya baris terima di QC
+const NONPROD_TIPE={cd:'Thank You Card',sp:'Soft Pouch',hb:'Box',sb:'Box'};
+const NONPROD_COLL={cd:'card',sp:'pouch',hb:'box',sb:'box'};
+function itemLainDaftar(){var M=ST.master;if(!M)return [];if(!Array.isArray(M.itemLain)){try{itemLainSiapkan();}catch(e){}}
+  return Array.isArray(M.itemLain)?M.itemLain:[];}
+function itemLainSiapkan(){var M=ST.master;if(!M||Array.isArray(M.itemLain))return false;
+  M.itemLain=[{id:'greeting',nama:'Greeting Card',sumberHarga:'komb:cd',vendor:'',satuan:'pcs',perluDesain:true,t:[]}];return true;}
+function itemLainCari(id){return itemLainDaftar().find(function(x){return x&&x.id===id;})||null;}
+function itemLainKomb(it){var m=/^komb:(\w+)$/.exec(String((it&&it.sumberHarga)||''));return m?m[1]:'';}
+function itemLainVendor(it){var k=itemLainKomb(it);return String((it&&it.vendor)||'').trim()||(k?vendorForTipe(NONPROD_TIPE[k]):'');}
+/* order tanpa produk kulit: ada baris barang ber-qty, tak satu pun produk */
+function orderNonProduk(o){
+  var L=((((o||{}).pricing||{}).lines)||[]).filter(function(l){return l&&!l.svcFee&&!l._tbh&&lineJenis(l)!=='jasa'&&(+l.qty||0)>0;});
+  return L.length>0&&!L.some(function(l){return lineJenis(l)==='produk';});}
+/* kemasan yang "dimiliki" baris non-produk (greeting card → Thank You Card): spesifikasinya SATU sumber — l.kombPilih.
+   Disalin ke spesifikasi kemasan order supaya sketsa, RFQ, SPK, dan catatan quotation / PO membaca hal yang sama. */
+function nonProdukPemilik(o,k){
+  /* Thank You Card yang dipesan juga (baris kemasan biasa): kemasan kartu milik baris itu, greeting card memakai spesifikasinya sendiri */
+  if(((((o||{}).pricing||{}).lines)||[]).some(function(l){return l&&!l.nonProduk&&l.coll===k&&(+l.qty||0)>0;}))return null;
+  return nonProdukBaris(o).map(function(x){return x.l;}).filter(function(l){return l.kombPilih&&l.coll===k&&(+l.qty||0)>0;})[0]||null;}
+function nonProdukKeKemasan(o){
+  ['box','pouch','card'].forEach(function(k){var l=nonProdukPemilik(o,k);if(!l)return;
+    var kk=kombKeyLine(l)||itemLainKomb(itemLainCari(l.nonProduk)),sec=KOMB_SECS.find(function(x){return x[0]===kk;});if(!sec)return;
+    var P=l.kombPilih||{},F=COLL_KOMB_F[sec[1]]||{},spec=packSpec(o,k),pakai=[];
+    if(k==='box')spec.Jenis=sec[1];
+    Object.keys(F).forEach(function(kind){var f=F[kind][0];pakai.push(f);spec[kind]=String(P[f]==null?'':P[f]);});
+    sec[3].forEach(function(f){if(pakai.indexOf(f)<0)spec[KOMB_LABEL[f]||f]=String(P[f]==null?'':P[f]);});
+    if(!o.coll)o.coll={};o.coll[k]=true;briefGet(o)[k+'Ada']='Ada';
+    if(!o.notes)o.notes={};if(packMode(o)==='sama')o.notes[k]=packRingkas(k,spec);});}
+function nonProdukBaris(o){return ((((o||{}).pricing||{}).lines)||[]).map(function(l,i){return {l:l,i:i};}).filter(function(x){return x.l&&x.l.nonProduk;});}
+function nonProdukSpekTeks(l){var P=(l&&l.kombPilih)||{},k=kombKeyLine(l)||'',sec=KOMB_SECS.find(function(x){return x[0]===k;});
+  var F=sec?sec[3]:Object.keys(P);return F.map(function(f){return P[f];}).filter(function(v){return v&&v!=='-';}).join(' · ');}
+function nonProdukSpekLengkap(o){var L=((((o||{}).pricing||{}).lines)||[]).filter(function(l){return l&&!l.svcFee&&lineJenis(l)!=='jasa';});
+  if(!L.length)return false;
+  return L.every(function(l){if(!((+l.qty||0)>0))return false;if(!l.kombPilih)return true;var k=kombKeyLine(l),sec=KOMB_SECS.find(function(x){return x[0]===k;});
+    return !sec||sec[3].every(function(f){return String(l.kombPilih[f]||'').trim()!=='';});});}
+function vendorNonDaftar(o){var P=poVendors(o),V=[];((((o||{}).pricing||{}).lines)||[]).forEach(function(l){if(!l||l.svcFee||lineJenis(l)==='jasa'||!((+l.qty||0)>0))return;var v=l.sumber||'';if(v&&P.indexOf(v)>=0&&V.indexOf(v)<0)V.push(v);});return V;}   // = baris Info dari vendor
+function vendorNonTglLengkap(o){var V=vendorNonDaftar(o);return V.length>0&&V.every(function(v){var T=vendorTglGet(o,v);return !!T.deadline&&!!T.tglPOMax;});}
+/* harga baris non-produk: dari Kombinasi harga (atribut terpilih) atau harga sendiri item master */
+/* tetapJual: harga jual yang sudah ada tak disentuh (mis. di fase Penentuan harga jual) */
+function nonProdukHarga(l,margin,tetapJual){if(!l)return;var it=itemLainCari(l.nonProduk);var h=0;
+  if(l.kombPilih){var r=kombUntukLine(l);if(r){h=packPriceT(r.t,+l.qty||0);l._hppKomb=r.kombinasi||kombNama(kombKeyLine(l),r);}
+    /* kombinasi baru tak ada: HPP lama milik spesifikasi lama — kosongkan supaya kembali ke antrean tanya harga vendor */
+    else if(!l._hppManual){l.hpp=0;delete l._hppKomb;if(!tetapJual&&!l._jualManual)l.jual=0;}}
+  else if(it&&Array.isArray(it.t)&&it.t.length)h=packPriceT(it.t,+l.qty||0);
+  if(h>0&&!l._hppManual)l.hpp=h;
+  if(!tetapJual&&!l._jualManual&&(+l.hpp||0)>0)l.jual=Math.round((+l.hpp)*(1+((margin==null?MARGIN_BAWAAN:margin)||0)/100));}
+/* spesifikasi greeting card menentukan HPP-nya — sejak harga jual disetujui (Profitability Checking) ia terkunci; ubah lewat Revisi order */
+function nonSpekKunci(o){return !!o&&(!!o.done||(o.phase||0)>=3);}
+function nonProdukNilaiOpsi(k,f,pilih){var sec=KOMB_SECS.find(function(x){return x[0]===k;});if(!sec)return [];
+  var out=[];kombRows(k).forEach(function(r){var v=String(r[f]==null?'':r[f]).trim();if(v&&out.indexOf(v)<0)out.push(v);});return out;}
+/* ---- Order baru: tambah greeting card / item non-produk ---- */
+function nolAddNonProduk(){nonProdukForm(function(l){NOL.push(l);renderCatBuilder();});}
+function nonProdukForm(cb,pilihId){
+  var I=itemLainDaftar();if(!I.length){alert('Belum ada item non-produk di Master Product → Non-produk.');return;}
+  /* lebih dari satu item: pilih itemnya dulu — atribut spesifikasinya beda tiap sumber harga */
+  if(!pilihId&&I.length>1){askForm({judul:'＋ Greeting card / non-produk',sub:'Pilih itemnya dulu — spesifikasinya menyesuaikan.',
+    fields:[{k:'item',label:'Item',type:'select',opts:I.map(function(x){return {v:x.id,l:x.nama};}),val:I[0].id}],
+    ok:function(v){nonProdukForm(cb,v.item||I[0].id);}});return;}
+  var it=(pilihId&&itemLainCari(pilihId))||I[0],k=itemLainKomb(it),sec=KOMB_SECS.find(function(x){return x[0]===k;});
+  var fields=[{k:'item',label:'Item',type:'select',opts:[{v:it.id,l:it.nama}],val:it.id}];
+  if(sec)sec[3].forEach(function(f){var V=nonProdukNilaiOpsi(k,f);fields.push({k:'f_'+f,label:KOMB_LABEL[f]||f,type:'select',opts:V.length?V:['-'],val:V[0]||'-'});});
+  fields.push({k:'qty',label:'Jumlah ('+(it.satuan||'pcs')+')',type:'number',req:true,ph:'mis. 150'});
+  askForm({judul:'＋ '+it.nama+' / non-produk',sub:'Harga dari '+((NONPROD_SUMBER.find(function(x){return x[0]===it.sumberHarga;})||[,''])[1]||'master')+' — bisa diubah di pricing.',fields:fields,
+    ok:function(v){var x=itemLainCari(v.item)||it,kk=itemLainKomb(x),sc=KOMB_SECS.find(function(y){return y[0]===kk;});
+      var q=Math.max(0,+v.qty||0);if(!q){alert('Isi jumlahnya dulu.');return;}
+      var P=null;if(sc){P={};sc[3].forEach(function(f){var val=v['f_'+f];P[f]=(val&&val!=='-')?val:'';});}
+      var l={produk:x.nama,bahan:P?(P.material||''):'',sumber:itemLainVendor(x),qty:q,hpp:0,jual:0,detail:'',imgs:[],fixed:false,nonProduk:x.id,coll:kk?NONPROD_COLL[kk]:'lain'};
+      if(P)l.kombPilih=P;
+      nonProdukHarga(l,MARGIN_BAWAAN);cb(l);}});}
+/* ---- pricing: spesifikasi baris non-produk bisa diubah, HPP ikut ---- */
+function nonSpekSet(id,i,f,v){var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;var l=(((o.pricing||{}).lines)||[])[i];if(!l||!l.kombPilih)return;
+  if(nonSpekKunci(o)){alert('Spesifikasi '+(l.produk||'item')+' terkunci sejak harga jual disetujui — ubah lewat ✎ Revisi order supaya harganya dihitung ulang.');render();return;}
+  l.kombPilih[f]=(v==='-')?'':v;if(f==='material')l.bahan=l.kombPilih[f];
+  nonProdukHarga(l,((o.pricing||{}).margin),(o.phase||0)>=2);try{nonProdukKeKemasan(o);}catch(e){}logHist(o,'Spesifikasi '+(l.produk||'item')+': '+(KOMB_LABEL[f]||f)+' → '+(v||'-'));o._m=Date.now();save();render();}
+function nonProdukSpekBlok(o){var B=nonProdukBaris(o).filter(function(x){return x.l.kombPilih;});if(!B.length)return '';
+  var kunci=nonSpekKunci(o);
+  return '<div style="margin-top:10px;border:1px solid var(--line);border-radius:10px;padding:9px 11px;background:var(--bg)" data-f="nonSpek">'+
+    '<div style="font-weight:800;font-size:11px;margin-bottom:6px">Spesifikasi item non-produk <span style="font-weight:400;color:var(--muted)">— HPP mengikuti Kombinasi harga'+(kunci?'; terkunci sejak harga jual disetujui — ubah lewat ✎ Revisi order':'')+'</span></div>'+
+    B.map(function(x){var l=x.l,k=kombKeyLine(l),sec=KOMB_SECS.find(function(y){return y[0]===k;});var r=null;try{r=kombUntukLine(l);}catch(e){}
+      return '<div style="display:flex;flex-wrap:wrap;gap:7px;align-items:flex-end;margin-bottom:6px"><b style="font-size:11.5px;min-width:110px">'+esc(l.produk)+' <span style="font-weight:400;color:var(--muted)">'+(l.qty||0)+' pcs</span></b>'+
+        (sec?sec[3].map(function(f){var V=nonProdukNilaiOpsi(k,f),kini=l.kombPilih[f]||'';if(kini&&V.indexOf(kini)<0)V.push(kini);
+          return '<label class="nlbl" style="margin:0">'+esc(KOMB_LABEL[f]||f)+'<select class="pin" style="margin-top:2px"'+(kunci?' disabled':'')+' onchange="nonSpekSet('+jsArg(o.id)+','+x.i+',\''+f+'\',this.value)">'+
+            '<option value="-">—</option>'+V.map(function(op){return '<option '+(op===kini?'selected':'')+'>'+esc(op)+'</option>';}).join('')+'</select></label>';}).join(''):'')+
+        '<span style="font-size:10px;color:'+(r?'var(--ok)':'var(--warn)')+'">'+(r?('HPP '+fmt0(packPriceT(r.t,+l.qty||0))+'/pcs dari kombinasi'):'kombinasi ini belum ada — tanyakan ke vendor')+'</span></div>';}).join('')+'</div>';}
+/* ---- Master Product → Non-produk ---- */
+function itemLainEdit(i,f,v){var r=itemLainDaftar()[i];if(!r)return;r[f]=v;stampRow(r);saveMaster();if(f==='sumberHarga')render();}
+function itemLainEditT(i,ti,v){var r=itemLainDaftar()[i];if(!r)return;if(!Array.isArray(r.t))r.t=[];r.t[ti]=(String(v==null?'':v).trim()==='')?null:moneyVal(v);stampRow(r);saveMaster();}
+function itemLainTambah(){if(!ST.master.itemLain)ST.master.itemLain=[];var id='item-'+Date.now().toString(36);
+  ST.master.itemLain.push(stampRow({id:id,nama:'',sumberHarga:'komb:cd',vendor:'',satuan:'pcs',perluDesain:false,t:[]}));saveMaster();render();}
+function itemLainHapus(i){var r=itemLainDaftar()[i];if(!r)return;if(ST.user!=='Holding'){alert('Hapus item non-produk hanya oleh Holding.');return;}
+  if(!confirm('Hapus item "'+(r.nama||'')+'"? Order yang sudah memakainya tidak berubah.'))return;ST.master.itemLain.splice(i,1);saveMaster();render();}
+function itemLainPanel(){var I=itemLainDaftar(),V=(ST.master&&ST.master.vendors||[]).map(function(v){return v.nama;}).filter(function(n,i,a){return n&&a.indexOf(n)===i;});
+  return '<div style="font-size:10.5px;color:var(--muted);margin-bottom:9px">Item yang bisa dipesan <b>tanpa produk kulit</b> (mis. greeting card saja). Harganya mengambil <b>Kombinasi harga</b> yang sudah ada '+
+      '— tak menggandakan data — atau harga sendiri per tingkatan. Dipilih di <b>Order baru</b> lewat tombol “＋ Greeting card / non-produk”. Order tanpa produk kulit melewati langkah khusus kulit &amp; Radja.</div>'+
+    (I.length?'<div class="xscroll"><table class="rtable"><thead><tr><th style="min-width:150px">Item</th><th style="min-width:200px">Sumber harga</th><th style="min-width:150px">Vendor</th><th style="width:70px">Satuan</th><th style="width:80px">Perlu desain</th>'+
+      PACK_TIERS.map(function(t){return '<th style="text-align:right;font-size:9px">'+esc(t.label)+'</th>';}).join('')+'<th style="width:110px;font-size:9px">Diubah</th><th style="width:36px"></th></tr></thead><tbody>'+
+      I.map(function(r,i){var sendiri=(r.sumberHarga==='sendiri'),k=itemLainKomb(r);
+        return '<tr data-f="itemLain" data-id="'+esc(r.id)+'"><td><input class="pin" value="'+esc(r.nama||'')+'" onchange="itemLainEdit('+i+',\'nama\',this.value)" placeholder="Nama item"></td>'+
+          '<td><select class="pin" onchange="itemLainEdit('+i+',\'sumberHarga\',this.value)">'+NONPROD_SUMBER.map(function(x){return '<option value="'+x[0]+'" '+(x[0]===r.sumberHarga?'selected':'')+'>'+esc(x[1])+'</option>';}).join('')+'</select>'+
+            (k?'<div style="font-size:9px;color:var(--muted);margin-top:2px">'+kombRows(k).length+' kombinasi</div>':'')+'</td>'+
+          '<td><select class="pin" onchange="itemLainEdit('+i+',\'vendor\',this.value)"><option value="">'+(k?('ikut tipe — '+esc(vendorForTipe(NONPROD_TIPE[k])||'?')):'—')+'</option>'+V.map(function(n){return '<option '+(n===r.vendor?'selected':'')+'>'+esc(n)+'</option>';}).join('')+'</select></td>'+
+          '<td><input class="pin" value="'+esc(r.satuan||'pcs')+'" onchange="itemLainEdit('+i+',\'satuan\',this.value)"></td>'+
+          '<td style="text-align:center"><input type="checkbox" '+(r.perluDesain?'checked':'')+' style="width:auto;accent-color:var(--brand)" onchange="itemLainEdit('+i+',\'perluDesain\',this.checked)"></td>'+
+          PACK_TIERS.map(function(t,ti){return '<td>'+(sendiri?'<input class="pin n money" inputmode="numeric" style="min-width:70px" value="'+moneyInp((r.t||[])[ti])+'" onchange="itemLainEditT('+i+','+ti+',this.value)">':'<span style="color:var(--muted);font-size:10px">kombinasi</span>')+'</td>';}).join('')+
+          '<td style="font-size:9px;color:var(--muted)">'+fmtStamp(r)+'</td><td><button class="xrow" onclick="itemLainHapus('+i+')">✕</button></td></tr>';}).join('')+'</tbody></table></div>'
+      :'<div style="color:var(--muted);font-size:11px;padding:6px 0">Belum ada item non-produk.</div>')+
+    '<button class="btn ghost sm" style="margin-top:9px" data-f="itemLainTambah" onclick="itemLainTambah()">＋ Item non-produk</button>';}
 /* ---- Collateral per TIPE (6 Okt): chip tipe, isi dikelompokkan per atribut. Nilai baru langsung masuk tipe &
    atribut tempat tombolnya ditekan, dan bisa menyalin harga kombinasi dari nilai yang sudah ada. ---- */
 const COLL_TIPE_M=['Hardbox','Softbox','Soft Pouch','Thank You Card'];
@@ -22342,6 +22690,7 @@ function salesBelum(o){
   var b=briefGet(o),kurang=[];
   var sudah={
     produk:function(){
+      if(orderNonProduk(o))return true;   // greeting card saja: tak ada bahan kulit untuk diterjemahkan
       /* produk katalog sudah punya wujud; material baru wajib kalau Sales
          menitipkan maunya (mis. "warna earth tone") yang harus diterjemahkan */
       if((d.items||[]).length&&!(d.spec&&d.spec.produk&&d.spec.produk.ada)
@@ -22683,11 +23032,13 @@ function lampiranBlok(o,slot,judul){
    pouch/card sendiri, ganti ke mode "beda per produk". */
 const PACK_TIPE=[['box','Box','Hardbox'],['pouch','Soft Pouch','Soft Pouch'],['card','Thank You Card','Thank You Card']];
 function packMode(o){return (briefGet(o).packMode==='perProduk')?'perProduk':'sama';}
-function packLines(o){return (((o.pricing||{}).lines)||[]).filter(function(l){return (l.qty||0)>0||l.produk;});}
+function packLines(o){return (((o.pricing||{}).lines)||[]).filter(function(l){return ((l.qty||0)>0||l.produk)&&!l.nonProduk;});}   // greeting card bukan pemakai kemasan
 function packSpecBawaan(k){var s={};collKinds(k).forEach(function(kind){s[kind]=collNilai(k,kind)[0]||'';});return s;}
+const PACK_EXTRA=['Coating','Potongan','Konstruksi','Sisi'];   // atribut kombinasi yang bukan opsi collateral (greeting card)
 function packRingkas(k,spec){
   spec=spec||{};
-  var out=collKinds(k).map(function(kind){return spec[kind];}).filter(Boolean);
+  var K=collKinds(k),out=K.map(function(kind){return spec[kind];}).filter(Boolean);
+  PACK_EXTRA.forEach(function(x){if(K.indexOf(x)<0&&String(spec[x]||'').trim())out.push(String(spec[x]).trim());});
   if(String(spec.Warna||'').trim())out.push('warna '+String(spec.Warna).trim());   // ikut ke vendor, PO, catatan produksi
   return out.join(' · ');}
 
@@ -22707,6 +23058,7 @@ function packSync(o,k){
   var bagian=[];
   packLines(o).forEach(function(l){var p=packLine(l,k);
     if(p.on)bagian.push((l.produk||'item')+': '+packRingkas(k,p.spec)+(p.desc?(' ('+p.desc+')'):''));});
+  var npl=nonProdukPemilik(o,k);if(npl)bagian.push((npl.produk||'item')+': '+packRingkas(k,packSpec(o,k)));
   o.notes[k]=bagian.join(' | ');
   if(!o.coll)o.coll={};o.coll[k]=bagian.length>0;}
 function packSyncAll(o){PACK_TIPE.forEach(function(p){packSync(o,p[0]);});}
@@ -22731,6 +23083,7 @@ function packSamakan(id){
 /* toggle & set — i = indeks baris pricing, atau -1 untuk mode seragam */
 function packToggle(id,k,on,i){
   var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
+  if(!on&&(i===undefined||i<0)){var np=nonProdukPemilik(o,k);if(np){alert('Kemasan ini dipakai item non-produk "'+(np.produk||'')+'". Hapus barisnya di pricing kalau memang tidak jadi.');render();return;}}
   if(i===undefined||i<0){
     if(!o.coll)o.coll={};o.coll[k]=!!on;briefGet(o)[k+'Ada']=on?'Ada':'Tidak ada';
     if(on&&!Object.keys(packSpec(o,k)).length)briefGet(o)[k+'Spec']=packSpecBawaan(k);}
@@ -22830,10 +23183,10 @@ function packRefBlok(o,k,i){
     '</div>';}
 /* satu baris collateral — dipakai mode seragam maupun per produk */
 function packBaris(o,p,on,spec,desc,i){
-  var k=p[0],img=collImgTipe(p[2]),idx=(i===undefined?-1:i);
+  var k=p[0],img=collImgTipe(p[2]),idx=(i===undefined?-1:i),milik=(idx<0)?nonProdukPemilik(o,k):null;
   return '<div style="border:1px '+(on?'solid var(--brand)':'dashed var(--line)')+';border-radius:9px;padding:9px 11px;margin-bottom:8px;background:var(--bg)">'+
     '<label style="display:flex;align-items:center;gap:9px;cursor:pointer">'+
-      '<input type="checkbox" '+(on?'checked':'')+' onchange="packToggle(\u0027'+o.id+'\u0027,\u0027'+k+'\u0027,this.checked,'+idx+')" style="width:auto;accent-color:var(--brand)">'+
+      '<input type="checkbox" '+(on?'checked':'')+(milik?' disabled':'')+' onchange="packToggle(\u0027'+o.id+'\u0027,\u0027'+k+'\u0027,this.checked,'+idx+')" style="width:auto;accent-color:var(--brand)">'+
       (img?imgTag(img,'width:30px;height:30px;object-fit:cover;border-radius:6px;border:1px solid var(--line);flex:none')
           :'<span style="width:30px;height:30px;border-radius:6px;border:1px dashed var(--line);flex:none"></span>')+
       '<b style="font-size:12px">'+esc(p[1])+'</b>'+
@@ -22841,7 +23194,9 @@ function packBaris(o,p,on,spec,desc,i){
     '</label>'+
     (salesNote(o,k)?('<div style="margin-top:8px">'+salesPita(o,k)+'</div>'):'')+
     (on?('<div style="display:flex;flex-wrap:wrap;gap:7px;margin-top:9px">'+
-      collKinds(k).map(function(kind){return packSpecSel(o,k,kind,spec,i);}).join('')+
+      (milik?('<div data-f="packMilikNon" style="flex-basis:100%;font-size:10.5px;line-height:1.5"><span>Diatur oleh item non-produk</span> <b>'+esc(milik.produk||'')+'</b>: '+esc(packRingkas(k,spec)||'-')+
+        ' <span style="color:var(--muted)">ubah di blok "Spesifikasi item non-produk" di atas</span></div>')
+        :collKinds(k).map(function(kind){return packSpecSel(o,k,kind,spec,i);}).join(''))+
       /* warna kemasan — dulu tak ada tempatnya; vendor box/pouch menanyakannya */
       '<label style="font-size:10px;color:var(--muted)">Warna<br>'+
         '<input class="pin" list="warnalist_'+k+'_'+(idx<0?'s':idx)+'" style="margin-top:2px;width:120px" value="'+esc(spec.Warna||'')+'" placeholder="mis. Navy" '+
@@ -22863,20 +23218,21 @@ function packNormalisasi(o){
       if(spec['_k_'+kind])return;                       // sedang mode ketik sendiri
       if(!spec[kind]){spec[kind]=collNilai(k,kind)[0]||'';ubah=true;}});};
   if(packMode(o)==='sama'){
-    PACK_TIPE.forEach(function(p){if(o.coll&&o.coll[p[0]])lengkapi(p[0],packSpec(o,p[0]));});}
+    PACK_TIPE.forEach(function(p){if(o.coll&&o.coll[p[0]]&&!nonProdukPemilik(o,p[0]))lengkapi(p[0],packSpec(o,p[0]));});}   // milik greeting card: tak diisi bawaan
   else{
     packLines(o).forEach(function(l){PACK_TIPE.forEach(function(p){
       var pl=packLine(l,p[0]);if(pl.on)lengkapi(p[0],pl.spec);});});}
   if(ubah){packSyncAll(o);save();}
   return ubah;}
 function briefPackBlok(o){
+  try{nonProdukKeKemasan(o);}catch(e){}
   packNormalisasi(o);
   var b=briefGet(o),mode=packMode(o),L=packLines(o);
   var pil=function(v,lab,ket){return '<label style="display:flex;align-items:flex-start;gap:7px;cursor:pointer;font-size:11px;flex:1;min-width:230px;'+
     'border:1px '+(mode===v?'solid var(--brand)':'dashed var(--line)')+';border-radius:9px;padding:8px 11px;background:var(--bg)">'+
     '<input type="radio" name="packmode_'+o.id+'" '+(mode===v?'checked':'')+' onchange="packModeSet(\''+o.id+'\',\''+v+'\')" style="width:auto;accent-color:var(--brand);margin-top:2px">'+
     '<span><b>'+lab+'</b><br><span style="font-size:9.5px;color:var(--muted);line-height:1.5">'+ket+'</span></span></label>';};
-  var kepala='<div class="pilihan" style="margin-bottom:11px">'+
+  var kepala=orderNonProduk(o)?'':'<div class="pilihan" style="margin-bottom:11px">'+
     pil('sama','Sama untuk semua produk','Satu set box / pouch / card dipakai seluruh item.')+
     pil('perProduk','Beda per produk','Tiap produk punya pouch & card sendiri.'+(L.length?(' Ada '+L.length+' produk.'):''))+
     '</div>';
@@ -22974,6 +23330,8 @@ function briefPanel(o){
     salesPita(o,'produk')+
     briefProduk(o)+
     (function(){
+      /* order tanpa produk kulit (greeting card saja): spesifikasi kartunya di sini, form kulit tak relevan */
+      if(orderNonProduk(o))return nonProdukSpekBlok(o)||'<div style="font-size:10.5px;color:var(--muted);margin-bottom:9px">Order ini tanpa produk kulit — spesifikasinya mengikuti item non-produk di pricing.</div>';
       var P=lineProduk(o);
       /* order belum dirinci jadi baris produk — form lama tingkat-order
          tetap dipakai supaya selalu ada tempat mengisi */
@@ -23096,7 +23454,7 @@ function briefPanel(o){
             '</div>';})()+
           '</div>';}).join('')+dlH+
         '<div style="font-size:9px;color:var(--muted);margin:-4px 0 10px">Kolom warna dye muncul otomatis kalau Finishing dipilih Dye. Multi-warna? klik ＋ Tambah varian di kartunya.</div>';})()+
-    (lineProduk(o).length?'':(dye?'':'<div style="font-size:9.5px;color:var(--muted);margin:-6px 0 10px">Kolom warna dye muncul otomatis kalau Finishing request dipilih <b>Dye</b>.</div>'))+
+    ((lineProduk(o).length||orderNonProduk(o))?'':(dye?'':'<div style="font-size:9.5px;color:var(--muted);margin:-6px 0 10px">Kolom warna dye muncul otomatis kalau Finishing request dipilih <b>Dye</b>.</div>'))+
     grid(txt('fiturLain','Fungsi / fitur yang diminta client','mis. muat 6 kartu + slot koin','grid-column:1/-1'),300)+
 
     /* Personalisasi menempel pada spesifikasi produk — ia memang bagian dari
@@ -23419,6 +23777,7 @@ function pricingPanel(o){
       <td><div style="display:flex;gap:2px;align-items:center">
         ${(lineJenis(l)==='produk'&&(l.qty||0)>1)?`<button class="xrow" style="font-size:11px" title="bagi per warna / artikel kulit — mis. 25 biru + 25 merah, tiap bagian jadi baris sendiri" onclick="bagiWarna('${o.id}',${i})">⑂</button>`:''}
         <button class="xrow" onclick="delLine('${o.id}',${i})" aria-label="hapus">✕</button></div></td></tr>`;}).join('');
+  const nonSpek=nonProdukSpekBlok(o);
   const byV={};P.lines.forEach(l=>{const k=l.sumber||'Radja';byV[k]=(byV[k]||0)+(l.hpp||0)*(l.qty||0);});
   const vchips=Object.keys(byV).map(k=>`<span class="vchip">${k}: ${fmt0(byV[k])}</span>`).join('');
   const docst=[D.quotation?`✓ Quotation ${D.quotationDate}`:'',D.invoice?`✓ Invoice DP ${D.invoiceDate}`:'',
@@ -23432,7 +23791,7 @@ function pricingPanel(o){
      ${catalogPicker(o,'pricing')}
      ${(!kunci&&o.coll&&(o.coll.box||o.coll.pouch||o.coll.card||o.coll.others))?`<div style="margin-bottom:11px"><button class="btn ghost sm" onclick="addCollaterals('${o.id}')">＋ Tambah collaterals dari Inquiry (${collList(o.coll).length})</button> <span style="font-size:9.5px;color:var(--muted)">Box / Soft Pouch / Thank You Card / Others → baris harga otomatis</span></div>`:''}
      <div class="xscroll"><table class="ptable" style="min-width:640px"><thead><tr><th style="width:52px">Gambar</th><th>Produk</th><th>Bahan</th><th>Personalization</th>${showTali?'<th style="width:90px">Tali</th>':''}${showUk?'<th style="width:90px">Ukuran</th>':''}<th style="width:110px">Sumber vendor</th><th style="width:52px">Qty</th>${H?'<th style="width:96px">HPP/pcs</th>':''}<th style="width:62px">Margin %</th><th style="width:108px">Diskon/pcs</th><th style="width:116px" class="num">Harga jual</th><th style="width:22px"></th></tr></thead>
-       <tbody>${rows}</tbody></table></div>
+       <tbody>${rows}</tbody></table></div>${nonSpek}
      ${P.lines.length?'':'<div style="color:var(--muted);font-size:11px;padding:6px 0">Belum ada baris. Tambahkan tiap item beserta sumber vendornya.</div>'}
      ${pajakBlok(o)}
      ${kardusPanel(o)}
@@ -23669,7 +24028,7 @@ function rfqDocSpek(o,l){
     isi.forEach(function(u){
       t('Isi: '+u.nama+((u.jenis==='produk'&&u.qty)?(' · '+u.qty+' pcs'):''),u.ukuran||'ukuran BELUM ADA — mohon kami susulkan sebelum produksi');});
     if(ck!=='card')t('Rekomendasi ukuran '+(l.produk||'kemasan'),rekomendasiTeks(o,ck)||'');
-    var spek='';try{if(ck)spek=packRingkas(ck,packSpec(o,ck));}catch(e){}
+    var spek='';try{if(l&&l.kombPilih)spek=nonProdukSpekTeks(l);else if(ck)spek=packRingkas(ck,packSpec(o,ck));}catch(e){}   // greeting card: spesifikasinya sendiri
     t('Spesifikasi yang diminta',spek||'belum ditentukan — mohon disarankan');
     var cat='';try{if(ck)cat=salesNote(o,ck);}catch(e){}
     t('Catatan client',cat);
@@ -23923,7 +24282,8 @@ const PO_REQ=[['deadline','Deadline produksi']];
 function poMissing(o){
   const p=o.po||{},miss=[];
   const eff=k=>PO_SEL[k]?(p[k]||PO_SEL[k][0]):p[k];
-  PO_REQ.forEach(([k,label])=>{ const v=eff(k); if(!v||v==='-')miss.push(label); });
+  if(orderNonProduk(o))vendorNonDaftar(o).forEach(function(v){if(!vendorTglGet(o,v).deadline)miss.push('Deadline produksi '+v);});
+  else PO_REQ.forEach(([k,label])=>{ const v=eff(k); if(!v||v==='-')miss.push(label); });
   /* spesifikasi dari Brief: tiap produk utama wajib punya main material */
   try{lineProduk(o).forEach(function(x){if(!String(spekVal(o,x.l,'mainMat')||'').trim())miss.push('Main material '+(x.l.produk||'produk'));});}catch(e){}
   /* PO turun hanya dengan harga vendor yang sudah disetujui (dipastikan ke vendornya) */
@@ -24181,7 +24541,7 @@ function poPanel(o){
   return `<div class="card actcard" style="margin-top:14px"><div class="ch"><span class="ico" style="background:#0079bf;font-size:10px">PO</span><div><div class="t">Form PO — Penurunan <span style="color:var(--muted);font-weight:400">(fase Purchase Order Issuing)</span></div><div class="s">DRAFT LENGKAP → PDF PO + KARTU TRELLO + NOTIF RADJA</div></div>
       <span class="badge" style="background:${ready?'var(--ok-bg)':'var(--warn-bg)'};color:${ready?'var(--ok)':'var(--warn)'}">${ready?'draft lengkap ✓':miss.length+' field kurang'}</span></div>
     <div class="body">
-      ${gabPoBanner(o)}${poRingkas(o)}
+      ${gabPoBanner(o)}${orderNonProduk(o)?'<div class="adm-note" style="margin-bottom:10px">Order ini <b>tanpa produk kulit</b> — tak ada PO Radja / kartu Trello produksi. PO vendor kartu diterbitkan di panel <b>PO vendor lain</b>; deadline & batas PO-nya diisi di Penentuan harga jual (Info dari vendor).</div>':''}${poRingkas(o)}
       ${spekPanelBaca(o)}
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
         ${date('deadline','Deadline produksi')}
@@ -24195,7 +24555,7 @@ function poPanel(o){
       </div>
       ${vtermBlok(o,kulitVendorNama())}
       <div style="display:flex;flex-wrap:wrap;gap:9px;align-items:center;margin-top:12px">
-        <button class="btn" onclick="genPO('${o.id}')" ${(ready&&!gabKunciPO(o)&&!poSusulInduk(o))?'':'disabled'} style="${(ready&&!gabKunciPO(o)&&!poSusulInduk(o))?'':'opacity:.5;cursor:not-allowed'}">⚡ Generate PO (PDF + Trello)</button>${poSusulInduk(o)?`<span class="sb-k" data-f="poSusulInduk" style="margin-left:8px">PO kartu induk ${esc((o.po||{}).poNo||'')} tetap berlaku — tidak ada PO baru</span>`:''}${gabKunciPO(o)?'<span style="font-size:10.5px;color:var(--warn);font-weight:700">PO diterbitkan dari Antrean PO (gabungan)</span>':''}
+        <button class="btn" onclick="genPO('${o.id}')" ${(ready&&!gabKunciPO(o)&&!poSusulInduk(o)&&!orderNonProduk(o))?'':'disabled'} style="${(ready&&!gabKunciPO(o)&&!poSusulInduk(o)&&!orderNonProduk(o))?'':'opacity:.5;cursor:not-allowed'}">⚡ Generate PO (PDF + Trello)</button>${poSusulInduk(o)?`<span class="sb-k" data-f="poSusulInduk" style="margin-left:8px">PO kartu induk ${esc((o.po||{}).poNo||'')} tetap berlaku — tidak ada PO baru</span>`:''}${gabKunciPO(o)?'<span style="font-size:10.5px;color:var(--warn);font-weight:700">PO diterbitkan dari Antrean PO (gabungan)</span>':''}
         ${ready?(p.generated?`<span style="font-size:10.5px;color:var(--ok);font-weight:700">✓ ${p.poNo} · kartu Trello terisi · notif Radja terkirim</span>`:'<span style="font-size:10.5px;color:var(--muted)">draft lengkap — siap generate</span>'):`<span style="font-size:10.5px;color:var(--warn)">🔒 lengkapi dulu: ${miss.join(', ')}</span>`}
       </div>
       <div style="border-top:1px solid var(--line);margin-top:13px;padding-top:11px">
@@ -24217,6 +24577,7 @@ function poPanel(o){
 function poSusulInduk(o){return !!(o&&susulanInduk(o)&&(o.po||{}).induk);}
 function genPO(id){
   const o=ST.orders.find(x=>x.id===id);if(!o)return;
+  if(orderNonProduk(o)){alert('Order ini tanpa produk kulit — tak ada PO Radja / kartu Trello produksi. Terbitkan PO vendor kartu di panel PO vendor lain.');return;}
   if(poSusulInduk(o)){alert('Kartu susulan ini memakai PO kartu induk'+((o.po||{}).poNo?(' ('+o.po.poNo+')'):'')+' — tidak ada PO baru. Dokumen PO ada di kartu induk.');return;}
   if(poMissing(o).length){alert('Draft PO belum lengkap — tombol terkunci sampai semua field wajib terisi.');return;}
   if(gabKunciPO(o)){alert('Order ini masuk PO gabungan ('+gabStatusTeks(gabAktif(o))+') — PO-nya diterbitkan dari Antrean PO. Batalkan gabungannya dulu kalau mau PO sendiri.');return;}
@@ -24607,7 +24968,8 @@ function renderFTabs(){
     b.style.color=NOL.length?'var(--brand)':'var(--muted)';}}
 /* Katalog saja → Katalog. Custom saja → Custom. Campur → Mix. */
 function tipeDariItem(){
-  var kat=NOL.some(function(l){return l.fixed;}),cus=NOL.some(function(l){return !l.fixed;});
+  var P=NOL.filter(function(l){return !l.nonProduk;});                 // greeting card / non-produk bukan produk
+  var kat=P.some(function(l){return l.fixed;}),cus=P.some(function(l){return !l.fixed;});
   if(!kat&&!cus)return 'Collateral';                 // order collateral saja
   return (kat&&cus)?'Mix':(kat?'Katalog':'Custom');}
 /* ---- item: gambar referensi & detail per item ---- */
@@ -24631,6 +24993,7 @@ function nolSet(i,f,v){
   var l=NOL[i];if(!l)return;
   l[f]=(f==='qty')?Math.max(0,+v||0):(f==='hpp'||f==='jual')?Math.max(0,moneyVal(v)):v;
   if(f==='hpp'||f==='jual')l['_'+f+'Manual']=true;
+  if(f==='qty'&&l.nonProduk)nonProdukHarga(l,MARGIN_BAWAAN);   // greeting card: tier kombinasi ikut qty
   if(f==='qty'&&l.fixed&&l.tiers){                 // pindah tier qty → HPP katalog ikut turun/naik
     if(!l._hppManual)l.hpp=catPriceT(l.tiers,l.qty||0);
     if(!l._jualManual)l.jual=Math.round((+l.hpp||0)*(1+MARGIN_BAWAAN/100));}
@@ -24643,6 +25006,15 @@ function renderCatBuilder(){
   el.innerHTML='<div style="font-size:10px;font-weight:800;color:var(--muted);margin-bottom:6px">ITEM YANG DIPESAN ('+NOL.length+')</div>'+
     NOL.map(function(l,i){
       var sub=(l.fixed?(l.hpp||0):(l.jual||0))*(l.qty||0);gt+=sub;
+      if(l.nonProduk)return '<div style="border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:9px;background:var(--card,#fff)" data-f="nolNon">'+
+        '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px"><span style="font-size:8px;background:#2f6b45;color:#fff;padding:1px 6px;border-radius:4px">NON-PRODUK</span>'+
+          '<b style="font-size:12px">'+esc(l.produk)+'</b><span style="font-size:10px;color:var(--muted)">'+esc(nonProdukSpekTeks(l))+'</span>'+
+          '<button type="button" class="xrow" style="margin-left:auto" onclick="catDelLine('+i+')">✕</button></div>'+
+        '<div style="display:flex;flex-wrap:wrap;gap:7px">'+
+          '<label style="font-size:10px;color:var(--muted)">Qty<br><input class="pin n" type="number" style="width:80px;margin-top:2px" value="'+(l.qty||0)+'" onchange="nolSet('+i+',\'qty\',this.value)"></label>'+
+          '<label style="font-size:10px;color:var(--muted)">HPP/pcs<br><input class="pin n money" inputmode="numeric" style="width:100px;margin-top:2px" value="'+moneyInp(l.hpp)+'" readonly title="dari Kombinasi harga — ubah di pricing bila vendor memberi harga lain"></label>'+
+          '<label style="font-size:10px;color:var(--muted)">Harga jual/pcs<br><input class="pin n money" inputmode="numeric" style="width:110px;margin-top:2px" value="'+moneyInp(l.jual)+'" onchange="nolSet('+i+',\'jual\',this.value)"></label>'+
+          '<span style="font-size:10px;color:var(--muted);align-self:flex-end">vendor '+esc(l.sumber||'—')+'</span></div></div>';
       var tag=l.fixed?'<span style="font-size:8px;background:#c78a24;color:#fff;padding:1px 6px;border-radius:4px">KATALOG</span>'
                      :'<span style="font-size:8px;background:#6a6f8a;color:#fff;padding:1px 6px;border-radius:4px">CUSTOM</span>';
       var A=nolImgs(l);
@@ -24730,7 +25102,8 @@ $('#create').onclick=()=>{
     alert('Belum ada yang dipesan.\n\nIsi minimal satu di antara:\n• tab 2 · Detail product — pilih dari katalog atau tambah item custom\n• tab 4 · Collaterals — centang box, pouch, atau card');
     fTab('2');return;}
   const type=tipeDariItem(), hasNOL=true;
-  const nolQty=NOL.reduce(function(s,l){return s+(l.qty||0);},0);
+  /* greeting card tak ikut menggandakan qty order & qty kemasan kalau ada produk kulit */
+  const nolQty=(function(){var P=NOL.filter(function(l){return !l.nonProduk;});return (P.length?P:NOL).reduce(function(s,l){return s+(l.qty||0);},0);})();
   /* Collateral yang dicentang ikut jadi baris pesanan, bukan sekadar catatan —
      supaya bisa diberi qty, vendor, dan harga seperti item lain. Itu yang
      membuat order collateral-saja tetap bisa sampai quotation. */
@@ -24756,7 +25129,10 @@ $('#create').onclick=()=>{
   /* margin sama utk semua tipe: harga katalog itu HPP, jadi tetap perlu margin di atasnya */
   o.pricing={margin:MARGIN_BAWAAN,lines:semuaBaris.map(function(l){
     return Object.assign({},l,{perso:'-'});})};
+  /* greeting card / non-produk: kemasan / kartu yang dipesan ikut ditandai (logo kartu di Sketch, PO vendor kartu) */
+  NOL.forEach(function(l){if(l.nonProduk&&l.coll&&['box','pouch','card'].indexOf(l.coll)>=0)o.coll[l.coll]=true;});
   ['box','pouch','card'].forEach(function(k){o.notes[k]=$('#c_'+k).checked?Object.values(CSPEC[k]||{}).join(' · '):'';});
+  try{nonProdukKeKemasan(o);}catch(e){}   // spesifikasi kartu = pilihan di Order baru (sesudah catatan kemasan, supaya tak terhapus)
   var mc=(ST.master.customers||[]).find(function(x){return x.nama===o.customer;});
   if(mc){if(o.phone)mc.kontak=o.phone;if(o.email)mc.email=o.email;if(o.addr)mc.alamat=o.addr;}
   else{var nw={nama:o.customer,kontak:o.phone||'',email:o.email||'',alamat:o.addr||'',alamatKantor:o.addrKantor||'',
