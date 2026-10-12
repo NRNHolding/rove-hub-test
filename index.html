@@ -903,7 +903,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20261012-110405';
+const VERSI='20261012-114019';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -953,12 +953,16 @@ function versiPita(baru){
    HANYA untuk backend UJI (berkas data rovehub_db_UJI.json, tanpa token Discord
    maupun Trello). Repo ini publik: siapa pun yang menemukannya bisa membaca dan
    menulis data di sana, jadi isinya harus data karangan saja. */
-const BACKEND_BAWAAN='https://script.google.com/macros/s/AKfycbzB6t7DXT8Yx_E1d9_ScryCF7VMtZYNfZGJjnuwOSZVbtJn-6o3_tzRV6QJD-J9gOzcnA/exec';
+const BACKEND_BAWAAN='https://script.google.com/macros/s/AKfycbyA4XqxToQ9_BCi2IkhPXJEBp3jJxgf7reJ-SDTlFCbwbw8Pl627dNxvkfNAPMNg9qA/exec';
+/* 12 Okt 2026: backend berkunci (versi 2) memakai deployment baru — alamat bawaan lama dipindah sendiri.
+   Backend di alamat lama tak lagi memegang data (berkasnya dipindah oleh versi 2.1). */
+const BACKEND_LAMA=['https://script.google.com/macros/s/AKfycbzB6t7DXT8Yx_E1d9_ScryCF7VMtZYNfZGJjnuwOSZVbtJn-6o3_tzRV6QJD-J9gOzcnA/exec'];
 /* Dipakai saat memuat: mengisi yang kosong, tak pernah menimpa yang sudah ada. */
 function cfgBawaan(c){
   c=c||{};
   if(!BACKEND_BAWAAN)return c;
   /* backend bawaan sudah melayani Drive (15 Sep 2026): unggah berkas besar hidup sendiri, kecuali sengaja dimatikan */
+  if(BACKEND_LAMA.indexOf(String(c.url||'').trim())>=0){c.url=BACKEND_BAWAAN;c.dbUrl=BACKEND_BAWAAN+'?db=1';}   // alamat bawaan lama → yang baru
   if(c.drive===undefined&&(!String(c.url||'').trim()||String(c.url).trim()===BACKEND_BAWAAN))c.drive=true;
   if(!String(c.url||'').trim()){
     c.url=BACKEND_BAWAAN;
