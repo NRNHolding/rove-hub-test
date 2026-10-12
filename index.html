@@ -413,6 +413,12 @@
   .fld input:focus,.fld select:focus{outline:none;border-color:var(--brand)}
   .fld .prev{font-size:10.5px;color:var(--brand);font-weight:700;margin-top:5px;font-family:Consolas,monospace}
   .g2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  /* form prospek (12 Okt): isian berdampingan seperti mockup — di layar sempit otomatis satu kolom */
+  .lead-g{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px 12px}
+  .lead-g>.lebar{grid-column:1/-1}
+  @media(max-width:640px){.lead-g{grid-template-columns:1fr}}
+  .lead-pil{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:6px}
+  .nomor-isian{display:inline-block;min-width:17px;height:17px;border-radius:50%;background:var(--bg);border:1px solid var(--line);color:var(--brand-dark);font-size:9.5px;line-height:15px;text-align:center;margin-right:5px;font-weight:800}
   .g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
   /* Form order baru butuh ruang — Sales mengisi banyak kolom sekaligus dan
      memilih produk dari katalog Cost Estimator. Dialog kecil lain tetap 440px. */
@@ -897,7 +903,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20261012-101727';
+const VERSI='20261012-110405';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -1265,6 +1271,11 @@ const EN_RULES=[
 
 /* Kamus persis. Kunci = teks Indonesia apa adanya yang muncul di layar. */
 const EN={
+'Password baru':'New password','Ulangi password baru':'Repeat the new password','Simpan & masuk':'Save & sign in',
+'Minimal 6 karakter dan tidak boleh sama dengan username.':'At least 6 characters and not the same as the username.',
+'Kedua password belum sama.':'The two passwords do not match.','menyimpan ke server…':'saving to the server…',
+'Server tak terjangkau — password belum diganti. Coba lagi.':'Server unreachable — the password was not changed. Try again.',
+'Server menolak — masuk ulang dengan password lamamu.':'Server refused — sign in again with your old password.',
 '📥 Kotak masuk administrasi':'📥 Administration inbox','Kotak masuk administrasi':'Administration inbox',
 'Fakta (data tanpa keputusan) diterapkan sendiri ke kartu — nomor SO, invoice, PO, uang masuk, pengiriman, tanggal diterima & acara. Yang butuh keputusan tampil di bawah.':'Facts (data that needs no decision) are applied to the cards automatically — SO, invoice and PO numbers, client payments, shipments, received and event dates. Whatever needs a decision is listed below.',
 'Robot administrasi belum pernah menulis ke sini — jalankan jalankan.py di komputer yang punya folder administrasi.':'The administration robot has not written here yet — run jalankan.py on the computer that has the administration folder.',
@@ -2619,9 +2630,12 @@ if(r){ST.orders=JSON.parse(r);}else{ST.orders=[];}
   try{ST._roles=JSON.parse(sesiGet('rovehub_roles')||'null');}catch(e){ST._roles=null;}
   try{ST.cfg=JSON.parse(localStorage.getItem('rovehub_cfg')||'{"url":"","live":false,"catalogUrl":""}');}catch(e){ST.cfg={url:'',live:false,catalogUrl:''};}
   ST.cfg=cfgBawaan(ST.cfg);
+  /* 12 Okt: backend kini berkunci — sesi lama (sebelum ada kunci sesi) diminta masuk ulang sekali */
+  if(ST.user&&ST.cfg&&ST.cfg.url&&!kredGet()){ST.user=null;ST.userName='';ST._roles=null;sesiHapus('rovehub_user');sesiHapus('rovehub_username');sesiHapus('rovehub_roles');ST._masukUlang=true;}
   pastikanBentukSemua();
   loadLang();migrasiFaseProfit();migrasiFase12();migrasiFase15();migrasiFase17();migrasiFase22();migrasiFase23();migrasiFaseInvoiceDulu();migrasiStatus();
   try{migrasiTeknikJasa();}catch(e){}
+  try{setTimeout(function(){pwMigrasi();},0);}catch(e){}   // password teks biasa → hash (async)
   finData();asetAll();loadCatalogCache();loadMaster();loadLeads();loadTax();loadKonten();loadHR();loadBuy();loadInv();adminLoad();
   try{migrasiContoh();}catch(e){}   // kartu contoh versi lama diganti yang lengkap
   try{if(contohLiveSegarkan())simpanLokal();}catch(e){}   // acara contoh Live service selalu relatif ke hari ini
@@ -2651,9 +2665,25 @@ function cfgSerap(){
   return C;}
 function saveCfg(){ST.cfg.url=(document.getElementById('cfgurl').value||'').trim();ST.cfg.live=document.getElementById('cfglive').checked;
   var dp=document.getElementById('cfgdipakai');if(dp)ST.cfg.dipakai=dp.checked;try{dipakaiTerapkan();}catch(e){}var dv=document.getElementById('cfgdrive');if(dv)ST.cfg.drive=dv.checked;ST.cfg.catalogUrl=(document.getElementById('cfgcatalog').value||'').trim();var tk=document.getElementById('cfgcattoken');if(tk)ST.cfg.catalogToken=(tk.value||'').trim();var db=document.getElementById('cfgdb');ST.cfg.dbUrl=db?(db.value||'').trim():(ST.cfg.dbUrl||'');var kl=document.getElementById('cfgklien');ST.cfg.klienUrl=kl?(kl.value||'').trim():(ST.cfg.klienUrl||'');localStorage.setItem('rovehub_cfg',JSON.stringify(ST.cfg));fetchCatalog();render();}
+/* ================= KUNCI SESI (12 Okt) =================
+   Backend hanya melayani yang login: tiap baca / tulis membawa auth {u, h} — username + hash SHA-256 password
+   (hash yang sama dengan yang dicocokkan saat login). Disimpan di perangkat sejak login, dihapus saat keluar. */
+function kredGet(){try{var k=JSON.parse(localStorage.getItem('rovehub_kred')||'null');return (k&&k.u&&k.h)?k:null;}catch(e){return null;}}
+function kredSet(u,h){try{localStorage.setItem('rovehub_kred',JSON.stringify({u:String(u||'').toLowerCase(),h:String(h||'')}));}catch(e){}}
+function kredHapus(){try{localStorage.removeItem('rovehub_kred');}catch(e){}}
+/* baca data cloud: POST db.load berkunci (sejak = versi cloud terakhir yang sudah diproses → {sama:true} bila tak berubah) */
+function cloudAmbil(sejak){var c=ST.cfg||{},k=kredGet();
+  if(c.url&&k)return fetch(c.url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body:JSON.stringify({action:'db.load',auth:k,sejak:+sejak||0})}).then(function(r){return r.json();});
+  if(c.dbUrl)return fetch(c.dbUrl,{cache:'no-store'}).then(function(r){return r.json();});   // belum login (backend lama)
+  return Promise.reject(new Error('backend belum diisi'));}
+/* backend menolak (belum login / password berubah / akun nonaktif) */
+function cloudTolak(d){
+  if(d&&d.ok===false&&d.perluLogin){ST.cloudStatus='🔒 Server menolak — keluar lalu masuk lagi supaya data tersinkron';try{sinkronBadge();}catch(e){}return true;}
+  return false;}
 function pushBackend(action,payload){
   const c=ST.cfg||{};if(!c.live||!c.url)return; // mode simulasi kalau belum dikonfigurasi
-  try{fetch(c.url,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action:action,payload:payload})});}
+  try{fetch(c.url,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action:action,auth:kredGet(),payload:payload})});}
   catch(e){console.warn('pushBackend gagal',e);}
 }
 /* ================= PROSPEK (lead) — CS/CRM =================
@@ -3056,15 +3086,15 @@ function leadDataSet(id,f,v){var l=leadsAll().find(function(x){return x.id===id;
   leadJudulSegarkan(l);
   l.touch=new Date().toISOString().slice(0,10);l._m=Date.now();saveLeads();render();}
 function leadDataBlok(l){var kat=leadKategori(l),K=leadKatInfo(kat),id=jsArg(l.id),lw=leadLewat(l),ubahKat=!!((ST._katUbah||{})[l.id]);
-  var inp=function(f,label,val,ph,o){o=o||{};return '<label class="nlbl"'+(o.lebar?' style="grid-column:1/-1"':'')+'>'+esc(label)+(o.wajib?' <span style="color:#d9534f">*</span>':'')+
+  var inp=function(f,label,val,ph,o){o=o||{};return '<label class="nlbl'+(o.lebar?' lebar':'')+'">'+(o.no?'<span class="nomor-isian">'+o.no+'</span>':'')+esc(label)+(o.wajib?' <span style="color:#d9534f">*</span>':'')+
     '<input class="pin'+(o.n?' n':'')+'"'+(o.type?(' type="'+o.type+'"'):'')+' data-f="lead_'+f+'" style="margin-top:3px" value="'+esc(val==null?'':String(val))+'" placeholder="'+esc(ph||'')+'" onchange="'+(o.fn||'leadDataSet')+'('+id+',\''+f+'\',this.value)"></label>';};
   var nama=(kat==='Wedding')
-    ?(inp('brideNama','Nama pengantin — Bride',l.brideNama,'mis. Sinta',{wajib:true})+inp('groomNama','Nama pengantin — Groom',l.groomNama,'mis. Bagas'))
+    ?(inp('brideNama','Nama pengantin — Bride',l.brideNama,'mis. Sinta',{wajib:true,no:1})+inp('groomNama','Nama pengantin — Groom',l.groomNama,'mis. Bagas'))
     :((kat==='Corporate')
-      ?(inp('clientUtama','Nama perusahaan',l.clientUtama,'mis. PT Contoh Sentosa',{wajib:true})+inp('picNama','Nama PIC',l.picNama,'mis. Ibu Ratna'))
-      :inp('clientUtama','Nama client',l.clientUtama,'mis. Ibu Maya',{wajib:true,lebar:true}));
-  var lewat='<div class="nlbl">Client / WO<div style="display:flex;gap:6px;margin-top:3px;flex-wrap:wrap">'+K.lewat.map(function(t,i){var on=((i===1)===lw);
-      return '<button type="button" data-f="leadLewat" onclick="leadDataSet('+id+',\'lewat\',\''+i+'\')" style="flex:1;min-width:110px;border:1px solid '+(on?'var(--brand)':'var(--line)')+
+      ?(inp('clientUtama','Nama perusahaan',l.clientUtama,'mis. PT Contoh Sentosa',{wajib:true,no:1})+inp('picNama','Nama PIC',l.picNama,'mis. Ibu Ratna'))
+      :inp('clientUtama','Nama client',l.clientUtama,'mis. Ibu Maya',{wajib:true,lebar:true,no:1}));
+  var lewat='<div class="nlbl"><span class="nomor-isian">3</span>Client / WO<div class="lead-pil" style="margin-top:3px">'+K.lewat.map(function(t,i){var on=((i===1)===lw);
+      return '<button type="button" data-f="leadLewat" onclick="leadDataSet('+id+',\'lewat\',\''+i+'\')" style="border:1px solid '+(on?'var(--brand)':'var(--line)')+
         ';background:'+(on?'var(--brand)':'var(--panel)')+';color:'+(on?'#fff':'var(--muted)')+';border-radius:9px;padding:6px 9px;font-size:11px;font-weight:800;cursor:pointer">'+esc(t)+'</button>';}).join('')+'</div>'+
     (lw?('<input class="pin" data-f="lead_woNama" style="margin-top:5px" value="'+esc(l.woNama||'')+'" placeholder="'+esc(K.wo+' — '+K.woPh)+'" onchange="leadDataSet('+id+',\'woNama\',this.value)">'):'')+'</div>';
   /* prospek lama: judulnya diketik sendiri dulu — tetap bisa diubah di sini */
@@ -3072,14 +3102,14 @@ function leadDataBlok(l){var kat=leadKategori(l),K=leadKatInfo(kat),id=jsArg(l.i
   return '<div class="sj" data-f="leadData" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">1. Data prospek '+
       '<span class="tlabel" style="background:'+pfColor(leadPrefix(l))+'">'+esc(K.ik+' '+kat)+'</span>'+
       '<button class="xrow" style="margin-left:auto;font-size:10px;color:var(--muted)" onclick="leadKategoriUbah('+id+')">ubah kategori</button></div>'+
-    (ubahKat?('<div class="pilihan" style="margin-bottom:10px">'+LEAD_KAT.map(function(k){var on=(kat===k);
-      return '<button onclick="leadKategoriSet('+id+',\''+k+'\')" style="flex:1;min-width:96px;border:1px solid '+(on?'var(--brand)':'var(--line)')+';background:'+(on?'var(--brand)':'var(--panel)')+
+    (ubahKat?('<div class="lead-pil" style="margin-bottom:10px">'+LEAD_KAT.map(function(k){var on=(kat===k);
+      return '<button onclick="leadKategoriSet('+id+',\''+k+'\')" style="border:1px solid '+(on?'var(--brand)':'var(--line)')+';background:'+(on?'var(--brand)':'var(--panel)')+
         ';color:'+(on?'#fff':'var(--muted)')+';border-radius:9px;padding:7px 10px;font-size:11px;font-weight:800;cursor:pointer">'+esc(LEAD_KAT_INFO[k].ik+' '+k)+'</button>';}).join('')+'</div>'):'')+
-    '<div class="g2" style="gap:10px">'+judul+nama+
-      inp('kontak',K.hp,l.kontak,'+62 812-…',{wajib:true})+lewat+
-      inp('produk','Kebutuhan barang',l.produk,'mis. souvenir pouch + thank you card',{lebar:true,fn:'leadSet'})+
-      inp('qty','Jumlah barang (pcs)',(+l.qty||0)||'','mis. 150',{n:true,type:'number',fn:'leadSet'})+
-      inp(K.tglK,K.tgl,l[K.tglK],'',{type:'date',fn:'leadSet'})+
+    '<div class="lead-g">'+judul+nama+
+      inp('kontak',K.hp,l.kontak,'+62 812-…',{wajib:true,no:2})+lewat+
+      inp('produk','Kebutuhan barang',l.produk,'mis. souvenir pouch + thank you card',{lebar:true,fn:'leadSet',no:4})+
+      inp('qty','Jumlah barang (pcs)',(+l.qty||0)||'','mis. 150',{n:true,type:'number',fn:'leadSet',no:5})+
+      inp(K.tglK,K.tgl,l[K.tglK],'',{type:'date',fn:'leadSet',no:6})+
     '</div>';}
 /* kelengkapan untuk pricing: jenis order, produk, kemasan & personalisasi, referensi, info tambahan */
 function leadLengkapN(l){var n=0,K=leadKatInfo(leadKategori(l));
@@ -3099,16 +3129,16 @@ function leadLengkapiBlok(l){var buka=!!((ST._lspek||{})[l.id]),n=leadLengkapN(l
   var bingkai=function(isi){return '<div style="border:1px solid var(--line);border-radius:11px;margin-top:13px;background:var(--bg)">'+kepala+isi+'</div>';};
   if(!buka)return bingkai('');
   var sub=function(t){return '<div style="font-size:10px;font-weight:800;color:var(--brand);letter-spacing:.04em;margin:12px 0 6px;border-top:1px dashed var(--line);padding-top:10px">'+t+'</div>';};
-  var jenis='<div class="pilihan">'+LEAD_JENIS.map(function(j){var on=(l.jenis===j);
-      return '<button onclick="leadJenisSet('+id+',\''+(on?'':j)+'\')" style="flex:1;min-width:96px;border:1px solid '+(on?'var(--brand)':'var(--line)')+';background:'+(on?'var(--brand)':'var(--panel)')+
+  var jenis='<div class="lead-pil">'+LEAD_JENIS.map(function(j){var on=(l.jenis===j);
+      return '<button onclick="leadJenisSet('+id+',\''+(on?'':j)+'\')" style="border:1px solid '+(on?'var(--brand)':'var(--line)')+';background:'+(on?'var(--brand)':'var(--panel)')+
         ';color:'+(on?'#fff':'var(--muted)')+';border-radius:9px;padding:7px 10px;font-size:11px;font-weight:800;cursor:pointer">'+esc(j)+'</button>';}).join('')+'</div>'+
     '<div style="font-size:10px;color:var(--muted);margin-top:5px;line-height:1.5">Cara menentukan harga. Kosong = masuk Inquiry sebagai <b>Custom</b> (PM bisa mengubahnya ke Mix). Non-produk = greeting card saja.</div>';
   var produk=(l.jenis==='Non-produk')?leadNonBlok(l):(((l.jenis==='Katalog'||l.jenis==='Mix')?leadKatalogBlok(l):'')+((l.jenis!=='Katalog')?leadRawBlok(l):''));
-  var info='<div class="g2" style="gap:10px">'+
+  var info='<div class="lead-g">'+
       '<label class="nlbl">Datang dari mana<select class="pin" style="margin-top:3px" onchange="leadSet('+id+',\'channel\',this.value)">'+LEAD_CH.map(function(c){return '<option '+(l.channel===c?'selected':'')+'>'+c+'</option>';}).join('')+'</select></label>'+
       '<label class="nlbl">Perkiraan nilai<input class="pin n money" inputmode="numeric" style="margin-top:3px" value="'+moneyInp(l.estimasi)+'" onchange="leadSet('+id+',\'estimasi\',this.value)"></label>'+
       '<label class="nlbl">'+esc(K.tgl2)+'<input class="pin" type="date" style="margin-top:3px" value="'+esc(l[K.tgl2K]||'')+'" onchange="leadSet('+id+',\''+K.tgl2K+'\',this.value)"></label>'+
-      '<label class="nlbl" style="grid-column:1/-1">Catatan — kebutuhan client &amp; hasil follow-up<textarea class="nta" data-f="leadCatatan" style="margin-top:3px" placeholder="mis. minta katalog, mau diskusi dengan pasangan; warna earth tone; nama tamu menyusul" onchange="leadSet('+id+',\'catatan\',this.value)">'+esc(l.catatan||'')+'</textarea></label>'+
+      '<label class="nlbl lebar">Catatan — kebutuhan client &amp; hasil follow-up<textarea class="nta" data-f="leadCatatan" style="margin-top:3px" placeholder="mis. minta katalog, mau diskusi dengan pasangan; warna earth tone; nama tamu menyusul" onchange="leadSet('+id+',\'catatan\',this.value)">'+esc(l.catatan||'')+'</textarea></label>'+
     '</div>';
   return bingkai('<div style="border-top:1px solid var(--line);padding:2px 12px 12px">'+
     sub('A. JENIS ORDER — CARA MENENTUKAN HARGA')+jenis+
@@ -3148,31 +3178,31 @@ function leadAdd(){
   var K=function(k){return function(v){return v.kategori===k;};},ada=function(v){return !!v.kategori;};
   var lw=function(k,f){return function(v){return v.kategori===k&&v[f]==='1';};};
   var I=LEAD_KAT_INFO;
-  askForm({judul:'Prospek baru',sub:'Calon client yang belum jadi order — cukup yang sudah disebut client',
+  askForm({judul:'Prospek baru',sub:'Calon client yang belum jadi order — cukup yang sudah disebut client',grid2:true,lebar:'660px',
     fields:[{k:'kategori',label:'Kategori client',type:'kartu',req:true,val:'',
         opts:LEAD_KAT.map(function(k){return {v:k,l:k,ik:I[k].ik,ket:I[k].ket};})},
-      {k:'brideNama',label:'Nama pengantin — Bride',ph:'mis. Sinta',jika:K('Wedding')},
-      {k:'groomNama',label:'Nama pengantin — Groom',ph:'mis. Bagas',jika:K('Wedding')},
-      {k:'clientUtama',label:'Nama perusahaan',req:true,ph:'mis. PT Contoh Sentosa',jika:K('Corporate')},
-      {k:'picNama',label:'Nama PIC',ph:'mis. Ibu Ratna',jika:K('Corporate')},
-      {k:'clientUtama2',label:'Nama client',req:true,ph:'mis. Ibu Maya',jika:K('Custom')},
-      {k:'kontakW',label:I.Wedding.hp,req:true,ph:'+62 812-…',jika:K('Wedding')},
-      {k:'kontakC',label:I.Corporate.hp,req:true,ph:'+62 812-…',jika:K('Corporate')},
-      {k:'kontakO',label:I.Custom.hp,req:true,ph:'+62 812-…',jika:K('Custom')},
-      {k:'lewatW',label:'Client / WO',type:'kartu',kecil:true,val:'0',opts:I.Wedding.lewat.map(function(t,i){return {v:String(i),l:t};}),jika:K('Wedding')},
-      {k:'lewatC',label:'Client / WO',type:'kartu',kecil:true,val:'0',opts:I.Corporate.lewat.map(function(t,i){return {v:String(i),l:t};}),jika:K('Corporate')},
-      {k:'lewatO',label:'Client / WO',type:'kartu',kecil:true,val:'0',opts:I.Custom.lewat.map(function(t,i){return {v:String(i),l:t};}),jika:K('Custom')},
-      {k:'woNamaW',label:I.Wedding.wo,ph:I.Wedding.woPh,jika:lw('Wedding','lewatW')},
-      {k:'woNamaC',label:I.Corporate.wo,ph:I.Corporate.woPh,jika:lw('Corporate','lewatC')},
-      {k:'woNamaO',label:I.Custom.wo,ph:I.Custom.woPh,jika:lw('Custom','lewatO')},
-      {k:'produk',label:'Kebutuhan barang',ph:'mis. souvenir pouch + thank you card',jika:ada},
+      {k:'brideNama',label:'Nama pengantin — Bride',no:1,setengah:true,ph:'mis. Sinta',jika:K('Wedding')},
+      {k:'groomNama',label:'Nama pengantin — Groom',setengah:true,ph:'mis. Bagas',jika:K('Wedding')},
+      {k:'clientUtama',label:'Nama perusahaan',no:1,setengah:true,req:true,ph:'mis. PT Contoh Sentosa',jika:K('Corporate')},
+      {k:'picNama',label:'Nama PIC',setengah:true,ph:'mis. Ibu Ratna',jika:K('Corporate')},
+      {k:'clientUtama2',label:'Nama client',no:1,req:true,ph:'mis. Ibu Maya',jika:K('Custom')},
+      {k:'kontakW',label:I.Wedding.hp,no:2,setengah:true,req:true,ph:'+62 812-…',jika:K('Wedding')},
+      {k:'kontakC',label:I.Corporate.hp,no:2,setengah:true,req:true,ph:'+62 812-…',jika:K('Corporate')},
+      {k:'kontakO',label:I.Custom.hp,no:2,setengah:true,req:true,ph:'+62 812-…',jika:K('Custom')},
+      {k:'lewatW',label:'Client / WO',no:3,setengah:true,type:'kartu',kecil:true,val:'0',opts:I.Wedding.lewat.map(function(t,i){return {v:String(i),l:t};}),jika:K('Wedding')},
+      {k:'lewatC',label:'Client / WO',no:3,setengah:true,type:'kartu',kecil:true,val:'0',opts:I.Corporate.lewat.map(function(t,i){return {v:String(i),l:t};}),jika:K('Corporate')},
+      {k:'lewatO',label:'Client / WO',no:3,setengah:true,type:'kartu',kecil:true,val:'0',opts:I.Custom.lewat.map(function(t,i){return {v:String(i),l:t};}),jika:K('Custom')},
+      {k:'woNamaW',setengah:true,label:I.Wedding.wo,ph:I.Wedding.woPh,jika:lw('Wedding','lewatW')},
+      {k:'woNamaC',setengah:true,label:I.Corporate.wo,ph:I.Corporate.woPh,jika:lw('Corporate','lewatC')},
+      {k:'woNamaO',setengah:true,label:I.Custom.wo,ph:I.Custom.woPh,jika:lw('Custom','lewatO')},
+      {k:'produk',label:'Kebutuhan barang',no:4,ph:'mis. souvenir pouch + thank you card',jika:ada},
       /* jumlah itu hal kedua yang disebut client sesudah produknya — ditanya
          sekarang, bukan ditinggalkan nol lalu ikut ke order sebagai nol */
-      {k:'qty',label:'Jumlah barang (pcs)',type:'number',ph:'mis. 150',jika:ada,
+      {k:'qty',label:'Jumlah barang (pcs)',no:5,setengah:true,type:'number',ph:'mis. 150',jika:ada,
        hint:'Perkiraan pun boleh. Begitu produknya dipilih dari katalog, angka ini mengisi kolom Qty produknya.'},
-      {k:'tglAcara',label:I.Wedding.tgl,type:'date',jika:K('Wedding'),hint:I.Wedding.tglHint},
-      {k:'tglKirimC',label:I.Corporate.tgl,type:'date',jika:K('Corporate'),hint:I.Corporate.tglHint},
-      {k:'tglKirimO',label:I.Custom.tgl,type:'date',jika:K('Custom'),hint:I.Custom.tglHint}],
+      {k:'tglAcara',label:I.Wedding.tgl,no:6,setengah:true,type:'date',jika:K('Wedding'),hint:I.Wedding.tglHint},
+      {k:'tglKirimC',label:I.Corporate.tgl,no:6,setengah:true,type:'date',jika:K('Corporate'),hint:I.Corporate.tglHint},
+      {k:'tglKirimO',label:I.Custom.tgl,no:6,setengah:true,type:'date',jika:K('Custom'),hint:I.Custom.tglHint}],
     pratinjau:function(v){
       if(!v.kategori)return '<div style="font-size:10.5px;color:var(--muted);border:1px dashed var(--line);border-radius:9px;padding:9px 11px;text-align:center">Pilih kategori dulu — isiannya menyesuaikan.</div>';
       var k=v.kategori,lew=(v[k==='Wedding'?'lewatW':(k==='Corporate'?'lewatC':'lewatO')]==='1');
@@ -5576,8 +5606,10 @@ function mergeLeads(cloud){
    prospek yang belum pernah dilihat perangkat ini. */
 function pushCloudAman(){
   var c=ST.cfg||{};if(!c.live||!c.url)return;
-  if(!c.dbUrl){pushCloud();return;}
-  fetch(c.dbUrl,{cache:'no-store'}).then(function(r){return r.json();}).then(function(cloud){
+  if(!c.dbUrl&&!kredGet()){pushCloud();return;}
+  cloudAmbil(ST._cloudTsLihat).then(function(cloud){
+    if(cloudTolak(cloud))return;                        // ditolak: jangan mendorong apa pun
+    if(cloud&&cloud.sama){pushCloud();return;}           // cloud tak berubah sejak terakhir dibaca — langsung dorong
     var ubah=false;
     try{if(mergeOrders(cloud,false)){simpanLokal();ubah=true;}}catch(e){}
     try{if(mergeLeads(cloud))ubah=true;}catch(e){}
@@ -5596,10 +5628,11 @@ function pushCloudAman(){
    jadi tanpa pemeriksaan ini status "tersimpan cloud" cuma pengakuan sepihak,
    dan itulah yang selama ini membuat orang menyangka datanya sudah sampai. */
 function pushPeriksa(){
-  var c=ST.cfg||{};if(!c.dbUrl)return;
+  var c=ST.cfg||{};if(!c.dbUrl&&!kredGet())return;
   var punya=(ST.orders||[]).map(function(o){return o.id;});
   setTimeout(function(){
-    fetch(c.dbUrl,{cache:'no-store'}).then(function(r){return r.json();}).then(function(d){
+    cloudAmbil(0).then(function(d){
+      if(cloudTolak(d)||!d||!Array.isArray(d.orders))return;
       var ada={};((d&&d.orders)||[]).forEach(function(o){if(o&&o.id)ada[o.id]=1;});
       var hilang=punya.filter(function(id){return !ada[id];});
       var jam=new Date().toLocaleTimeString('id-ID');
@@ -5629,7 +5662,7 @@ function pushCloud(){var c=ST.cfg||{};var ts=Date.now();localStorage.setItem('ro
   try{_msMemo=(typeof WeakMap==='function')?new WeakMap():null;msSidikSet(MASTER_KIRIM_KEY,ST.master,ts);}catch(e){}finally{_msMemo=null;}
   /* try/catch tak menangkap penolakan promise — tanpa .catch, backend yang mati
      memuntahkan "Uncaught (in promise)" ke konsol tiap kali menyimpan. */
-  try{fetch(c.url,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'db.save',payload:{data:cloudBlob(ts)}})})
+  try{fetch(c.url,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'db.save',auth:kredGet(),payload:{data:cloudBlob(ts)}})})
     .catch(function(e){ST.cloudStatus='gagal simpan cloud — cek URL backend';console.warn('pushCloud gagal',e);});}catch(e){}
   var b=document.getElementById('cloudstat');if(b)b.textContent=ST.cloudStatus;
   try{sinkronBadge();}catch(e){}
@@ -5638,9 +5671,12 @@ function cloudSave(){var c=ST.cfg||{};if(!c.live||!c.url)return;clearTimeout(_cl
   _cloudT=setTimeout(function(){
     pushCloudAman();
   },1500);}
-function cloudAutoLoad(){var c=ST.cfg||{};if(!c.dbUrl)return;
-  fetch(c.dbUrl).then(function(r){return r.json();}).then(function(d){
+function cloudAutoLoad(){var c=ST.cfg||{};if(!c.dbUrl&&!kredGet())return;
+  cloudAmbil(ST._cloudTsLihat).then(function(d){
+    if(cloudTolak(d))return;
+    if(d&&d.sama){ST.cloudStatus='sinkron '+new Date().toLocaleTimeString('id-ID')+' · tak ada yang baru';try{sinkronBadge();}catch(e){}return;}
     if(!d||!d.orders)return;
+    ST._cloudTsLihat=+d.ts||0;                          // versi ini sudah diproses — tarikan berikut cukup "sama" bila tak berubah
     /* device lain sudah "Mulai bersih" → ikut bersihkan sebelum merge,
        supaya data contoh tidak hidup lagi dari sini */
     if((d.purgeTs||0)>purgeTs()){
@@ -5770,10 +5806,11 @@ function startCloudPoll(){if(_pollT)clearInterval(_pollT);
     terakhir=kini;cloudAutoLoad();};
   try{document.addEventListener('visibilitychange',function(){if(!document.hidden)tarik();});}catch(e){}
   try{window.addEventListener('focus',tarik);}catch(e){}}
-function cloudLoad(){var c=cfgSerap();if(!c.dbUrl){alert('Kotak "Cloud DB" di Holding → Integrasi masih kosong.\n\nIsi URL-nya dulu (backend uji: URL /exec ditambah ?db=1).');return;}
+function cloudLoad(){var c=cfgSerap();if(!c.dbUrl&&!kredGet()){alert('Kotak "Cloud DB" di Holding → Integrasi masih kosong.\n\nIsi URL-nya dulu (backend uji: URL /exec ditambah ?db=1).');return;}
   if(!confirm('Muat data dari cloud akan MENIMPA data lokal saat ini. Lanjut?'))return;
   ST.cloudStatus='memuat dari cloud…';render();
-  fetch(c.dbUrl).then(function(r){return r.json();}).then(function(d){
+  cloudAmbil(0).then(function(d){
+    if(cloudTolak(d)){render();return;}
     if(!d||!d.orders){ST.cloudStatus='cloud kosong / format salah';render();return;}
     ST.orders=d.orders;simpanLokal();
     if(d.master){ST.master=d.master;msDasarSet(d.master);try{migrasiTeknikJasa();}catch(e){}saveMaster();buildCollatData();}
@@ -7809,6 +7846,9 @@ function drafBuang(k){var m=drafSemua();delete m[k];drafTulis(m);
   if(_ask&&drafKunci(_ask)===k){var o=_ask;o._tanpaDraf=true;askForm(o);}}
 function askForm(o){
   _ask=o;var b=document.getElementById('fm_body');
+  /* form lebar dua kolom (mis. Prospek baru) — form lain tetap satu kolom selebar 460px */
+  try{b.parentNode.style.maxWidth=o.lebar||'460px';}catch(e){}
+  b.style.display=o.grid2?'grid':'';b.style.gridTemplateColumns=o.grid2?'repeat(auto-fit,minmax(230px,1fr))':'';b.style.columnGap=o.grid2?'12px':'';
   document.getElementById('fm_title').textContent=o.judul||'Isi data';
   document.getElementById('fm_sub').textContent=o.sub||'';
   document.getElementById('fm_err').style.display='none';
@@ -7839,12 +7879,12 @@ function askForm(o){
           (o.ik?'<span style="font-size:18px;line-height:1">'+o.ik+'</span>':'')+'<b style="display:block;font-size:'+(f.kecil?'11.5':'13')+'px;margin-top:'+(o.ik?'3':'0')+'px">'+esc(o.l)+'</b>'+
           (o.ket?'<span style="display:block;font-size:10px;opacity:.75;line-height:1.35;margin-top:2px;font-weight:400">'+esc(o.ket)+'</span>':'')+'</button>';}).join('')+'</div>';
     else inp='<input class="pin'+(f.type==='number'?' n':'')+'" id="'+id+'" type="'+(f.type||'text')+'" style="width:100%;margin-top:3px" value="'+esc(String(v))+'" placeholder="'+esc(f.ph||'')+'">';
-    return '<div id="fmw'+i+'" style="margin-bottom:11px"><label class="nlbl">'+esc(f.label)+(f.req?' <span style="color:#d9534f">*</span>':'')+'</label>'+inp+
+    return '<div id="fmw'+i+'" style="margin-bottom:11px'+(o.grid2?(';grid-column:'+(f.setengah?'auto':'1/-1')):'')+'"><label class="nlbl">'+(f.no?'<span class="nomor-isian">'+f.no+'</span>':'')+esc(f.label)+(f.req?' <span style="color:#d9534f">*</span>':'')+'</label>'+inp+
       (f.hint?'<div style="font-size:9.5px;color:var(--muted);margin-top:3px">'+f.hint+'</div>':'')+'</div>';}).join('');
-  if(o.pratinjau)b.insertAdjacentHTML('beforeend','<div id="fm_prat"></div>');   // mis. judul prospek otomatis
+  if(o.pratinjau)b.insertAdjacentHTML('beforeend','<div id="fm_prat" style="grid-column:1/-1"></div>');   // mis. judul prospek otomatis
   if(draf)
     b.insertAdjacentHTML('afterbegin',
-      '<div style="border:1px dashed var(--accent);background:var(--warn-bg);border-radius:9px;'+
+      '<div style="grid-column:1/-1;border:1px dashed var(--accent);background:var(--warn-bg);border-radius:9px;'+
       'padding:8px 11px;margin-bottom:12px;font-size:10.5px;line-height:1.6;color:var(--brand-dark)">'+
       '<b>Isian yang tadi ditinggalkan sudah dikembalikan</b> — terakhir diketik '+esc(draf.tgl)+
       (draf.dasar!==undefined?', dan datanya belum berubah sejak itu':'')+'. '+
@@ -10206,6 +10246,7 @@ function renderMaster(){
 }
 function renderLogin(){
   const rb=document.getElementById('userbox');if(rb)rb.innerHTML='';
+  if(ST._gantiPw){renderGantiPw();return;}   // password bawaan: buat password baru dulu
   $('#main').innerHTML=`<div style="max-width:340px;margin:11vh auto 0">
     <div style="text-align:center;font-family:Georgia,serif;font-size:27px;color:var(--hub)">ROVE HUB</div>
     <div style="text-align:center;color:var(--muted);font-size:13px;margin:6px 0 22px">Masuk dengan akunmu — akses menyesuaikan jabatan.</div>
@@ -10214,7 +10255,7 @@ function renderLogin(){
     <label class="nlbl">Password</label>
     <input class="pin" id="lg_pass" type="password" style="margin:4px 0 13px" placeholder="password" onkeydown="if(event.key==='Enter')doLogin()">
     <button class="btn" style="width:100%" onclick="doLogin()">Masuk</button>
-    <div id="lg_err" style="font-size:11px;color:var(--red);margin-top:10px;text-align:center;font-weight:700"></div>
+    <div id="lg_err" style="font-size:11px;color:var(--red);margin-top:10px;text-align:center;font-weight:700">${ST._masukUlang?'<span style="color:var(--brand-dark)">HUB kini memeriksa password ke server — masuk ulang sekali dengan akunmu.</span>':''}</div>
   </div>`;
 }
 
@@ -10270,6 +10311,12 @@ async function hashPw(s){
     return Array.from(new Uint8Array(h)).map(function(x){return x.toString(16).padStart(2,'0');}).join('');}
   catch(e){return sha256Hex(t);}   // hasilnya sama persis, akun tetap cocok
 }
+/* password teks biasa (akun bawaan versi lama) diubah jadi hash — teksnya tak lagi ikut tersimpan & terkirim */
+async function pwMigrasi(){var U=(ST.master&&ST.master.users)||[],ubah=false;
+  for(var i=0;i<U.length;i++){var u=U[i];if(u&&!u.pwHash&&u.password!=null&&String(u.password)!==''){u.pwHash=await hashPw(String(u.password));delete u.password;ubah=true;}
+    else if(u&&u.pwHash&&u.password!=null){delete u.password;ubah=true;}}
+  if(ubah)saveMaster();
+  return ubah;}
 async function setUserPw(i,val){if(!val)return;var u=ST.master.users[i];if(!u)return;u.pwHash=await hashPw(val);delete u.password;saveMaster();render();}
 /* Kegagalan login dijelaskan apa adanya. "Username atau password salah"
    untuk semua sebab membuat daftar akun yang kosong terlihat seperti salah
@@ -10284,8 +10331,17 @@ function loginPesan(u,users){
 async function doLogin(){
   var u=(document.getElementById('lg_user').value||'').trim().toLowerCase();
   var p=(document.getElementById('lg_pass').value||'');
-  var users=(ST.master&&ST.master.users)||[];
   var ph=await hashPw(p);
+  /* dicek ke server dulu: backend berkunci menolak password yang salah; perangkat baru sekalian memuat datanya
+     (tanpa jaringan → tetap dicek dengan daftar akun di perangkat ini) */
+  var c=ST.cfg||{},srv=false;
+  if(c.url&&u){var er=document.getElementById('lg_err');if(er)er.textContent='memeriksa ke server…';
+    try{var d=await fetch(c.url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'db.load',auth:{u:u,h:ph},sejak:0})}).then(function(r){return r.json();});
+      if(d&&d.ok===false&&d.perluLogin){if(er)er.textContent='Username / password salah (dicek ke server), atau akunnya tidak aktif.';return;}
+      if(d&&Array.isArray(d.orders)){srv=true;try{loginTerimaCloud(d);}catch(e){}}   // kunci sesi baru disimpan sesudah password cocok di bawah
+    }catch(e){}
+    if(er)er.textContent='';}
+  var users=(ST.master&&ST.master.users)||[];
   var found=users.find(function(x){
     if(!x.aktif||(x.username||'').toLowerCase()!==u)return false;
     if(!x.pwHash)return String(x.password||'')===p;
@@ -10294,8 +10350,44 @@ async function doLogin(){
     return x.pwHash===ph||x.pwHash==='plain:'+p;});
   if(!found){document.getElementById('lg_err').textContent=loginPesan(u,users);return;}
   if(found.pwHash!==ph){found.pwHash=ph;delete found.password;saveMaster();}   // rapikan hash lama
+  /* password bawaan (= username) / terlalu pendek: wajib diganti dulu — selama masih berlaku, siapa pun yang tahu
+     username bisa masuk. Hanya saat server terjangkau: gantinya harus sampai ke server. */
+  if(srv&&pwLemah(found.username,p)){
+    ST._gantiPw={u:String(found.username).trim().toLowerCase(),h:ph,r:jabatanList(found)[0]||found.jabatan,roles:jabatanList(found)};
+    render();return;}
+  kredSet(found.username,ph);
   login(jabatanList(found)[0]||found.jabatan, found.username, jabatanList(found));
+  try{cloudAutoLoad();}catch(e){}
 }
+/* password bawaan (sama dengan username) atau terlalu pendek */
+function pwLemah(u,p){p=String(p||'');return p.length<6||p.toLowerCase()===String(u||'').trim().toLowerCase();}
+function renderGantiPw(){var g=ST._gantiPw||{};
+  $('#main').innerHTML=`<div style="max-width:340px;margin:11vh auto 0">
+    <div style="text-align:center;font-family:Georgia,serif;font-size:27px;color:var(--hub)">ROVE HUB</div>
+    <div style="text-align:center;color:var(--muted);font-size:13px;margin:6px 0 18px;line-height:1.5">Akun <b>${esc(g.u||'')}</b> — password-mu masih bawaan atau terlalu pendek. Buat password baru dulu supaya akunmu tak bisa dipakai orang lain.</div>
+    <label class="nlbl">Password baru</label>
+    <input class="pin" id="gp_1" type="password" autocomplete="new-password" style="margin:4px 0 11px" placeholder="minimal 6 karakter">
+    <label class="nlbl">Ulangi password baru</label>
+    <input class="pin" id="gp_2" type="password" autocomplete="new-password" style="margin:4px 0 13px" placeholder="ketik sekali lagi" onkeydown="if(event.key==='Enter')gantiPwSimpan()">
+    <button class="btn" style="width:100%" onclick="gantiPwSimpan()">Simpan &amp; masuk</button>
+    <button class="btn ghost sm" style="width:100%;margin-top:7px" onclick="ST._gantiPw=null;render()">Batal</button>
+    <div id="gp_err" style="font-size:11px;color:var(--red);margin-top:10px;text-align:center;font-weight:700"></div>
+  </div>`;}
+/* password baru dikirim ke server dulu (aksi akun.pw, berkunci password lama) — baru sesudah diterima dipakai di sini */
+async function gantiPwSimpan(){var g=ST._gantiPw;if(!g)return;
+  var a=(document.getElementById('gp_1').value||''),b=(document.getElementById('gp_2').value||''),er=document.getElementById('gp_err');
+  var salah=pwLemah(g.u,a)?'Minimal 6 karakter dan tidak boleh sama dengan username.':(a!==b?'Kedua password belum sama.':'');
+  if(salah){if(er)er.textContent=salah;return;}
+  var h=await hashPw(a),c=ST.cfg||{},d=null;
+  if(er)er.textContent='menyimpan ke server…';
+  try{d=await fetch(c.url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'akun.pw',auth:{u:g.u,h:g.h},payload:{h:h}})}).then(function(r){return r.json();});}catch(e){d=null;}
+  if(!d||d.ok!==true){
+    if(d&&d.perluLogin){ST._gantiPw=null;render();var e2=document.getElementById('lg_err');if(e2)e2.textContent='Server menolak — masuk ulang dengan password lamamu.';return;}
+    if(er)er.textContent=(d&&d.error)?String(d.error):'Server tak terjangkau — password belum diganti. Coba lagi.';return;}
+  /* diterima server berkunci — atau backend lama mengabaikan aksinya: gantinya ikut tersimpan lewat master */
+  ((ST.master&&ST.master.users)||[]).forEach(function(x){if(x&&String(x.username||'').trim().toLowerCase()===g.u){x.pwHash=h;delete x.password;}});
+  ST._gantiPw=null;kredSet(g.u,h);saveMaster();
+  login(g.r,g.u,g.roles);try{cloudAutoLoad();}catch(e){}}
 function delOrder(id){var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
   if(o.phase>0||o.status==='Deal'){alert('Hanya order fase Inquiry yang bisa dihapus. Order berjalan → pakai status Cancel.');return;}
   if(!confirm('Hapus order "'+o.customer+'"? (bisa dipulihkan dari cloud jika perlu)'))return;
@@ -10362,7 +10454,15 @@ function login(r,name,roles){ST.user=r;ST.userName=name||'';ST._roles=(roles&&ro
   sesiSet('rovehub_user',r);sesiSet('rovehub_username',ST.userName);
   sesiSet('rovehub_roles',JSON.stringify(ST._roles));
   ST.view='tasks';ST.cur=null;render();}
-function logout(){ST.user=null;ST.userName='';ST._roles=null;sesiHapus('rovehub_user');sesiHapus('rovehub_username');sesiHapus('rovehub_roles');ST.cur=null;
+/* data dari server saat login di perangkat yang (mungkin) masih kosong: master & order dipakai seperti tarikan biasa */
+function loginTerimaCloud(d){
+  if(!d||!Array.isArray(d.orders))return;
+  var kosong=!((ST.master&&ST.master.users)||[]).length;
+  if(kosong&&d.master){ST.master=d.master;try{msDasarSet(d.master,+d.ts||0);}catch(e){}try{migrasiTeknikJasa();}catch(e){}
+    localStorage.setItem('rovehub_master',JSON.stringify(ST.master));try{buildCollatData();}catch(e){}}
+  try{mergeOrders(d,false);simpanLokal();}catch(e){}
+  try{mergeLeads(d);}catch(e){}}
+function logout(){ST.user=null;ST.userName='';ST._roles=null;kredHapus();sesiHapus('rovehub_user');sesiHapus('rovehub_username');sesiHapus('rovehub_roles');ST.cur=null;
   _tandaN=-1;perbaruiTanda();render();}
 function taskOrders(role){
   return ST.orders.filter(o=>{
@@ -25435,7 +25535,7 @@ function berkasBesar(f,folder,tautanFn,simpanDrive,simpanKecil){ // true = berka
 /* ---- unggah langsung ke Google Drive lewat backend (Apps Script: drive.sesi → PUT per 8 MB → drive.selesai) ---- */
 function backendTanya(action,payload){var c=ST.cfg||{};
   if(!c.url)return Promise.reject(new Error('URL backend belum diisi di Panel Holding'));
-  return fetch(c.url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action:action,payload:payload||{}})})
+  return fetch(c.url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action:action,auth:kredGet(),payload:payload||{}})})
     .then(function(r){return r.text();}).then(function(t){try{return JSON.parse(t);}catch(e){throw new Error('jawaban backend bukan JSON');}});}
 function dzProgres(teks){var el=document.getElementById('dzProgres');
   if(!teks){if(el&&el.remove)el.remove();return;}
