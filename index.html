@@ -110,6 +110,40 @@
 
   /* detail */
   .back{font-size:12px;color:var(--brand);font-weight:700;cursor:pointer;margin-bottom:12px;display:inline-flex;gap:5px}
+  /* kartu ringkas (13 Okt): kiri isi fase ini, kanan panel tetap */
+  .kr{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:16px;align-items:start}
+  .kr-kiri{min-width:0}.kr-kiri>.card:first-child,.kr-kiri>div:first-child>.card:first-child{margin-top:0}
+  .kr-kanan{position:sticky;top:12px;display:flex;flex-direction:column;gap:10px;max-height:calc(100vh - 24px);overflow:auto;padding-bottom:4px}
+  .kr-b{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 14px;box-shadow:var(--shadow)}
+  .kr-h{font-size:9.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:7px}
+  .kr-no{font-size:10.5px;color:var(--muted)}.kr-nm{font-size:15px;font-weight:800;margin:1px 0 6px;line-height:1.25}
+  .kr-kv{display:flex;justify-content:space-between;gap:8px;font-size:11px;padding:2px 0}.kr-kv span:first-child{color:var(--muted)}.kr-kv b{text-align:right}
+  .kr-bar{height:7px;border-radius:5px;background:var(--line);overflow:hidden;margin:6px 0 9px}.kr-bar span{display:block;height:100%;background:var(--ok)}
+  .kr-kur{display:flex;gap:8px;align-items:flex-start;padding:7px 9px;border-radius:9px;background:#fbece9;border:1px solid #f0cfca;font-size:11px;margin-bottom:6px;line-height:1.4}
+  .kr-kur b{color:var(--red)}.kr-kur.ku{cursor:pointer}.kr-kur .ke{margin-left:auto;color:var(--red);font-weight:800}
+  .kr-ok{font-size:11px;color:var(--ok);font-weight:800;background:var(--ok-bg);border-radius:9px;padding:7px 9px;margin-bottom:6px}
+  .kr-mini{font-size:10px;color:var(--muted);line-height:1.5}
+  .kr-link{font-size:10px;color:var(--muted);text-decoration:underline;cursor:pointer}
+  .kr-riw{font-size:10.5px;color:var(--ink-soft,var(--ink));border-top:1px dashed var(--line);padding:5px 0;line-height:1.45}.kr-riw:first-of-type{border-top:none}
+  .kr-bawah{display:none}
+  /* bagian Brief yang bisa dilipat (kartu ringkas tahap 2) */
+  .bsek{border:1px solid var(--line);border-radius:11px;margin-bottom:9px;background:var(--panel)}
+  .bsek.kurang{border-color:var(--brand);box-shadow:0 0 0 3px rgba(154,106,47,.08)}
+  .bsek-h{display:flex;align-items:center;gap:9px;padding:9px 12px;cursor:pointer;flex-wrap:wrap}
+  .bsek-ik{width:22px;height:22px;border-radius:7px;display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;background:var(--ok-bg);color:var(--ok);flex:0 0 22px}
+  .bsek.kurang .bsek-ik{background:#fbece9;color:var(--red)}
+  .bsek-jd{font-size:12px}
+  .bsek-tag{font-size:9.5px;font-weight:800;border-radius:20px;padding:1px 8px;background:#fbece9;color:var(--red);border:1px solid #f0cfca}
+  .bsek-rk{flex:1;min-width:180px;font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .bsek-pan{font-size:10.5px;color:var(--muted);font-weight:700}
+  .bsek-b{padding:0 12px 10px;border-top:1px dashed var(--line)}
+  @media (max-width:600px){.bsek-rk{white-space:normal;min-width:0;flex-basis:100%}}
+  /* isian pendek berdampingan di dalam bagian Brief (mockup kartu ringkas 13 Okt disetujui) — mengalahkan aturan "isian ke bawah" 8 Sep hanya di sini */
+  .body .bsek-b div[style*="grid-template-columns"]:has(> label),.body .bsek-b div[style*="grid-template-columns"]:has(> div > label),
+  .body .bsek-b div[style*="grid-template-columns"]:has(> div > .nlbl){grid-template-columns:repeat(auto-fit,minmax(190px,1fr))!important}
+  @media (max-width:1100px){.kr{grid-template-columns:1fr}.kr-kanan{position:static;max-height:none;overflow:visible}
+    .kr-bawah{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:40;background:var(--panel);border-top:1px solid var(--line);padding:9px 12px;gap:10px;align-items:center;box-shadow:0 -6px 18px rgba(30,35,55,.12)}
+    .kr-bawah .kt{flex:1;font-size:11px;line-height:1.35}#main{padding-bottom:76px}}
   .dhead{background:var(--hub);color:var(--hubtext);border-radius:13px;padding:14px 18px;box-shadow:var(--shadow);margin-bottom:14px;display:flex;flex-wrap:wrap;gap:12px;align-items:center}
   .dhead h2{font-size:16px;font-family:Consolas,monospace;margin-bottom:3px}
   .dhead .meta{font-size:11px;color:#c7cbe0}.dhead .meta b{color:var(--gold)}
@@ -903,7 +937,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20261013-153704';
+const VERSI='20261013-165233';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -1046,6 +1080,12 @@ const BULAN_EN={Januari:'January',Februari:'February',Maret:'March',April:'April
 
 /* Aturan untuk kalimat yang mengandung angka — dicoba setelah kamus persis gagal. */
 const EN_RULES=[
+  /* kartu ringkas (13 Okt) */
+  [/^(\d+) \/ (\d+) lengkap$/,function(m,a,b){return a+' / '+b+' complete';}],
+  [/^(\d+) kurang$/,function(m,n){return n+' missing';}],
+  [/^semua item \((\d+)\)$/,function(m,n){return 'all items ('+n+')';}],
+  [/^semua riwayat \((\d+)\) ↓$/,function(m,n){return 'full history ('+n+') ↓';}],
+  [/^Fase (\d+) \/ (\d+)$/,function(m,a,b){return 'Phase '+a+' / '+b;}],
   /* kotak masuk administrasi */
   [/^(\d+) usulan terbuka$/,function(m,n){return n+' open proposal'+(+n===1?'':'s');}],
   [/^(\d+) fakta$/,function(m,n){return n+' fact'+(+n===1?'':'s');}],
@@ -1275,6 +1315,9 @@ const EN_RULES=[
 
 /* Kamus persis. Kunci = teks Indonesia apa adanya yang muncul di layar. */
 const EN={
+'Kelengkapan fase ini':'This phase\'s checklist','wajib menahan fase':'required items hold the phase','✓ Semua yang wajib sudah lengkap':'✓ All required items are complete',
+'buka channel & Trello ↓':'open channel & Trello ↓','Riwayat':'History','Dari prospek':'From the prospect','Client & acara':'Client & event',
+'ubah ▸':'edit ▸','lipat ▾':'collapse ▾','buka ▸':'open ▸','belum ada':'none yet','tidak ada':'none','belum ada produk':'no product yet',
 'Lampiran quotation — preview kemasan / desain untuk client':'Quotation attachment — packaging / design preview for the client',
 'Kosong = quotation memakai preview sketsa (bila ada), lalu gambar produk & spesifikasinya.':'Empty = the quotation uses the sketch preview (if any), then the product images & their specification.',
 '＋ Catat follow-up':'＋ Log follow-up',
@@ -14280,12 +14323,55 @@ function renderDetail(){
            : 'terisi sendiri dari fase &amp; dokumen · <span style="cursor:pointer;text-decoration:underline" onclick="orderCancel(\u0027'+o.id+'\u0027)">batalkan order</span>'}</div></div></div>
    </div>
    ${(o.status==='Cancel'||selesai)?`<div class="card actcard" style="margin-top:14px"><div class="body">${actHTML}</div></div>`:''}
-   ${peringatanBlok(o)}
-   ${ringkasSebelumBlok(o)}
-   ${panelStack(o)}
-   ${discordPanel(o)}
-   ${histPanel(o)}`;
+   ${kartuRingkas(o)}`;
 }
+/* ================= KARTU RINGKAS (13 Okt) =================
+   Kartu yang panjang memusingkan: tugas fase, yang kurang, dan tombol Selesai
+   ada di paling bawah. Sekarang dua bagian — kiri isi fase ini (panel fase,
+   bisa diisi lebih awal, tabel kelengkapan terlipat, Discord, riwayat), kanan
+   panel tetap yang selalu terlihat: fase & PIC, yang kurang (klik → loncat ke
+   kolomnya), tombol Selesai, kabar Discord, tiga riwayat terakhir. */
+function kartuRingkas(o){
+  var aktif=!(o.status==='Cancel'||o.done||(o.phase||0)>=PH.length);
+  var kiri=peringatanBlok(o)+ringkasSebelumBlok(o)+panelStack(o,true)+(aktif?chkPanel(o,{tanpaSelesai:true,lipat:true}):'')+
+    '<div id="kr_disc">'+discordPanel(o)+'</div><div id="kr_riw">'+histPanel(o)+'</div>';
+  return '<div class="kr"><div class="kr-kiri">'+kiri+'</div><aside class="kr-kanan" data-f="krKanan">'+sisiKartu(o,aktif)+'</aside></div>'+(aktif?pitaBawah(o):'');}
+function krKurang(o){var f=o.phase||0;try{return chkItems(f,o).filter(function(it){return it.w&&!chkAuto(o,f,it.k);});}catch(e){return [];}}
+function krSelesaiTombol(o,kecil){
+  if(faseMilikku(o))return '<button class="btn" data-f="krSelesai" style="'+(kecil?'':'width:100%;padding:10px')+'" onclick="trigger('+jsArg(o.id)+')">✓ Selesai'+(kecil?'':' — lanjut fase')+'</button>';
+  return '<button class="btn" disabled style="'+(kecil?'':'width:100%;padding:10px')+'" title="dipegang '+esc(fasePemilik(o))+'">✓ Selesai'+(kecil?'':' — lanjut fase')+'</button>';}
+function sisiKartu(o,aktif){
+  var f=o.phase||0,ph=PH[f]||{},id=jsArg(o.id);
+  var kv=function(k,v){return v?('<div class="kr-kv"><span>'+k+'</span><b>'+v+'</b></div>'):'';};
+  var out='<div class="kr-b"><div class="kr-no">'+(aktif?('Fase '+(f+1)+' / '+PH.length):'')+'</div><div class="kr-nm">'+esc(aktif?ph.n:(o.status==='Cancel'?'Dibatalkan':'Selesai'))+'</div>'+
+    (aktif?kv('PIC',esc(fasePemilik(o))):'')+kv('Status',esc(o.status||''))+kv('Acara',o.eventDate?esc(tglDMY(o.eventDate)):'')+'</div>';
+  if(aktif){
+    var items=[];try{items=chkItems(f,o);}catch(e){}
+    var sudah=items.filter(function(it){return chkDone(o,f,it.k);}).length,K=krKurang(o),nx=PH[faseBerikut(o,f)];
+    out+='<div class="kr-b" data-f="krCek"><div class="kr-h">Kelengkapan fase ini</div>'+
+      '<div style="display:flex;justify-content:space-between;font-size:11px"><b>'+sudah+' / '+items.length+' lengkap</b><span class="kr-mini">wajib menahan fase</span></div>'+
+      '<div class="kr-bar"><span style="width:'+(items.length?Math.round(sudah*100/items.length):100)+'%"></span></div>'+
+      (K.length?K.map(function(it){var ku=chkTugasku(it);
+          return '<div class="kr-kur'+(ku?' ku':'')+'" data-f="krKurang"'+(ku?(' title="buka tempat mengisinya" onclick="chkLompat('+id+','+f+',\''+it.k+'\')"'):'')+'><span>●</span><span><b>'+esc(chkT(it))+'</b><br><span class="kr-mini">PIC '+esc(it.pic||'')+'</span></span>'+(ku?'<span class="ke">→</span>':'')+'</div>';}).join('')
+        :'<div class="kr-ok">✓ Semua yang wajib sudah lengkap</div>')+
+      krSelesaiTombol(o)+
+      '<div class="kr-mini" style="margin-top:6px">'+(K.length?('Lengkapi '+K.length+' hal wajib lagi. '):'')+(nx?('Selesai → lanjut ke <b>'+esc(nx.n)+'</b> ('+esc(nx.pic||'')+').'):'Fase terakhir.')+
+        (faseMilikku(o)?'':(' Dipegang <b>'+esc(fasePemilik(o))+'</b>.'))+'</div>'+
+      '<div style="margin-top:7px;display:flex;gap:10px;flex-wrap:wrap"><span class="kr-link" onclick="krChkBuka('+id+')">semua item ('+items.length+')</span>'+
+        (bolehMundur(o)?('<span class="kr-link" onclick="mundurFase('+id+')">↩ Mundur ke '+esc(PH[faseSebelum(o,f)].n)+'</span>'):'')+'</div></div>';}
+  var d={};try{d=discordKini(o);}catch(e){}
+  out+='<div class="kr-b"><div class="kr-h">Discord &amp; Trello</div>'+kv('Channel','#'+esc(d.channel||''))+kv('Kategori',esc(d.kat||''))+
+    '<div style="margin-top:6px"><span class="kr-link" onclick="krLoncat(\'kr_disc\')">buka channel &amp; Trello ↓</span></div></div>';
+  var h=(o.hist||[]).slice(-3).reverse();
+  out+='<div class="kr-b"><div class="kr-h">Riwayat</div>'+(h.length?h.map(function(x){return '<div class="kr-riw"><b>'+esc(x.t||'')+'</b> · '+esc(String(x.txt||'').length>120?(String(x.txt).slice(0,118)+'…'):String(x.txt||''))+'</div>';}).join(''):'<div class="kr-mini">belum ada</div>')+
+    ((o.hist||[]).length>3?('<div style="margin-top:5px"><span class="kr-link" onclick="krLoncat(\'kr_riw\')">semua riwayat ('+(o.hist||[]).length+') ↓</span></div>'):'')+'</div>';
+  return out;}
+function pitaBawah(o){var K=krKurang(o),nx=PH[faseBerikut(o,o.phase||0)];
+  return '<div class="kr-bawah" data-f="krBawah"><div class="kt">'+(K.length?('<b style="color:var(--red)">'+K.length+' kurang</b> · '+esc(chkT(K[0]))):'<b style="color:var(--ok)">✓ lengkap</b>')+
+    '<br><span class="kr-mini">'+(nx?('berikutnya: '+esc(nx.n)):'fase terakhir')+'</span></div>'+krSelesaiTombol(o,true)+'</div>';}
+function krLoncat(elId){try{var e=document.getElementById(elId);if(e)e.scrollIntoView({behavior:'smooth',block:'start'});}catch(e2){}}
+function krChkBuka(id){if(!ST._chkBuka)ST._chkBuka={};ST._chkBuka[id]=true;render();setTimeout(function(){krLoncat('kr_chk');},60);}
+function krChkLipat(id){if(!ST._chkBuka)ST._chkBuka={};ST._chkBuka[id]=!ST._chkBuka[id];render();}
 /* ================= STATUS IKUT FASE & DOKUMEN =================
    Status tak bisa diketik/dipilih. Ia mengikuti fase, dan di fase dokumen
    ikut keadaan dokumennya: disiapkan → dibuat → terkirim → approved.
@@ -15161,6 +15247,7 @@ function chkLompat(id,fase,k){
       '\n\nPakai tombol ⏰ Ingatkan supaya '+it.pic+' yang mengerjakannya.');
     return;}
   var pk=chkPanelDari(fase,k);
+  if(BSEK_DARI[k]){ST._bsek=ST._bsek||{};ST._bsek[o.id+':'+BSEK_DARI[k]]=true;}   // bagian Brief-nya dibuka (kartu ringkas)
   /* item yang tempatnya di Master data punya jalannya sendiri */
   if((pk==='_master'||pk==='_live')&&CHK_MASTER[k]){CHK_MASTER[k](o);return;}
   /* panel yang bukan bawaan fase ini dibuka lebih awal, bukan ditolak —
@@ -15182,7 +15269,8 @@ function namaPanelDari(k){
   var d=panelDef(ST.orders.find(function(x){return x.id===ST.cur;})||{}).find(function(p){return p.k===k;});
   return d?d.t:'';}
 
-function chkPanel(o){
+function chkPanel(o,opsi){
+  opsi=opsi||{};
   var f=o.phase||0,items=chkItems(f,o);
   if(!items.length||o.done||o.status==='Cancel')return '';
   var sudah=items.filter(function(it){return chkDone(o,f,it.k);}).length;
@@ -15249,13 +15337,15 @@ function chkPanel(o){
         :('<div style="text-align:right"><button class="btn" disabled title="dipegang '+esc(fasePemilik(o))+'">✓ Selesai — lanjut fase</button>'+
            '<div style="font-size:9.5px;color:var(--muted);margin-top:4px">dipegang '+esc(fasePemilik(o))+'</div></div>'))+
       '</div>';})();
+  if(opsi.tanpaSelesai)selesaiBar='';   // kartu ringkas: tombol Selesai di panel kanan
+  var lipat=opsi.lipat&&!((ST._chkBuka||{})[o.id]);
   return selesaiBar+bukaAwalBlok(o)+
-    '<div class="card actcard" style="margin-top:14px"><div class="ch">'+
+    '<div class="card actcard" id="kr_chk" style="margin-top:14px"><div class="ch"'+(opsi.lipat?(' style="cursor:pointer" onclick="krChkLipat('+jsArg(o.id)+')"'):'')+'>'+
     '<span class="ico" style="background:'+(sisaWajib?'var(--warn)':'var(--ok)')+'">☑</span>'+
     '<div><div class="t">Kelengkapan '+esc(PH[f].n)+'</div>'+
       '<div class="s">tabel kontrol — tercentang sendiri begitu datanya terisi. Klik item yang jadi tugasmu untuk langsung ke tempat mengisinya.</div></div>'+
     '<span style="margin-left:auto;font-size:12px;font-weight:800;color:'+(sisaWajib?'var(--warn)':'var(--ok)')+'">'+
-      sudah+'/'+items.length+'</span></div><div class="body">'+rows+
+      sudah+'/'+items.length+(opsi.lipat?(' <span style="font-weight:700;color:var(--muted);font-size:10.5px">'+(lipat?'▸':'▾')+'</span>'):'')+'</span></div><div class="body"'+(lipat?' style="display:none"':'')+'>'+rows+
     '<div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:11px;border-top:1px solid var(--line);padding-top:11px">'+
       (mintaDaftar(o,f).length
         ? (akuSales()
@@ -15984,10 +16074,11 @@ function stepState(o){
     panelBawaan(o).forEach(function(k){ST._stepOpen[k]=true;});}
   return ST._stepOpen;}
 /* Hanya panel milik fase yang sedang jalan yang dirender. */
-function panelStack(o){
+function panelStack(o,tanpaChk){
   var bawaan=panelBawaan(o),out=[];
   panelDef(o).forEach(function(p){
     if(bawaan.indexOf(p.k)<0)return;
+    if(tanpaChk&&p.k==='chk')return;   // kartu ringkas: kelengkapan dirender sendiri (terlipat) + panel kanan
     var html=p.h();if(!html)return;
     /* id-nya dipakai tombol "Isi sekarang" untuk menggulir ke panelnya —
        tanpa ini tombolnya membuka panel yang tak terlihat di layar */
@@ -23641,8 +23732,8 @@ function briefPanel(o){
     '<span style="font-size:9.5px;color:var(--muted)" title="tersimpan sendiri tiap kolom diubah">'+
       '↻ tersimpan sendiri ke Master &amp; Form PO</span></span></div><div class="body">'+
 
-    salesRingkasBlok(o)+
-    '<div style="font-size:10px;font-weight:700;color:var(--muted);margin-bottom:7px">Client — '+esc(o.customer)+
+    bsek(o,'prospek','Dari prospek',salesRingkasBlok(o))+
+    bsek(o,'klien','Client & acara','<div style="font-size:10px;font-weight:700;color:var(--muted);margin:9px 0 7px">Client — '+esc(o.customer)+
       (cm?' <span style="font-weight:400;color:var(--ok)">✓ ada di Master</span>':' <span style="font-weight:400;color:var(--warn)">belum ada di Master</span>')+'</div>'+
     grid(txt('picNama','PIC client','nama kontak utama')+
       ord('phone','Phone client','+62 812-…')+
@@ -23659,9 +23750,9 @@ function briefPanel(o){
         'Client sebenarnya ('+esc(orderKategori(o))+') — boleh dikosongkan kalau ordernya lewat WO/EO dan namanya belum diberikan.</div>'+
         grid(K.map(function(c){return txt(c[0],c[1],'');}).join(''),170);})()+
     grid(txt('woNama','WO / EO — nama','kosongkan kalau tak ada')+
-      txt('woHp','WO / EO — phone','+62 812-…'),170)+
+      txt('woHp','WO / EO — phone','+62 812-…'),170))+
 
-    sub('SPESIFIKASI PRODUK','menempel di tiap produknya — varian yang menyimpang diatur di "bagi warna"')+
+    bsek(o,'produk','Spesifikasi produk',sub('SPESIFIKASI PRODUK','menempel di tiap produknya — varian yang menyimpang diatur di "bagi warna"')+
     salesPita(o,'produk')+
     briefProduk(o)+
     (function(){
@@ -23795,10 +23886,10 @@ function briefPanel(o){
     /* Personalisasi menempel pada spesifikasi produk — ia memang bagian dari
        produknya, bukan pekerjaan yang berdiri sendiri. Dulu ia terlempar ke
        bawah PACKAGING dan LIVE SERVICE, jauh dari kolom yang menerangkannya. */
-    lampiranBlok(o,'refFiles','Referensi dari client')+
+    lampiranBlok(o,'refFiles','Referensi dari client'))+
     /* lampiran quotation (preview kemasan / desain) dipindah ke panel Quotation (13 Okt) — di Inquiry belum dipakai */
 
-    '<a id="sekPerso"></a>'+
+    bsek(o,'perso','Personalisasi','<a id="sekPerso"></a>'+
     '<div data-f="sekPerso">'+sub('PERSONALIZATION','dikerjakan di workshop pada produknya — initial, full name, logo')+'</div>'+
     salesPita(o,'perso')+
     (spekKunci(o)?svcBacaBlok(o,'Service'):ordSvcEditor(o,'Service'))+
@@ -23817,23 +23908,57 @@ function briefPanel(o){
       :'')+
     (persoGet(o).perPcs||persoGet(o).daftar.length
       ?('<div style="font-size:9.5px;color:var(--muted);margin:0 0 4px">Daftar nama lama (belum menempel di jasa):</div>'+persoBlok(o,''))
-      :'')+
+      :''))+
 
-    sub('PACKAGING')+
+    bsek(o,'pack','Packaging',sub('PACKAGING')+
     (spekKunci(o)?packBacaBlok(o):briefPackBlok(o))+
     /* logo tiap kemasan menempel di kemasannya — hanya yang dicentang yang
        muncul, dan tombol samakan hidup di sini juga */
     /* logo tiap kemasan kini SATU kolom dengan gambar acuannya, di dalam
        kartunya masing-masing — tombol Samakan menyalin ke sana juga */
-    (spekKunci(o)?'':logoSamaTombol(o))+
+    (spekKunci(o)?'':logoSamaTombol(o)))+
 
     /* Dipisah: live service dikerjakan di lokasi acara oleh tim yang datang,
        add-on dikerjakan di workshop. Vendornya beda, harganya ditanya
        terpisah, dan personalisasi per-pcs termasuk add-on. */
-    sub('LIVE SERVICE','dikerjakan di lokasi acara')+
+    bsek(o,'live','Live service',sub('LIVE SERVICE','dikerjakan di lokasi acara')+
     briefSvcImg(o)+
-    (spekKunci(o)?svcBacaBlok(o,'Live service'):ordSvcEditor(o,'Live service'))+
+    (spekKunci(o)?svcBacaBlok(o,'Live service'):ordSvcEditor(o,'Live service')))+
     '</div></div>';}
+/* ===== bagian Brief yang bisa dilipat (kartu ringkas tahap 2, 13 Okt) =====
+   Terbuka sendiri hanya bila ada isian WAJIB fase ini yang masih kosong di bagian itu;
+   selebihnya satu baris ringkasan (klik = buka). Isinya tetap dirender (tersembunyi),
+   jadi "yang kurang", Isi sekarang, dan pencarian kolom tetap menemukannya. */
+const BSEK_DARI={kontak:'klien',acara:'klien',kota:'klien',hpWo:'klien',alamat:'klien',alamatKantor:'klien',email:'klien',
+  brief:'produk',bahanWarna:'produk',terjemah:'produk',ref:'produk',
+  logoCl:'perso',logoLetak:'perso',daftarNama:'perso',perso:'perso',svc:'perso',
+  logoPch:'pack',logoBox:'pack',logoCard:'pack',live:'live',operator:'live'};
+function bsekKurang(o,k){var f=o.phase||0,n=0;
+  try{chkItems(f,o).forEach(function(it){if(it.w&&BSEK_DARI[it.k]===k&&!chkAuto(o,f,it.k))n++;});}catch(e){}
+  return n;}
+function bsekRingkas(o,k){
+  var b=briefGet(o),j=function(a){return a.filter(function(x){return x&&String(x).trim()&&x!=='-';}).join(' · ');};
+  try{
+    if(k==='prospek'){var R=ringkasProspek(o);return R?String(R.judul||'kata client dari Sales'):'';}
+    if(k==='klien'){var tg=b.tglAcara||o.eventDate||'';
+      return j([o.customer,b.picNama?('PIC '+b.picNama):'',o.phone||b.phone||'',tg?tglDMY(tg):'',b.venue||o.venue||'',b.woNama?('WO '+b.woNama):'']);}
+    if(k==='produk')return j(lineProduk(o).map(function(x){var l=x.l;
+      return [l.produk,(l.qty||0)+' pcs',spekVal(o,l,'mainMat'),spekVal(o,l,'mainMatWarna')].filter(function(v){return v&&v!=='-';}).join(' ');}))||'belum ada produk';
+    if(k==='perso'){var J=[];liveList(o.svc).forEach(function(n){var tk=jasaTeknikOrder(o,n),lt=svcLetak(o,n);J.push(n+(tk?(' '+tk):'')+(lt?(' · '+lt):''));});return J.join(' · ')||'tidak ada';}
+    if(k==='pack'){var P=[];PACK_TIPE.forEach(function(t){if((o.coll||{})[t[0]]){var s2='';try{s2=packRingkas(t[0],packSpec(o,t[0]));}catch(e){}P.push(t[1]+(s2?(' '+s2):''));}});return P.join(' · ')||'tidak ada';}
+    if(k==='live')return liveList(o.liveSvc).join(' · ')||'tidak ada';
+  }catch(e){}
+  return '';}
+function bsekTerbuka(o,k){var S=ST._bsek||{},kunci=o.id+':'+k;return (kunci in S)?!!S[kunci]:(bsekKurang(o,k)>0);}
+function bsek(o,k,judul,isi){
+  if(!isi)return '';
+  var n=bsekKurang(o,k),buka=bsekTerbuka(o,k),rk=bsekRingkas(o,k);
+  return '<div class="bsek'+(n?' kurang':'')+'" data-bsek="'+k+'">'+
+    '<div class="bsek-h" data-f="bsek_'+k+'" onclick="bsekToggle('+jsArg(o.id)+',\''+k+'\')"><span class="bsek-ik">'+(n?'!':'✓')+'</span><b class="bsek-jd">'+esc(judul)+'</b>'+
+      (n?('<span class="bsek-tag">'+n+' kurang</span>'):'')+'<span class="bsek-rk">'+esc(rk)+'</span><span class="bsek-pan">'+(buka?'lipat ▾':(n?'buka ▸':'ubah ▸'))+'</span></div>'+
+    '<div class="bsek-b"'+(buka?'':' hidden')+'>'+isi+'</div></div>';}
+function bsekToggle(id,k){var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
+  if(!ST._bsek)ST._bsek={};ST._bsek[id+':'+k]=!bsekTerbuka(o,k);render();}
 /* ---- editor live service / add-on di order yang sudah jadi ---- */
 const SVCKEY={'Live service':'liveSvc','Service':'svc'};
 function ordSvcAdd(id,jenis){
