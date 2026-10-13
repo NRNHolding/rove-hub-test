@@ -903,7 +903,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20261013-143445';
+const VERSI='20261013-145149';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -2648,6 +2648,7 @@ if(r){ST.orders=JSON.parse(r);}else{ST.orders=[];}
   loadLang();migrasiFaseProfit();migrasiFase12();migrasiFase15();migrasiFase17();migrasiFase22();migrasiFase23();migrasiFaseInvoiceDulu();migrasiStatus();
   try{migrasiTeknikJasa();}catch(e){}
   try{setTimeout(function(){pwMigrasi();},0);}catch(e){}   // password teks biasa → hash (async)
+  try{setTimeout(function(){gambarRampingkan();},2500);}catch(e){}   // lampiran gambar besar → diperkecil sekali (13 Okt)
   finData();asetAll();loadCatalogCache();loadMaster();loadLeads();loadTax();loadKonten();loadHR();loadBuy();loadInv();adminLoad();
   try{migrasiContoh();}catch(e){}   // kartu contoh versi lama diganti yang lengkap
   try{if(contohLiveSegarkan())simpanLokal();}catch(e){}   // acara contoh Live service selalu relatif ke hari ini
@@ -3145,7 +3146,11 @@ function leadLengkapiBlok(l){var buka=!!((ST._lspek||{})[l.id]),n=leadLengkapN(l
     sub('A. PRODUK, KEMASAN &amp; PERSONALISASI')+produk+
     sub('B. REFERENSI GAMBAR DARI CLIENT')+leadRefBlok(l)+'</div>');}
 
-function saveLeads(){localStorage.setItem(LEAD_KEY,JSON.stringify(ST.leads||[]));cloudSave();}
+function saveLeads(){
+  try{localStorage.setItem(LEAD_KEY,JSON.stringify(ST.leads||[]));}
+  catch(e){try{kilat('⚠ Penyimpanan browser penuh — prospek tetap dikirim ke cloud; lampiran gambar besar sedang dikecilkan otomatis.','#7a1f1f');}catch(e2){}
+    try{setTimeout(function(){gambarRampingkan();},0);}catch(e3){}}
+  cloudSave();}
 function loadLeads(){try{ST.leads=JSON.parse(localStorage.getItem(LEAD_KEY)||'null');}catch(e){ST.leads=null;}
   if(!ST.leads){ST.leads=defLeads();localStorage.setItem(LEAD_KEY,JSON.stringify(ST.leads));}}
 function defLeads(){var d=function(n){var x=new Date();x.setDate(x.getDate()+n);return x.toISOString().slice(0,10);};
@@ -5554,7 +5559,8 @@ function simpanLokal(){
   try{localStorage.setItem(KEY,isi);ST._penuh=0;return true;}
   catch(e){
     ST._penuh=(ST._penuh||0)+1;
-    if(ST._penuh<=2)try{kilat('⚠ Penyimpanan browser penuh ('+Math.round(isi.length/1024)+' KB) — perubahan tak tersimpan di perangkat ini. Hapus lampiran besar atau kartu uji.','#7a1f1f');}catch(e2){}
+    if(ST._penuh<=2)try{kilat('⚠ Penyimpanan browser penuh ('+Math.round(isi.length/1024)+' KB) — perubahan tak tersimpan di perangkat ini. Lampiran gambar besar sedang dikecilkan otomatis.','#7a1f1f');}catch(e2){}
+    try{setTimeout(function(){gambarRampingkan();},0);}catch(e3){}
     return false;}}
 function save(){if(ST.cur){var oc=ST.orders.find(function(x){return x.id===ST.cur;});if(oc)oc._m=Date.now();}simpanLokal();cloudSave();}
 var _cloudT=null;
@@ -22754,10 +22760,18 @@ function lineImgCell(o,l,i){
       : '')+
     '</div></td>';}
 /* ---- gambar di Master Product (produk & collateral) ---- */
-function imgKecilkan(file,cb){ // perkecil dulu supaya database tak membengkak
+function imgKecilkan(file,cb,opsi){ // perkecil dulu supaya database tak membengkak
+  opsi=opsi||{};
   var rd=new FileReader();
-  rd.onload=function(){var img=new Image();
+  rd.onload=function(){var img=new Image(),asli=rd.result;
     img.onload=function(){
+      /* lampiran (opsi.mx, 13 Okt): sisi terpanjang maks opsi.mx; PNG yang cukup kecil tetap PNG (logo transparan),
+         selain itu JPEG berlatar putih; hasil yang tak lebih kecil → berkas aslinya. Gambar master: 460 px lebar, JPEG. */
+      if(opsi.mx){var sc2=Math.min(1,opsi.mx/Math.max(img.width,img.height)),w2=Math.max(1,Math.round(img.width*sc2)),h2=Math.max(1,Math.round(img.height*sc2));
+        var cv2=document.createElement('canvas');cv2.width=w2;cv2.height=h2;var cx=cv2.getContext('2d'),hasil='';
+        if(/png/i.test(String(file.type||''))){cx.drawImage(img,0,0,w2,h2);hasil=cv2.toDataURL('image/png');if(hasil.length>GAMBAR_INLINE_MAKS*1.37)hasil='';}
+        if(!hasil){cx.fillStyle='#fff';cx.fillRect(0,0,w2,h2);cx.drawImage(img,0,0,w2,h2);hasil=cv2.toDataURL('image/jpeg',0.82);}
+        cb(hasil.length<String(asli).length?hasil:asli);return;}
       var mx=460,sc=Math.min(1,mx/img.width),w=Math.round(img.width*sc),h=Math.round(img.height*sc);
       var cv=document.createElement('canvas');cv.width=w;cv.height=h;
       cv.getContext('2d').drawImage(img,0,0,w,h);cb(cv.toDataURL('image/jpeg',0.8));};
@@ -25539,10 +25553,49 @@ function berkasBesarTangani(f,folder,tautanFn,simpanDrive){
   if(confirm('"'+f.name+'" ('+ukuranTeks(f.size)+') terlalu besar untuk disimpan di HUB (maks 4 MB) — dan Discord pun menolak berkas di atas 10 MB.\n\nUnggah ke Google Drive (atur "Siapa saja yang punya link"), lalu tempel tautannya di kotak ini. Vendor membukanya lewat tautan itu.\n\nBuka Google Drive sekarang?'))
     window.open('https://drive.google.com/drive/my-drive','_blank');
   if(tautanFn)tautanFn();}
-function berkasBesar(f,folder,tautanFn,simpanDrive,simpanKecil){ // true = berkas > 4 MB sudah ditangani di sini
-  if(!(f&&f.size>BERKAS_BESAR))return false;
-  if(String(f.type||'').indexOf('image')===0&&simpanKecil&&!driveAktif()){imgKecilkan(f,simpanKecil);return true;}   // foto HP 5–10 MB: diperkecil saja
-  berkasBesarTangani(f,folder,tautanFn,simpanDrive);return true;}
+/* 13 Okt: dua tangkapan layar PNG (2 MB) di satu prospek — tersalin ke ordernya — memenuhi kuota browser (±5 MB).
+   Sejak itu foto / tangkapan layar di atas 300 KB diperkecil (maks 1600 px) sebelum disimpan. */
+var GAMBAR_INLINE_MAKS=300*1024;
+function berkasBesar(f,folder,tautanFn,simpanDrive,simpanKecil){ // true = sudah ditangani di sini (diperkecil / Drive / tautan)
+  if(!f)return false;
+  if(f.size>BERKAS_BESAR){
+    if(String(f.type||'').indexOf('image')===0&&simpanKecil&&!driveAktif()){imgKecilkan(f,simpanKecil,{mx:1600});return true;}   // foto HP 5–10 MB: diperkecil saja
+    berkasBesarTangani(f,folder,tautanFn,simpanDrive);return true;}
+  if(simpanKecil&&f.size>GAMBAR_INLINE_MAKS&&/^image[/](jpeg|jpg|png|webp)$/i.test(String(f.type||''))){imgKecilkan(f,simpanKecil,{mx:1600});return true;}
+  return false;}
+/* gambar besar yang sudah tersimpan (sebelum 13 Okt, atau dari HUB versi lama) dikecilkan sekali — sampai ke cloud */
+var GAMBAR_RAMPING_MIN=Math.round(300*1024*1.37);   // panjang data URI ±300 KB berkas
+function gambarBesarCari(x,out,d){ // [{o,k}] data URI gambar besar di mana pun di dalam order / prospek
+  out=out||[];d=d||0;if(!x||typeof x!=='object'||d>8)return out;
+  Object.keys(x).forEach(function(k){var v=x[k];
+    if(typeof v==='string'){if(v.length>GAMBAR_RAMPING_MIN&&/^data:image[/](png|jpeg|jpg|webp);base64,/i.test(v))out.push({o:x,k:k});}
+    else if(v&&typeof v==='object')gambarBesarCari(v,out,d+1);});
+  return out;}
+function gambarUriKecilkan(uri){return new Promise(function(ok){
+  try{var img=new Image();
+    img.onload=function(){try{
+      var sc=Math.min(1,1600/Math.max(img.width,img.height)),w=Math.max(1,Math.round(img.width*sc)),h=Math.max(1,Math.round(img.height*sc));
+      var cv=document.createElement('canvas');cv.width=w;cv.height=h;var cx=cv.getContext('2d');cx.fillStyle='#fff';cx.fillRect(0,0,w,h);cx.drawImage(img,0,0,w,h);
+      var j=cv.toDataURL('image/jpeg',0.82);ok(j&&j.length<uri.length?j:null);}catch(e){ok(null);}};
+    img.onerror=function(){ok(null);};img.src=uri;}catch(e){ok(null);}});}
+async function gambarRampingkan(){
+  if(ST._ramping)return 0;ST._ramping=true;var n=0,nO=0,nL=0;
+  try{
+    var kerja=async function(x){var L=gambarBesarCari(x),ubah=false;
+      for(var i=0;i<L.length;i++){var it=L[i],j=await gambarUriKecilkan(it.o[it.k]);if(!j)continue;
+        it.o[it.k]=j;ubah=true;n++;
+        if(!Array.isArray(it.o)){if('kb' in it.o)it.o.kb=Math.round(j.length*3/4/1024);if(it.o.tipe&&/png|webp/i.test(it.o.tipe))it.o.tipe='image/jpeg';
+          ['nama','n'].forEach(function(f){if(typeof it.o[f]==='string')it.o[f]=it.o[f].replace(/[.](png|webp)$/i,'.jpg');});it.o.diperkecil=true;}}
+      if(ubah)x._m=Date.now();return ubah;};
+    var O=(ST.orders||[]).filter(function(o){return o&&!o.deleted;});
+    for(var a=0;a<O.length;a++)if(await kerja(O[a]))nO++;
+    var Ld=(leadsAll()||[]).filter(function(l){return l&&!l.deleted;});
+    for(var b=0;b<Ld.length;b++)if(await kerja(Ld[b]))nL++;
+    if(nO){simpanLokal();cloudSave();}
+    if(nL)saveLeads();
+  }finally{ST._ramping=false;}
+  if(n){try{kilat('Lampiran gambar diperkecil otomatis: '+n+' gambar — penyimpanan browser lega lagi.');}catch(e){}try{if(ST.user)render();}catch(e){}}
+  return n;}
 /* ---- unggah langsung ke Google Drive lewat backend (Apps Script: drive.sesi → PUT per 8 MB → drive.selesai) ---- */
 function backendTanya(action,payload){var c=ST.cfg||{};
   if(!c.url)return Promise.reject(new Error('URL backend belum diisi di Panel Holding'));
