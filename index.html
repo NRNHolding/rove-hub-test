@@ -903,7 +903,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20261012-114019';
+const VERSI='20261013-110359';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -1275,6 +1275,12 @@ const EN_RULES=[
 
 /* Kamus persis. Kunci = teks Indonesia apa adanya yang muncul di layar. */
 const EN={
+'＋ Catat follow-up':'＋ Log follow-up',
+'Jenis order — cara menentukan harga':'Order type — how the price is set','Jenis order:':'Order type:','Perkiraan pun boleh.':'An estimate is fine.',
+'produk yang sudah ada — harga dari master':'existing product — price from master data','dibuat dari nol — harga ditanya ke vendor':'made from scratch — price asked from the vendor',
+'katalog + custom':'catalogue + custom','greeting card saja':'greeting card only',
+'A. PRODUK, KEMASAN & PERSONALISASI':'A. PRODUCTS, PACKAGING & PERSONALISATION','B. REFERENSI GAMBAR DARI CLIENT':'B. REFERENCE IMAGES FROM THE CLIENT',
+'Centang yang diminta client, lalu tulis kata client apa adanya — PM yang menerjemahkannya jadi bahan & ukuran.':'Tick what the client asked for, then write the client\'s own words — the PM turns them into materials & sizes.',
 'Password baru':'New password','Ulangi password baru':'Repeat the new password','Simpan & masuk':'Save & sign in',
 'Minimal 6 karakter dan tidak boleh sama dengan username.':'At least 6 characters and not the same as the username.',
 'Kedua password belum sama.':'The two passwords do not match.','menyimpan ke server…':'saving to the server…',
@@ -2788,6 +2794,7 @@ function leadSpecRingkas(l){
 
 
 /* ---- item katalog di prospek ---- */
+const LEAD_JENIS_KET={Katalog:'produk yang sudah ada — harga dari master',Custom:'dibuat dari nol — harga ditanya ke vendor',Mix:'katalog + custom','Non-produk':'greeting card saja'};
 const LEAD_JENIS=['Katalog','Custom','Mix','Non-produk'];   // Non-produk = greeting card saja, tanpa produk kulit (6 Okt)
 function leadItems(l){if(!Array.isArray(l.items))l.items=[];return l.items;}
 /* Ringkasan prospek — dipakai kartu di papan DAN kirimKeInquiry, supaya
@@ -3017,19 +3024,13 @@ function leadKatalogBlok(l){
 
 function leadRawBlok(l){
   return '<div style="margin-top:11px">'+
-    '<div style="font-size:9.5px;font-weight:800;color:var(--brand);letter-spacing:.04em;margin-bottom:3px">CUSTOM — TULIS APA ADANYA</div>'+
-    '<div style="font-size:10px;color:var(--muted);margin-bottom:7px;line-height:1.55">Belum ada produknya, jadi tulis saja kata client. PM yang menerjemahkannya jadi bahan &amp; ukuran.</div>'+
+    '<div style="font-size:10px;color:var(--muted);margin-bottom:7px;line-height:1.55">Centang yang diminta client, lalu tulis kata client apa adanya — PM yang menerjemahkannya jadi bahan &amp; ukuran.</div>'+
     LEAD_SEK.map(function(x){var k=x[0],s=leadSpec(l,k);
       return '<div style="border-top:1px dashed var(--line);padding:8px 0">'+
         '<label style="display:flex;align-items:center;gap:7px;font-size:11px;font-weight:800;cursor:pointer">'+
           '<input type="checkbox" '+(s.ada?'checked':'')+' onchange="leadSpecSet(\''+l.id+'\',\''+k+'\',\'ada\',this.checked)">'+
           esc(x[1])+'</label>'+
-        '<div style="display:flex;flex-wrap:wrap;gap:5px;margin:6px 0 5px">'+
-          LEAD_NADA.map(function(nd){var on=s.nada.indexOf(nd)>=0;
-            return '<button onclick="leadNadaToggle(\''+l.id+'\',\''+k+'\',\''+nd+'\')" style="border:1px solid '+(on?'var(--gold)':'var(--line)')+
-              ';background:'+(on?'var(--gold)':'var(--panel)')+';color:'+(on?'#2b1d0e':'var(--muted)')+
-              ';border-radius:20px;padding:3px 10px;font-size:10px;font-weight:700;cursor:pointer">'+esc(nd)+'</button>';}).join('')+
-        '</div>'+
+        '<div style="height:6px"></div>'+
         '<input class="pin" style="font-size:11px" value="'+esc(s.note)+'" placeholder="kata client apa adanya — mis. pokoknya elegant, warna earth tone"'+
           ' onchange="leadSpecSet(\''+l.id+'\',\''+k+'\',\'note\',this.value)">'+
       '</div>';}).join('')+'</div>';}
@@ -3064,7 +3065,7 @@ function leadSpekBlok(l){
 
 /* ================= PROSPEK PER KATEGORI (12 Okt) =================
    Saat prospek, Sales biasanya cuma tahu 6 hal: nama, No. HP, client / WO, kebutuhan barang, jumlah, tanggal yang
-   diminta. Kategori dipilih dulu dan isiannya menyesuaikan; kelengkapan untuk pricing menyusul (opsional, x / 5). */
+   diminta. Kategori dipilih dulu dan isiannya menyesuaikan; kelengkapan untuk pricing menyusul (opsional, x / 3 sejak 13 Okt). */
 const LEAD_KAT_INFO={
   Wedding:{ik:'💍',ket:'Pernikahan — souvenir, seserahan, thank you gift',hp:'No. HP yang menghubungi',lewat:['Pengantin sendiri','Lewat WO'],
     wo:'Nama WO',woPh:'mis. Bhumi Ceremony',tgl:'Tanggal pernikahan',tglK:'tglAcara',tglHint:'Jadi tanggal acara — tanggal kirim dihitung mundur oleh PM.',tgl2:'Tanggal kirim diminta',tgl2K:'tglKirim'},
@@ -3105,6 +3106,7 @@ function leadDataBlok(l){var kat=leadKategori(l),K=leadKatInfo(kat),id=jsArg(l.i
   var judul=l.namaOto?'':inp('nama','Judul prospek',l.nama,'',{lebar:true,fn:'leadSet'});
   return '<div class="sj" data-f="leadData" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">1. Data prospek '+
       '<span class="tlabel" style="background:'+pfColor(leadPrefix(l))+'">'+esc(K.ik+' '+kat)+'</span>'+
+      (l.jenis?('<span data-f="leadJenisLabel" style="font-size:10.5px;font-weight:700;color:var(--muted)">Jenis order: <b style="color:var(--ink)">'+esc(l.jenis)+'</b></span>'):'')+
       '<button class="xrow" style="margin-left:auto;font-size:10px;color:var(--muted)" onclick="leadKategoriUbah('+id+')">ubah kategori</button></div>'+
     (ubahKat?('<div class="lead-pil" style="margin-bottom:10px">'+LEAD_KAT.map(function(k){var on=(kat===k);
       return '<button onclick="leadKategoriSet('+id+',\''+k+'\')" style="border:1px solid '+(on?'var(--brand)':'var(--line)')+';background:'+(on?'var(--brand)':'var(--panel)')+
@@ -3114,41 +3116,32 @@ function leadDataBlok(l){var kat=leadKategori(l),K=leadKatInfo(kat),id=jsArg(l.i
       inp('produk','Kebutuhan barang',l.produk,'mis. souvenir pouch + thank you card',{lebar:true,fn:'leadSet',no:4})+
       inp('qty','Jumlah barang (pcs)',(+l.qty||0)||'','mis. 150',{n:true,type:'number',fn:'leadSet',no:5})+
       inp(K.tglK,K.tgl,l[K.tglK],'',{type:'date',fn:'leadSet',no:6})+
+      '<label class="nlbl"><span class="nomor-isian">7</span>Datang dari mana<select class="pin" data-f="lead_channel" style="margin-top:3px" onchange="leadSet('+id+',\'channel\',this.value)">'+
+        [''].concat(LEAD_CH).map(function(c){return '<option value="'+esc(c)+'" '+((l.channel||'')===c?'selected':'')+'>'+esc(c||'— pilih —')+'</option>';}).join('')+'</select></label>'+
     '</div>';}
-/* kelengkapan untuk pricing: jenis order, produk, kemasan & personalisasi, referensi, info tambahan */
-function leadLengkapN(l){var n=0,K=leadKatInfo(leadKategori(l));
-  if(l.jenis)n++;
+/* kelengkapan untuk pricing (13 Okt): produk, kemasan & personalisasi, referensi — jenis order & info tambahan tak ditanya lagi */
+function leadLengkapN(l){var n=0;
   if(leadItems(l).length||leadNonItems(l).length||leadSekIsi(l,'produk'))n++;
   if(['box','pouch','card','perso'].some(function(k){return leadSekIsi(l,k);})||leadItems(l).some(function(it){
     return ['box','pouch','card'].some(function(k){var c=(it.coll||{})[k];return !!(c&&c.ada);})||!!((it.perso||{}).ada);}))n++;
   if((Array.isArray(l.ref)?l.ref:[]).length)n++;
-  if((+l.estimasi||0)>0||String(l.catatan||'').trim()||l[K.tgl2K])n++;
   return n;}
+const LEAD_LENGKAP_MAKS=3;
 function leadLengkapiBlok(l){var buka=!!((ST._lspek||{})[l.id]),n=leadLengkapN(l),id=jsArg(l.id),K=leadKatInfo(leadKategori(l));
   var kepala='<div data-f="leadLengkapi" onclick="leadSpekBuka('+id+')" style="display:flex;align-items:center;gap:9px;padding:9px 12px;cursor:pointer;flex-wrap:wrap">'+
     '<span style="color:var(--brand);font-weight:800;width:12px">'+(buka?'▾':'▸')+'</span><b style="font-size:12px">2. Lengkapi untuk pricing</b>'+
     '<span style="font-size:10px;color:var(--muted)">opsional — makin lengkap, makin cepat PM menghitung harga</span>'+
     '<span style="margin-left:auto;display:flex;gap:7px;align-items:center"><span style="display:inline-block;width:100px;height:6px;border-radius:5px;background:var(--line);overflow:hidden">'+
-      '<span style="display:block;height:100%;width:'+(n*20)+'%;background:var(--ok)"></span></span><b style="font-size:11px;color:'+(n?'var(--ok)':'var(--muted)')+'">'+n+' / 5</b></span></div>';
+      '<span style="display:block;height:100%;width:'+Math.round(n*100/LEAD_LENGKAP_MAKS)+'%;background:var(--ok)"></span></span><b style="font-size:11px;color:'+(n?'var(--ok)':'var(--muted)')+'">'+n+' / '+LEAD_LENGKAP_MAKS+'</b></span></div>';
   var bingkai=function(isi){return '<div style="border:1px solid var(--line);border-radius:11px;margin-top:13px;background:var(--bg)">'+kepala+isi+'</div>';};
   if(!buka)return bingkai('');
   var sub=function(t){return '<div style="font-size:10px;font-weight:800;color:var(--brand);letter-spacing:.04em;margin:12px 0 6px;border-top:1px dashed var(--line);padding-top:10px">'+t+'</div>';};
-  var jenis='<div class="lead-pil">'+LEAD_JENIS.map(function(j){var on=(l.jenis===j);
-      return '<button onclick="leadJenisSet('+id+',\''+(on?'':j)+'\')" style="border:1px solid '+(on?'var(--brand)':'var(--line)')+';background:'+(on?'var(--brand)':'var(--panel)')+
-        ';color:'+(on?'#fff':'var(--muted)')+';border-radius:9px;padding:7px 10px;font-size:11px;font-weight:800;cursor:pointer">'+esc(j)+'</button>';}).join('')+'</div>'+
-    '<div style="font-size:10px;color:var(--muted);margin-top:5px;line-height:1.5">Cara menentukan harga. Kosong = masuk Inquiry sebagai <b>Custom</b> (PM bisa mengubahnya ke Mix). Non-produk = greeting card saja.</div>';
-  var produk=(l.jenis==='Non-produk')?leadNonBlok(l):(((l.jenis==='Katalog'||l.jenis==='Mix')?leadKatalogBlok(l):'')+((l.jenis!=='Katalog')?leadRawBlok(l):''));
-  var info='<div class="lead-g">'+
-      '<label class="nlbl">Datang dari mana<select class="pin" style="margin-top:3px" onchange="leadSet('+id+',\'channel\',this.value)">'+LEAD_CH.map(function(c){return '<option '+(l.channel===c?'selected':'')+'>'+c+'</option>';}).join('')+'</select></label>'+
-      '<label class="nlbl">Perkiraan nilai<input class="pin n money" inputmode="numeric" style="margin-top:3px" value="'+moneyInp(l.estimasi)+'" onchange="leadSet('+id+',\'estimasi\',this.value)"></label>'+
-      '<label class="nlbl">'+esc(K.tgl2)+'<input class="pin" type="date" style="margin-top:3px" value="'+esc(l[K.tgl2K]||'')+'" onchange="leadSet('+id+',\''+K.tgl2K+'\',this.value)"></label>'+
-      '<label class="nlbl lebar">Catatan — kebutuhan client &amp; hasil follow-up<textarea class="nta" data-f="leadCatatan" style="margin-top:3px" placeholder="mis. minta katalog, mau diskusi dengan pasangan; warna earth tone; nama tamu menyusul" onchange="leadSet('+id+',\'catatan\',this.value)">'+esc(l.catatan||'')+'</textarea></label>'+
-    '</div>';
+  /* jenis order dipilih di Prospek baru. Centang + catatan saja — produk katalog dipilih PM di Inquiry (produk katalog
+     prospek lama tetap terlihat); Non-produk tetap memilih item greeting card di sini: hanya di sini & Order baru item itu bisa ditambah */
+  var produk=(l.jenis==='Non-produk')?leadNonBlok(l):((leadItems(l).length?leadKatalogBlok(l):'')+leadRawBlok(l));
   return bingkai('<div style="border-top:1px solid var(--line);padding:2px 12px 12px">'+
-    sub('A. JENIS ORDER — CARA MENENTUKAN HARGA')+jenis+
-    sub('B. PRODUK, KEMASAN &amp; PERSONALISASI')+produk+
-    sub('C. REFERENSI GAMBAR DARI CLIENT')+leadRefBlok(l)+
-    sub('D. INFO TAMBAHAN')+info+'</div>');}
+    sub('A. PRODUK, KEMASAN &amp; PERSONALISASI')+produk+
+    sub('B. REFERENSI GAMBAR DARI CLIENT')+leadRefBlok(l)+'</div>');}
 
 function saveLeads(){localStorage.setItem(LEAD_KEY,JSON.stringify(ST.leads||[]));cloudSave();}
 function loadLeads(){try{ST.leads=JSON.parse(localStorage.getItem(LEAD_KEY)||'null');}catch(e){ST.leads=null;}
@@ -3203,10 +3196,14 @@ function leadAdd(){
       /* jumlah itu hal kedua yang disebut client sesudah produknya — ditanya
          sekarang, bukan ditinggalkan nol lalu ikut ke order sebagai nol */
       {k:'qty',label:'Jumlah barang (pcs)',no:5,setengah:true,type:'number',ph:'mis. 150',jika:ada,
-       hint:'Perkiraan pun boleh. Begitu produknya dipilih dari katalog, angka ini mengisi kolom Qty produknya.'},
+       hint:'Perkiraan pun boleh.'},
       {k:'tglAcara',label:I.Wedding.tgl,no:6,setengah:true,type:'date',jika:K('Wedding'),hint:I.Wedding.tglHint},
       {k:'tglKirimC',label:I.Corporate.tgl,no:6,setengah:true,type:'date',jika:K('Corporate'),hint:I.Corporate.tglHint},
-      {k:'tglKirimO',label:I.Custom.tgl,no:6,setengah:true,type:'date',jika:K('Custom'),hint:I.Custom.tglHint}],
+      {k:'tglKirimO',label:I.Custom.tgl,no:6,setengah:true,type:'date',jika:K('Custom'),hint:I.Custom.tglHint},
+      {k:'channel',label:'Datang dari mana',no:7,setengah:true,type:'select',val:'',jika:ada,
+       opts:[{v:'',l:'— pilih —'}].concat(LEAD_CH.map(function(c){return {v:c,l:c};}))},
+      {k:'jenis',label:'Jenis order — cara menentukan harga',no:8,type:'kartu',kecil:true,req:true,val:'',jika:ada,
+       opts:LEAD_JENIS.map(function(j){return {v:j,l:j,ket:LEAD_JENIS_KET[j]||''};})}],
     pratinjau:function(v){
       if(!v.kategori)return '<div style="font-size:10.5px;color:var(--muted);border:1px dashed var(--line);border-radius:9px;padding:9px 11px;text-align:center">Pilih kategori dulu — isiannya menyesuaikan.</div>';
       var k=v.kategori,lew=(v[k==='Wedding'?'lewatW':(k==='Corporate'?'lewatC':'lewatO')]==='1');
@@ -3227,7 +3224,7 @@ function leadAdd(){
       var oto=!t(v.nama);if(!oto&&lw&&!wo)wo=t(v.nama);
       var d={brideNama:(kat==='Wedding')?t(v.brideNama):'',groomNama:(kat==='Wedding')?t(v.groomNama):'',clientUtama:cu,woNama:wo};
       var idBaru='L'+Math.random().toString(36).slice(2,7);leadsAll().unshift({id:idBaru,nama:oto?leadJudulOto(kat,d):t(v.nama),namaOto:oto,kontak:hp,
-        channel:v.channel||'WhatsApp',produk:t(v.produk),qty:Math.max(0,+v.qty||0),estimasi:+v.estimasi||0,status:'Baru',
+        channel:t(v.channel),produk:t(v.produk),qty:Math.max(0,+v.qty||0),estimasi:+v.estimasi||0,status:'Baru',
         masuk:new Date().toISOString().slice(0,10),jenis:v.jenis||'',kategori:kat,
         tglAcara:v.tglAcara||'',tglKirim:t(pilih(v.tglKirim,v.tglKirimC||v.tglKirim,v.tglKirimO||v.tglKirim)),
         brideNama:d.brideNama,groomNama:d.groomNama,clientUtama:cu,picNama:(kat==='Corporate')?t(v.picNama):'',
@@ -3302,8 +3299,10 @@ function leadRefBlok(l){
           '<button class="xrow" onclick="leadRefDel('+jsArg(l.id)+','+i+')">\u2715</button></div>'+
       '</div>';}).join('')+'</div>')
     :'<div style="font-size:9.5px;color:var(--muted)">belum ada lampiran</div>')+'</div>';}
-function leadNote(id){var l=leadsAll().find(function(x){return x.id===id;});if(!l)return;
-  var n=prompt('Catatan tindak lanjut:','');if(n===null||!n.trim())return;
+/* teks dari baris "Catat follow-up" di kartu (13 Okt); tanpa teks → ditanya lewat prompt seperti dulu */
+function leadNote(id,teks){var l=leadsAll().find(function(x){return x.id===id;});if(!l)return;
+  var n=(teks!=null)?String(teks):prompt('Catatan tindak lanjut:','');if(n===null||!n.trim())return;
+  l.log=Array.isArray(l.log)?l.log:[];
   l.log.push({t:nowStr(),by:(ST.userName||ST.user),txt:n.trim()});
   l.touch=new Date().toISOString().slice(0,10);l._m=Date.now();
   if(l.status==='Baru')l.status='Ditanggapi';
@@ -3381,7 +3380,7 @@ function kirimKeInquiry(id){
   if(l.groomNama)o.brief.groomNama=l.groomNama;
   if(l.clientUtama)o.brief.clientUtama=l.clientUtama;
   if(l.picNama)o.brief.picNama=l.picNama;            // PIC perusahaan dari prospek Corporate
-  if(!l.jenis)logHist(o,'Jenis order belum dipilih Sales — masuk sebagai Custom (PM bisa mengubahnya ke Mix)');
+  if(!l.jenis)logHist(o,'Dari prospek — masuk sebagai Custom; PM menentukan Katalog / Mix / Non-produk di Inquiry');
   /* referensi bergambar prospek ikut ke slot "Referensi dari client" order;
      keterangannya jadi nama depan supaya PM tahu itu gambar apa */
   if(Array.isArray(l.ref)&&l.ref.length){
@@ -3570,6 +3569,9 @@ function leadPanel(){
       '<div class="body">'+
       leadDataBlok(l)+
       leadLengkapiBlok(l)+
+      (leadAktif(l)?('<div data-f="leadFu" style="display:flex;gap:7px;margin-top:11px;flex-wrap:wrap">'+
+        '<input class="pin" id="leadfu_'+l.id+'" style="flex:1;min-width:200px" placeholder="Catat hasil follow-up — mis. sudah kirim katalog, tunggu jawaban" onkeydown="if(event.key===\'Enter\')leadNote(\''+l.id+'\',this.value)">'+
+        '<button class="btn ghost sm" onclick="leadNote(\''+l.id+'\',(document.getElementById(\'leadfu_'+l.id+'\')||{}).value)">＋ Catat follow-up</button></div>'):'')+
       (l.log&&l.log.length?'<div style="margin-top:9px;font-size:10px;color:var(--muted);border-top:1px dashed var(--line);padding-top:7px">'+
         l.log.slice(-3).reverse().map(function(x){return '<div>'+esc(x.t)+' · '+esc(x.by||'')+' — '+esc(x.txt)+'</div>';}).join('')+
         (l.log.length>3?'<div style="opacity:.7">…'+(l.log.length-3)+' catatan lain</div>':'')+'</div>':'')+
@@ -12883,7 +12885,7 @@ function kartuProspek(l){
     '<div class="om"><span>'+esc(leadJudul(l))+(q?(' · '+q+'pcs'):'')+'</span>'+
       '<span>'+(leadTglUtama(l)?('📅 '+esc(tglID(leadTglUtama(l)))):'')+'</span></div>'+
     '<div class="om" style="margin-top:5px">'+
-      '<span class="stbadge stlead">'+esc(leadKategori(l))+((leadLewat(l)&&l.woNama)?(' · via '+esc(l.woNama)):'')+' · pricing '+leadLengkapN(l)+'/5</span>'+
+      '<span class="stbadge stlead">'+esc(leadKategori(l))+((leadLewat(l)&&l.woNama)?(' · via '+esc(l.woNama)):'')+' · pricing '+leadLengkapN(l)+'/'+LEAD_LENGKAP_MAKS+'</span>'+
       (l.status==='Batal'?'<span class="stbadge st-Cancel" style="margin-left:4px">Batal</span>':'')+
       '<span>'+collIcons(leadColl(l))+'</span>'+
     '</div>'+diam+'</div>';}
