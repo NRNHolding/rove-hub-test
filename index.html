@@ -903,7 +903,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20261013-110359';
+const VERSI='20261013-143445';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -1275,6 +1275,8 @@ const EN_RULES=[
 
 /* Kamus persis. Kunci = teks Indonesia apa adanya yang muncul di layar. */
 const EN={
+'Lampiran quotation — preview kemasan / desain untuk client':'Quotation attachment — packaging / design preview for the client',
+'Kosong = quotation memakai preview sketsa (bila ada), lalu gambar produk & spesifikasinya.':'Empty = the quotation uses the sketch preview (if any), then the product images & their specification.',
 '＋ Catat follow-up':'＋ Log follow-up',
 'Jenis order — cara menentukan harga':'Order type — how the price is set','Jenis order:':'Order type:','Perkiraan pun boleh.':'An estimate is fine.',
 'produk yang sudah ada — harga dari master':'existing product — price from master data','dibuat dari nol — harga ditanya ke vendor':'made from scratch — price asked from the vendor',
@@ -6596,6 +6598,10 @@ function quoPanel(o){
       '<br><span style="font-size:12.5px">Grand total <b style="color:var(--brand)">'+fmt0(T.grand)+'</b></span></div>'+
     '<div style="font-size:9.5px;color:var(--muted);margin-top:4px">Mana yang tampil sebagai baris diatur di Penentuan harga jual → "Item yang tampil di Quotation / Invoice"; item yang dilebur masuk ke harga produk utama.</div>'+
     opsiBlok(o,true)+ongkirBlok(o)+shipTawarBlok(o)+'<div data-f="pajakBlok">'+pajakBlok(o)+'</div>'+
+    /* yang dicetak sebagai lampiran quotation (13 Okt: dari Brief Inquiry ke sini — baru dipakai saat quotation dibuat) */
+    '<div style="margin-top:12px;border-top:1px solid var(--line);padding-top:11px">'+
+      lampiranBlok(o,'quoFiles','Lampiran quotation — preview kemasan / desain untuk client')+
+      '<div style="font-size:9.5px;color:var(--muted);margin-top:-4px">Kosong = quotation memakai preview sketsa (bila ada), lalu gambar produk &amp; spesifikasinya.</div></div>'+
     '<div style="display:flex;flex-wrap:wrap;gap:9px;align-items:center;margin-top:12px;border-top:1px solid var(--line);padding-top:11px">'+
       '<button class="btn" data-f="genQuo" onclick="genDoc('+jsArg(o.id)+',\'quotation\')">🧾 '+(D.quotation?'Lihat / generate ulang quotation':'Generate Quotation')+'</button>'+
       (D.quotation?('<span style="font-size:10.5px;color:var(--ok);font-weight:700">✓ Quotation '+esc(D.quotationDate||'')+'</span>'):'<span style="font-size:10.5px;color:var(--muted)">dokumen tersimpan ke folder bulan saat digenerate</span>')+
@@ -23775,8 +23781,7 @@ function briefPanel(o){
        produknya, bukan pekerjaan yang berdiri sendiri. Dulu ia terlempar ke
        bawah PACKAGING dan LIVE SERVICE, jauh dari kolom yang menerangkannya. */
     lampiranBlok(o,'refFiles','Referensi dari client')+
-    /* yang dicetak sebagai lampiran quotation (preview kemasan / desain) */
-    lampiranBlok(o,'quoFiles','Lampiran quotation — preview kemasan / desain untuk client')+
+    /* lampiran quotation (preview kemasan / desain) dipindah ke panel Quotation (13 Okt) — di Inquiry belum dipakai */
 
     '<a id="sekPerso"></a>'+
     '<div data-f="sekPerso">'+sub('PERSONALIZATION','dikerjakan di workshop pada produknya — initial, full name, logo')+'</div>'+
