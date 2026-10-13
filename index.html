@@ -903,7 +903,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20261013-145149';
+const VERSI='20261013-153704';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -3657,7 +3657,8 @@ function invKurang(){return invData().items.filter(function(i){return invStok(i.
 function invAdd(){var n=prompt('Nama barang:','');if(n===null||!n.trim())return;
   invData().items.push({id:'I'+Math.random().toString(36).slice(2,6),nama:n.trim(),kat:'Produk jadi',
     sat:'pcs',lokasi:'',min:0,catatan:''});saveInv();render();}
-function invSet(id,f,v){var i=invItem(id);if(!i)return;i[f]=(f==='min')?Math.max(0,+v||0):v;saveInv();render();}
+/* 13 Okt: dulu bernama invSet — sama dengan status invoice order, yang menimpanya: ubahan barang gudang tak pernah tersimpan */
+function invItemSet(id,f,v){var i=invItem(id);if(!i)return;i[f]=(f==='min')?Math.max(0,+v||0):v;saveInv();render();}
 function invDel(id){var d=invData(),k=d.items.findIndex(function(x){return x.id===id;});if(k<0)return;
   var n=d.moves.filter(function(m){return m.item===id;}).length;
   if(!confirm('Hapus "'+d.items[k].nama+'"?'+(n?('\n\nAda '+n+' riwayat pergerakan yang ikut terhapus — stok jadi tak bisa ditelusuri.'):'')))return;
@@ -3708,12 +3709,12 @@ function renderInv(){
     isi=(d.items.length?'<div class="xscroll"><table class="rtable mstack"><thead><tr><th style="min-width:150px">Barang</th><th style="width:120px">Kategori</th><th style="width:80px">Satuan</th><th style="width:100px">Lokasi</th><th class="num" style="width:80px">Stok</th><th class="num" style="width:80px">Minimum</th><th style="width:30px"></th></tr></thead><tbody>'+
       d.items.map(function(i){var st=invStok(i.id),low=st<(+i.min||0);
         return '<tr'+(low?' style="background:var(--warn-bg)"':'')+'>'+
-        '<td><input class="pin" value="'+esc(i.nama)+'" onchange="invSet(\''+i.id+'\',\'nama\',this.value)"></td>'+
-        '<td data-l="Kategori"><select class="pin" onchange="invSet(\''+i.id+'\',\'kat\',this.value)">'+INV_KAT.map(function(x){return '<option '+(i.kat===x?'selected':'')+'>'+x+'</option>';}).join('')+'</select></td>'+
-        '<td data-l="Satuan"><select class="pin" onchange="invSet(\''+i.id+'\',\'sat\',this.value)">'+INV_SAT.map(function(x){return '<option '+(i.sat===x?'selected':'')+'>'+x+'</option>';}).join('')+'</select></td>'+
-        '<td data-l="Lokasi"><input class="pin" value="'+esc(i.lokasi)+'" onchange="invSet(\''+i.id+'\',\'lokasi\',this.value)"></td>'+
+        '<td><input class="pin" value="'+esc(i.nama)+'" onchange="invItemSet(\''+i.id+'\',\'nama\',this.value)"></td>'+
+        '<td data-l="Kategori"><select class="pin" onchange="invItemSet(\''+i.id+'\',\'kat\',this.value)">'+INV_KAT.map(function(x){return '<option '+(i.kat===x?'selected':'')+'>'+x+'</option>';}).join('')+'</select></td>'+
+        '<td data-l="Satuan"><select class="pin" onchange="invItemSet(\''+i.id+'\',\'sat\',this.value)">'+INV_SAT.map(function(x){return '<option '+(i.sat===x?'selected':'')+'>'+x+'</option>';}).join('')+'</select></td>'+
+        '<td data-l="Lokasi"><input class="pin" value="'+esc(i.lokasi)+'" onchange="invItemSet(\''+i.id+'\',\'lokasi\',this.value)"></td>'+
         '<td data-l="Stok" class="num" style="font-weight:800;color:'+(low?'#d9534f':'var(--ink)')+'">'+st+'</td>'+
-        '<td data-l="Minimum"><input class="pin n" type="number" value="'+(i.min||0)+'" onchange="invSet(\''+i.id+'\',\'min\',this.value)"></td>'+
+        '<td data-l="Minimum"><input class="pin n" type="number" value="'+(i.min||0)+'" onchange="invItemSet(\''+i.id+'\',\'min\',this.value)"></td>'+
         '<td><button class="xrow" onclick="invDel(\''+i.id+'\')">✕</button></td></tr>';}).join('')+
       '</tbody></table></div>':'<div style="color:var(--muted);font-size:12px">Belum ada barang.</div>')+
       '<button class="btn ghost sm" style="margin-top:9px" onclick="invAdd()">＋ Tambah barang</button>';
@@ -24760,12 +24761,19 @@ function spekKartuBaca(o,l,li){
       '<span style="font-size:9.5px;color:var(--muted)">'+(l.qty||0)+' pcs'+(V.length?(' · '+V.length+' varian'):'')+'</span>'+
       '<span style="margin-left:auto;font-size:9px;color:var(--muted)">🔒 dari Brief</span></div>'+
     (rows?('<table style="font-size:10.5px;border-collapse:collapse">'+rows+'</table>'):'<div style="font-size:10px;color:var(--warn);font-weight:700">spesifikasi belum diisi di Brief</div>')+'</div>';}
+/* satu lampiran sebagai gambar kecil: foto → thumbnail (klik = perbesar), tautan / pdf → ikon; nama hanya di tooltip */
+function lampiranGambarKecil(f,nm){
+  var d=String(f.data||f.d||''),t=esc(nm),kotak='width:64px;height:64px;border:1px solid var(--line);border-radius:8px;background:#fff';
+  if(f.link)return '<span title="'+t+'" style="'+kotak+';display:inline-flex;align-items:center;justify-content:center;font-size:22px;cursor:pointer" onclick="window.open('+jsArg(f.link)+',\'_blank\')">🔗</span>';
+  if(/^data:image[/]/i.test(d)||d.slice(0,7)==='contoh:')return imgTag(d,kotak+';object-fit:contain;padding:3px;cursor:zoom-in','onclick="openLB(this.src)" title="'+t+'" data-f="logoGbr"');
+  return '<span title="'+t+'" style="'+kotak+';display:inline-flex;align-items:center;justify-content:center;font-size:22px">📄</span>';}
 function spekPanelBaca(o){
   var P=lineProduk(o),b=briefGet(o);
   var jasa=[];try{liveList(o.svc).forEach(function(n){var tk=jasaTeknikOrder(o,n),lt=svcLetak(o,n);jasa.push(esc(n)+(tk?(' — '+esc(tk)):'')+(lt?(' · '+esc(lt)):''));});}catch(e){}
   var live=[];try{liveList(o.liveSvc).forEach(function(n){live.push(esc(n));});}catch(e){}
   var kemasan=[];try{PACK_TIPE.forEach(function(t){if((o.coll||{})[t[0]]){var s='';try{s=packRingkas(t[0],packSpec(o,t[0]));}catch(e){}kemasan.push('<b>'+esc(t[1])+'</b>'+(s?(' — '+esc(s)):''));}});}catch(e){}
-  var logo=[];try{Object.keys(b).forEach(function(k){if(k==='logoFiles'||k==='logoBoxFiles'||k==='logoPouchFiles'||k==='logoCardFiles'||k.indexOf('svcF_')===0)(b[k]||[]).forEach(function(f){var nm=esc(f.nama||f.n||k);if(logo.indexOf(nm)<0)logo.push(nm);});});}catch(e){}
+  /* 13 Okt: logo & lampiran tampil sebagai gambar kecil (klik = perbesar, nama di tooltip) — bukan daftar nama berkas */
+  var logo=[],logoNama={};try{Object.keys(b).forEach(function(k){if(k==='logoFiles'||k==='logoBoxFiles'||k==='logoPouchFiles'||k==='logoCardFiles'||k.indexOf('svcF_')===0)(b[k]||[]).forEach(function(f){var nm=String(f.nama||f.n||k);if(logoNama[nm])return;logoNama[nm]=1;logo.push(lampiranGambarKecil(f,nm));});});}catch(e){}
   return '<div data-f="spekBaca" style="margin-bottom:12px">'+
     '<div style="display:flex;gap:9px;align-items:center;flex-wrap:wrap;margin-bottom:8px"><div style="font-weight:800;font-size:11px">Spesifikasi — dari Brief Inquiry, terkunci</div>'+
       '<span style="font-size:9.5px;color:var(--muted)">bentuknya sama dengan Brief; tak ada yang bisa diubah di sini</span>'+
@@ -24775,7 +24783,7 @@ function spekPanelBaca(o){
       '<div><b>Personalization / add-on</b><br>'+(jasa.length?jasa.join('<br>'):'<span style="color:var(--muted)">—</span>')+'</div>'+
       '<div><b>Kemasan</b><br>'+(kemasan.length?kemasan.join('<br>'):'<span style="color:var(--muted)">—</span>')+'</div>'+
       '<div><b>Live service</b><br>'+(live.length?live.join('<br>'):'<span style="color:var(--muted)">—</span>')+'</div>'+
-      '<div><b>Logo &amp; lampiran</b><br>'+(logo.length?logo.join('<br>'):'<span style="color:var(--muted)">—</span>')+'</div>'+
+      '<div><b>Logo &amp; lampiran</b><div data-f="logoKecil" style="display:flex;flex-wrap:wrap;gap:7px;margin-top:5px">'+(logo.length?logo.join(''):'<span style="color:var(--muted)">—</span>')+'</div></div>'+
     '</div></div>';}
 /* USULAN pemetaan tujuan — menunggu konfirmasi pemilik proses */
 const SPEK_REVISI_KE=[
@@ -25546,11 +25554,12 @@ function tautanTambah(ket,simpan){ // simpan(entri) — entri {nama,tipe:'link',
       simpan(tautanEntri(u,v.nama));}});}
 /* ---- berkas besar (> 4 MB): foto diperkecil otomatis; berkas lain ke Drive (otomatis lewat backend, atau manual + tautan) ---- */
 var BERKAS_BESAR=4*1024*1024;
-function ukuranTeks(b){b=+b||0;return b>=1024*1024?((Math.round(b/1024/1024*10)/10)+' MB'):(Math.round(b/1024)+' KB');}
+/* 13 Okt: dulu bernama ukuranTeks — sama dengan ukuran produk (cm) di atas, jadi menimpanya: ukuran di Form PO terbaca "0 KB" */
+function ukuranBerkas(b){b=+b||0;return b>=1024*1024?((Math.round(b/1024/1024*10)/10)+' MB'):(Math.round(b/1024)+' KB');}
 function driveAktif(){var c=ST.cfg||{};return !!(c.drive&&c.url);}
 function berkasBesarTangani(f,folder,tautanFn,simpanDrive){
   if(driveAktif()&&simpanDrive){driveUnggah(f,folder,simpanDrive,tautanFn);return;}
-  if(confirm('"'+f.name+'" ('+ukuranTeks(f.size)+') terlalu besar untuk disimpan di HUB (maks 4 MB) — dan Discord pun menolak berkas di atas 10 MB.\n\nUnggah ke Google Drive (atur "Siapa saja yang punya link"), lalu tempel tautannya di kotak ini. Vendor membukanya lewat tautan itu.\n\nBuka Google Drive sekarang?'))
+  if(confirm('"'+f.name+'" ('+ukuranBerkas(f.size)+') terlalu besar untuk disimpan di HUB (maks 4 MB) — dan Discord pun menolak berkas di atas 10 MB.\n\nUnggah ke Google Drive (atur "Siapa saja yang punya link"), lalu tempel tautannya di kotak ini. Vendor membukanya lewat tautan itu.\n\nBuka Google Drive sekarang?'))
     window.open('https://drive.google.com/drive/my-drive','_blank');
   if(tautanFn)tautanFn();}
 /* 13 Okt: dua tangkapan layar PNG (2 MB) di satu prospek — tersalin ke ordernya — memenuhi kuota browser (±5 MB).
