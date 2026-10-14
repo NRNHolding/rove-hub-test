@@ -937,7 +937,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20261013-165233';
+const VERSI='20261014-100844';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -1315,6 +1315,7 @@ const EN_RULES=[
 
 /* Kamus persis. Kunci = teks Indonesia apa adanya yang muncul di layar. */
 const EN={
+'belum ada teknik untuk jasa ini — isi "Teknik yang boleh" di Master data → Jasa':'no technique for this service yet — fill in "Allowed techniques" in Master data → Services',
 'Kelengkapan fase ini':'This phase\'s checklist','wajib menahan fase':'required items hold the phase','✓ Semua yang wajib sudah lengkap':'✓ All required items are complete',
 'buka channel & Trello ↓':'open channel & Trello ↓','Riwayat':'History','Dari prospek':'From the prospect','Client & acara':'Client & event',
 'ubah ▸':'edit ▸','lipat ▾':'collapse ▾','buka ▸':'open ▸','belum ada':'none yet','tidak ada':'none','belum ada produk':'no product yet',
@@ -24045,17 +24046,15 @@ function teknikPilih(o,n){
      label mati "teknik: X" cuma menyisakan satu cara mengubahnya: lewat master,
      yang berlaku ke semua order. */
   var L=jasaTekList(n);
-  /* belum dikunci: tawarkan teknik SE-KELUARGA saja — jasa acara tak perlu
-     melihat teknik workshop, dan sebaliknya */
-  var jj=(jasaAll().filter(function(x){return x.nama===jasaNamaAsli(n);})[0]||{}).jenis||'Service';
-  if(!L.length)L=teknikNamaUntuk(jj);
-  if(!L.length)L=teknikNama();
-  if(!L.length)L=persoVals().filter(function(x){return x&&x!=='-';});
-  if(!L.length)return teknikLabel(n);
+  /* 14 Okt: HANYA teknik milik jasa itu (kolom "Teknik yang boleh" di Master → Jasa). Dulu jasa yang kolomnya
+     kosong menawarkan seluruh katalog teknik — membingungkan dan bisa salah pilih. Jasa lama bertehnik tunggal tetap. */
+  if(!jasaAda(jasaNamaAsli(n)))return teknikLabel(n);
+  if(!L.length){var t1=jasaTeknik(n);if(t1)L=[t1];}
   var cur=jasaTeknikOrder(o,n);
   /* teknik lama dari master yang tak ada di daftar tetap ditampilkan —
      menghilangkannya diam-diam berarti PO-nya berubah tanpa ada yang memilih */
   if(cur&&L.indexOf(cur)<0)L=[cur].concat(L);
+  if(!L.length)return '<span data-f="tekBelum" style="font-size:9.5px;color:var(--warn);font-weight:700;max-width:230px;line-height:1.35">belum ada teknik untuk jasa ini — isi "Teknik yang boleh" di Master data → Jasa</span>';
   var harga=function(t){
     var H=teknikHarga(t,o.qty||0);
     if(!H)return '';
