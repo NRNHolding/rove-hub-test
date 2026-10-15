@@ -952,7 +952,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20261015-104623';
+const VERSI='20261015-140525';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -1330,6 +1330,8 @@ const EN_RULES=[
 
 /* Kamus persis. Kunci = teks Indonesia apa adanya yang muncul di layar. */
 const EN={
+'sesudah acara selesai':'after the event','sesudah acara 🔒':'after the event 🔒',
+'🔒 live service dibayar sesudah acara selesai — diajukan di Pembayaran vendor tahap 3':'🔒 live service is paid after the event — submit it in Vendor payment stage 3',
 'Ukuran jadi (cm)':'Finished size (cm)','Ukuran produk (cm)':'Product size (cm)','Sales mencatat di prospek:':'Sales noted at the prospect:',
 'dasar ukuran box / soft pouch — tercetak juga di PO':'basis for the box / soft pouch size — also printed on the PO',
 'Produk custom pasti ada ukurannya — tulis yang disebut client.':'A custom product always has a size — write what the client said.',
@@ -16766,6 +16768,7 @@ function bvAjuAktif(o,v,tahap){return bvAjuDaftar(o).filter(function(a){return a
 function bvAjukan(id,v,tahap){
   var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
   if(!bayarAjuBoleh()){alert('Pengajuan pembayaran vendor: Finance atau Purchasing.');return;}
+  if(vendorLiveKah(v)&&+tahap<3){alert('Vendor live service dibayar sesudah acara selesai — ajukan di Pembayaran vendor tahap 3.');return;}
   if(bvAjuAktif(o,v,tahap)){alert('Sudah ada pengajuan tahap '+tahap+' untuk '+vendorTampil(v,o)+' yang belum selesai.');return;}
   var sisa=bvSisa(o,v),saran=sisa;try{var d=vtermDaftar(o,v).filter(function(x){return x.tahap===+tahap;})[0];if(d&&d.proyeksi>0&&!d.dibayar)saran=Math.min(sisa,d.proyeksi);}catch(e){}
   var NL=String.fromCharCode(10);
@@ -16801,6 +16804,7 @@ function bvAjuPutus(id,ajuId,setuju){
       o._m=Date.now();save();render();}});}
 function bvAjuTombol(o,v,tahap,sisa){
   if(sisa<=0)return '';
+  if(vendorLiveKah(v)&&+tahap<3)return '<span data-f="bvLiveKunci_'+esc(vpoSlot(v))+'" style="font-size:10px;font-weight:700;color:var(--muted)">🔒 live service dibayar sesudah acara selesai — diajukan di Pembayaran vendor tahap 3</span>';
   var a=bvAjuAktif(o,v,tahap),A=jsArg(o.id)+','+jsArg(v),S=esc(vpoSlot(v)),out='';
   var tolakTerakhir=bvAjuDaftar(o).filter(function(x){return x.v===v&&+x.tahap===+tahap&&x.status==='ditolak';}).slice(-1)[0];
   if(!a){out+=(bayarAjuBoleh()?('<button class="btn sm" data-f="bvAju_'+S+'" onclick="bvAjukan('+A+','+tahap+')">₪ Ajukan pembayaran tahap '+tahap+'</button>'):'<span style="font-size:10px;color:var(--muted)">diajukan Finance / Purchasing</span>')+
@@ -16916,6 +16920,7 @@ function bvBoleh(){return ['Finance','Holding','Direktur Utama'].some(function(r
 function bvCatat(id,v,tahap){
   var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
   if(!bvBoleh()){alert('Pembayaran vendor dicatat Finance.');return;}
+  if(vendorLiveKah(v)&&+tahap<3){alert('Vendor live service dibayar sesudah acara selesai — catat di Pembayaran vendor tahap 3.');return;}
   var aju=bvAjuAktif(o,v,tahap);
   if(!aju||aju.status!=='disetujui'){alert(aju?('Pengajuan tahap '+tahap+' untuk '+v+' masih menunggu persetujuan Direktur.'):('Pembayaran vendor perlu persetujuan Direktur dulu — tekan "₪ Ajukan pembayaran tahap '+tahap+'" di kotak vendor ini.'));return;}
   var sisa=bvSisa(o,v);
@@ -16941,40 +16946,53 @@ function bvHapus(id,v,i){
    lalu boleh diubah: persen, dasar tanggal (PO turun / barang jadi / diterima Rove), tanggal manual.
    Nominal = % × total PO vendor (HPP × qty PO + biaya tetap); sisa pembulatan ke termin terakhir.
    Dicetak di PO (Payment Terms) dan jadi baris keluar di Cashflow. */
-const VTERM_DASAR={po:'saat PO turun',jadi:'saat barang jadi (deadline vendor)',terima:'saat barang diterima Rove'};
-const VTERM_DASAR_EN={po:'upon PO issue',jadi:'when the goods are finished',terima:'upon receipt at Rove'};
-function vterminDefault(kode){return (kode==='Kulit')?[{pct:50,dasar:'po'},{pct:50,dasar:'jadi'}]:[{pct:100,dasar:'jadi'}];}
+const VTERM_DASAR={po:'saat PO turun',jadi:'saat barang jadi (deadline vendor)',terima:'saat barang diterima Rove',acara:'sesudah acara selesai'};
+const VTERM_DASAR_EN={po:'upon PO issue',jadi:'when the goods are finished',terima:'upon receipt at Rove',acara:'after the event'};
+/* 15 Okt (keputusan pemilik): vendor Live Service PASTI dibayar sesudah acara selesai — dikunci 100% sesudah acara,
+   tanggalnya hari bayar (Senin / Jumat) pertama sesudah tanggal acara, dan baru bisa diajukan di Pembayaran vendor
+   tahap 3 (sesudah Live Event). Dasar 'acara' hanya untuk vendor Live Service — tak ditawarkan di editor vendor lain. */
+function vendorLiveKah(v){return vendorTipe(vendorDasar(v))==='Live Service';}
+function vtermDasarPilih(){return Object.keys(VTERM_DASAR).filter(function(k){return k!=='acara';});}
+function vterminDefault(kode){return (kode==='Live Service')?[{pct:100,dasar:'acara'}]:((kode==='Kulit')?[{pct:50,dasar:'po'},{pct:50,dasar:'jadi'}]:[{pct:100,dasar:'jadi'}]);}
 function vterminMaster(nama){var vm=((ST.master||{}).vendors||[]).find(function(x){return x.nama===vendorDasar(nama);})||{};
+  if(vm.tipe==='Live Service')return [{pct:100,dasar:'acara'}];   // dikunci — termin tersimpan lama diabaikan
   var t=(Array.isArray(vm.termin)&&vm.termin.length)?vm.termin:vterminDefault(vm.tipe);
-  return t.slice(0,3).map(function(x){return {pct:+x.pct||0,dasar:VTERM_DASAR[x.dasar]?x.dasar:'jadi'};});}
+  return t.slice(0,3).map(function(x){return {pct:+x.pct||0,dasar:(VTERM_DASAR[x.dasar]&&x.dasar!=='acara')?x.dasar:'jadi'};});}
 function vterminTeks(T){return (T||[]).map(function(x,i){return (i+1)+') '+x.pct+'% '+(VTERM_DASAR[x.dasar]||x.dasar);}).join(' · ');}
-function vterminCell(i,r){var T=vterminMaster(r.nama),S={po:'PO',jadi:'jadi',terima:'terima'},bawaan=!(Array.isArray(r.termin)&&r.termin.length);
+function vterminCell(i,r){var T=vterminMaster(r.nama),S={po:'PO',jadi:'jadi',terima:'terima',acara:'sesudah acara 🔒'},bawaan=!(Array.isArray(r.termin)&&r.termin.length)||r.tipe==='Live Service';
   return '<td><button class="btn ghost sm" style="width:100%;text-align:left;font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:4px 7px'+(bawaan?';font-weight:600;opacity:.85':'')+'" title="'+esc(vterminTeks(T))+(bawaan?' (bawaan)':'')+' — dipakai tiap order, boleh diubah per order" onclick="vterminEdit('+i+')">'+
     esc(T.map(function(x){return x.pct+'% '+(S[x.dasar]||x.dasar);}).join(' · '))+'</button></td>';}
-function vterminEdit(i){var r=(ST.master.vendors||[])[i];if(!r)return;var T=vterminMaster(r.nama);
+function vterminEdit(i){var r=(ST.master.vendors||[])[i];if(!r)return;
+  if(r.tipe==='Live Service'){alert('Vendor Live Service dibayar 100% sesudah acara selesai (hari bayar Senin / Jumat pertama sesudah acara) — termin ini dikunci.');return;}
+  var T=vterminMaster(r.nama);
   var F=[{k:'n',label:'Jumlah termin (mentok 3)',type:'select',opts:['1','2','3'],val:String(T.length)}];
   for(var t=0;t<3;t++){var x=T[t]||{pct:0,dasar:'jadi'};
     F.push({k:'p'+t,label:'Tahap '+(t+1)+' — persen',type:'number',val:x.pct});
-    F.push({k:'d'+t,label:'Tahap '+(t+1)+' — tanggalnya dihitung dari',type:'select',opts:Object.keys(VTERM_DASAR).map(function(k){return {v:k,l:VTERM_DASAR[k]};}),val:x.dasar});}
+    F.push({k:'d'+t,label:'Tahap '+(t+1)+' — tanggalnya dihitung dari',type:'select',opts:vtermDasarPilih().map(function(k){return {v:k,l:VTERM_DASAR[k]};}),val:x.dasar});}
   askForm({judul:'Termin pembayaran — '+r.nama,sub:'Persen dari total PO (HPP × qty + biaya tetap). Tanggal tiap termin dihitung dari dasarnya; di order bisa diganti manual.',fields:F,
     ok:function(v){var n=Math.max(1,Math.min(3,+v.n||1)),out=[],tot=0;
       for(var t=0;t<n;t++){var p=Math.max(0,+v['p'+t]||0);out.push({pct:p,dasar:VTERM_DASAR[v['d'+t]]?v['d'+t]:'jadi'});tot+=p;}
       if(Math.round(tot)!==100){alert('Jumlah persennya harus 100% (sekarang '+tot+'%).');return;}
       r.termin=out;stampRow(r);saveMaster();render();}});}
 function vtermGet(o,v){if(!o.vterm)o.vterm={};
+  if(vendorLiveKah(v)){var LV=o.vterm[v];   // dikunci: termin order lama ("100% jadi") ikut diganti
+    if(!(Array.isArray(LV)&&LV.length===1&&LV[0].dasar==='acara'&&+LV[0].pct===100))o.vterm[v]=[{pct:100,dasar:'acara',tgl:''}];
+    return o.vterm[v];}
   if(!Array.isArray(o.vterm[v])||!o.vterm[v].length)o.vterm[v]=vterminMaster(v).map(function(x){return {pct:x.pct,dasar:x.dasar,tgl:''};});
   return o.vterm[v];}
 function vtermTglOtomatis(o,v,x){
   var tid=vendorTbhId(v),vd=vendorDasar(v),radja=isLeatherVendor(vd),p=tid?(function(){var t=tbhCari(o,tid)||{},q=((t.po||{})[vd])||{};return {tglPO:q.tglPO||'',deadline:q.deadline||((t.deadline||{}).tgl)||''};})():(radja?(o.po||{}):(((o.vpo||{})[vd])||{})),vt=tid?{}:(((o.vendorTgl||{})[vd])||{});
   var deadline=p.deadline||vt.deadline||'';
+  if(x.dasar==='acara'){var ac=o.eventDate||briefGet(o).tglAcara||'';return ac?hariBayarBerikut(tglGeser(ac,1)):'';}   // hari bayar pertama SESUDAH acara
   if(x.dasar==='po')return p.tglPO||vt.tglPOMax||(deadline?tglGeser(deadline,-14):'');
   if(x.dasar==='terima')return deadline?tglGeser(deadline,2):'';
   return deadline;}
 function vtermDaftar(o,v,totalPO){
   var T=vtermGet(o,v),total=(totalPO!=null?totalPO:bvTotal(o,v)),D=bvDaftar(o,v),N=T.map(function(x){return Math.round(total*(+x.pct||0)/100);});
   if(N.length)N[N.length-1]=Math.max(0,total-N.slice(0,-1).reduce(function(a,b){return a+b;},0));
-  var out=T.map(function(x,i){var bayar=D.filter(function(b){return +b.tahap===i+1;}),nomB=bayar.reduce(function(a,b){return a+(+b.nominal||0);},0);
-    return {i:i,tahap:i+1,pct:+x.pct||0,dasar:x.dasar,nom:N[i],tgl:x.tgl||vtermTglOtomatis(o,v,x),manual:!!x.tgl,
+  /* termin sesudah acara (live service) dibayar di Pembayaran vendor tahap 3 */
+  var out=T.map(function(x,i){var th=(x.dasar==='acara')?3:i+1,bayar=D.filter(function(b){return x.dasar==='acara'||+b.tahap===th;}),nomB=bayar.reduce(function(a,b){return a+(+b.nominal||0);},0);
+    return {i:i,tahap:th,pct:+x.pct||0,dasar:x.dasar,nom:N[i],tgl:x.tgl||vtermTglOtomatis(o,v,x),manual:!!x.tgl,
       dibayar:nomB>0,bayarNom:nomB,bayarTgl:bayar.length?bayar[bayar.length-1].tgl:'',proyeksi:0};});
   /* S5 (kritik #6): dibayar / bayarNom / bayarTgl = entri KAS saja (kredit kartu susulan tak pernah disimpan). proyeksi = uang
      yang masih akan keluar di termin yang belum dibayar, dibatasi sisa tagihan (sesudah kas + kredit): dihitung dari termin
@@ -16982,22 +17000,25 @@ function vtermDaftar(o,v,totalPO){
   var sisa=0;try{sisa=bvSisa(o,v);}catch(e){}
   for(var j=out.length-1;j>=0;j--){if(out[j].dibayar)continue;var q=Math.max(0,Math.min(out[j].nom,sisa));out[j].proyeksi=q;sisa-=q;}
   return out;}
-function vtermSet(id,v,i,f,val){var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;var T=vtermGet(o,v),x=T[i];if(!x)return;
+function vtermKunciAlert(v){if(!vendorLiveKah(v))return false;alert('Vendor Live Service dibayar 100% sesudah acara selesai — termin ini dikunci.');return true;}
+function vtermSet(id,v,i,f,val){var o=ST.orders.find(function(x){return x.id===id;});if(!o||vtermKunciAlert(v))return;var T=vtermGet(o,v),x=T[i];if(!x)return;
   if(f==='pct')x.pct=Math.max(0,Math.min(100,+val||0));else if(f==='tgl')x.tgl=String(val||'');else if(f==='dasar'){if(VTERM_DASAR[val])x.dasar=val;}
   logHist(o,'Termin '+(i+1)+' '+v+': '+(f==='tgl'?(val?('tanggal '+tglID(val)):'tanggal otomatis lagi'):(f==='pct'?(x.pct+'%'):(VTERM_DASAR[x.dasar]||''))));
   o._m=Date.now();save();render();}
-function vtermN(id,v,n){var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;var T=vtermGet(o,v);n=Math.max(1,Math.min(3,+n||1));
+function vtermN(id,v,n){var o=ST.orders.find(function(x){return x.id===id;});if(!o||vtermKunciAlert(v))return;var T=vtermGet(o,v);n=Math.max(1,Math.min(3,+n||1));
   while(T.length<n)T.push({pct:0,dasar:'jadi',tgl:''});T.length=n;
   var lain=T.slice(0,-1).reduce(function(a,x){return a+(+x.pct||0);},0);T[T.length-1].pct=Math.max(0,100-lain);
   logHist(o,'Termin '+v+' jadi '+n+'x');o._m=Date.now();save();render();}
-function vtermReset(id,v){var o=ST.orders.find(function(x){return x.id===id;});if(!o||!o.vterm)return;delete o.vterm[v];
+function vtermReset(id,v){var o=ST.orders.find(function(x){return x.id===id;});if(!o||!o.vterm||vtermKunciAlert(v))return;delete o.vterm[v];
   logHist(o,'Termin '+v+' kembali ke bawaan Master');o._m=Date.now();save();render();}
 function vtermBlok(o,v,baca){
+  var live=vendorLiveKah(v);if(live)baca=true;
   var D=vtermDaftar(o,v),total=bvTotal(o,v),tot=D.reduce(function(a,d){return a+d.pct;},0);
   var A=jsArg(o.id)+','+jsArg(v);
   return '<div data-f="vterm_'+esc(vpoSlot(v))+'" style="border-top:1px dashed var(--line);margin-top:10px;padding-top:9px">'+
     '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:5px"><b style="font-size:10.5px">Termin pembayaran ke '+esc(vendorTampil(v,o))+'</b>'+
-      '<span class="kecil">bawaan dari Master → Vendors · total PO '+fmt0(total)+' · dicetak di PO · masuk Cashflow</span>'+
+      (live?'<span class="kecil" data-f="vtermLive">🔒 live service — 100% sesudah acara selesai, diajukan di Pembayaran vendor tahap 3 · total PO '+fmt0(total)+'</span>'
+        :'<span class="kecil">bawaan dari Master → Vendors · total PO '+fmt0(total)+' · dicetak di PO · masuk Cashflow</span>')+
       (baca?'':('<span style="margin-left:auto;font-size:10px">'+[1,2,3].map(function(n){return '<button class="btn '+(D.length===n?'':'ghost')+' sm" style="font-size:9.5px;padding:2px 7px" onclick="vtermN('+A+','+n+')">'+n+'×</button>';}).join(' ')+
         ' <button class="btn ghost sm" style="font-size:9.5px;padding:2px 7px" title="kembali ke termin bawaan vendor" onclick="vtermReset('+A+')">↺ bawaan</button></span>'))+'</div>'+
     '<div class="xscroll"><table class="rtable" style="font-size:10.5px"><thead><tr><th style="width:60px">Tahap</th><th style="width:84px">%</th><th class="num" style="width:120px">Nominal</th><th style="width:190px">Tanggal dihitung dari</th><th style="width:160px">Tanggal</th><th>Status</th></tr></thead><tbody>'+
@@ -17005,13 +17026,13 @@ function vtermBlok(o,v,baca){
       return '<tr><td>tahap '+d.tahap+'</td>'+
         '<td style="white-space:nowrap">'+(baca?(d.pct+'%'):('<input class="pin n" type="number" min="0" max="100" style="width:56px" value="'+d.pct+'" onchange="vtermSet('+B+',\'pct\',this.value)">%'))+'</td>'+
         '<td class="num"><b>'+fmt0(d.nom)+'</b></td>'+
-        '<td>'+(baca?esc(VTERM_DASAR[d.dasar]||d.dasar):('<select class="pin" style="width:100%" onchange="vtermSet('+B+',\'dasar\',this.value)">'+Object.keys(VTERM_DASAR).map(function(k){return '<option value="'+k+'" '+(d.dasar===k?'selected':'')+'>'+esc(VTERM_DASAR[k])+'</option>';}).join('')+'</select>'))+'</td>'+
+        '<td>'+(baca?esc(VTERM_DASAR[d.dasar]||d.dasar):('<select class="pin" style="width:100%" onchange="vtermSet('+B+',\'dasar\',this.value)">'+vtermDasarPilih().map(function(k){return '<option value="'+k+'" '+(d.dasar===k?'selected':'')+'>'+esc(VTERM_DASAR[k])+'</option>';}).join('')+'</select>'))+'</td>'+
         '<td>'+(baca?(d.tgl?tglID(d.tgl):'—'):('<input type="date" class="pin" style="width:100%" value="'+esc(d.tgl)+'" onchange="vtermSet('+B+',\'tgl\',this.value)">'+
           '<div style="font-size:9px;color:var(--muted)">'+(d.manual?('manual · <a href="#" onclick="vtermSet('+B+',\'tgl\',\'\');return false">otomatis lagi</a>'):(d.tgl?'otomatis dari dasarnya':'belum bisa dihitung — isi deadline / tanggal PO'))+'</div>'))+'</td>'+
         '<td>'+(d.dibayar?('<span style="color:var(--ok);font-weight:800">✓ dibayar '+fmt0(d.bayarNom)+(d.bayarTgl?(' · '+tglID(d.bayarTgl)):'')+'</span>'):'<span style="color:var(--muted)">belum</span>')+'</td></tr>';}).join('')+
     '</tbody></table></div>'+(tot!==100?('<div style="font-size:9.5px;color:var(--warn);font-weight:700;margin-top:3px">Jumlah persen '+tot+'% — harus 100%.</div>'):'')+'</div>';}
 function vtermInfoPO(o,v){var D=[];try{D=vtermDaftar(o,v,bvTotalPO(o,v));}catch(e){}if(!D.length)return '';   // S5 (kritik #13): termin PO kartu induk dari nilai PO penuh
-  var h=D.map(function(d){return '<tr><td class="k" style="width:150px">'+(d.i===0?'Payment Terms':'')+'</td><td>: '+esc('Stage '+d.tahap+': '+d.pct+'% — '+idr(d.nom)+' '+(VTERM_DASAR_EN[d.dasar]||d.dasar)+(d.tgl?(', '+tglDMY(d.tgl)):''))+'</td></tr>';}).join('');
+  var h=D.map(function(d){return '<tr><td class="k" style="width:150px">'+(d.i===0?'Payment Terms':'')+'</td><td>: '+esc('Stage '+(d.i+1)+': '+d.pct+'% — '+idr(d.nom)+' '+(VTERM_DASAR_EN[d.dasar]||d.dasar)+(d.tgl?(', '+tglDMY(d.tgl)):''))+'</td></tr>';}).join('');
   /* PO kartu susulan: yang sudah diterima vendor lewat PO kartu induk dicetak sebagai kredit, bukan ditagih lagi */
   var k=0;try{k=bvKredit(o,v);}catch(e){}
   if(k>0)h+='<tr><td class="k" style="width:150px">Credit</td><td>: '+esc(idr(k)+' already paid under PO '+((((o.susulan||{}).poInduk)||(((indukDari(o)||{}).po||{}).poNo))||'-')+' — balance due '+idr(bvSisa(o,v)))+'</td></tr>';
