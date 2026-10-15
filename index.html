@@ -952,7 +952,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20261014-133405';
+const VERSI='20261015-104623';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -1330,6 +1330,9 @@ const EN_RULES=[
 
 /* Kamus persis. Kunci = teks Indonesia apa adanya yang muncul di layar. */
 const EN={
+'Ukuran jadi (cm)':'Finished size (cm)','Ukuran produk (cm)':'Product size (cm)','Sales mencatat di prospek:':'Sales noted at the prospect:',
+'dasar ukuran box / soft pouch — tercetak juga di PO':'basis for the box / soft pouch size — also printed on the PO',
+'Produk custom pasti ada ukurannya — tulis yang disebut client.':'A custom product always has a size — write what the client said.',
 'Ready':'Ready','Tidak ada':'Not available',
 'Pilih produk dari katalog':'Pick products from the catalogue','＋ Pilih produk dari katalog':'＋ Pick products from the catalogue','▾ Pilih produk dari katalog':'▾ Pick products from the catalogue',
 'klik produk untuk menambahkannya — HPP mengikuti tingkat jumlah':'click a product to add it — the cost follows the quantity tier','Jumlah':'Quantity',
@@ -1683,7 +1686,7 @@ const EN={
   'again — the revision number goes up on its own, along with what changed.',
 'Minta harga vendor':'Request vendor price','hanya barang yang harganya belum ada':'only items with no price yet',
 'HANYA UNTUK BARANG YANG HARGANYA BELUM ADA':'ONLY FOR ITEMS WITH NO PRICE YET',
-'semua harga lengkap':'all prices complete','Belum diminta':'Not requested',
+'semua harga lengkap':'all prices complete','Belum diminta':'Not requested','Harga belum ditanyakan':'Price not asked yet',
 'Menunggu jawaban':'Awaiting reply','Harga diterima':'Price received',
 '📨 Minta harga':'📨 Request price','✓ Isi harga':'✓ Enter price','✎ Ubah':'✎ Edit',
 'Harga dari vendor masuk':'Vendor price received','Harga vendor per pcs (HPP)':'Vendor price per piece (cost)',
@@ -3186,7 +3189,10 @@ function leadDataBlok(l){var kat=leadKategori(l),K=leadKatInfo(kat),id=jsArg(l.i
       inp(K.tglK,K.tgl,l[K.tglK],'',{type:'date',fn:'leadSet',no:6})+
       '<label class="nlbl"><span class="nomor-isian">7</span>Datang dari mana<select class="pin" data-f="lead_channel" style="margin-top:3px" onchange="leadSet('+id+',\'channel\',this.value)">'+
         [''].concat(LEAD_CH).map(function(c){return '<option value="'+esc(c)+'" '+((l.channel||'')===c?'selected':'')+'>'+esc(c||'— pilih —')+'</option>';}).join('')+'</select></label>'+
+      (leadUkuranPerlu(l)?inp('ukuran','Ukuran produk (cm)',l.ukuran,'mis. 30 × 22 × 2 — p × l × t',{fn:'leadSet',no:9}):'')+
     '</div>';}
+/* prospek Custom / Mix (atau belum berjenis = masuk sebagai Custom): ukuran produknya ditanya sejak awal (15 Okt) */
+function leadUkuranPerlu(l){var j=(l&&l.jenis)||'';return !j||j==='Custom'||j==='Mix';}
 /* kelengkapan untuk pricing (13 Okt): produk, kemasan & personalisasi, referensi — jenis order & info tambahan tak ditanya lagi */
 function leadLengkapN(l){var n=0;
   if(leadItems(l).length||leadNonItems(l).length||leadSekIsi(l,'produk'))n++;
@@ -3275,7 +3281,11 @@ function leadAdd(){
       {k:'channel',label:'Datang dari mana',no:7,setengah:true,type:'select',val:'',jika:ada,
        opts:[{v:'',l:'— pilih —'}].concat(LEAD_CH.map(function(c){return {v:c,l:c};}))},
       {k:'jenis',label:'Jenis order — cara menentukan harga',no:8,type:'kartu',kecil:true,req:true,val:'',jika:ada,
-       opts:LEAD_JENIS.map(function(j){return {v:j,l:j,ket:LEAD_JENIS_KET[j]||''};})}],
+       opts:LEAD_JENIS.map(function(j){return {v:j,l:j,ket:LEAD_JENIS_KET[j]||''};})},
+      /* 15 Okt: produk custom pasti ada ukurannya — dicatat sejak prospek */
+      {k:'ukuran',label:'Ukuran produk (cm)',no:9,setengah:true,ph:'mis. 30 × 22 × 2 — p × l × t',
+       jika:function(v){return !!v.kategori&&(v.jenis==='Custom'||v.jenis==='Mix');},
+       hint:'Produk custom pasti ada ukurannya — tulis yang disebut client.'}],
     pratinjau:function(v){
       if(!v.kategori)return '<div style="font-size:10.5px;color:var(--muted);border:1px dashed var(--line);border-radius:9px;padding:9px 11px;text-align:center">Pilih kategori dulu — isiannya menyesuaikan.</div>';
       var k=v.kategori,lew=(v[k==='Wedding'?'lewatW':(k==='Corporate'?'lewatC':'lewatO')]==='1');
@@ -3303,6 +3313,7 @@ function leadAdd(){
         kontakOleh:lw?'WO / EO / perantara':'Client sendiri',
         /* lewat perantara: nomor yang tadi diketik itu milik WO / EO */
         woNama:wo,woHp:lw?hp:'',
+        ukuran:(v.jenis==='Custom'||v.jenis==='Mix')?t(v.ukuran):'',
         items:[],pic:(ST.userName||ST.user||''),
         catatan:'',touch:new Date().toISOString().slice(0,10),log:[],_m:Date.now()});
       saveLeads();bukaProspek(idBaru);}});}
@@ -3418,7 +3429,8 @@ function kirimKeInquiry(id){
   /* custom belum punya produk bernama — satu baris kosong supaya PM tak mulai dari nol */
   if(!lines.length)lines.push({produk:l.produk||'(belum dirinci)',bahan:'',
     sumber:vendorNames()[0]||'Radja Leather',qty:+l.qty||0,hpp:0,jual:0,
-    img:'',imgs:[],detail:'dari prospek — belum dirinci',perso:'-',fixed:false});
+    img:'',imgs:[],detail:'dari prospek — belum dirinci',perso:'-',fixed:false,
+    ukuranCm:leadUkuranPerlu(l)?String(l.ukuran||'').trim():''});
 
   /* collateral, judul, qty, dan prefix — dihitung fungsi yang sama dengan
      yang dipakai kartu prospek, jadi tak bisa berbeda diam-diam */
@@ -3452,6 +3464,7 @@ function kirimKeInquiry(id){
   if(l.groomNama)o.brief.groomNama=l.groomNama;
   if(l.clientUtama)o.brief.clientUtama=l.clientUtama;
   if(l.picNama)o.brief.picNama=l.picNama;            // PIC perusahaan dari prospek Corporate
+  if(leadUkuranPerlu(l)&&String(l.ukuran||'').trim())logHist(o,'Ukuran produk dari prospek: '+String(l.ukuran).trim());
   if(!l.jenis)logHist(o,'Dari prospek — masuk sebagai Custom; PM menentukan Katalog / Mix / Non-produk di Inquiry');
   /* referensi bergambar prospek ikut ke slot "Referensi dari client" order;
      keterangannya jadi nama depan supaya PM tahu itu gambar apa */
@@ -3461,7 +3474,7 @@ function kirimKeInquiry(id){
     logHist(o,'\ud83d\udcce '+l.ref.length+' referensi bergambar terbawa dari prospek');}
   o.vip=isVip(l);                       // status VIP ikut, tak perlu ditetapkan ulang
   if(vipMinta(l))o.vipMinta=JSON.parse(JSON.stringify(l.vipMinta));  // pengajuan ikut juga
-  o.dariSales={dari:l.nama,channel:l.channel,pic:l.pic,catatan:l.catatan||'',
+  o.dariSales={dari:l.nama,channel:l.channel,pic:l.pic,catatan:l.catatan||'',ukuran:leadUkuranPerlu(l)?String(l.ukuran||'').trim():'',
     jenis:l.jenis||'',spec:JSON.parse(JSON.stringify(l.spec||{})),
     items:(l.jenis==='Non-produk')?[]:JSON.parse(JSON.stringify(l.items||[])),tgl:hariIni()};   // sisa item katalog dari jenis sebelumnya tak ikut
   o.fromLead=l.id;
@@ -9666,6 +9679,12 @@ function barisVendorLengkapi(o){
 /* Nama jasa dari nama barisnya: 'Add-on — Full Name' jadi 'Full Name'. */
 function namaJasaBaris(l){
   return String((l&&l.produk)||'').replace(/^(Live service|Add-on) — /,'');}
+/* nama baris untuk dibaca orang (15 Okt): 'Add-on — Add-on Logo Rove' → 'Add-on Logo Rove' — jasanya sudah berawalan sama */
+function namaBarisTampil(l){var p=String((l&&l.produk)||''),m=p.match(/^(Live service|Add-on) — (.+)$/);
+  return (m&&m[2].toLowerCase().indexOf(m[1].toLowerCase())===0)?m[2]:p;}
+/* barang yang dikerjakan add-on — vendor jasa perlu tahu logonya dipasang di apa (15 Okt) */
+function addonUntuk(o){var P=[];try{P=lineProduk(o);}catch(e){}
+  return P.map(function(x){return (x.l.produk||'produk')+((+x.l.qty>0)?(' · '+x.l.qty+' pcs'):'');}).join(', ');}
 /* 'Add-on Logo (2)' → 'Add-on Logo'. Satu order boleh memakai jasa yang sama
    dua kali (mis. dua logo di tempat berbeda) — barisnya diberi nomor supaya
    kunci lampiran/teknik/letaknya tak saling timpa, dan master dicari dengan
@@ -14614,6 +14633,12 @@ const PH_CHECK=[
    gunaEn:'the material sets the price; the colours are the client’s choice — ask now so production does not guess',
    /* menahan fase (keputusan user 8 Sep 2026): bahan & warnanya dibutuhkan untuk pricing */
    pic:'Sales', w:true},
+  /* 15 Okt (keputusan pemilik): produk custom pasti punya ukuran — dicatat sejak prospek, wajib sebelum minta harga */
+  {auto:function(o){return ukuranCustomKurang(o).length===0;}, jika:'custom', k:'ukuranProduk',
+   t:'Catat ukuran jadi tiap produk custom (p × l × t cm)', en:'Record the finished size of every custom product (l × w × h cm)',
+   guna:'produk custom tak punya ukuran di Master — tanpa ukurannya vendor box / soft pouch tak bisa memberi harga, dan PO tak lengkap',
+   gunaEn:'custom products have no size in the master — without it the box / soft pouch vendor cannot quote and the PO is incomplete',
+   pic:'Sales', w:true},
   {auto:function(o){return nonProdukSpekLengkap(o);}, jika:'nonProduk', k:'specNon', t:'Lengkapi spesifikasi & jumlah tiap item non-produk (kertas, coating, finishing, potongan, ukuran)', en:'Complete the spec and quantity of every non-product item (paper, coating, finishing, cut, size)', guna:'supaya vendor kartu bisa memberi harga & mencetak tanpa menebak', gunaEn:'so the card vendor can quote and print without guessing', pic:'PM', w:true},
   {auto:function(o){return !!(o.phone&&String(o.phone).trim());}, k:'kontak', t:'Catat nama PIC client beserta nomor HP-nya', en:'Record the client PIC and their phone number', guna:'supaya semua komunikasi order punya tujuan yang jelas', gunaEn:'so every message about this order has somewhere to go',                 pic:'PM', w:true},
   {auto:function(o){var b=o.brief||{};return !!o.eventDate&&!!b.tglKirim;},
@@ -15087,6 +15112,7 @@ function chkTugasSaya(role){
    di panel kerja masing-masing. */
 const CHK_SUMBER={'14.fotoProduk':'panel Dokumentasi produk → Foto produk jadi','14.fotoKemasan':'panel Dokumentasi produk → Foto kemasan & set lengkap','14.caption':'panel Dokumentasi produk → Catatan untuk konten',
   '0.bahanWarna':'Brief → kartu produk: bahan & warna',
+  '0.ukuranProduk':'Brief → kartu produk: Ukuran jadi (cm)',
   '0.logoCl':'Brief → lampiran Logo client',
   '0.logoLetak':'Brief → Peletakan logo (atau lampirkan Acuan personalisasi)',
   '8.logoLetak':'Brief → Peletakan logo (atau lampirkan Acuan personalisasi)',
@@ -15144,7 +15170,7 @@ const CHK_FIELD={
   /* logo & letaknya kini menempel di jasanya (slot svcF_..., kolom letak
      per baris) — slot logoFiles/persoFiles lama hanya tampil untuk warisan */
   logoCl:'svcF_*,logoFiles,sekPerso', logoLetak:'svcLetak_*,persoFiles,sekPerso',
-  bahanWarna:'mainMat_*,mainMat',
+  bahanWarna:'mainMat_*,mainMat', ukuranProduk:'bUkuran_*',
   logoPch:'logoPouchFiles', logoBox:'logoBoxFiles', logoCard:'logoCardFiles',
   preview:'previewFiles', qc:'qcFiles', pack:'packFiles',
   alamat:'addr', alamatKantor:'addrKantor', email:'email',
@@ -15234,7 +15260,7 @@ function jasaHargaIsi(o){
    fase 6) — entri berawalan '<fase>.' menang atas entri umum */
 function chkPanelDari(fase,k){return CHK_PANEL[fase+'.'+k]||CHK_PANEL[k];}
 const CHK_PANEL={jualJasa:'_master',operator:'_live',opFix:'_live',logoLetak:'brief',
-  brief:'brief', bahanWarna:'brief', kontak:'brief', acara:'brief', kota:'brief', hpWo:'brief', ref:'brief',
+  brief:'brief', bahanWarna:'brief', ukuranProduk:'brief', kontak:'brief', acara:'brief', kota:'brief', hpWo:'brief', ref:'brief',
   rfq:'rfq', kulit:'rfq', harga:'rfq', moq:'rfq', konfKatalog:'rfq', liveTanya:'rfq',
   hpp:'profit', margin:'profit', ongkir:'profit', biayaLain:'profit',
   gen:'quo', kirim:'quo', follow:'quo', email:'quo',
@@ -15748,7 +15774,7 @@ const MINTA_URUT=[
   /* kulit, harga, dan MOQ sengaja TIDAK di sini — itu ditanyakan PM ke vendor,
      bukan Sales ke client. Menaruhnya di sini membuat tombol "Ingatkan Sales"
      muncul di fase Project Costing, fase yang seluruh isinya pekerjaan PM. */
-  ['Spesifikasi produk',['terjemah','bahanWarna','brief','ref','kontak','acara','kota','hpWo']],
+  ['Spesifikasi produk',['terjemah','bahanWarna','ukuranProduk','brief','ref','kontak','acara','kota','hpWo']],
   ['Logo',['logoCl','logoLetak','logoPch','logoBox','logoCard']],
   ['Packaging',['coll','spec']],
   ['Live service',['live','operator']],
@@ -18874,8 +18900,8 @@ function rfqStatus(l){
   /* add-on yang cuma berbiaya tetap (per pcs 0) pun sudah berharga */
   if((l.hpp||0)>0||((+l.hppFix||0)>0&&l.rfq&&l.rfq.terima))return 'Harga diterima';
   if(l.rfq&&l.rfq.minta)return 'Menunggu jawaban';
-  return 'Belum diminta';}
-function rfqWarna(s){return {'Harga diterima':'var(--ok)','Menunggu jawaban':'var(--warn)','Belum diminta':'var(--muted)'}[s];}
+  return 'Harga belum ditanyakan';}
+function rfqWarna(s){return {'Harga diterima':'var(--ok)','Menunggu jawaban':'var(--warn)','Harga belum ditanyakan':'var(--muted)'}[s];}
 /* 'belum beres' mengikuti status barisnya — dulu hanya membaca hpp per pcs, jadi
    baris yang cuma berbiaya tetap (live service subkontrak) terhitung belum
    walau vendornya sudah menjawab */
@@ -19004,13 +19030,23 @@ function rfqTanggal(o,l){
   return {tgl:tgl,ket:ket};}
 /* Ukuran barang yang harus masuk ke kemasannya — pertanyaan pertama tiap
    vendor kemasan, dan satu-satunya yang tak bisa mereka tebak sendiri. */
+/* Ukuran jadi satu produk (15 Okt): isian order (Brief / Form PO = l.ukuranCm) → Master Product → isian lama baris.
+   Produk custom tak punya ukuran master — dicatat sejak prospek. Collateral sengaja tak dicari di sini:
+   produk custom bernama "Card Holder" bukan thank you card. */
+function ukuranProduk(o,l){
+  if(l&&String(l.ukuranCm||'').trim())return ukuranRapi(l.ukuranCm);
+  var p=null;try{p=prodKatalog(l&&l.produk);}catch(e){}
+  if(p&&p.pjg&&p.lbr)return fmtCm(p.pjg)+' × '+fmtCm(p.lbr)+((+p.tgi)?(' × '+fmtCm(p.tgi)):'')+' cm';
+  if(l&&String(l.ukuran||'').trim())return ukuranRapi(l.ukuran);
+  return '';}
+/* produk custom (tak ada di katalog) yang ukurannya belum dicatat — menahan Inquiry */
+function ukuranCustomKurang(o){var P=[];try{P=lineProduk(o);}catch(e){}
+  return P.filter(function(x){var l=x.l;return !prodKatalog(l.produk)&&!String(l.ukuranCm||'').trim()&&!String(l.ukuran||'').trim();});}
 function rfqUkuranProduk(o){
   var out=[],L=((o.pricing||{}).lines)||[];
   L.forEach(function(l){
     if(rfqJenisBaris(l)!=='produk'||!(l.qty>0))return;
-    var p=null;try{p=prodInfo(l.produk,l);}catch(e){}
-    var d=(p&&p.pjg&&p.lbr)?(fmtCm(p.pjg)+' × '+fmtCm(p.lbr)+(p.tgi?(' × '+fmtCm(p.tgi)):'')+' cm'):'';
-    if(!d&&l.ukuran)d=String(l.ukuran);
+    var d='';try{d=ukuranProduk(o,l);}catch(e){}
     out.push({nama:l.produk||'produk',ukuran:d,qty:l.qty||0,l:l});});
   return out;}
 /* Yang dimasukkan ke kemasan ini — vendor kemasan memberi harga dari ISInya.
@@ -19073,7 +19109,9 @@ function rekomendasiKemasan(o,ck){
   var kurang=[],dims=[];
   isi.forEach(function(u){
     var d=null;
-    if(u.jenis==='produk'&&u.l){var pi=null;try{pi=prodInfo(u.l.produk,u.l);}catch(e){}
+    if(u.jenis==='produk'&&u.l){
+      if(String(u.l.ukuranCm||'').trim())d=dimDariTeks(u.l.ukuranCm);   // isian order (Brief / PO) menang atas Master
+      var pi=null;if(!d){try{pi=prodKatalog(u.l.produk);}catch(e){}}
       if(pi&&pi.pjg&&pi.lbr)d={p:+pi.pjg,l:+pi.lbr,t:+pi.tgi||0};}
     if(!d)d=dimDariTeks(u.ukuran);
     if(!d){kurang.push(u.nama);return;}
@@ -19088,6 +19126,10 @@ function rekomendasiKemasan(o,ck){
   if(ck==='box')teks='± '+fmtCm(bulat(maxP+1))+' × '+fmtCm(bulat(maxL+1))+' × '+fmtCm(bulat(sumT+0.5))+' cm (ukuran dalam)';
   else if(ck==='pouch')teks='± '+fmtCm(bulat(maxP+2))+' × '+fmtCm(bulat(maxL+3))+' cm (rata, sudah termasuk ruang tutup)';
   return {teks:teks,kurang:kurang,dari:dims.map(function(x){return x.nama+' '+fmtCm(x.d.p)+'×'+fmtCm(x.d.l)+(x.d.t?('×'+fmtCm(x.d.t)):'');})};}
+/* untuk lembar & pesan vendor (15 Okt): hanya angka rekomendasinya — kalimat "menunggu ukuran isi" bukan untuk vendor */
+function rekomendasiDok(o,ck){
+  var r=null;try{r=rekomendasiKemasan(o,ck);}catch(e){}if(!r||!r.teks)return '';
+  return r.teks+(r.kurang.length?(' — belum termasuk '+r.kurang.join(', ')+' (ukurannya menyusul)'):'');}
 function rekomendasiTeks(o,ck){
   var r=rekomendasiKemasan(o,ck);if(!r)return '';
   if(!r.teks)return 'rekomendasi ukuran menunggu ukuran isi: '+r.kurang.join(', ');
@@ -19098,7 +19140,7 @@ function rfqPesanGabung(o,l){
   var P=[],vendor=l.sumber||'vendor',jenis=rfqJenisBaris(l);
   var b=briefGet(o),k=rfqKulit(l);
   P.push('📨 **PERMINTAAN — '+vendor+'**','');
-  P.push('**'+(l.produk||'(tanpa nama)')+'** · '+(l.qty||0)+(jenis==='live'?' pcs dikerjakan di lokasi':' pcs'));
+  P.push('**'+(namaBarisTampil(l)||'(tanpa nama)')+'** · '+(l.qty||0)+(jenis==='live'?' pcs dikerjakan di lokasi':' pcs'));
   P.push('Order: '+dcRef(o)+' · client '+o.customer);
 
   /* ---- ukuran & spesifikasi, hanya yang jadi urusan vendor ini ---- */
@@ -19107,11 +19149,11 @@ function rfqPesanGabung(o,l){
     var U=isiKemasan(o,ck);
     if(ck!=='card'){
       P.push('','**Isi yang harus masuk ke '+(l.produk||'kemasan')+'**');
-      if(!U.length)P.push('_Belum ada produk berukuran di order ini — mohon tunggu, akan kami susulkan._');
+      if(!U.length)P.push('_Produknya belum ada di order ini — menyusul dari kami._');
       else U.forEach(function(u){
-        P.push('• '+u.nama+((u.jenis==='produk'&&u.qty)?(' ('+u.qty+' pcs)'):'')+' — '+(u.ukuran||'**ukuran belum ada di data kami, akan kami susulkan**'));});}
+        P.push('• '+u.nama+((u.jenis==='produk'&&u.qty)?(' ('+u.qty+' pcs)'):'')+' — '+(u.ukuran?('ukuran '+u.ukuran):'**ukurannya menyusul dari kami, sebelum produksi**'));});}
     var spek='';try{if(l&&l.kombPilih)spek=nonProdukSpekTeks(l);else if(ck)spek=packRingkas(ck,packSpec(o,ck));}catch(e){}   // greeting card: spesifikasinya sendiri
-    if(ck!=='card'&&rekomendasiTeks(o,ck))P.push('Rekomendasi ukuran dari isinya: **'+rekomendasiTeks(o,ck)+'** — vendor boleh menyesuaikan.');
+    if(ck!=='card'&&rekomendasiDok(o,ck))P.push('Rekomendasi ukuran dari isinya: **'+rekomendasiDok(o,ck)+'** — vendor boleh menyesuaikan.');
     P.push('','**Spesifikasi '+(l.produk||'kemasan')+' yang diminta**',
       spek||'_Belum ditentukan — mohon disarankan yang cocok untuk ukuran di atas._');
     var cat='';try{if(ck)cat=salesNote(o,ck);}catch(e){}
@@ -19137,10 +19179,11 @@ function rfqPesanGabung(o,l){
     var tkA=teknikBaris(l);
     var ltA=l.letak||svcLetak(o,namaJasaBaris(l));
     P.push('','**Yang dikerjakan**',
+      '• Untuk barang: '+(addonUntuk(o)||'produk di order ini'),
       '• Teknik: '+((tkA&&tkA!=='-')?tkA:'**belum ditentukan**'),
       '• Peletakan: '+(ltA||'**belum ditentukan**'),
       '• Jumlah: '+(l.qty||0)+' pcs',
-      '• Dikerjakan di workshop, sebelum barangnya dipacking.');
+      '• Waktu pengerjaan: di workshop, sebelum barang dipacking.');
     if(b.perso&&b.perso!=='-')P.push('• Personalization: '+b.perso);
     if(b.persoTiap)P.push('• Tiap pcs beda nama — daftarnya menyusul dari client.');
   } else {
@@ -19350,7 +19393,7 @@ function rfqSpekBarisAsli(o,l){
   tambah('Warna benang',spekVal(o,l,'benangWarna'));
   tambah('Finishing',spekVal(o,l,'finishing'));tambah('Warna dye',spekVal(o,l,'finishWarna'));
   tambah('Personalization',l.perso||b.perso);
-  tambah('Tali',l.tali);tambah('Ukuran',l.ukuran);
+  tambah('Tali',l.tali);tambah('Ukuran',ukuranProduk(o,l));
   tambah('Fungsi / fitur diminta',b.fiturLain);
   /* Vendor tak bisa menjawab "paling lambat PO kapan" tanpa tahu kapan
      barangnya dibutuhkan. Dulu yang dikirim cuma satu baris "Deadline" yang
@@ -20883,7 +20926,7 @@ function rfqPanel(o){
         X.map(function(x){var l=x.l,st=rfqStatus(l);
           var otomatis=hargaOtomatis(l);
           return '<tr>'+
-            '<td style="vertical-align:top;border-bottom:none;padding-left:0"><b style="font-size:11.5px">'+esc(l.produk||'(tanpa nama)')+'</b>'+
+            '<td style="vertical-align:top;border-bottom:none;padding-left:0"><b style="font-size:11.5px">'+esc(namaBarisTampil(l)||'(tanpa nama)')+'</b>'+
               /* untuk baris jasa, "Service" tak memberi tahu apa pun — yang
                  perlu terlihat tekniknya */
               (l.jasa
@@ -21004,7 +21047,7 @@ function briefProduk(o){
       /* tombol bagi warna di kartu kecil dihapus — variannya diurus di
          kartu spec produknya (＋ Tambah varian) tepat di bawah */
       var bagi='';
-      return '<div>'+imgKotak(lineImg(l),l.produk||'(tanpa nama)',det)+bagi+'</div>';}).join(''))+
+      return '<div>'+imgKotak(lineImg(l),namaBarisTampil(l)||'(tanpa nama)',det)+bagi+'</div>';}).join(''))+
     '<div style="font-size:9.5px;color:var(--muted);margin:-4px 0 11px">Gambar ikut dari Master Product / baris pricing. '+
       'Belum ada gambar? Unggah lewat 📷 di baris pricing atau di Master Product.</div>';}
 /* E — live service & add-on, dengan gambarnya. */
@@ -21953,6 +21996,8 @@ function vendorGambar(o,l){
     /* gambar kemasannya sendiri: sebut namanya — lembar thank you card tak
        perlu menyebut "produk" sama sekali */
     if(t&&(x.slot==='_line'||x.slot==='_drive')&&jenis==='kemasan')t='Gambar '+(l.produk||'kemasan')+(hitung[x.slot]>1?(' '+(n+1)):'');
+    /* lampiran jasa: sebut jasanya — "Logo / acuan jasa ini" membingungkan di lembar berisi banyak gambar (15 Okt) */
+    if(t&&String(x.slot).slice(0,5)==='svcF_'&&l&&l.jasa)t='Acuan '+namaJasaBaris(l)+(hitung[x.slot]>1?(' '+(n+1)):'');
     if(t)x.cap=t;});
   return out;}
 /* Simpan satu berkas ke komputer — dari data URI, tanpa perlu server. */
@@ -24046,6 +24091,7 @@ function briefPanel(o){
           (lineVarian(l).length?'':(
           grid(mat+warnaUtama+selS('lining','Lining',listArr('lining'))+inp('liningWarna','Warna lining','spekDlWr')+selS('filler','Filler',listArr('filler')),170)+
           grid(selS('stitch','Stitch technique',listArr('stitch'))+inp('benangWarna','Warna benang','spekDlWr')+selS('finishing','Finishing request',listArr('finreq'))+(dyeL?inp('finishWarna','Warna dye','spekDlWr'):'')+'',170)))+
+          ukuranBriefBlok(o,l,li)+
           aksBlok(o,l,li)+
           /* ---- varian inline: baris-baris di dalam kartunya ---- */
           (function(){
@@ -24132,7 +24178,7 @@ function briefPanel(o){
    selebihnya satu baris ringkasan (klik = buka). Isinya tetap dirender (tersembunyi),
    jadi "yang kurang", Isi sekarang, dan pencarian kolom tetap menemukannya. */
 const BSEK_DARI={kontak:'klien',acara:'klien',kota:'klien',hpWo:'klien',alamat:'klien',alamatKantor:'klien',email:'klien',
-  brief:'produk',bahanWarna:'produk',terjemah:'produk',ref:'produk',
+  brief:'produk',bahanWarna:'produk',ukuranProduk:'produk',terjemah:'produk',ref:'produk',
   logoCl:'perso',logoLetak:'perso',daftarNama:'perso',perso:'perso',svc:'perso',
   logoPch:'pack',logoBox:'pack',logoCard:'pack',live:'live',operator:'live'};
 function bsekKurang(o,k){var f=o.phase||0,n=0;
@@ -24684,10 +24730,10 @@ function rfqDocSpek(o,l){
     var ck=kemasanKey(l);
     /* yang harus muat di dalamnya — produk, plus pouch/kartu untuk box */
     var isi=isiKemasan(o,ck);
-    if(ck!=='card'&&!isi.length)t('Isi kemasan','belum ada produk berukuran di order ini — akan kami susulkan');
+    if(ck!=='card'&&!isi.length)t('Isi kemasan','produknya belum ada di order ini — menyusul dari kami');
     isi.forEach(function(u){
-      t('Isi: '+u.nama+((u.jenis==='produk'&&u.qty)?(' · '+u.qty+' pcs'):''),u.ukuran||'ukuran BELUM ADA — mohon kami susulkan sebelum produksi');});
-    if(ck!=='card')t('Rekomendasi ukuran '+(l.produk||'kemasan'),rekomendasiTeks(o,ck)||'');
+      t('Isi: '+u.nama+((u.jenis==='produk'&&u.qty)?(' · '+u.qty+' pcs'):''),u.ukuran?('ukuran '+u.ukuran):'ukurannya menyusul dari kami, sebelum produksi');});
+    /* rekomendasi ukuran sudah tercetak di baris itemnya (tabel "Yang kami minta") — tak diulang di sini (15 Okt) */
     var spek='';try{if(l&&l.kombPilih)spek=nonProdukSpekTeks(l);else if(ck)spek=packRingkas(ck,packSpec(o,ck));}catch(e){}   // greeting card: spesifikasinya sendiri
     t('Spesifikasi yang diminta',spek||'belum ditentukan — mohon disarankan');
     var cat='';try{if(ck)cat=salesNote(o,ck);}catch(e){}
@@ -24700,11 +24746,12 @@ function rfqDocSpek(o,l){
     t('Peletakan',l.letak||svcLetak(o,namaJasaBaris(l)));
     t('Jumlah dikerjakan di lokasi',(l.qty||0)+' pcs');
   } else if(jenis==='addon'){
+    t('Untuk barang',addonUntuk(o));
     t('Teknik',teknikBaris(l)||'belum ditentukan');
     t('Peletakan',l.letak||svcLetak(o,namaJasaBaris(l))||'belum ditentukan');
     if((+l.hppFix||0)>0)t('Biaya tetap teknik',fmt0(l.hppFix)+' (sekali per order)');
     t('Jumlah',(l.qty||0)+' pcs');
-    t('Dikerjakan','di workshop, sebelum barangnya dipacking');
+    t('Waktu pengerjaan','di workshop, sebelum barang dipacking');
     if(b.perso&&b.perso!=='-')t('Personalization',b.perso);
     if(b.persoTiap)t('Tiap pcs beda nama','ya — daftarnya menyusul dari client');
   } else {
@@ -24752,12 +24799,12 @@ function rfqDocHTML(o,vendor){
     var jenis=rfqJenisBaris(l),T=rfqTanggal(o,l);
     return '<tr><td class="num">'+(n+1)+'</td>'+
       '<td>'+imgTag(lineImg(l),'width:34px;height:34px;object-fit:cover;border-radius:4px;vertical-align:middle;margin-right:7px')+
-        '<b>'+esc(l.produk||'(tanpa nama)')+'</b>'+
+        '<b>'+esc(namaBarisTampil(l)||'(tanpa nama)')+'</b>'+
         (jenis==='live'?'<div style="font-size:9px;color:#888;margin-top:2px">dikerjakan di lokasi acara</div>':'')+
         (jenis==='addon'?'<div style="font-size:9px;color:#888;margin-top:2px">dikerjakan di workshop</div>':'')+
         (hargaOtomatis(l)?('<div style="font-size:9px;color:#8a5a2b;margin-top:2px">harga yang kami pegang: <b>'+hargaPeganganTeks(l)+'</b> — mohon dikonfirmasi, atau tulis harga barunya</div>'):'')+
         /* kemasan: rekomendasi ukuran dari isinya, langsung di barisnya */
-        ((jenis==='kemasan'&&rekomendasiTeks(o,kemasanKey(l)))?('<div style="font-size:9.5px;color:#333;margin-top:3px">Rekomendasi ukuran: <b>'+esc(rekomendasiTeks(o,kemasanKey(l)))+'</b><div style="font-size:8.5px;color:#888">dihitung dari isinya — vendor boleh menyesuaikan</div></div>'):'')+
+        ((jenis==='kemasan'&&rekomendasiDok(o,kemasanKey(l)))?('<div style="font-size:9.5px;color:#333;margin-top:3px">Rekomendasi ukuran: <b>'+esc(rekomendasiDok(o,kemasanKey(l)))+'</b><div style="font-size:8.5px;color:#888">dihitung dari isinya — vendor boleh menyesuaikan</div></div>'):'')+
         varianHTML(l)+'</td>'+
       '<td class="num">'+esc(jenis==='live'?'1 event':((l.qty||0)+' pcs'))+'</td>'+
       '<td>'+(T&&T.lewat?'<span style="color:#b00">jadwalnya sudah lewat — mohon dikonfirmasi</span>'
@@ -24765,7 +24812,7 @@ function rfqDocHTML(o,vendor){
   /* spesifikasi: kalau lebih dari satu item, tiap blok diberi judulnya */
   var spek=L.map(function(l){
     var R=rfqDocSpek(o,l);if(!R.length)return '';
-    return (L.length>1?'<div class="dsec">Spesifikasi — '+esc(l.produk||'')+'</div>':'<div class="dsec">Spesifikasi</div>')+
+    return (L.length>1?'<div class="dsec">Spesifikasi — '+esc(namaBarisTampil(l))+'</div>':'<div class="dsec">Spesifikasi</div>')+
       '<table class="dinfotbl">'+R.map(function(r){return info(r[0],r[1]);}).join('')+'</table>';}).join('');
   var tanya=rfqDocTanya(o,L).map(function(r,n){
     return '<tr><td class="num">'+(n+1)+'</td><td>'+esc(r[0])+'</td>'+
@@ -25070,6 +25117,17 @@ function ukuranTeks(o,l){
   if(l&&String(l.ukuranCm||'').trim())return String(l.ukuranCm).trim();
   try{var p=prodInfo(l.produk,l);if(p&&(p.pjg||p.lbr||p.tgi))return [p.pjg,p.lbr,p.tgi].map(function(x){return x||'?';}).join(' × ')+' cm';}catch(e){}
   return '';}
+/* ukuran jadi di kartu produk Brief (15 Okt) — isian yang sama dengan kolom Ukuran (cm) di Purchase Order Issuing.
+   Produk custom wajib (tak punya ukuran master); produk katalog memakai ukuran Master Product kalau dikosongkan. */
+function ukuranBriefBlok(o,l,li){
+  var m='';try{var kat=prodKatalog(l.produk);if(kat&&kat.pjg&&kat.lbr)m=ukuranProduk(o,{produk:l.produk});}catch(e){}
+  var isi=String(l.ukuranCm||'').trim(),sales=String(((o.dariSales||{}).ukuran)||'').trim(),kurang=!isi&&!m;
+  return '<div style="margin-top:2px;margin-bottom:6px"><label class="nlbl" style="display:block">Ukuran jadi (cm)'+(m?'':' <span style="color:#d9534f">*</span>')+
+      '<input class="pin" data-f="bUkuran_'+li+'" style="width:100%;max-width:260px;margin-top:3px;display:block'+(kurang?';border-color:var(--warn)':'')+'" value="'+esc(isi)+'" '+
+        'placeholder="'+esc(m?('dari Master Product: '+m):'p × l × t, mis. 30 × 22 × 2')+'" onchange="ukuranSet('+jsArg(o.id)+','+li+',this.value)"></label>'+
+    ((!isi&&sales)?('<div style="font-size:9.5px;color:var(--muted);margin-top:3px">Sales mencatat di prospek: <b>'+esc(sales)+'</b> '+
+      '<button type="button" class="btn ghost sm" style="padding:1px 7px;font-size:9px" data-f="bUkuranPakai_'+li+'" onclick="ukuranSet('+jsArg(o.id)+','+li+','+jsArg(sales)+')">pakai</button></div>'):'')+
+    '<div style="font-size:9px;color:var(--muted);margin-top:2px">dasar ukuran box / soft pouch — tercetak juga di PO</div></div>';}
 function ukuranSet(id,li,v){
   var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;var l=(((o.pricing||{}).lines)||[])[li];if(!l)return;
   l.ukuranCm=String(v||'').trim();logHist(o,'Ukuran '+(l.produk||'produk')+': '+(l.ukuranCm||'(dikosongkan)'));o._m=Date.now();save();render();}
