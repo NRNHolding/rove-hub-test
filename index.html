@@ -956,7 +956,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20261016-111313';
+const VERSI='20261016-112827';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -20131,7 +20131,7 @@ function dirBaris(k,v,tebal){
 const REVISI_SEBAB=[
   {k:'qty',    t:'Qty berubah',                                   fase:1},
   {k:'item',   t:'Produk atau collateral ditambah / dikurangi',   fase:1},
-  {k:'bahan',  t:'Ganti bahan atau spesifikasi produk',           fase:1},
+  {k:'bahan',  t:'Ganti bahan atau spesifikasi produk',           fase:0},   // 16 Okt: diubah di Brief (Inquiry); kartu susulan → Project Costing
   {k:'jasa',   t:'Live service atau add-on ditambah / dibatalkan',fase:2},
   {k:'harga',  t:'Margin atau diskon diubah',                     fase:2},
   {k:'tanggal',t:'Tanggal acara bergeser',                        fase:2},
@@ -20191,6 +20191,7 @@ function revisiOrder(id){
     ok:function(v){
       var S=SEBAB.find(function(x){return x.t===v.sebab;})||SEBAB[0];
       var dari=o.phase||0, ke=S.fase;
+      if(anakRev&&ke===0)ke=1;   // kartu susulan tak punya fase Inquiry — spesifikasinya diurus di Project Costing
       /* tak pernah "mundur" ke fase yang belum dilewati */
       if(ke!==null&&ke>=dari)ke=null;
       var poRev=poSudahTurun(o);
@@ -20199,6 +20200,7 @@ function revisiOrder(id){
       ringkas.push('Perubahan: '+S.t);
       ringkas.push(ke===null?'Order TETAP di fase '+PH[dari].n+' — cukup dihitung ulang di tempat.'
                             :'Order mundur ke fase '+PH[ke].n+'.');
+      if(S.k==='bahan'&&ke===0)ringkas.push('Ubah spesifikasinya (bahan, warna, accessories) di Brief, lalu Selesai — di Project Costing harga vendor ditanyakan ulang.');
       if(poRev)ringkas.push('PO sudah turun ke vendor — akan jadi PO REVISI yang butuh konfirmasi Radja dan approval Direktur.');
       if(tbhBoleh(o)&&(S.k==='qty'||S.k==='item'||S.k==='jasa'))ringkas.push('Kalau ini TAMBAHAN (bukan pengurangan), lebih tepat lewat ＋ Tambahan order di panel Produksi — order tak perlu mundur.');
       if((o.prod||{}).stage&&o.prod.stage!=='Belum mulai')
@@ -20221,6 +20223,7 @@ function revisiOrder(id){
         sebab:S.t,catatan:v.catatan,dari:dari,ke:(ke===null?dari:ke),poRev:poRev});
       if(anakRev&&ke!==null&&o.susulan)o.susulan.mulai='costing';   // kartu susulan kembali ke Project Costing: harga & timeline ditanyakan ulang
       if(ke!==null){o.phase=ke;o._faseSejak=Date.now();o.ingatOtomatis={};}
+      if(S.k==='bahan'&&ke!==null&&ke<=1)o._kembaliPV={t:Date.now(),sebab:'Revisi spesifikasi: '+v.catatan,dari:PH[dari].n};   // pengingat tanya ulang harga vendor
       logHist(o,'✎ Revisi ('+S.t+'): '+v.catatan+
         (ke===null?' — tetap di fase '+PH[dari].n:' — mundur ke fase '+PH[ke].n)+
         (gugur.length?('. Gugur: '+gugur.join(', ')):'')+
@@ -25378,14 +25381,15 @@ function spekPanelBaca(o){
     '</div></div>';}
 /* USULAN pemetaan tujuan — menunggu konfirmasi pemilik proses */
 const SPEK_REVISI_KE=[
-  {v:'bahan',l:'Bahan / warna / accessories / spesifikasi — kembali ke Project Costing (harga vendor ditanyakan ulang)',ke:1},
+  {v:'bahan',l:'Bahan / warna / accessories / spesifikasi — kembali ke Inquiry (diubah di Brief), lalu harga vendor ditanyakan ulang',ke:0},
   {v:'qty',l:'Jumlah / item berubah — kembali ke Project Costing (harga vendor ditanyakan ulang)',ke:1},
   {v:'desain',l:'Desain / logo / peletakan — kembali ke Product Sketch Processing',ke:8}];
 function spekRevisi(id){
   var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
   var anakSp=!!susulanInduk(o);
   if(!anakSp&&susulanAktif(o).length){alert(susulanTahanTeks());return;}
-  var PIL=anakSp?SPEK_REVISI_KE.filter(function(x){return x.v==='bahan';}):SPEK_REVISI_KE;   // kartu susulan: hanya kembali ke Project Costing
+  var PIL=anakSp?SPEK_REVISI_KE.filter(function(x){return x.v==='bahan';}).map(function(x){   // kartu susulan: hanya kembali ke Project Costing (tak punya Inquiry)
+      return Object.assign({},x,{ke:1,l:'Bahan / warna / accessories / spesifikasi — kembali ke Project Costing (harga vendor ditanyakan ulang)'});}):SPEK_REVISI_KE;
   askForm({judul:'Ajukan perubahan spesifikasi',sub:o.customer+' · '+PH[o.phase||0].n,tanpaDraf:true,
     info:'<div style="font-size:10.5px;line-height:1.6;color:var(--ink-soft);margin-bottom:10px">Spesifikasi sudah terkunci. Perubahan membawa kartu kembali ke fase yang sesuai; persetujuan yang bergantung padanya gugur dan diulang.'+
       (poSudahTurun(o)?' <b>PO sudah turun</b> — PO revisi wajib dikonfirmasi vendor dan disetujui Direktur.':'')+(tbhBoleh(o)?' <b>Produksi sudah berjalan?</b> Tambahan (qty, personalisasi, collateral, jasa, produk lain) tidak perlu mundur — pakai tombol ＋ Tambahan order di panel Produksi. Yang lewat sini hanya pengurangan atau penggantian.':'')+(anakSp?' <b>Kartu susulan:</b> jumlah, item, dan desain diubah di kartu induk — di sini hanya spesifikasi; harga vendor ditanyakan ulang.':'')+'</div>',
@@ -25400,7 +25404,7 @@ function spekRevisi(id){
       if(poTurun){o.poRev=(o.poRev||0)+1;o.poRevOk={};}
       revisiAll(o).push({tgl:nowStr(),oleh:(ST.userName||ST.user||''),sebab:'Perubahan spec: '+J.v,catatan:alasan,dari:dari,ke:ke,poRev:poTurun});
       o.phase=ke;o._faseSejak=Date.now();o.ingatOtomatis={};
-      if(ke===1)o._kembaliPV={t:Date.now(),sebab:'Perubahan spec: '+alasan,dari:PH[dari].n};
+      if(ke<=1)o._kembaliPV={t:Date.now(),sebab:'Perubahan spec: '+alasan,dari:PH[dari].n};   // Inquiry → Project Costing: harga vendor ditanyakan ulang
       syncStatus(o);
       logHist(o,'✎ Perubahan spec diajukan — kembali ke '+PH[ke].n+': '+alasan+(gugur.length?(' · gugur: '+gugur.join(', ')):'')+(poTurun?(' · PO revisi R'+o.poRev):''));
       notifyOrder(o,'✎ **Perubahan spesifikasi** — '+o.customer+String.fromCharCode(10)+alasan+String.fromCharCode(10)+picMention(PH[ke].pic)+' — kartu kembali ke '+PH[ke].n+'.');
