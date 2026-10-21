@@ -956,7 +956,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20261016-112827';
+const VERSI='20261021-105155';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -8569,7 +8569,8 @@ function msGabungBaris(jalur,L,C,D){   // D: hash baris dasar per hash-id (null 
   var pilih=function(id,l,c){var hl=msHash(l),hc=msHash(c);if(hl===hc)return l;var hb=dasar(id);
     if(hb!==undefined&&hl===hb)return c;           // hanya berubah di cloud
     if(hb!==undefined&&hc===hb)return l;           // hanya berubah di sini
-    return msWaktu(c)>msWaktu(l)?c:l;};            // berubah di dua sisi
+    var wc=msWaktu(c),wl=msWaktu(l);if(wc!==wl)return wc>wl?c:l;   // berubah di dua sisi: cap waktu lebih baru menang
+    return (jalur==='users')?c:l;};   // seri: akun & password ikut server (21 Okt) — dulu perangkat ini, dan password lama sempat mengalahkan yang baru
   L.forEach(function(l,i){var id=idL[i];
     if(msPunya(mC,id)){out.push(pilih(id,l,mC[id]));return;}
     if(ada){var hb=dasar(id);if(hb!==undefined&&msHash(l)===hb)return;}   // dihapus di cloud, di sini tak berubah → ikut terhapus
@@ -10573,7 +10574,7 @@ async function gantiPwSimpan(){var g=ST._gantiPw;if(!g)return;
     if(d&&d.perluLogin){ST._gantiPw=null;render();var e2=document.getElementById('lg_err');if(e2)e2.textContent='Server menolak — masuk ulang dengan password lamamu.';return;}
     if(er)er.textContent=(d&&d.error)?String(d.error):'Server tak terjangkau — password belum diganti. Coba lagi.';return;}
   /* diterima server berkunci — atau backend lama mengabaikan aksinya: gantinya ikut tersimpan lewat master */
-  ((ST.master&&ST.master.users)||[]).forEach(function(x){if(x&&String(x.username||'').trim().toLowerCase()===g.u){x.pwHash=h;delete x.password;}});
+  ((ST.master&&ST.master.users)||[]).forEach(function(x){if(x&&String(x.username||'').trim().toLowerCase()===g.u){x.pwHash=h;delete x.password;stampRow(x);}});   // cap waktu: versi akun lain tak lagi menang
   ST._gantiPw=null;kredSet(g.u,h);saveMaster();
   login(g.r,g.u,g.roles);try{cloudAutoLoad();}catch(e){}}
 function delOrder(id){var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
