@@ -956,7 +956,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20261023-114809';
+const VERSI='20261023-160607';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -10529,11 +10529,11 @@ async function doLogin(){
   var ph=await hashPw(p);
   /* dicek ke server dulu: backend berkunci menolak password yang salah; perangkat baru sekalian memuat datanya
      (tanpa jaringan → tetap dicek dengan daftar akun di perangkat ini) */
-  var c=ST.cfg||{},srv=false;
+  var c=ST.cfg||{},srv=false,dSrv=null;
   if(c.url&&u){var er=document.getElementById('lg_err');if(er)er.textContent='memeriksa ke server…';
     try{var d=await fetch(c.url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'db.load',auth:{u:u,h:ph},sejak:0})}).then(function(r){return r.json();});
       if(d&&d.ok===false&&d.perluLogin){if(er)er.textContent='Username / password salah (dicek ke server), atau akunnya tidak aktif.';return;}
-      if(d&&Array.isArray(d.orders)){srv=true;try{loginTerimaCloud(d);}catch(e){}}   // kunci sesi baru disimpan sesudah password cocok di bawah
+      if(d&&Array.isArray(d.orders)){srv=true;dSrv=d;try{loginTerimaCloud(d);}catch(e){}try{loginAkunDariServer(u,d);}catch(e){}}   // kunci sesi baru disimpan sesudah password cocok di bawah
     }catch(e){}
     if(er)er.textContent='';}
   var users=(ST.master&&ST.master.users)||[];
@@ -10650,9 +10650,23 @@ function login(r,name,roles){ST.user=r;ST.userName=name||'';ST._roles=(roles&&ro
   sesiSet('rovehub_roles',JSON.stringify(ST._roles));
   ST.view='tasks';ST.cur=null;render();}
 /* data dari server saat login di perangkat yang (mungkin) masih kosong: master & order dipakai seperti tarikan biasa */
+/* akun yang sedang masuk disamakan dengan barisnya di server (23 Okt) — perangkat bisa memegang akun bawaan / basi.
+   Backend lama yang tak memeriksa password pun aman: yang dicocokkan tetap hash di baris server. */
+function loginAkunDariServer(u,d){var S=(((d||{}).master||{}).users)||[];if(!S.length||!ST.master)return false;
+  var su=S.filter(function(x){return x&&String(x.username||'').trim().toLowerCase()===u;});if(!su.length)return false;
+  if(!Array.isArray(ST.master.users))ST.master.users=[];
+  var L=ST.master.users.filter(function(x){return x&&String(x.username||'').trim().toLowerCase()===u;});
+  if(!L.length){su.forEach(function(x){ST.master.users.push(JSON.parse(JSON.stringify(x)));});}
+  else{var s0=su[0];L.forEach(function(x){if(s0.pwHash)x.pwHash=s0.pwHash;else delete x.pwHash;if(s0.password!=null)x.password=s0.password;else delete x.password;x.aktif=!!s0.aktif;if(s0._m)x._m=s0._m;});}
+  try{localStorage.setItem('rovehub_master',JSON.stringify(ST.master));}catch(e){}
+  return true;}
 function loginTerimaCloud(d){
   if(!d||!Array.isArray(d.orders))return;
-  var kosong=!((ST.master&&ST.master.users)||[]).length;
+  /* "kosong" juga berarti perangkat yang belum pernah sinkron: isinya master bawaan (akun password = username) — dulu
+     master server hanya dipakai bila daftar akun kosong, jadi browser baru menolak password yang sudah diganti */
+  var belumSinkron=!(+localStorage.getItem('rovehub_ts')||0)&&!msDasarGet();
+  var kosong=!((ST.master&&ST.master.users)||[]).length||belumSinkron;
+  if(!kosong&&d.master){try{masterTerimaCloud(d);}catch(e){}}   // perangkat yang sudah sinkron: digabung tiga arah seperti tarikan biasa
   if(kosong&&d.master){ST.master=d.master;try{msDasarSet(d.master,+d.ts||0);}catch(e){}try{migrasiTeknikJasa();}catch(e){}
     localStorage.setItem('rovehub_master',JSON.stringify(ST.master));try{buildCollatData();}catch(e){}}
   try{mergeOrders(d,false);simpanLokal();}catch(e){}
