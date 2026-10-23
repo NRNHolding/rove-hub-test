@@ -956,7 +956,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20261021-105155';
+const VERSI='20261023-114809';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -5720,6 +5720,7 @@ function mergeLeads(cloud){
 /* Mendamaikan lebih dulu, baru mendorong. Tanpa ini, potret lokal menimpa apa
    pun yang masuk ke cloud sesudah tarikan terakhir — termasuk order dan
    prospek yang belum pernah dilihat perangkat ini. */
+function cloudBlobTanpaMaster(ts){var o=JSON.parse(cloudBlob(ts));delete o.master;delete o.masterDasarTs;return JSON.stringify(o);}
 function pushCloudAman(){
   var c=ST.cfg||{};if(!c.live||!c.url)return;
   if(!c.dbUrl&&!kredGet()){pushCloud();return;}
@@ -5733,12 +5734,14 @@ function pushCloudAman(){
     try{if(adminTerimaCloud(cloud))ubah=true;}catch(e){}
     try{if(adminTerapkanFakta(true,true)){simpanLokal();ubah=true;}}catch(e){}
     try{if(masterTerimaCloud(cloud))ubah=true;}catch(e){}
-    pushCloud();
+    /* master cloud tak terbaca → tak tergabung → jangan kirim master perangkat ini (23 Okt) */
+    var mOk=!!(cloud&&cloud.master&&typeof cloud.master==='object'&&Array.isArray(cloud.master.vendors)&&Array.isArray(cloud.master.catalog));
+    pushCloud(mOk?null:{tanpaMaster:true});
     if(ubah&&ST.user)render();
   }).catch(function(){
     /* perangkat yang belum pernah sinkron tak boleh mendorong master bawaannya tanpa menggabung dulu */
     if(!(+localStorage.getItem('rovehub_ts')||0)&&!msDasarGet()){ST.cloudStatus='gagal membaca cloud — belum dikirim, dicoba lagi saat menyimpan berikutnya';try{sinkronBadge();}catch(e){}return;}
-    pushCloud();});}
+    pushCloud({tanpaMaster:true});});}   // cloud gagal dibaca: order dsb. tetap terkirim, master (akun!) tidak — 23 Okt
 /* Sesudah mendorong, benar-benar diperiksa: order yang ada di sini ada juga di
    sana? Dorongannya memakai mode no-cors — jawabannya tak bisa dibaca browser,
    jadi tanpa pemeriksaan ini status "tersimpan cloud" cuma pengakuan sepihak,
@@ -5773,12 +5776,15 @@ function pushPeriksa(){
       ST.cloudStatus='gagal memeriksa cloud — cek koneksi';
       try{sinkronBadge();}catch(e){}});
   },2500);}
-function pushCloud(){var c=ST.cfg||{};var ts=Date.now();localStorage.setItem('rovehub_ts',String(ts));ST.cloudStatus='mengirim ke cloud…';
+/* opsi.tanpaMaster (23 Okt): cloud gagal dibaca / masternya tak bisa digabung → master perangkat ini (mungkin basi —
+   mis. daftar akun dengan password lama) TIDAK ikut terkirim; ubahan master tetap ditandai belum terkirim */
+function pushCloud(opsi){var c=ST.cfg||{};var ts=Date.now(),tanpaM=!!(opsi&&opsi.tanpaMaster);localStorage.setItem('rovehub_ts',String(ts));ST.cloudStatus='mengirim ke cloud…';
+  if(tanpaM){try{localStorage.setItem('rovehub_master_ubah',String(ts+1));}catch(e){}}
   /* sidik master yang dikirim — jadi dasar gabungan berikutnya begitu cloud memuatnya */
-  try{_msMemo=(typeof WeakMap==='function')?new WeakMap():null;msSidikSet(MASTER_KIRIM_KEY,ST.master,ts);}catch(e){}finally{_msMemo=null;}
+  if(!tanpaM){try{_msMemo=(typeof WeakMap==='function')?new WeakMap():null;msSidikSet(MASTER_KIRIM_KEY,ST.master,ts);}catch(e){}finally{_msMemo=null;}}
   /* try/catch tak menangkap penolakan promise — tanpa .catch, backend yang mati
      memuntahkan "Uncaught (in promise)" ke konsol tiap kali menyimpan. */
-  try{fetch(c.url,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'db.save',auth:kredGet(),payload:{data:cloudBlob(ts)}})})
+  try{fetch(c.url,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'db.save',auth:kredGet(),payload:{data:tanpaM?cloudBlobTanpaMaster(ts):cloudBlob(ts)}})})
     .catch(function(e){ST.cloudStatus='gagal simpan cloud — cek URL backend';console.warn('pushCloud gagal',e);});}catch(e){}
   var b=document.getElementById('cloudstat');if(b)b.textContent=ST.cloudStatus;
   try{sinkronBadge();}catch(e){}
@@ -10502,11 +10508,11 @@ async function hashPw(s){
 }
 /* password teks biasa (akun bawaan versi lama) diubah jadi hash — teksnya tak lagi ikut tersimpan & terkirim */
 async function pwMigrasi(){var U=(ST.master&&ST.master.users)||[],ubah=false;
-  for(var i=0;i<U.length;i++){var u=U[i];if(u&&!u.pwHash&&u.password!=null&&String(u.password)!==''){u.pwHash=await hashPw(String(u.password));delete u.password;ubah=true;}
-    else if(u&&u.pwHash&&u.password!=null){delete u.password;ubah=true;}}
+  for(var i=0;i<U.length;i++){var u=U[i];if(u&&!u.pwHash&&u.password!=null&&String(u.password)!==''){u.pwHash=await hashPw(String(u.password));delete u.password;stampRow(u);ubah=true;}
+    else if(u&&u.pwHash&&u.password!=null){delete u.password;stampRow(u);ubah=true;}}
   if(ubah)saveMaster();
   return ubah;}
-async function setUserPw(i,val){if(!val)return;var u=ST.master.users[i];if(!u)return;u.pwHash=await hashPw(val);delete u.password;saveMaster();render();}
+async function setUserPw(i,val){if(!val)return;var u=ST.master.users[i];if(!u)return;u.pwHash=await hashPw(val);delete u.password;stampRow(u);saveMaster();render();}   // cap waktu: server menjaga akun per baris (Code.gs 2.3)
 /* Kegagalan login dijelaskan apa adanya. "Username atau password salah"
    untuk semua sebab membuat daftar akun yang kosong terlihat seperti salah
    ketik — dan itu memakan waktu berjam-jam untuk disadari. */
