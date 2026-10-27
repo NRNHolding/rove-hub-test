@@ -987,7 +987,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20261027-133343';
+const VERSI='20261027-134745';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -15718,7 +15718,7 @@ const FASE_HASIL=(function(){var L=FASE_HASIL_LAMA;
     /* 12 Produksi: tahap + foto QC/packing + kemasan lengkap (dulu di "QC & Packing" lama) */
     L[11].concat(L[12].slice(0,3).filter(function(r){return l11.indexOf(r[0])<0;})),
     /* 13 QC & Packing = kelengkapan barang diterima Rove */
-    [['Barang diterima Rove',function(o){return terimaLengkap(o)?'lengkap — qty tiap produk & collateral cocok':'';}],
+    [['Barang diterima Rove',function(o){if(!terimaLengkap(o))return '';var n=terimaKurang(o);return n>0?('dicatat — kurang '+n+' pcs dari order'):'lengkap — qty tiap produk & collateral cocok';}],
      ['Foto saat diterima',function(o){var n=((briefGet(o).terimaFiles)||[]).length;return n?(n+' foto'):'';}],
      L[12][3]],
     /* 14 Product Documentation */
@@ -16808,6 +16808,16 @@ function terimaLengkap(o){
   if(!P.length&&!Object.keys(susulPindah(o)).length)return false;   // semua produk pindah ke kartu susulan: tinggal collateral
   if(!P.every(function(p){return (+((T.produk||{})[p.key])||0)>0;}))return false;
   return collDipilih(o).every(function(c){return !!((T.coll||{})[c.k]);});}
+/* terimaLengkap = semua sudah DICATAT (syarat lanjut fase — kekurangan boleh menyusul / dipindah ke kartu susulan);
+   terimaKurang / terimaPas = yang benar-benar kurang dari order: per kode bila diisi per kode (lolos QC), selain itu per produk (27 Okt) */
+function terimaKurang(o){var T=(o&&o.terima)||{},P=terimaBaris(o),n=0,sudah={};
+  P.forEach(function(p){if(sudah[p.key])return;sudah[p.key]=1;
+    if(terimaKodeAda(o,p.key)){var K=(T.kode||{})[p.key]||{};
+      tplKodeDaftar(o,p.nama,p.tbh||'').forEach(function(x){var r=K[x.kode]||{},lol=(r.q==null)?0:(r.qc!=null?r.qc:r.q);n+=Math.max(0,x.q-lol);});return;}
+    var qty=P.filter(function(y){return y.key===p.key;}).reduce(function(a,y){return a+(+y.qty||0);},0);
+    n+=Math.max(0,qty-(+((T.produk||{})[p.key])||0));});
+  return n;}
+function terimaPas(o){return terimaLengkap(o)&&terimaKurang(o)<=0;}
 function terimaSet(id,jenis,k,v){
   var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
   /* barang yang pindah ke kartu susulan diterima di kartu susulannya — kalau dicatat di sini, spareSinkron mendorongnya ke Gudang sebagai spare */
@@ -16817,15 +16827,15 @@ function terimaSet(id,jenis,k,v){
   else if(jenis==='coll'){T.coll[k]=!!v;}
   else if(jenis==='catatan'){T.catatan=String(v||'').trim();}
   T.tgl=hariIni();T.oleh=(ST.userName||ST.user||'');
-  if(terimaLengkap(o)&&!T._lengkapLog){T._lengkapLog=true;logHist(o,'✓ Barang dari Radja diterima lengkap di Rove');}
+  if(terimaPas(o)&&!T._lengkapLog){T._lengkapLog=true;logHist(o,'✓ Barang dari Radja diterima lengkap di Rove');}
   try{if(jenis!=='catatan')spareSinkron(o);}catch(e){}   /* lebihan yang diterima langsung masuk Gudang */
   try{tbhSegar(o);}catch(e){}   /* tambahan order selesai begitu batch tambahannya diterima */
   o._m=Date.now();save();render();}
 function qcPanel(o){
-  var T=terimaGet(o),P=terimaBaris(o),C=collDipilih(o),ok=terimaLengkap(o),b=briefGet(o);
+  var T=terimaGet(o),P=terimaBaris(o),C=collDipilih(o),ok=terimaLengkap(o),b=briefGet(o),kur=ok?terimaKurang(o):0;
   return '<div class="card actcard" style="margin-top:14px"><div class="ch"><span class="ico" style="background:#5b7a3a">✔</span>'+
     '<div><div class="t">QC &amp; Packing</div><div class="s">KELENGKAPAN BARANG YANG DITERIMA ROVE DARI RADJA</div></div>'+
-    '<span style="margin-left:auto;font-size:11px;font-weight:800;color:'+(ok?'var(--ok)':'var(--warn)')+'">'+(ok?'✓ diterima lengkap':'belum lengkap')+'</span></div><div class="body">'+
+    '<span data-f="terimaStatus" style="margin-left:auto;font-size:11px;font-weight:800;color:'+(!ok?'var(--warn)':kur>0?'var(--red)':'var(--ok)')+'">'+(!ok?'belum lengkap':kur>0?('⚠ dicatat — kurang '+kur+' pcs'):'✓ diterima lengkap')+'</span></div><div class="body">'+
     '<div style="font-size:10.5px;color:var(--muted);margin-bottom:10px;line-height:1.6">Catat apa yang benar-benar sampai di Rove: qty tiap produk dan collateral yang ikut. Foto QC &amp; packing dari Radja ada di panel Produksi (tahap 3 &amp; 4).</div>'+
     '<div class="sj">Produk diterima</div>'+
     '<div class="xscroll"><table class="rtable mstack"><thead><tr><th>Produk</th><th class="num" style="width:80px">Qty order</th><th class="num" style="width:110px">Qty diterima</th><th style="width:120px">Selisih</th></tr></thead><tbody>'+
