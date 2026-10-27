@@ -802,6 +802,15 @@ table.tpl-x{border-collapse:separate;border-spacing:0;font-size:11.5px;min-width
 .tpl-isi{cursor:pointer;color:var(--brand);font-weight:800;margin-left:4px}
 .tpl-aksi{padding:0 4px!important}
 .tpl-ft{font-size:10px;color:var(--muted);margin:6px 0 8px}
+.tqk .rtable td,.tqk .rtable th{padding:4px 6px;font-size:10.5px}
+.tqk-kurang td{background:var(--red-bg,rgba(200,40,40,.07))}
+.tqk-kode{font:800 10.5px Consolas,monospace;color:var(--brand)}
+.kkode{flex-basis:100%;display:flex;flex-wrap:wrap;gap:5px 10px;align-items:center;padding:6px 8px;border:1px dashed var(--line);border-radius:7px;background:var(--panel)}
+.kkode-j{font-size:9.5px;font-weight:800;color:var(--muted)}
+.kkode label{display:inline-flex;align-items:center;gap:4px;font-size:10.5px}
+.kkode label b{font:800 10px Consolas,monospace;color:var(--brand)}
+.kkode input{width:52px}
+.kkode label span{font-size:9px;color:var(--muted)}
 </style>
 </head>
 <body>
@@ -978,7 +987,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20261027-122127';
+const VERSI='20261027-133343';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -1356,6 +1365,7 @@ const EN_RULES=[
 
 /* Kamus persis. Kunci = teks Indonesia apa adanya yang muncul di layar. */
 const EN={
+'📋 Salin pesan kekurangan untuk Radja':'📋 Copy shortage message for Radja','🏷 Cetak label packing per kode':'🏷 Print packing labels per code','Lolos QC':'Passed QC',
 '＋ Baris (salin baris terakhir)':'＋ Row (copy last row)','⇵ Bagi qty rata':'⇵ Split qty evenly','⬇ Unduh template (Excel)':'⬇ Download template (Excel)',
 'Warna kulit':'Leather colour','Warna finishing':'Finishing colour','File logo':'Logo file','Jahitan':'Stitching','Rincian kombinasi':'Combination details',
 'Kebutuhan accessories':'Accessories needed','warna → kolom di tabel':'colour → column in the table',
@@ -16819,10 +16829,11 @@ function qcPanel(o){
     '<div style="font-size:10.5px;color:var(--muted);margin-bottom:10px;line-height:1.6">Catat apa yang benar-benar sampai di Rove: qty tiap produk dan collateral yang ikut. Foto QC &amp; packing dari Radja ada di panel Produksi (tahap 3 &amp; 4).</div>'+
     '<div class="sj">Produk diterima</div>'+
     '<div class="xscroll"><table class="rtable mstack"><thead><tr><th>Produk</th><th class="num" style="width:80px">Qty order</th><th class="num" style="width:110px">Qty diterima</th><th style="width:120px">Selisih</th></tr></thead><tbody>'+
-      P.map(function(p){var q=+(T.produk[p.key]||0),d=q-p.qty;
+      P.map(function(p,pi){var q=+(T.produk[p.key]||0),d=q-p.qty;
         return '<tr><td><b>'+esc(p.nama)+'</b>'+(p.label?('<div style="font-size:9.5px;color:var(--muted)">'+esc(p.label)+'</div>'):'')+'</td><td data-l="Qty order" class="num">'+p.qty+'</td>'+
-          '<td data-l="Qty diterima" class="num"><input class="pin n" type="number" min="0" style="width:90px" data-f="terima_'+esc(p.key)+'" value="'+(T.produk[p.key]!=null?q:'')+'" placeholder="'+p.qty+'" onchange="terimaSet('+jsArg(o.id)+',\'produk\','+jsArg(p.key)+',this.value)"></td>'+
-          '<td data-l="Selisih" style="font-weight:700;color:'+(T.produk[p.key]==null?'var(--muted)':(d<0?'var(--red)':d>0?'var(--warn)':'var(--ok)'))+'">'+(T.produk[p.key]==null?'—':(d===0?'pas':(d>0?('+'+d+' lebih'):(d+' kurang'))))+'</td></tr>';}).join('')+
+          '<td data-l="Qty diterima" class="num"><input class="pin n" type="number" min="0" style="width:90px" data-f="terima_'+esc(p.key)+'"'+(terimaKodeAda(o,p.key)?' readonly title="jumlah dari isian per kode di bawah"':'')+' value="'+(T.produk[p.key]!=null?q:'')+'" placeholder="'+p.qty+'" onchange="terimaSet('+jsArg(o.id)+',\'produk\','+jsArg(p.key)+',this.value)"></td>'+
+          '<td data-l="Selisih" style="font-weight:700;color:'+(T.produk[p.key]==null?'var(--muted)':(d<0?'var(--red)':d>0?'var(--warn)':'var(--ok)'))+'">'+(T.produk[p.key]==null?'—':(d===0?'pas':(d>0?('+'+d+' lebih'):(d+' kurang'))))+'</td></tr>'+
+          (P.findIndex(function(x){return x.key===p.key;})===pi?terimaKodeHTML(o,p):'');}).join('')+
     '</tbody></table></div>'+terimaPindahHTML(o)+
     '<div class="sj" style="margin-top:12px">Collateral ikut</div>'+
     (C.length?('<div data-f="terimaColl" style="display:flex;flex-wrap:wrap;gap:8px 16px;font-size:11px">'+C.map(function(c){var on=!!T.coll[c.k];
@@ -18644,6 +18655,7 @@ function varianPisah(o,i,k){
   L.splice(i+1,0,c);
   /* baris pisahan = warna varian itu; baris katalog mengambil harga khusus warnanya bila ada */
   ov.forEach(function(p){tplSetP(o,c,p[0],p[1]);});   // template kombinasi (27 Okt)
+  delete c.kode;if(v.kode)c.kode=v.kode;   // kodenya tetap (BC-02 tetap BC-02 sesudah dipisah)
   if(v.w){lineSpek(c).mainMatWarna=v.w;if(c.fixed){try{katalogHppSegarkan(o,c);}catch(e){}}}
   logHist(o,'⇄ '+c.qty+' pcs '+(v.w||'?')+' dipisah jadi baris sendiri (harga sendiri)');
   o._m=Date.now();save();render();return c;}
@@ -21399,12 +21411,13 @@ function showSuratJalan(id,sid){
       info('Pengiriman ke',(D.indexOf(s)+1)+' dari '+D.length)+info('Tujuan',s.tujuan||'Client')+info('Ekspedisi',[s.eksp||o.shipEksp,s.layanan].filter(Boolean).join(' · '))+info('No. resi',s.resi)+'</table>'+
     '<div class="dsec">Penerima</div><table class="dinfotbl">'+info('Customer',o.customer)+info('Nama penerima',s.nama||penerimaNama(o))+info('No. HP',s.hp||penerimaHp(o))+info('Alamat',s.alamat||o.addr)+'</table>'+
     '<div class="dsec">Isi Kiriman</div><table class="dtable grid"><thead><tr><th class="num wno">No.</th><th>Item</th><th class="num wqty">Qty</th></tr></thead><tbody>'+
-    P.map(function(p,i){return '<tr><td class="num">'+(i+1)+'</td><td>'+esc(p.nama)+'</td><td class="num">'+(+s.isi[p.key])+' pcs</td></tr>';}).join('')+
+    P.map(function(p,i){return '<tr><td class="num">'+(i+1)+'</td><td>'+esc(p.nama)+kirimKodeSjHTML(o,s,p)+'</td><td class="num">'+(+s.isi[p.key])+' pcs</td></tr>';}).join('')+
     '<tr class="dsub"><td colspan="2">TOTAL</td><td class="num">'+kirimQtyFisik(o,s)+' pcs</td></tr></tbody></table>'+
     (s.catatan?('<div class="dket" style="margin-top:6px">Catatan: '+esc(s.catatan)+'</div>'):'')+
     (function(){var sj=Math.max(0,kirimTotal(o)-kirimDaftar(o).reduce(function(n,x){var D0=kirimDaftar(o),ix=D0.indexOf(s),lebihDulu=(x.tgl&&s.tgl&&x.tgl<=s.tgl)||(!s.tgl&&D0.indexOf(x)<ix);
         return (x.id===s.id||kirimBerangkat(x)||lebihDulu)?n+kirimQtyFisik(o,x):n;},0));   // seolah kiriman ini (dan yang dijadwalkan lebih dulu) berangkat
       return sj>0?('<div class="dket" style="margin-top:4px">Sisa yang menyusul: '+sj+' pcs</div>'):'';})()+
+    (function(){var t=kirimKodeSisaTeks(o);return t?('<div class="dket" style="margin-top:4px" data-f="sjKodeSisa">Sisa per kode yang menyusul: '+esc(t)+'</div>'):'';})()+
     susulanMenyusul(o).map(function(x){return '<div class="dket" style="margin-top:4px" data-f="sjSusul">'+esc(susulanMenyusulTeks(x))+'</div>';}).join('')+
     '<div style="display:flex;justify-content:space-between;margin-top:30px;font-size:11px"><div>Dikirim oleh,<div style="height:52px"></div><b>Packing · Rove</b></div>'+
       '<div style="text-align:right">Diterima oleh,<div style="height:52px"></div><b>'+esc(s.nama||penerimaNama(o))+'</b></div></div>'+
@@ -21439,7 +21452,7 @@ function kirimPanel(o){
         lbl('Penerima',inp('nama',penerimaNama(o),'160px'))+lbl('HP penerima',inp('hp',penerimaHp(o),'130px'))+lbl('Alamat tujuan',inp('alamat',o.addr||'alamat kirim order','280px'))+'</div>'+
       '<div style="font-size:10px;font-weight:800;color:var(--muted);margin-bottom:3px">ISI PENGIRIMAN</div>'+
       '<div style="display:flex;flex-wrap:wrap;gap:8px 16px;margin-bottom:8px">'+P.filter(function(p){return !(p.susul>0&&p.qty<=0)||(+((s.isi||{})[p.key])||0)>0;}).map(function(p){var maks=Math.max(0,p.qty-kirimTerkirimProduk(o,p.key,s.id));
-        return '<label style="font-size:11px;display:inline-flex;align-items:center;gap:6px">'+esc(p.nama)+' <input class="pin n" type="number" min="0" max="'+maks+'" style="width:70px" value="'+(+((s.isi||{})[p.key])||0)+'" onchange="kirimIsiSet('+jsArg(o.id)+','+jsArg(s.id)+','+jsArg(p.key)+',this.value)"> <span style="color:var(--muted);font-size:9.5px">pcs · maks '+maks+'</span></label>';}).join('')+'</div>'+
+        return '<label style="font-size:11px;display:inline-flex;align-items:center;gap:6px">'+esc(p.nama)+' <input class="pin n" type="number" min="0" max="'+maks+'" style="width:70px" value="'+(+((s.isi||{})[p.key])||0)+'"'+(kirimKodeAda(s,p.key)?' readonly title="jumlah dari isian per kode"':'')+' onchange="kirimIsiSet('+jsArg(o.id)+','+jsArg(s.id)+','+jsArg(p.key)+',this.value)"> <span style="color:var(--muted);font-size:9.5px">pcs · maks '+maks+'</span></label>'+kirimKodeHTML(o,s,p);}).join('')+'</div>'+
       lbl('Catatan'+(((s.tujuan||'Client')!=='Client')?' <span style="color:var(--warn)">— wajib untuk kiriman bukan ke client (spare ke vendor live service / gudang Rove)</span>':''),inp('catatan',((s.tujuan||'Client')!=='Client')?'mis. 5 pcs spare untuk kaligrafi di venue':'mis. 60 pcs dulu untuk acara pertama, sisanya menyusul','100%'))+
       ((((s.tujuan||'Client')!=='Client')&&!String(s.catatan||'').trim())?'<div style="font-size:9.5px;color:var(--warn);font-weight:700;margin-top:3px">Catatan wajib diisi.</div>':'')+
       '<div style="margin-top:8px">'+lampiranBlok(o,'kirimFoto_'+s.id,'Foto paket / bukti kirim')+'</div>'+
@@ -21461,7 +21474,7 @@ function kirimPanel(o){
     '</div>'+
     '<div style="font-size:10px;color:var(--muted);margin:0 0 11px">Kosong = pakai data client ('+esc(penerimaNama(o))+(penerimaHp(o)?(' · '+esc(penerimaHp(o))):'')+'). Tiap pengiriman boleh punya penerima sendiri, mis. WO di venue.</div>'+
     '<div class="xscroll"><table class="rtable mstack" data-f="kirimRingkas"><thead><tr><th>Produk</th><th class="num" style="width:70px">Qty</th><th class="num" style="width:80px">Terkirim</th><th class="num" style="width:70px">Sisa</th></tr></thead><tbody>'+
-      P.map(function(p){var t=kirimBerangkatProduk(o,p.key),ss=Math.max(0,p.qty-t);return '<tr><td><b>'+esc(p.nama)+'</b>'+kirimPindahHTML(o,p)+'</td><td data-l="Qty" class="num">'+p.qty+'</td><td data-l="Terkirim" class="num" style="color:var(--ok);font-weight:700">'+t+'</td><td data-l="Sisa" class="num" style="font-weight:800;color:'+(ss>0?'var(--warn)':'var(--ok)')+'">'+ss+'</td></tr>';}).join('')+
+      P.map(function(p){var t=kirimBerangkatProduk(o,p.key),ss=Math.max(0,p.qty-t);return '<tr><td><b>'+esc(p.nama)+'</b>'+kirimPindahHTML(o,p)+'</td><td data-l="Qty" class="num">'+p.qty+'</td><td data-l="Terkirim" class="num" style="color:var(--ok);font-weight:700">'+t+'</td><td data-l="Sisa" class="num" style="font-weight:800;color:'+(ss>0?'var(--warn)':'var(--ok)')+'">'+ss+'</td></tr>'+kirimKodeSisaHTML(o,p);}).join('')+
       (P.length?'':'<tr><td colspan="4" style="color:var(--muted)">belum ada produk utama di pricing</td></tr>')+
     '</tbody></table></div>'+kirimFisikHTML(o)+
     kirimLengkapBlok(o)+
@@ -25114,6 +25127,7 @@ function waSend(){
   if((ST._doc||{}).type==='rfq'){alert('Dokumen ini permintaan harga ke VENDOR, bukan untuk client.'+
     String.fromCharCode(10)+String.fromCharCode(10)+
     'Pakai "⭳ Simpan PDF", lalu kirimkan lewat WhatsApp atau Discord vendornya.');return;}
+  if((ST._doc||{}).type==='labelkode'){alert('Label packing ini untuk tim gudang — cetak lewat "⭳ Simpan PDF".');return;}
   if((ST._doc||{}).type==='ringkasan'){alert('Ringkasan ini dokumen internal — berisi HPP, margin, dan status yang tidak untuk client.\n\nPakai "⭳ Simpan PDF" kalau mau dibagikan ke tim.');return;}
   var ph=waPhone(o.phone);
   if(!ph){alert('No. HP client kosong. Isi dulu di panel "Detail klien" (Pricing & Dokumen).');return;}
@@ -25278,7 +25292,7 @@ function tplPrefix(o,l){var awal=function(nm){var w=String(nm||'').replace(/[^A-
   var P=[];try{P=lineProduk(o);}catch(e){}
   var p=awal(l.produk),ix=P.findIndex(function(x){return x.l===l;});
   return P.some(function(x){return x.l!==l&&awal(x.l.produk)===p;})?(p+(ix+1)):p;}
-function tplKode(o,l,k){var v=lineVarian(l)[k];if(v&&v.kode)return v.kode;return tplPrefix(o,l)+'-'+String(k+1).padStart(2,'0');}
+function tplKode(o,l,k){var v=lineVarian(l)[k];if(v&&v.kode)return v.kode;if(!lineVarian(l).length&&l.kode)return l.kode;return tplPrefix(o,l)+'-'+String(k+1).padStart(2,'0');}
 function tplKodePastikan(o,l){var V=lineVarian(l);if(!V.length)return;var pre=tplPrefix(o,l),maks=0;
   V.forEach(function(v){var m=/-(\d+)$/.exec(String(v.kode||''));if(m)maks=Math.max(maks,+m[1]);});
   V.forEach(function(v){if(!v.kode){maks++;v.kode=pre+'-'+String(maks).padStart(2,'0');}});}
@@ -25317,7 +25331,7 @@ function tplNormal(o,l){var V=lineVarian(l);if(V.length<2)return;
     var vals=V.map(function(v,k){return String(tplE(o,l,k,c)||'').trim();});
     if(vals.every(function(x){return x===vals[0];})){tplSetP(o,l,c,vals[0]);V.forEach(function(v,k){tplHapusV(l,k,c);});}});}
 function tplBarisData(o,l){var V=lineVarian(l),q=+l.qty||0;
-  if(!V.length){var w=tplP(o,l,{k:'warna',sp:'mainMatWarna'}),a=Math.ceil(q/2);l.varian=[{w:w,q:a},{w:w,q:q-a}];return 1;}
+  if(!V.length){var w=tplP(o,l,{k:'warna',sp:'mainMatWarna'}),a=Math.ceil(q/2);l.varian=[{w:w,q:a},{w:w,q:q-a}];if(l.kode){l.varian[0].kode=l.kode;delete l.kode;}return 1;}
   var b=JSON.parse(JSON.stringify(V[V.length-1]));delete b.kode;delete b.hpp;b.q=Math.max(0,q-varianTotal(l));V.push(b);return V.length-1;}
 function tplCariO(id,li){var o=ST.orders.find(function(x){return x.id===id;});if(!o)return null;var l=(((o.pricing||{}).lines)||[])[li];return l?{o:o,l:l}:null;}
 function tplSimpan(o,l,fokus){tplKodePastikan(o,l);o._m=Date.now();save();if(fokus)ST._tplFokus=fokus;tplRender();}
@@ -25328,7 +25342,7 @@ function tplBaris(id,li){var T=tplCariO(id,li);if(!T)return;var k=tplBarisData(T
 function tplHapus(id,li,k){var T=tplCariO(id,li);if(!T)return;var o=T.o,l=T.l,V=lineVarian(l);if(!V[k])return;
   if(!confirm('Hapus baris '+tplKode(o,l,k)+' ('+(+V[k].q||0)+' pcs)?'))return;
   var K=tplKolom(o,l);V.splice(k,1);
-  if(V.length===1){K.forEach(function(c){if(c.k==='q')return;var ov=tplV(l,0,c);if(ov)tplSetP(o,l,c,ov);});delete l.varian;}
+  if(V.length===1){K.forEach(function(c){if(c.k==='q')return;var ov=tplV(l,0,c);if(ov)tplSetP(o,l,c,ov);});if(V[0].kode)l.kode=V[0].kode;delete l.varian;}
   logHist(o,'✕ Kombinasi '+(l.produk||'produk')+' dihapus');tplSimpan(o,l);}
 function tplIsiBawah(id,li,ck){var T=tplCariO(id,li);if(!T)return;var o=T.o,l=T.l,V=lineVarian(l);if(V.length<2)return;
   var c=tplKolom(o,l).filter(function(x){return x.k===ck;})[0];if(!c)return;var val=tplE(o,l,0,c);
@@ -25431,6 +25445,90 @@ function tplTeks(o,l,satuBaris){var D=tplData(o,l),B=D.beda.filter(function(c){r
     if(tplNyata(r.vals.cat))p.push(r.vals.cat);
     return r.kode+' · '+(+r.q||0)+' pcs'+(p.length?(' · '+p.join(', ')):'')+(r.hpp>0?(' @'+fmt0(r.hpp)):'');});
   return satuBaris?L.join('; '):L.map(function(x){return '   – '+x;}).join(String.fromCharCode(10));}
+/* ---- tahap 2: QC & packing + pengiriman per kode (27 Okt) ----
+   Daftar kode satu produk dibaca dari template di Brief (tak diketik ulang di gudang). Penerimaan per kode disimpan di
+   o.terima.kode[kunci][kode] = {q: diterima, qc: lolos QC}; isi pengiriman per kode di s.isiKode[kunci][kode]. Jumlahnya
+   menjadi qty produk (o.terima.produk / s.isi) — kunci lama tetap acuan Gudang, kartu susulan, dan rekap kirim. */
+function tplKodeDaftar(o,nama,tbh){var M={},out=[];try{M=susulPindah(o);}catch(e){}
+  ((((o||{}).pricing||{}).lines)||[]).forEach(function(l){if(!l||l.svcFee||lineJenis(l)!=='produk'||(l.produk||'')!==nama)return;
+    if(tbh!=null&&(l._tbh||'')!==tbh)return;try{if(lineDipindah(o,l,M))return;}catch(e){}
+    var D=tplData(o,l),B=D.beda.filter(function(c){return c.k!=='cat';});
+    D.rows.forEach(function(r){var ket=B.map(function(c){return tplNyata(r.vals[c.k])?r.vals[c.k]:'';}).filter(Boolean).join(' · ')||(tplNyata(r.vals.warna)?r.vals.warna:'');
+      out.push({kode:r.kode,q:+r.q||0,ket:ket,l:l});});});
+  return out;}
+function tplKunciPecah(key){var m=/^l:(.*?)(?:#([^#]+))?$/.exec(String(key||''));return m?{nama:m[1],tbh:m[2]||''}:{nama:'',tbh:''};}
+function terimaKodeAda(o,key){var K=((((o||{}).terima||{}).kode)||{})[key]||{};return Object.keys(K).some(function(k){return K[k]&&K[k].q!=null;});}
+function terimaKodeSet(id,key,kode,f,v){var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
+  var T=terimaGet(o);if(!T.kode)T.kode={};var K=T.kode[key]||(T.kode[key]={}),r=K[kode]||(K[kode]={});
+  v=String(v==null?'':v).trim();if(v==='')delete r[f];else r[f]=Math.max(0,Math.round(+v||0));
+  if(r.qc!=null&&r.q==null)r.q=r.qc;if(r.qc!=null&&r.qc>r.q)r.qc=r.q;   // lolos QC tak melebihi yang diterima
+  if(r.q==null&&r.qc==null)delete K[kode];
+  var tot=0,ada=false;Object.keys(K).forEach(function(kd){var x=K[kd];if(x.q==null)return;ada=true;tot+=(x.qc!=null?x.qc:x.q);});
+  if(ada){terimaSet(id,'produk',key,tot);return;}   // qty produk = jumlah yang lolos QC (yang belum di-QC: yang diterima)
+  delete T.produk[key];o._m=Date.now();save();render();}
+function terimaKodeHTML(o,p){var L=tplKodeDaftar(o,p.nama,p.tbh||'');if(L.length<2)return '';
+  var K=((terimaGet(o).kode)||{})[p.key]||{},kurangN=0,id=jsArg(o.id);
+  var rows=L.map(function(x){var r=K[x.kode]||{},lol=(r.qc!=null?r.qc:r.q),kur=(r.q==null)?null:Math.max(0,x.q-lol),rej=(r.q!=null&&r.qc!=null)?Math.max(0,r.q-r.qc):0;
+    if(kur>0)kurangN++;
+    var inp=function(f,ph){return '<input class="pin n" type="number" min="0" style="width:68px" data-f="terimaKode_'+esc(x.kode)+'_'+f+'" value="'+(r[f]!=null?r[f]:'')+'" placeholder="'+ph+'" '+
+      'onchange="terimaKodeSet('+id+','+jsArg(p.key)+','+jsArg(x.kode)+','+jsArg(f)+',this.value)">';};
+    return '<tr'+(kur>0?' class="tqk-kurang"':'')+'><td><b class="tqk-kode">'+esc(x.kode)+'</b></td><td>'+esc(x.ket||'—')+'</td><td class="num">'+x.q+'</td>'+
+      '<td class="num">'+inp('q',x.q)+'</td><td class="num">'+inp('qc',r.q!=null?r.q:x.q)+'</td>'+
+      '<td style="font-weight:700;color:'+(kur==null?'var(--muted)':kur>0?'var(--red)':'var(--ok)')+'">'+(kur==null?'—':kur>0?(kur+' kurang'+(rej?('<div style="font-size:9.5px;font-weight:600">'+rej+' tak lolos QC</div>'):'')):'pas')+'</td></tr>';}).join('');
+  return '<tr class="tqk-wrap"><td colspan="4" style="padding:2px 0 10px 12px"><div data-f="terimaKode_'+esc(p.key)+'" class="tqk">'+
+    '<div style="font-size:9.5px;font-weight:800;color:var(--muted);margin:2px 0 4px">PER KODE KOMBINASI — '+L.length+' kode · isi yang diterima &amp; yang lolos QC; qty produk di atas terjumlah sendiri'+
+      (kurangN?(' · <span style="color:var(--red)">'+kurangN+' kode kurang</span>'):'')+'</div>'+
+    '<div class="xscroll"><table class="rtable"><thead><tr><th style="width:62px">Kode</th><th>Kombinasi</th><th class="num" style="width:54px">Order</th><th class="num" style="width:80px">Diterima</th><th class="num" style="width:80px">Lolos QC</th><th style="width:110px">Kurang</th></tr></thead><tbody>'+rows+'</tbody></table></div>'+
+    '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">'+(kurangN?('<button type="button" class="btn ghost sm" data-f="terimaKodePesan" onclick="terimaKodePesan('+id+','+jsArg(p.key)+')">📋 Salin pesan kekurangan untuk Radja</button>'):'')+
+      '<button type="button" class="btn ghost sm" data-f="labelKode" onclick="labelKodeDok('+id+','+jsArg(p.key)+')">🏷 Cetak label packing per kode</button></div></div></td></tr>';}
+function terimaKodePesanTeks(o,key){var P=tplKunciPecah(key),L=tplKodeDaftar(o,P.nama,P.tbh),K=((((o||{}).terima||{}).kode)||{})[key]||{};
+  var B=L.map(function(x){var r=K[x.kode]||{};if(r.q==null)return '';var lol=r.qc!=null?r.qc:r.q,kur=x.q-lol;if(kur<=0)return '';
+    return '- '+x.kode+(x.ket?(' ('+x.ket+')'):'')+': kurang '+kur+' dari '+x.q+' pcs — diterima '+r.q+((r.qc!=null&&r.q>r.qc)?(', '+(r.q-r.qc)+' tak lolos QC'):'');}).filter(Boolean);
+  if(!B.length)return '';var nl=String.fromCharCode(10);
+  return 'Halo, barang '+P.nama+' untuk order '+(o.customer||o.id)+' sudah kami cek. Ada kekurangan per kode:'+nl+B.join(nl)+nl+'Mohon dikirim susulan untuk kode di atas. Terima kasih.';}
+function terimaKodePesan(id,key){var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;var t=terimaKodePesanTeks(o,key);
+  if(!t){alert('Tak ada kode yang kurang.');return;}
+  evSalin(t,'✓ Pesan kekurangan per kode disalin — tinggal tempel ke chat Radja.');
+  logHist(o,'📋 Pesan kekurangan per kode untuk Radja disalin ('+tplKunciPecah(key).nama+')');o._m=Date.now();save();}
+/* label packing: satu kotak per kode — ditempel di plastik / box tiap kombinasi */
+function labelKodeHTML(o,key){var P=tplKunciPecah(key),L=tplKodeDaftar(o,P.nama,P.tbh);
+  return '<div class="djudul">LABEL PACKING PER KODE</div>'+
+    '<div class="dket" style="margin-bottom:8px">'+esc(o.customer||'')+' · '+esc(P.nama)+' · '+L.length+' kode — gunting per kotak, tempel di plastik / box tiap kombinasi</div>'+
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">'+L.map(function(x){
+      return '<div data-f="labelKode_'+esc(x.kode)+'" style="border:1.5px dashed #888;border-radius:6px;padding:10px 12px;break-inside:avoid;page-break-inside:avoid">'+
+        '<div style="display:flex;align-items:baseline;gap:10px"><b style="font:800 22px Consolas,monospace;letter-spacing:.02em">'+esc(x.kode)+'</b><b style="margin-left:auto;font-size:15px">'+x.q+' pcs</b></div>'+
+        '<div style="font-size:12px;font-weight:700;margin-top:3px">'+esc(P.nama)+'</div>'+
+        '<div style="font-size:11.5px;margin-top:2px">'+esc(x.ket||'—')+'</div>'+
+        '<div style="font-size:9.5px;color:#666;margin-top:6px">'+esc(o.customer||'')+' · Rove Gifts</div></div>';}).join('')+'</div>';}
+function labelKodeDok(id,key){var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;var html=labelKodeHTML(o,key);
+  $('#docbody').innerHTML=html;ST._docHtml=html;ST._dokKunci=false;
+  ST._doc={type:'labelkode',no:'',grand:0,items:[]};
+  trDOM(document.getElementById('docbody'));$('#docov').classList.add('show');}
+/* pengiriman per kode */
+function kirimKodeAda(s,key){var K=((s&&s.isiKode)||{})[key]||{};return Object.keys(K).some(function(k){return (+K[k]||0)>0;});}
+function kirimKodeTerkirim(o,key,kode,kecuali,hanyaBerangkat){return kirimDaftar(o).reduce(function(n,s){if(kecuali&&s.id===kecuali)return n;if(hanyaBerangkat&&!kirimBerangkat(s))return n;
+  return n+(+((((s.isiKode||{})[key])||{})[kode])||0);},0);}
+function kirimKodeSet(id,sid,key,kode,v){var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
+  var D=kirimDaftarTulis(o),s=D.filter(function(x){return x.id===sid;})[0];if(!s)return;
+  var x=tplKodeDaftar(o,tplKunciPecah(key).nama).filter(function(y){return y.kode===kode;})[0];if(!x)return;
+  var q=Math.max(0,Math.round(+v||0)),maks=Math.max(0,x.q-kirimKodeTerkirim(o,key,kode,sid));
+  if(q>maks){alert('Melebihi sisa kode '+kode+' yang belum dikirim ('+maks+' pcs).');q=maks;}
+  if(!s.isiKode)s.isiKode={};var K=s.isiKode[key]||(s.isiKode[key]={});if(q>0)K[kode]=q;else delete K[kode];
+  kirimIsiSet(id,sid,key,Object.keys(K).reduce(function(n,k){return n+(+K[k]||0);},0));}
+function kirimKodeHTML(o,s,p){var L=tplKodeDaftar(o,p.nama);if(L.length<2)return '';var K=((s.isiKode||{})[p.key])||{},id=jsArg(o.id);
+  return '<div data-f="kirimKode_'+esc(p.key)+'" class="kkode"><span class="kkode-j">'+esc(p.nama)+' per kode:</span>'+L.map(function(x){var maks=Math.max(0,x.q-kirimKodeTerkirim(o,p.key,x.kode,s.id));
+    return '<label title="'+esc(x.ket||'')+'"><b>'+esc(x.kode)+'</b><input class="pin n" type="number" min="0" max="'+maks+'" value="'+(K[x.kode]||'')+'" placeholder="0" '+
+      'onchange="kirimKodeSet('+id+','+jsArg(s.id)+','+jsArg(p.key)+','+jsArg(x.kode)+',this.value)"><span>/ '+maks+'</span></label>';}).join('')+'</div>';}
+function kirimKodeSisaHTML(o,p){var L=tplKodeDaftar(o,p.nama);if(L.length<2)return '';
+  if(!kirimDaftar(o).some(function(s){return kirimKodeAda(s,p.key);}))return '';
+  var S=L.map(function(x){return {k:x.kode,s:Math.max(0,x.q-kirimKodeTerkirim(o,p.key,x.kode,null,true))};}).filter(function(x){return x.s>0;});
+  return '<tr class="tqk-wrap"><td colspan="4" data-f="kirimKodeSisa_'+esc(p.key)+'" style="font-size:10px;padding:2px 0 8px 12px">'+
+    (S.length?('<b style="color:var(--warn)">Sisa per kode:</b> '+S.map(function(x){return esc(x.k)+' '+x.s;}).join(' · ')):'<b style="color:var(--ok)">✓ semua kode sudah berangkat</b>')+'</td></tr>';}
+function kirimKodeSjHTML(o,s,p){var K=((s.isiKode||{})[p.key])||{};if(!Object.keys(K).some(function(k){return (+K[k]||0)>0;}))return '';
+  return '<div style="font-size:10px;margin-top:2px;line-height:1.5">'+tplKodeDaftar(o,p.nama).filter(function(x){return (+K[x.kode]||0)>0;}).map(function(x){
+    return '<b>'+esc(x.kode)+'</b>'+(x.ket?(' · '+esc(x.ket)):'')+' — '+(+K[x.kode])+' pcs';}).join('<br>')+'</div>';}
+function kirimKodeSisaTeks(o){var T=[];kirimProduk(o).forEach(function(p){if(!kirimDaftar(o).some(function(s){return kirimKodeAda(s,p.key);}))return;
+  tplKodeDaftar(o,p.nama).forEach(function(x){var n=Math.max(0,x.q-kirimKodeTerkirim(o,p.key,x.kode));if(n>0)T.push(x.kode+' '+n+' pcs');});});return T.join(', ');}
 function aksDaftar(l){if(l&&Array.isArray(l.aksesoris)&&l.aksesoris.length)return l.aksesoris;
   var S=spekStd(l);if(S&&Array.isArray(S.aks))return S.aks.filter(function(a){return a&&String(a.nama||'').trim();});   // accessories standar (14 Okt)
   return (l&&Array.isArray(l.aksesoris))?l.aksesoris:[];}
