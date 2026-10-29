@@ -987,7 +987,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20261029-103557';
+const VERSI='20261029-110601';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -1067,7 +1067,7 @@ function teamOf(who){who=String(who||'?');return TEAM[who]||[who.replace(/[^A-Za
 // phase model: label, discord category, PIC, action button text, gate?, builds
 const PH=[
  {n:'Inquiry Processing',cat:['rove','PRE-DEAL'],pic:'Sales',btn:'Rinci order & lengkapi data client',
-  desc:'Order lahir dari prospek; channel Discord-nya dibuat otomatis (kategori PRE-DEAL). Sales melengkapi brief: client, tanggal, bahan & warna, kemasan, referensi, logo — PM wajib mengingatkan Sales sampai lengkap.'},
+  desc:'Order lahir dari prospek. Sales melengkapi brief: client, tanggal, bahan & warna, kemasan, referensi, logo — PM wajib mengingatkan Sales sampai lengkap. Channel Discord-nya (kategori PRE-DEAL) dibuat saat Sales menekan Selesai.'},
  {n:'Project Costing',cat:['radja','PRICING → PRICING DONE'],pic:'PM',btn:'Harga vendor lengkap — lanjut penentuan harga jual',
   desc:'Harga yang belum ada diminta ke vendornya; harga yang sudah ada dari master tetap dipastikan masih berlaku.'},
  {n:'Project Pricing',cat:['rove','PRE-DEAL'],pic:'Sales',btn:'Harga jual disetujui — lanjut quotation',
@@ -1365,6 +1365,7 @@ const EN_RULES=[
 
 /* Kamus persis. Kunci = teks Indonesia apa adanya yang muncul di layar. */
 const EN={
+'dibuat saat Inquiry selesai':'created when Inquiry is completed',
 'Inquiry — ingatkan Sales':'Inquiry — remind Sales','BRIEF DIISI SALES · PM WAJIB MENGINGATKAN TIAP HARI KERJA SAMPAI LENGKAP':'SALES FILLS THE BRIEF · THE PM MUST REMIND THEM EVERY WORKING DAY UNTIL IT IS COMPLETE',
 '⏰ Ingatkan Sales':'⏰ Remind Sales','belum pernah diingatkan':'never reminded yet',
 '📋 Salin pesan kekurangan untuk Radja':'📋 Copy shortage message for Radja','🏷 Cetak label packing per kode':'🏷 Print packing labels per code','Lolos QC':'Passed QC',
@@ -1631,7 +1632,7 @@ const EN={
 'lewat picker di bawah. Tak perlu nanya vendor manual. HPP bisa disembunyikan saat presentasi.':
   'using the picker below. No need to ask the vendor manually. Cost price can be hidden during a presentation.',
 /* --- deskripsi fase --- */
-'Order lahir dari prospek; channel Discord-nya dibuat otomatis (kategori PRE-DEAL). Sales melengkapi brief: client, tanggal, bahan & warna, kemasan, referensi, logo — PM wajib mengingatkan Sales sampai lengkap.':'Orders are born from leads; the Discord channel is created automatically (PRE-DEAL category). Sales completes the brief: client, dates, material & colour, packaging, references, logo — the PM must keep reminding Sales until it is complete.',
+'Order lahir dari prospek. Sales melengkapi brief: client, tanggal, bahan & warna, kemasan, referensi, logo — PM wajib mengingatkan Sales sampai lengkap. Channel Discord-nya (kategori PRE-DEAL) dibuat saat Sales menekan Selesai.':'Orders are born from leads. Sales completes the brief: client, dates, material & colour, packaging, references, logo — the PM must keep reminding Sales until it is complete. Its Discord channel (PRE-DEAL category) is created when Sales presses Done.',
 'Buat channel pricing di server Radja. Terima harga, input terstruktur, hitung harga jual + margin.':
   'Create the pricing channel on the Radja server. Receive the price, enter it in structured form, calculate selling price + margin.',
 'Generate quotation detail (artikel kulit, soft pouch, thankyou card), kirim ke client, tunggu approve.':
@@ -2809,8 +2810,11 @@ function cloudAmbil(sejak){var c=ST.cfg||{},k=kredGet();
 function cloudTolak(d){
   if(d&&d.ok===false&&d.perluLogin){ST.cloudStatus='🔒 Server menolak — keluar lalu masuk lagi supaya data tersinkron';try{sinkronBadge();}catch(e){}return true;}
   return false;}
+/* order di Inquiry yang channel Discord-nya belum dibuat (29 Okt): dibuat saat Inquiry selesai */
+function dcTundaNama(n){n=String(n||'');return !!n&&(ST.orders||[]).some(function(o){return o&&!o.deleted&&o.dcTunda&&(dcNama(o)===n||chName(o)===n);});}
 function pushBackend(action,payload){
   const c=ST.cfg||{};if(!c.live||!c.url)return; // mode simulasi kalau belum dikonfigurasi
+  if((action==='notify'||action==='channel.move'||action==='channel.rename')&&payload&&!payload.channelId&&dcTundaNama(payload.name))return;   // channel belum ada
   try{fetch(c.url,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action:action,auth:kredGet(),payload:payload})});}
   catch(e){console.warn('pushBackend gagal',e);}
 }
@@ -3535,7 +3539,7 @@ function kirimKeInquiry(id){
   o.dariSales={dari:l.nama,channel:l.channel,pic:l.pic,catatan:l.catatan||'',ukuran:leadUkuranPerlu(l)?String(l.ukuran||'').trim():'',
     jenis:l.jenis||'',spec:JSON.parse(JSON.stringify(l.spec||{})),
     items:(l.jenis==='Non-produk')?[]:JSON.parse(JSON.stringify(l.items||[])),tgl:hariIni()};   // sisa item katalog dari jenis sebelumnya tak ikut
-  o.fromLead=l.id;
+  o.fromLead=l.id;o.dcTunda=true;   // channel Discord dibuat saat Inquiry selesai — lanjut Project Costing (29 Okt)
   o._faseSejak=Date.now();o.ingatOtomatis={};
 
   logHist(o,'Dikirim ke Inquiry dari prospek: '+l.nama+' ('+l.channel+') oleh '+(ST.userName||ST.user||'Sales'));
@@ -3548,10 +3552,7 @@ function kirimKeInquiry(id){
 
   try{bawaanOrderTerakhir(o);}catch(e){}   // client lama: DP & PPN seperti order terakhirnya (15 Okt)
   ST.orders.unshift(o);saveLeads();save();
-  pushBackend('channel.create',{name:chName(o),catName:preCat(o)});
-  notifyOrder(o,'📥 Order baru masuk Inquiry dari prospek **'+l.nama+'**.\n'+
-    picMention('Sales')+' — mohon lengkapi brief-nya (bahan, collateral, ukuran). '+picMention('PM')+' mengingatkan sampai lengkap.'+
-    (function(){var u='';try{u=orderTautan(o);}catch(e){}return u?('\n'+u):'';})());
+  /* channel Discord & kabar pertamanya menyusul saat Sales menekan Selesai di Inquiry (triggerTerapkan) */
   ST.view='board';ST.cur=o.id;render();
   alert('Kartunya sudah ada di Inquiry.\n\nLengkapi brief-nya dari sini — Project Manager akan mengingatkan sampai lengkap.');}
 
@@ -7658,8 +7659,11 @@ function applyTrigger(o,silent){
   /* Satu ringkasan pendek tiap fase yang baru selesai. Isinya harus sama
      dengan pembagian PIC yang berlaku sekarang — panel yang menyebut orang
      yang salah lebih menyesatkan daripada panel kosong. */
-  if(p===0){push('PM','Order '+o.customer+' dirinci: produk, qty, tanggal acara, material, spek collateral.');
-    push('Bot','Channel <b>#'+nm+'</b> di kategori PRE-DEAL. Tipe: <b>'+(o.type||'-')+'</b>. Lanjut cari harga vendor.');}
+  if(p===0){var dcBaru=!!o.dcTunda;
+    /* order dari prospek / form baru masuk Discord saat Inquiry selesai (29 Okt) — channel dibuat di sini, sebelum kabar fase apa pun */
+    if(dcBaru){delete o.dcTunda;pushBackend('channel.create',{name:chName(o),catName:preCat(o)});logHist(o,'Channel Discord #'+chName(o)+' dibuat — Inquiry selesai, lanjut '+PH[1].n);}
+    push('Sales','Brief order '+o.customer+' dilengkapi: produk, qty, tanggal acara, material, spek collateral.');
+    push('Bot','Channel <b>#'+nm+'</b> '+(dcBaru?'dibuat ':'')+'di kategori PRE-DEAL. Tipe: <b>'+(o.type||'-')+'</b>. Lanjut cari harga vendor.');}
   else if(p===1&&susulanInduk(o)){push('PM','Harga &amp; timeline barang susulan ditanyakan ulang ke vendor, jawabannya dicatat.');
     push('Bot','HPP baru lengkap. Giliran <b>Purchasing</b> menyiapkan PO susulan — <b>Direktur</b> menyetujui HPP barunya di fase PO. Selisihnya biaya Rove, client tidak ditagih ulang.');}
   else if(p===1){push('PM','Permintaan harga dikirim ke Radja &amp; vendor collateral, jawabannya dicatat.');
@@ -10956,7 +10960,7 @@ function kartuTugas(o){
       (isVip(o)?';border-left-color:var(--gold);border-left-width:4px;background:var(--warn-bg)':'')+
       '" onclick="openOrder(\''+o.id+'\')">'+
     '<div class="on"><span class="pf" style="background:'+pfColor(o.prefix)+'">'+String(o.prefix||'?').toUpperCase()+'</span>'+
-      esc(o.customer)+(isVip(o)?(' '+vipLencana(true)):'')+' <span style="color:var(--muted);font-weight:400">· '+esc(o.product||'-')+' '+(o.qty||0)+'pcs</span></div>'+susulanChipHTML(o)+
+      esc(o.customer)+(isVip(o)?(' '+vipLencana(true)):'')+' <span style="color:var(--muted);font-weight:400">· '+esc(o.product||'-')+' '+(o.qty||0)+'pcs</span></div>'+susulanChipHTML(o)+inqIngatChip(o)+
     /* judul kelompok sudah menyebut langkah fasenya — di kartu yang berguna
        justru berapa kelengkapan order INI yang masih menunggu jabatanku */
     '<div class="om" style="margin-top:5px"><span>'+(function(){
@@ -14548,7 +14552,7 @@ function sisiKartu(o,aktif){
       '<div style="margin-top:7px;display:flex;gap:10px;flex-wrap:wrap"><span class="kr-link" onclick="krChkBuka('+id+')">semua item ('+items.length+')</span>'+
         (bolehMundur(o)?('<span class="kr-link" onclick="mundurFase('+id+')">↩ Mundur ke '+esc(PH[faseSebelum(o,f)].n)+'</span>'):'')+'</div></div>';}
   var d={};try{d=discordKini(o);}catch(e){}
-  out+='<div class="kr-b"><div class="kr-h">Discord &amp; Trello</div>'+kv('Channel','#'+esc(d.channel||''))+kv('Kategori',esc(d.kat||''))+
+  out+='<div class="kr-b"><div class="kr-h">Discord &amp; Trello</div>'+(o.dcTunda?kv('Channel','dibuat saat Inquiry selesai'):(kv('Channel','#'+esc(d.channel||''))+kv('Kategori',esc(d.kat||''))))+
     '<div style="margin-top:6px"><span class="kr-link" onclick="krLoncat(\'kr_disc\')">buka channel &amp; Trello ↓</span></div></div>';
   var h=(o.hist||[]).slice(-3).reverse();
   out+='<div class="kr-b"><div class="kr-h">Riwayat</div>'+(h.length?h.map(function(x){return '<div class="kr-riw"><b>'+esc(x.t||'')+'</b> · '+esc(String(x.txt||'').length>120?(String(x.txt).slice(0,118)+'…'):String(x.txt||''))+'</div>';}).join(''):'<div class="kr-mini">belum ada</div>')+
@@ -15222,6 +15226,7 @@ function chkIngat(id,fase,k){
   if(tautan)mintaSemua(o)[fase+'.'+k]={ke:it.pic,oleh:(ST.userName||ST.user||''),tgl:nowStr(),pesan:''};
   logHist(o,'Pengingat dikirim ke '+it.pic+': '+it.t);ingatCatat(o,fase);
   o._m=Date.now();save();
+  if(o.dcTunda){alert('Pengingat untuk '+it.pic+' tercatat — tampil di Tugas saya '+it.pic+'.\n\n'+it.t+'\n\nChannel Discord order ini baru dibuat saat Inquiry selesai (lanjut Project Costing).');return;}
   alert('Pengingat dikirim ke '+it.pic+'.\n\n'+it.t+
         ((ST.cfg&&ST.cfg.live&&ST.cfg.url)
           ? ('\n\nDikirim ke channel Discord order ini.'+(mentionSiap(it.pic)?'':'\n\n⚠ ID role Discord untuk '+it.pic+' belum diisi di Master data → Hak akses, jadi pesannya TIDAK membunyikan notifikasi siapa pun.'))
@@ -15230,6 +15235,8 @@ function ingatCatat(o,fase){if(!o.ingatManual)o.ingatManual={};o.ingatManual[fas
 /* Inquiry dipegang Sales (29 Okt): PM WAJIB mengingatkan Sales sampai brief lengkap — sekali tiap hari kerja selama belum lengkap */
 function inqIngatDaftar(){return (ST.orders||[]).filter(function(o){return o&&!o.deleted&&!o.done&&o.status!=='Cancel'&&(o.phase||0)===0&&chkKurang(o,0).length>0;})
   .map(function(o){var g=((o.ingatManual||{})[0])||{};return {o:o,n:chkKurang(o,0).length,tgl:g.tgl||'',oleh:g.oleh||'',kini:g.tgl===hariIni()};});}
+function inqIngatChip(o){if((o.phase||0)!==0)return '';var g=(o.ingatManual||{})[0];if(!g||!g.tgl)return '';
+  return '<div data-f="inqIngatChip" style="margin-top:4px;font-size:10px;font-weight:800;color:var(--warn)">⏰ Diingatkan PM '+(g.tgl===hariIni()?'hari ini':tglID(g.tgl))+(g.oleh?(' · '+esc(g.oleh)):'')+' — lengkapi brief</div>';}
 function inqIngatBlok(){if(myRoles().indexOf('Project Manager')<0)return '';var L=inqIngatDaftar();if(!L.length)return '';
   var belum=L.filter(function(x){return !x.kini;}).length;
   return '<div class="card actcard" data-f="inqIngat" style="margin-bottom:14px"><div class="ch"><span class="ico" style="background:'+(belum?'var(--warn)':'var(--ok)')+'">⏰</span>'+
@@ -15238,7 +15245,7 @@ function inqIngatBlok(){if(myRoles().indexOf('Project Manager')<0)return '';var 
     L.map(function(x){var o=x.o,umur=0;try{umur=hariKerjaSejak(faseSejak(o));}catch(e){}
       return '<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;border-top:1px solid var(--line);padding:8px 0">'+
         '<div style="flex:1;min-width:200px;cursor:pointer" onclick="openOrder('+jsArg(o.id)+')"><b style="font-size:11.5px">'+esc(o.customer||o.id)+'</b>'+
-          '<div style="font-size:10px;color:var(--muted)">'+x.n+' item belum diisi Sales · '+umur+' hari kerja di Inquiry</div></div>'+
+          '<div style="font-size:10px;color:var(--muted)">'+x.n+' item belum diisi Sales · '+umur+' hari kerja di Inquiry'+(o.dcTunda?' · pengingat tampil di Tugas saya Sales (channel Discord dibuat saat Inquiry selesai)':'')+'</div></div>'+
         '<span style="font-size:10px;font-weight:700;color:'+(x.kini?'var(--ok)':'var(--warn)')+'">'+(x.kini?('✓ diingatkan hari ini'+(x.oleh?(' · '+esc(x.oleh)):'')):(x.tgl?('terakhir diingatkan '+tglID(x.tgl)):'belum pernah diingatkan'))+'</span>'+
         '<button class="btn sm'+(x.kini?' ghost':'')+'" data-f="inqIngat_'+esc(o.id)+'" onclick="chkIngatSemua('+jsArg(o.id)+',0)">⏰ Ingatkan Sales</button></div>';}).join('')+
     '</div></div>';}
@@ -15254,6 +15261,7 @@ function chkIngatSemua(id,fase){
       perPic[pic].map(function(t){return '• '+t;}).join('\n')+(tautanO?('\n'+tautanO):'')));});
   logHist(o,'Pengingat massal dikirim ke: '+Object.keys(perPic).join(', '));ingatCatat(o,fase);
   o._m=Date.now();save();render();
+  if(o.dcTunda){alert('Pengingat tercatat untuk: '+Object.keys(perPic).join(', ')+' — tampil di Tugas saya mereka.\n\nChannel Discord order ini baru dibuat saat Inquiry selesai (lanjut Project Costing).');return;}
   var bisu=Object.keys(perPic).filter(function(pic){return !mentionSiap(pic);});
   alert('Pengingat dikirim ke '+Object.keys(perPic).length+' PIC:\n'+
     Object.keys(perPic).map(function(pic){return '• '+pic+' ('+perPic[pic].length+' item)';}).join('\n')+
@@ -16370,6 +16378,7 @@ function discordPanel(o){
       '<button class="btn ghost sm" data-f="dtDisc" onclick="dtToggle('+jsArg(o.id)+',\'disc\')">'+(bukaD?'▴ Sembunyikan channel':('💬 Lihat channel ('+n+' pesan'+(masuk?(', '+masuk+' berfoto dari vendor'):'')+')'))+'</button>'+
       '<button class="btn ghost sm" data-f="dtTrello" onclick="dtToggle('+jsArg(o.id)+',\'trello\')">'+(bukaT?'▴ Sembunyikan Trello':(d.trello?'📋 Lihat kartu Trello':'📋 Trello: belum ada kartu'))+'</button></span></div>'+
     '<div class="body">'+
+    (o.dcTunda?'<div data-f="dcTunda" style="font-size:10.5px;font-weight:700;color:var(--warn);line-height:1.6;margin-bottom:6px">Channel Discord order ini <b>belum dibuat</b> — dibuat otomatis saat Sales menekan <b>Selesai</b> di Inquiry (lanjut Project Costing). Selama Inquiry, pengingat PM tampil di Tugas saya Sales.</div>':'')+
     '<div style="font-size:10.5px;color:var(--muted);line-height:1.6">Kabar tiap fase, dokumen, permintaan foto, dan pengingat dikirim HUB ke channel <b>#'+esc(d.channel)+'</b> (server Rove, kategori <b>'+esc(d.kat)+'</b>'+
       (d.radja?('; fase ini dipegang Radja — di server Radja kategori <b>'+esc(d.radja)+'</b>'):'')+'). Jawaban vendor — harga, foto tiap tahap, kabar progres — masuk lewat channel yang sama; foto dari vendor dipakai ke slotnya lewat <b>Pakai sebagai…</b>, harga dicatat di panel Minta harga vendor.'+
       (hidup?'':' <b>Masa uji:</b> relay Discord mati — tak ada yang benar-benar terkirim; log di bawah adalah simulasi HUB.')+'</div>'+
@@ -26437,7 +26446,8 @@ $('#create').onclick=()=>{
       if(rk.length)logHist(o,'Catatan Sales terbawa — '+rk.join(' | '));}
     ST._fromLead=null;}
   try{bawaanOrderTerakhir(o);}catch(e){}   // client lama: DP & PPN seperti order terakhirnya (15 Okt)
-  ST.orders.unshift(o);save();pushBackend('channel.create',{name:chName(o),catName:preCat(o)});$('#ov').classList.remove('show');
+  if((o.phase||0)===0)o.dcTunda=true;   // channel Discord dibuat saat Inquiry selesai (29 Okt)
+  ST.orders.unshift(o);save();if(!o.dcTunda)pushBackend('channel.create',{name:chName(o),catName:preCat(o)});$('#ov').classList.remove('show');
   ['#f_cust','#f_phone','#f_email','#f_addr','#f_pic3','#f_reason','#f_event','#f_persoNote','#f_bride','#f_groom'].forEach(s=>{var e=$(s);if(e)e.value='';});
   CSPEC={box:{},pouch:{},card:{}};['#dd_box','#dd_pouch','#dd_card'].forEach(s=>{$(s).style.display='none';$(s).innerHTML='';});
   ['#c_box','#c_pouch','#c_card'].forEach(s=>$(s).checked=false);
