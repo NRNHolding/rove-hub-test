@@ -987,7 +987,7 @@ const KEY='rovehub_orders_v18';
 /* ================= VERSI YANG SEDANG BERJALAN =================
    Diisi otomatis oleh terbitkan.js waktu salinan ini diterbitkan; '-' berarti
    dibuka langsung dari berkas, bukan dari alamat terbitannya. */
-const VERSI='20261027-134745';
+const VERSI='20261029-103557';
 /* Berkas versi.txt di sebelah halaman ini berisi penanda yang sama. Ia
    ditanyakan tanpa cache, jadi ia jujur walau halamannya sendiri masih
    tersimpan di cache browser. */
@@ -1066,8 +1066,8 @@ function teamOf(who){who=String(who||'?');return TEAM[who]||[who.replace(/[^A-Za
 
 // phase model: label, discord category, PIC, action button text, gate?, builds
 const PH=[
- {n:'Inquiry Processing',cat:['rove','PRE-DEAL'],pic:'PM',btn:'Rinci order & lengkapi data client',
-  desc:'Order lahir dari prospek; channel Discord-nya dibuat otomatis (kategori PRE-DEAL). PM melengkapi brief: client, tanggal, bahan & warna, kemasan, referensi, logo.'},
+ {n:'Inquiry Processing',cat:['rove','PRE-DEAL'],pic:'Sales',btn:'Rinci order & lengkapi data client',
+  desc:'Order lahir dari prospek; channel Discord-nya dibuat otomatis (kategori PRE-DEAL). Sales melengkapi brief: client, tanggal, bahan & warna, kemasan, referensi, logo — PM wajib mengingatkan Sales sampai lengkap.'},
  {n:'Project Costing',cat:['radja','PRICING → PRICING DONE'],pic:'PM',btn:'Harga vendor lengkap — lanjut penentuan harga jual',
   desc:'Harga yang belum ada diminta ke vendornya; harga yang sudah ada dari master tetap dipastikan masih berlaku.'},
  {n:'Project Pricing',cat:['rove','PRE-DEAL'],pic:'Sales',btn:'Harga jual disetujui — lanjut quotation',
@@ -1365,6 +1365,8 @@ const EN_RULES=[
 
 /* Kamus persis. Kunci = teks Indonesia apa adanya yang muncul di layar. */
 const EN={
+'Inquiry — ingatkan Sales':'Inquiry — remind Sales','BRIEF DIISI SALES · PM WAJIB MENGINGATKAN TIAP HARI KERJA SAMPAI LENGKAP':'SALES FILLS THE BRIEF · THE PM MUST REMIND THEM EVERY WORKING DAY UNTIL IT IS COMPLETE',
+'⏰ Ingatkan Sales':'⏰ Remind Sales','belum pernah diingatkan':'never reminded yet',
 '📋 Salin pesan kekurangan untuk Radja':'📋 Copy shortage message for Radja','🏷 Cetak label packing per kode':'🏷 Print packing labels per code','Lolos QC':'Passed QC',
 '＋ Baris (salin baris terakhir)':'＋ Row (copy last row)','⇵ Bagi qty rata':'⇵ Split qty evenly','⬇ Unduh template (Excel)':'⬇ Download template (Excel)',
 'Warna kulit':'Leather colour','Warna finishing':'Finishing colour','File logo':'Logo file','Jahitan':'Stitching','Rincian kombinasi':'Combination details',
@@ -1629,8 +1631,7 @@ const EN={
 'lewat picker di bawah. Tak perlu nanya vendor manual. HPP bisa disembunyikan saat presentasi.':
   'using the picker below. No need to ask the vendor manually. Cost price can be hidden during a presentation.',
 /* --- deskripsi fase --- */
-'Order lahir dari prospek; channel Discord-nya dibuat otomatis (kategori PRE-DEAL). PM melengkapi brief: client, tanggal, bahan & warna, kemasan, referensi, logo.':
-  'The order is born from a lead; its Discord channel is created automatically (PRE-DEAL). PM completes the brief: client, dates, materials & colours, packaging, references, logo.',
+'Order lahir dari prospek; channel Discord-nya dibuat otomatis (kategori PRE-DEAL). Sales melengkapi brief: client, tanggal, bahan & warna, kemasan, referensi, logo — PM wajib mengingatkan Sales sampai lengkap.':'Orders are born from leads; the Discord channel is created automatically (PRE-DEAL category). Sales completes the brief: client, dates, material & colour, packaging, references, logo — the PM must keep reminding Sales until it is complete.',
 'Buat channel pricing di server Radja. Terima harga, input terstruktur, hitung harga jual + margin.':
   'Create the pricing channel on the Radja server. Receive the price, enter it in structured form, calculate selling price + margin.',
 'Generate quotation detail (artikel kulit, soft pouch, thankyou card), kirim ke client, tunggu approve.':
@@ -3540,7 +3541,7 @@ function kirimKeInquiry(id){
   logHist(o,'Dikirim ke Inquiry dari prospek: '+l.nama+' ('+l.channel+') oleh '+(ST.userName||ST.user||'Sales'));
   var rk=leadSpecRingkas(l);
   if(rk.length)logHist(o,'Catatan Sales terbawa — '+rk.join(' | '));
-  logHist(o,'Menunggu Project Manager merinci ordernya.');
+  logHist(o,'Menunggu Sales melengkapi brief — PM mengingatkan sampai lengkap.');
 
   l.status='Jadi order';l.orderId=o.id;l.touch=hariIni();l._m=Date.now();
   l.log.push({t:nowStr(),by:(ST.userName||ST.user),txt:'Dikirim ke Inquiry: '+judul});
@@ -3549,10 +3550,10 @@ function kirimKeInquiry(id){
   ST.orders.unshift(o);saveLeads();save();
   pushBackend('channel.create',{name:chName(o),catName:preCat(o)});
   notifyOrder(o,'📥 Order baru masuk Inquiry dari prospek **'+l.nama+'**.\n'+
-    picMention('PM')+' — mohon rinci ordernya (bahan, collateral, ukuran).'+
+    picMention('Sales')+' — mohon lengkapi brief-nya (bahan, collateral, ukuran). '+picMention('PM')+' mengingatkan sampai lengkap.'+
     (function(){var u='';try{u=orderTautan(o);}catch(e){}return u?('\n'+u):'';})());
   ST.view='board';ST.cur=o.id;render();
-  alert('Kartunya sudah ada di Inquiry.\n\nRincian ordernya diisi Project Manager dari sini.');}
+  alert('Kartunya sudah ada di Inquiry.\n\nLengkapi brief-nya dari sini — Project Manager akan mengingatkan sampai lengkap.');}
 
 
 /* ---- client VIP ---- */
@@ -10899,7 +10900,7 @@ ${muatDcSitusUji()?contohBawaanPanelHTML():`       <div style="margin-top:16px;b
    <div class="topbar"><h1>Tugas saya</h1><span class="demo">${role}</span><div class="sp"></div>${can('neworder')?`<button class="btn" onclick="openNew()">＋ Order baru</button>`:''}</div>
    ${tabNote('Hanya order yang <b>menunggu tindakan jabatanmu ('+role+')</b>. Klik kartu → kerjakan langkah yang tertulis → klik <b>✓ Selesai — lanjut fase</b>. Order akan hilang dari sini setelah berpindah ke PIC lain.')}
    ${akuDirektur?bayarAjuDirekturBlok():((myRoles().indexOf('Finance')>=0||myRoles().indexOf('Purchasing')>=0)?bayarAjuFinanceBlok():'')}${adminTugasBlok()}
-   ${myRoles().indexOf('Marketing')>=0?konTugasBlok():''}${tbhTugasBlok()}${gabTugasBlok()}
+   ${myRoles().indexOf('Marketing')>=0?konTugasBlok():''}${tbhTugasBlok()}${gabTugasBlok()}${inqIngatBlok()}
    <div style="font-size:12px;color:var(--muted);margin-bottom:14px">${(function(){
      if(tasks.length)return tasks.length+' order menunggu tindakanmu.';
      /* pesan lama buta: mengaku kosong padahal blok kelengkapan di bawah berisi */
@@ -14748,13 +14749,13 @@ const PH_PANEL=[['chk','brief'],['chk','rfq'],
    dan logo box ada di tangan Creative. */
 const PH_CHECK=[
  [ // 0 Inquiry
-  {auto:function(o){return !!(o.customer&&(((o.pricing||{}).lines)||[]).some(function(l){return (l.qty||0)>0;}));}, k:'brief', t:'Rinci pesanan client: produk, qty, dan deadline', en:'Break the order down: product, qty, deadline', guna:'supaya ada daftar produk yang bisa dihitung harganya', gunaEn:'so there is a product list to price', pic:'PM', w:true},
+  {auto:function(o){return !!(o.customer&&(((o.pricing||{}).lines)||[]).some(function(l){return (l.qty||0)>0;}));}, k:'brief', t:'Rinci pesanan client: produk, qty, dan deadline', en:'Break the order down: product, qty, deadline', guna:'supaya ada daftar produk yang bisa dihitung harganya', gunaEn:'so there is a product list to price', pic:'Sales', w:true},
   {auto:function(o){return salesBelum(o).length===0;},
-   k:'terjemah', t:'Terjemahkan catatan Sales jadi spesifikasi bahan & collateral',
-   en:'Turn the sales notes into a material & collateral specification',
+   k:'terjemah', t:'Ubah catatan prospek jadi spesifikasi bahan & collateral',
+   en:'Turn the lead notes into a material & collateral specification',
    guna:'supaya Purchasing bisa minta harga — vendor tidak bisa memberi harga dari kata "elegant"',
    gunaEn:'so Purchasing can request quotes — no vendor can price "elegant"',
-   pic:'PM', w:true, jika:'dariSales'},
+   pic:'Sales', w:true, jika:'dariSales'},
   {auto:function(o){var b=(o.brief||{});var isi=function(x){x=String(x||'').trim();return !!x&&x!=='-';};
      /* lining & benang menyusul pasangannya: warna lining wajib hanya kalau
         pakai lining, warna benang hanya kalau jahitannya sudah dipilih */
@@ -14785,15 +14786,15 @@ const PH_CHECK=[
    guna:'produk custom tak punya ukuran di Master — tanpa ukurannya vendor box / soft pouch tak bisa memberi harga, dan PO tak lengkap',
    gunaEn:'custom products have no size in the master — without it the box / soft pouch vendor cannot quote and the PO is incomplete',
    pic:'Sales', w:true},
-  {auto:function(o){return nonProdukSpekLengkap(o);}, jika:'nonProduk', k:'specNon', t:'Lengkapi spesifikasi & jumlah tiap item non-produk (kertas, coating, finishing, potongan, ukuran)', en:'Complete the spec and quantity of every non-product item (paper, coating, finishing, cut, size)', guna:'supaya vendor kartu bisa memberi harga & mencetak tanpa menebak', gunaEn:'so the card vendor can quote and print without guessing', pic:'PM', w:true},
-  {auto:function(o){return !!(o.phone&&String(o.phone).trim());}, k:'kontak', t:'Catat nama PIC client beserta nomor HP-nya', en:'Record the client PIC and their phone number', guna:'supaya semua komunikasi order punya tujuan yang jelas', gunaEn:'so every message about this order has somewhere to go',                 pic:'PM', w:true},
+  {auto:function(o){return nonProdukSpekLengkap(o);}, jika:'nonProduk', k:'specNon', t:'Lengkapi spesifikasi & jumlah tiap item non-produk (kertas, coating, finishing, potongan, ukuran)', en:'Complete the spec and quantity of every non-product item (paper, coating, finishing, cut, size)', guna:'supaya vendor kartu bisa memberi harga & mencetak tanpa menebak', gunaEn:'so the card vendor can quote and print without guessing', pic:'Sales', w:true},
+  {auto:function(o){return !!(o.phone&&String(o.phone).trim());}, k:'kontak', t:'Catat nama PIC client beserta nomor HP-nya', en:'Record the client PIC and their phone number', guna:'supaya semua komunikasi order punya tujuan yang jelas', gunaEn:'so every message about this order has somewhere to go',                 pic:'Sales', w:true},
   {auto:function(o){var b=o.brief||{};return !!o.eventDate&&!!b.tglKirim;},
-   k:'acara', t:'Tanyakan tanggal acara dan tanggal kirim yang diminta', en:'Ask for the event date and the requested ship date', guna:'supaya seluruh hitung mundur produksi punya acuan', gunaEn:'so the whole production countdown has a reference', pic:'PM', w:true},
+   k:'acara', t:'Tanyakan tanggal acara dan tanggal kirim yang diminta', en:'Ask for the event date and the requested ship date', guna:'supaya seluruh hitung mundur produksi punya acuan', gunaEn:'so the whole production countdown has a reference', pic:'Sales', w:true},
   {auto:function(o){var b=o.brief||{};return !!String(b.venue||o.venue||'').trim();},
-   k:'kota', t:'Isi kota dan venue acara', en:'Fill in the event city and venue', guna:'supaya tarif ongkir ketemu dan operator live tak salah kota', gunaEn:'so the shipping rate can be found and live operators go to the right city',              pic:'PM', w:true},
+   k:'kota', t:'Isi kota dan venue acara', en:'Fill in the event city and venue', guna:'supaya tarif ongkir ketemu dan operator live tak salah kota', gunaEn:'so the shipping rate can be found and live operators go to the right city',              pic:'Sales', w:true},
   {auto:function(o){var b=o.brief||{};return !!String(b.woHp||'').trim();}, jika:'wo',
-   k:'hpWo', t:'Minta nomor HP WO / EO', en:'Ask for the WO / EO phone number', guna:'supaya ada kontak darurat di hari acara', gunaEn:'so there is an emergency contact on event day',                pic:'PM'},
-  {auto:function(o){return (((o.brief||{}).refFiles)||[]).length>0;}, k:'ref', t:'Kumpulkan referensi gambar dari client', en:'Collect reference images from the client', guna:'supaya Creative tak mendesain dari tebakan — hanya untuk order Custom / Mix; order Katalog acuannya foto katalog', gunaEn:'so Creative is not designing from guesswork — Custom / Mix orders only; a Catalogue order is referenced by its catalogue photo',     pic:'PM', w:true, jika:'custom'},
+   k:'hpWo', t:'Minta nomor HP WO / EO', en:'Ask for the WO / EO phone number', guna:'supaya ada kontak darurat di hari acara', gunaEn:'so there is an emergency contact on event day',                pic:'Sales'},
+  {auto:function(o){return (((o.brief||{}).refFiles)||[]).length>0;}, k:'ref', t:'Kumpulkan referensi gambar dari client', en:'Collect reference images from the client', guna:'supaya Creative tak mendesain dari tebakan — hanya untuk order Custom / Mix; order Katalog acuannya foto katalog', gunaEn:'so Creative is not designing from guesswork — Custom / Mix orders only; a Catalogue order is referenced by its catalogue photo',     pic:'Sales', w:true, jika:'custom'},
   /* Logo ditanyakan di sini, bukan nanti di Sketch. Kotaknya memang sudah
      ada di panel Brief; yang dulu tak ada cuma yang menagihnya. Tak wajib di
      sini — di Sketch barulah menahan fase. */
@@ -15219,12 +15220,28 @@ function chkIngat(id,fase,k){
             (tautan?('\n'+tautan):'');   // notifikasi Discord tetap bahasa Indonesia
   pushBackend('notify',dcPayload(o,pesan));
   if(tautan)mintaSemua(o)[fase+'.'+k]={ke:it.pic,oleh:(ST.userName||ST.user||''),tgl:nowStr(),pesan:''};
-  logHist(o,'Pengingat dikirim ke '+it.pic+': '+it.t);
+  logHist(o,'Pengingat dikirim ke '+it.pic+': '+it.t);ingatCatat(o,fase);
   o._m=Date.now();save();
   alert('Pengingat dikirim ke '+it.pic+'.\n\n'+it.t+
         ((ST.cfg&&ST.cfg.live&&ST.cfg.url)
           ? ('\n\nDikirim ke channel Discord order ini.'+(mentionSiap(it.pic)?'':'\n\n⚠ ID role Discord untuk '+it.pic+' belum diisi di Master data → Hak akses, jadi pesannya TIDAK membunyikan notifikasi siapa pun.'))
           : '\n\n(Relay Discord belum aktif — pengingat tercatat di histori order saja.)'));}
+function ingatCatat(o,fase){if(!o.ingatManual)o.ingatManual={};o.ingatManual[fase]={tgl:hariIni(),oleh:(ST.userName||ST.user||'')};}
+/* Inquiry dipegang Sales (29 Okt): PM WAJIB mengingatkan Sales sampai brief lengkap — sekali tiap hari kerja selama belum lengkap */
+function inqIngatDaftar(){return (ST.orders||[]).filter(function(o){return o&&!o.deleted&&!o.done&&o.status!=='Cancel'&&(o.phase||0)===0&&chkKurang(o,0).length>0;})
+  .map(function(o){var g=((o.ingatManual||{})[0])||{};return {o:o,n:chkKurang(o,0).length,tgl:g.tgl||'',oleh:g.oleh||'',kini:g.tgl===hariIni()};});}
+function inqIngatBlok(){if(myRoles().indexOf('Project Manager')<0)return '';var L=inqIngatDaftar();if(!L.length)return '';
+  var belum=L.filter(function(x){return !x.kini;}).length;
+  return '<div class="card actcard" data-f="inqIngat" style="margin-bottom:14px"><div class="ch"><span class="ico" style="background:'+(belum?'var(--warn)':'var(--ok)')+'">⏰</span>'+
+    '<div><div class="t">Inquiry — ingatkan Sales</div><div class="s">BRIEF DIISI SALES · PM WAJIB MENGINGATKAN TIAP HARI KERJA SAMPAI LENGKAP</div></div>'+
+    '<span style="margin-left:auto;font-size:11px;font-weight:800;color:'+(belum?'var(--warn)':'var(--ok)')+'">'+(belum?(belum+' belum diingatkan hari ini'):'✓ semua sudah diingatkan hari ini')+'</span></div><div class="body">'+
+    L.map(function(x){var o=x.o,umur=0;try{umur=hariKerjaSejak(faseSejak(o));}catch(e){}
+      return '<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;border-top:1px solid var(--line);padding:8px 0">'+
+        '<div style="flex:1;min-width:200px;cursor:pointer" onclick="openOrder('+jsArg(o.id)+')"><b style="font-size:11.5px">'+esc(o.customer||o.id)+'</b>'+
+          '<div style="font-size:10px;color:var(--muted)">'+x.n+' item belum diisi Sales · '+umur+' hari kerja di Inquiry</div></div>'+
+        '<span style="font-size:10px;font-weight:700;color:'+(x.kini?'var(--ok)':'var(--warn)')+'">'+(x.kini?('✓ diingatkan hari ini'+(x.oleh?(' · '+esc(x.oleh)):'')):(x.tgl?('terakhir diingatkan '+tglID(x.tgl)):'belum pernah diingatkan'))+'</span>'+
+        '<button class="btn sm'+(x.kini?' ghost':'')+'" data-f="inqIngat_'+esc(o.id)+'" onclick="chkIngatSemua('+jsArg(o.id)+',0)">⏰ Ingatkan Sales</button></div>';}).join('')+
+    '</div></div>';}
 function chkIngatSemua(id,fase){
   var o=ST.orders.find(function(x){return x.id===id;});if(!o)return;
   /* jabatan sendiri dikeluarkan — yang ditagih cuma orang lain */
@@ -15235,7 +15252,7 @@ function chkIngatSemua(id,fase){
   Object.keys(perPic).forEach(function(pic){
     pushBackend('notify',dcPayload(o,'⏰ '+picMention(pic)+' — order '+o.customer+' ('+PH[fase].n+') masih menunggu:\n'+
       perPic[pic].map(function(t){return '• '+t;}).join('\n')+(tautanO?('\n'+tautanO):'')));});
-  logHist(o,'Pengingat massal dikirim ke: '+Object.keys(perPic).join(', '));
+  logHist(o,'Pengingat massal dikirim ke: '+Object.keys(perPic).join(', '));ingatCatat(o,fase);
   o._m=Date.now();save();render();
   var bisu=Object.keys(perPic).filter(function(pic){return !mentionSiap(pic);});
   alert('Pengingat dikirim ke '+Object.keys(perPic).length+' PIC:\n'+
